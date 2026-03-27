@@ -7,8 +7,13 @@ const TDS_INSURED_ENDPOINTS = {
   live: 'https://api.insured.tenancydepositscheme.com'
 }
 
+
 const API_VERSION = 'v1.4'
 const USER_AGENT = 'PropertyGoose/1.0'
+
+// Platform-level TDS Insured OAuth credentials (same for all agents)
+const TDS_INSURED_CLIENT_ID = process.env.TDS_INSURED_CLIENT_ID || '9a2c4b23278226fd64e1'
+const TDS_INSURED_CLIENT_SECRET = process.env.TDS_INSURED_CLIENT_SECRET || '398221f3342c89d1ded43f7dfb26fc2f'
 
 // TDS Insured config interface
 interface TDSInsuredConfig {
@@ -92,23 +97,22 @@ export async function getCompanyTDSInsuredConfig(companyId: string): Promise<TDS
     .eq('company_id', companyId)
     .single()
 
-  if (error || !data || !data.tds_insured_client_id) {
+  if (error || !data || !data.tds_insured_member_id) {
     return null
   }
 
-  const clientSecret = data.tds_insured_client_secret_encrypted ? decrypt(data.tds_insured_client_secret_encrypted) : ''
   const accessToken = data.tds_insured_access_token_encrypted ? decrypt(data.tds_insured_access_token_encrypted) : ''
   const refreshToken = data.tds_insured_refresh_token_encrypted ? decrypt(data.tds_insured_refresh_token_encrypted) : ''
 
   return {
-    clientId: data.tds_insured_client_id,
-    clientSecret: clientSecret || '',
+    clientId: TDS_INSURED_CLIENT_ID,
+    clientSecret: TDS_INSURED_CLIENT_SECRET,
     accessToken: accessToken || '',
     refreshToken: refreshToken || '',
     tokenExpiresAt: data.tds_insured_token_expires_at ? new Date(data.tds_insured_token_expires_at) : null,
     memberId: data.tds_insured_member_id || '',
     branchId: data.tds_insured_branch_id || '',
-    environment: (data.tds_insured_environment as 'sandbox' | 'live') || 'sandbox'
+    environment: 'live' as const
   }
 }
 
@@ -116,14 +120,14 @@ export async function getCompanyTDSInsuredConfig(companyId: string): Promise<TDS
  * Exchange authorization code for access token
  */
 export async function exchangeCodeForToken(
-  config: { clientId: string; clientSecret: string; environment: 'sandbox' | 'live' },
+  config: { clientId?: string; clientSecret?: string; environment?: 'sandbox' | 'live' },
   authorizationCode: string,
   redirectUri?: string
 ): Promise<{ success: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
-  const baseUrl = TDS_INSURED_ENDPOINTS[config.environment]
+  const baseUrl = TDS_INSURED_ENDPOINTS['live']
 
   try {
-    const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
+    const credentials = Buffer.from(`${TDS_INSURED_CLIENT_ID}:${TDS_INSURED_CLIENT_SECRET}`).toString('base64')
 
     let body = `grant_type=authorization_code&code=${encodeURIComponent(authorizationCode)}`
     if (redirectUri) {
@@ -375,6 +379,17 @@ export function mapTenancyToInsuredPayload(
 
   const addressParts = parseAddressLine(property.address_line1 || '')
 
+  // Generate a numeric person_id from a string (consistent for same input)
+  const generatePersonId = (input: string): string => {
+    let hash = 0
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    return String(Math.abs(hash) % 99999999 + 1) // 1-99999999
+  }
+
   // Build people array
   const people: InsuredPersonObject[] = []
 
@@ -388,8 +403,14 @@ export function mapTenancyToInsuredPayload(
     const llPostcode = primaryLandlord.postcode || ''
     const landlordAddressParts = parseAddressLine(llAddr)
 
+    // Generate a person_id - use landlord's ID if available, otherwise derive from email
+    const landlordPersonId = primaryLandlord.id
+      ? generatePersonId(primaryLandlord.id)
+      : generatePersonId(primaryLandlord.email || `landlord-${tenancy.id}`)
+
     people.push({
       person_classification: 'Landlord',
+      person_id: landlordPersonId,
       person_title: primaryLandlord.title || 'Mr',
       person_firstname: primaryLandlord.first_name || '',
       person_surname: primaryLandlord.last_name || '',
@@ -413,8 +434,13 @@ export function mapTenancyToInsuredPayload(
     // Check is_lead flag directly (for form data) or compare IDs (for database data)
     const isLead = tenant.is_lead || (tenant.id && tenant.id === leadTenant?.id) || index === 0
     const tenantPhone = tenant.phone || tenant.mobile || ''
+    const tenantPersonId = tenant.id
+      ? generatePersonId(tenant.id)
+      : generatePersonId(tenant.email || `tenant-${tenancy.id}-${index}`)
+
     people.push({
       person_classification: 'Tenant',
+      person_id: tenantPersonId,
       person_title: tenant.title || 'Mr',
       person_firstname: tenant.first_name || '',
       person_surname: tenant.last_name || '',
@@ -795,27 +821,25 @@ export async function saveTDSInsuredTokens(
 export async function saveTDSInsuredConfig(
   companyId: string,
   config: {
-    clientId: string
-    clientSecret: string
+    clientId?: string
+    clientSecret?: string
     memberId: string
     branchId: string
-    environment: 'sandbox' | 'live'
+    environment?: 'sandbox' | 'live'
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const encryptedSecret = encrypt(config.clientSecret)
-
   const { data: existing } = await supabase
     .from('company_integrations')
     .select('id')
     .eq('company_id', companyId)
     .single()
 
-  const updateData = {
-    tds_insured_client_id: config.clientId,
-    tds_insured_client_secret_encrypted: encryptedSecret,
+  const updateData: Record<string, any> = {
+    tds_insured_client_id: TDS_INSURED_CLIENT_ID,
+    tds_insured_client_secret_encrypted: encrypt(TDS_INSURED_CLIENT_SECRET),
     tds_insured_member_id: config.memberId,
     tds_insured_branch_id: config.branchId,
-    tds_insured_environment: config.environment,
+    tds_insured_environment: 'live',
     updated_at: new Date().toISOString()
   }
 
@@ -880,12 +904,12 @@ export async function removeTDSInsuredConfig(companyId: string): Promise<{ succe
  * Get authorization URL for OAuth flow
  */
 export function getAuthorizationUrl(
-  config: { clientId: string; environment: 'sandbox' | 'live' },
+  config: { clientId?: string; environment?: 'sandbox' | 'live' },
   redirectUri: string,
   state: string
 ): string {
-  const baseUrl = TDS_INSURED_ENDPOINTS[config.environment]
+  const baseUrl = TDS_INSURED_ENDPOINTS['live']
   const scope = 'tenancy_management'
 
-  return `${baseUrl}/${API_VERSION}/authorize?response_type=code&client_id=${encodeURIComponent(config.clientId)}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+  return `${baseUrl}/${API_VERSION}/authorize?response_type=code&client_id=${encodeURIComponent(TDS_INSURED_CLIENT_ID)}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}`
 }

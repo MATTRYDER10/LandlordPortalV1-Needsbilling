@@ -1805,4 +1805,148 @@ router.post('/create-company', authenticateAdmin, async (req: AdminAuthRequest, 
   }
 })
 
+// ============================================================================
+// REPOSIT INTEGRATION MANAGEMENT (Admin-only)
+// ============================================================================
+
+/**
+ * GET /api/admin/reposit/:companyId
+ * Get Reposit integration status for a company
+ */
+router.get('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+
+    const { data: integration } = await supabase
+      .from('company_integrations')
+      .select('reposit_supplier_id, reposit_environment, reposit_connected_at, reposit_last_tested_at, reposit_last_test_status, reposit_referrer_token_encrypted, reposit_api_key_encrypted, reposit_default_agent_id')
+      .eq('company_id', companyId)
+      .single()
+
+    const configured = !!(integration?.reposit_referrer_token_encrypted && integration?.reposit_supplier_id)
+
+    let maskedReferrerToken = null
+    let maskedApiKey = null
+    if (integration?.reposit_referrer_token_encrypted) {
+      const token = decrypt(integration.reposit_referrer_token_encrypted)
+      if (token) maskedReferrerToken = '••••••••' + token.slice(-4)
+    }
+    if (integration?.reposit_api_key_encrypted) {
+      const key = decrypt(integration.reposit_api_key_encrypted)
+      if (key) maskedApiKey = '••••••••' + key.slice(-4)
+    }
+
+    res.json({
+      configured,
+      supplierId: integration?.reposit_supplier_id || null,
+      environment: integration?.reposit_environment || 'live',
+      maskedReferrerToken,
+      maskedApiKey,
+      defaultAgentId: integration?.reposit_default_agent_id || null,
+      connectedAt: integration?.reposit_connected_at || null,
+      lastTestedAt: integration?.reposit_last_tested_at || null,
+      lastTestStatus: integration?.reposit_last_test_status || null
+    })
+  } catch (error) {
+    console.error('[Admin Reposit] Error getting config:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/admin/reposit/:companyId
+ * Save Reposit Supplier ID and Referrer Token for a company (admin-only credentials)
+ */
+router.post('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+    const { supplierId, referrerToken, apiKey, environment } = req.body
+
+    if (!supplierId) {
+      return res.status(400).json({ error: 'Supplier ID is required' })
+    }
+
+    const updateData: any = {
+      reposit_supplier_id: supplierId.trim(),
+      reposit_environment: environment || 'live',
+      updated_at: new Date().toISOString()
+    }
+
+    if (referrerToken) {
+      updateData.reposit_referrer_token_encrypted = encrypt(referrerToken.trim())
+    }
+    if (apiKey) {
+      updateData.reposit_api_key_encrypted = encrypt(apiKey.trim())
+    }
+
+    // Set connected_at if not already set
+    if (!updateData.reposit_connected_at) {
+      updateData.reposit_connected_at = new Date().toISOString()
+    }
+
+    // Check if integration row exists
+    const { data: existing } = await supabase
+      .from('company_integrations')
+      .select('id')
+      .eq('company_id', companyId)
+      .single()
+
+    if (existing) {
+      const { error } = await supabase
+        .from('company_integrations')
+        .update(updateData)
+        .eq('company_id', companyId)
+
+      if (error) {
+        console.error('[Admin Reposit] Update error:', error)
+        return res.status(500).json({ error: 'Failed to save credentials' })
+      }
+    } else {
+      const { error } = await supabase
+        .from('company_integrations')
+        .insert({ company_id: companyId, ...updateData })
+
+      if (error) {
+        console.error('[Admin Reposit] Insert error:', error)
+        return res.status(500).json({ error: 'Failed to save credentials' })
+      }
+    }
+
+    console.log(`[Admin Reposit] Saved credentials for company ${companyId} by admin ${req.adminUser?.full_name}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[Admin Reposit] Error saving config:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/admin/reposit/:companyId/test
+ * Test Reposit connection for a company
+ */
+router.post('/reposit/:companyId/test', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+
+    const { getCompanyRepositConfig, testConnection, updateRepositTestStatus } = await import('../services/repositService')
+
+    const config = await getCompanyRepositConfig(companyId)
+    if (!config) {
+      return res.status(400).json({ error: 'Reposit is not configured for this company' })
+    }
+
+    const result = await testConnection(config)
+    await updateRepositTestStatus(companyId, result.success ? 'success' : 'failed')
+
+    if (result.success) {
+      res.json({ success: true, message: result.message, supplierInfo: result.supplierInfo })
+    } else {
+      res.status(400).json({ success: false, error: result.message })
+    }
+  } catch (error) {
+    console.error('[Admin Reposit] Error testing connection:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router

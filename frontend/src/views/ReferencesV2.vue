@@ -36,7 +36,7 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search by name, email, property..."
+              placeholder="Search by name, email, property, ref number..."
               class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400"
             />
           </div>
@@ -106,6 +106,14 @@
                 </p>
               </div>
               <div class="flex items-center gap-2">
+                <button
+                  v-if="canConvertGroup(group)"
+                  @click.stop="openGroupConversion(group)"
+                  class="px-3 py-1 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-700 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1"
+                >
+                  <ArrowRightCircle class="w-3 h-3" />
+                  Convert to Tenancy
+                </button>
                 <a
                   v-if="getGroupReportUrl(group)"
                   :href="getGroupReportUrl(group)"
@@ -198,6 +206,18 @@
                       :class="getStatusClass(ref.status)"
                     >
                       {{ formatStatus(ref.status) }}
+                    </span>
+                    <button
+                      v-if="!group.isGroup && canConvertRef(ref)"
+                      @click.stop="openRefConversion(ref)"
+                      class="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full hover:bg-green-100 transition-colors flex items-center gap-1"
+                    >
+                      <ArrowRightCircle class="w-3 h-3" />
+                      Convert
+                    </button>
+                    <span v-if="ref.offer_unihomes" class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                      <Zap class="w-3 h-3" />
+                      UniHomes{{ ref.unihomes_interested ? ' (Interested)' : '' }}
                     </span>
                     <span class="text-xs text-gray-400">
                       £{{ ref.rent_share || ref.monthly_rent }}/month{{ group.isGroup ? ' share' : '' }}
@@ -683,6 +703,13 @@
         </div>
       </Transition>
     </div>
+    <!-- Conversion Modal -->
+    <ConversionModalV2
+      :show="showConversionModal"
+      :reference="conversionRef"
+      @close="showConversionModal = false"
+      @converted="onConverted"
+    />
   </Sidebar>
 </template>
 
@@ -705,8 +732,11 @@ import {
   CheckCircle,
   Mail,
   Building2,
-  Loader2
+  Loader2,
+  Zap,
+  ArrowRightCircle
 } from 'lucide-vue-next'
+import ConversionModalV2 from '@/components/references/ConversionModalV2.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const authStore = useAuthStore()
@@ -717,6 +747,41 @@ const activeStatus = ref('all')
 const references = ref<any[]>([])
 const selectedReference = ref<any>(null)
 const drawerOpen = ref(false)
+
+// Conversion Modal State
+const showConversionModal = ref(false)
+const conversionRef = ref<any>(null)
+
+function canConvertGroup(group: any): boolean {
+  if (!group.isGroup) return false
+  const parent = group.members.find((m: any) => !m.parent_reference_id)
+  if (!parent) return false
+  return parent.status !== 'SENT' && !parent.converted_to_tenancy_id
+}
+
+function canConvertRef(ref: any): boolean {
+  if (ref.parent_reference_id) return false // child — convert from parent
+  return ref.status !== 'SENT' && !ref.converted_to_tenancy_id
+}
+
+function openGroupConversion(group: any) {
+  // Find the parent reference in the group
+  const parent = group.members.find((m: any) => !m.parent_reference_id)
+  if (parent) {
+    conversionRef.value = parent
+    showConversionModal.value = true
+  }
+}
+
+function openRefConversion(ref: any) {
+  conversionRef.value = ref
+  showConversionModal.value = true
+}
+
+function onConverted() {
+  showConversionModal.value = false
+  refreshData()
+}
 
 // Create Modal State
 const showCreateModal = ref(false)
@@ -862,7 +927,8 @@ const filteredReferences = computed(() => {
       r.tenant_last_name?.toLowerCase().includes(query) ||
       r.tenant_email?.toLowerCase().includes(query) ||
       r.property_address?.toLowerCase().includes(query) ||
-      r.property_city?.toLowerCase().includes(query)
+      r.property_city?.toLowerCase().includes(query) ||
+      r.reference_number?.toLowerCase().includes(query)
     )
   }
 
@@ -1213,15 +1279,23 @@ function getSortedSections(sections: any[] | null | undefined) {
 
 // Block classes for row section indicators
 function getSectionBlockClass(section: any) {
-  // Completed/passed sections: orange background with white text
+  // Passed: green
   if (section.decision === 'PASS') {
-    return 'bg-orange-500 text-white'
+    return 'bg-green-500 text-white'
   }
-  // Failed/rejected sections: red
+  // Conditional pass: amber
+  if (section.decision === 'PASS_WITH_CONDITION') {
+    return 'bg-amber-500 text-white'
+  }
+  // Failed/rejected: red
   if (section.decision === 'FAIL' || section.decision === 'REJECT') {
     return 'bg-red-500 text-white'
   }
-  // Everything else (pending, in review, ready for review): gray
+  // Returned / ready for review (has evidence or referee submitted): orange
+  if (section.queue_status === 'READY' || section.queue_status === 'IN_PROGRESS' || section.queue_status === 'COMPLETED') {
+    return 'bg-orange-500 text-white'
+  }
+  // Pending (no evidence yet): gray
   return 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400'
 }
 

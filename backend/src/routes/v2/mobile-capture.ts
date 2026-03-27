@@ -68,9 +68,11 @@ router.post('/generate/:formToken', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to create capture session' })
     }
 
-    // Use LAN IP for mobile capture so phones on the same network can access it
-    const frontendUrl = process.env.NODE_ENV === 'production' ? getV2FrontendUrl() : getFrontendUrl()
+    console.log('[MobileCapture] Upload links created successfully, tokenHash:', idPhotoTokenHash.slice(0, 20) + '...')
+
+    const frontendUrl = process.env.FRONTEND_URL || getFrontendUrl()
     const captureUrl = `${frontendUrl}/mobile-capture/${captureToken}`
+    console.log('[MobileCapture] QR URL:', captureUrl)
 
     console.log('[MobileCapture] Created capture session:', sessionId, 'for reference:', reference.id)
 
@@ -137,7 +139,8 @@ router.get('/:captureToken', async (req: Request, res: Response) => {
       .single()
 
     if (error || !uploadLink) {
-      return res.status(404).json({ error: 'Capture link not found or expired' })
+      console.error('[MobileCapture] Token lookup failed:', { tokenHash: tokenHash.slice(0, 20) + '...', error: error?.message })
+      return res.status(404).json({ message: 'This capture link is invalid or has expired. Please request a new one from your desktop.' })
     }
 
     // Check expiry
@@ -236,11 +239,15 @@ router.post('/:captureToken/upload', async (req: Request, res: Response) => {
     const filePath = `v2-evidence/${reference.company_id}/${reference.id}/identity/${Date.now()}-${fileName}`
     const buffer = Buffer.from(fileData, 'base64')
 
+    const mimeMap: Record<string, string> = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif' }
+    const ext = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+    const resolvedType = (fileType && fileType !== 'application/octet-stream' && fileType !== '') ? fileType : mimeMap[ext] || 'application/pdf'
+
     const { error: uploadError } = await supabase
       .storage
       .from('reference-documents')
       .upload(filePath, buffer, {
-        contentType: fileType,
+        contentType: resolvedType,
         upsert: false
       })
 

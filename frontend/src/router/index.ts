@@ -152,6 +152,11 @@ const router = createRouter({
       component: () => import('../views/MobileCapture.vue')
     },
     {
+      path: '/upload/:token',
+      name: 'FileUpload',
+      component: () => import('../views/public/FileUploadPage.vue')
+    },
+    {
       path: '/tenancy/payment-confirmed/:id',
       name: 'TenancyPaymentConfirmed',
       component: TenancyPaymentConfirmed
@@ -198,6 +203,12 @@ const router = createRouter({
       path: '/references-v2',
       name: 'ReferencesV2',
       component: () => import('../views/ReferencesV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/inventory',
+      name: 'InventoryGoose',
+      component: () => import('../views/InventoryGooseComingSoon.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -408,6 +419,12 @@ const router = createRouter({
         {
           path: 'apex27',
           name: 'SettingsApex27',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'inventorygoose',
+          name: 'SettingsInventoryGoose',
           component: Settings,
           meta: { requiresAuth: true }
         },
@@ -631,6 +648,12 @@ const router = createRouter({
       name: 'AdminReports',
       component: AdminReports,
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/integrations',
+      name: 'AdminIntegrations',
+      component: () => import('../views/AdminIntegrations.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
@@ -685,6 +708,7 @@ router.beforeEach(async (to, _from, next) => {
                                  to.path.startsWith('/landlord-reference') ||
                                  to.path.startsWith('/landlord-decision') ||
                                  to.path.startsWith('/mobile-capture') ||
+                                 to.path.startsWith('/upload/') ||
                                  to.path.startsWith('/agent-reference') ||
                                  to.path.startsWith('/employer-reference') ||
                                  to.path.startsWith('/submit-employer-reference') ||

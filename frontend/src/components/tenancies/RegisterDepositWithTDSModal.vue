@@ -113,9 +113,15 @@
               </button>
             </div>
             <div v-if="editingSections.property" class="space-y-3 bg-gray-50 dark:bg-slate-800 p-4 rounded-lg">
-              <div>
-                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Address Line 1</label>
-                <input v-model="formData.property.addressLine1" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg text-sm" />
+              <div class="relative overflow-visible">
+                <AddressAutocomplete
+                  v-model="formData.property.addressLine1"
+                  label="Address Line 1"
+                  id="tds-property-address"
+                  placeholder="Start typing address..."
+                  @addressSelected="handleTDSPropertyAddressSelected"
+                  :allowManualEntry="true"
+                />
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -438,6 +444,7 @@ import {
   X, CheckCircle, AlertTriangle, Loader2, Download
 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const props = defineProps<{
   show: boolean
@@ -555,6 +562,12 @@ const formatDisplayDate = (dateStr: string): string => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function handleTDSPropertyAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  formData.value.property.addressLine1 = data.addressLine1
+  formData.value.property.city = data.city
+  formData.value.property.postcode = data.postcode
 }
 
 const populateFormFromTenancy = () => {

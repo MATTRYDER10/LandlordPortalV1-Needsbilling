@@ -188,11 +188,13 @@ router.post('/:referenceId/email', authenticateStaff, async (req: StaffAuthReque
     // Get company details
     const { data: company } = await supabase
       .from('companies')
-      .select('name, contact_email')
+      .select('*')
       .eq('id', reference.company_id)
-      .single()
+      .maybeSingle()
 
-    const email = recipientEmail || company?.contact_email
+    const co = company as any
+    const resolvedCompanyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'PropertyGoose'
+    const email = recipientEmail || (co?.email_encrypted ? decrypt(co.email_encrypted) : null) || co?.contact_email
     if (!email) {
       return res.status(400).json({ error: 'No recipient email provided or found' })
     }
@@ -223,7 +225,7 @@ router.post('/:referenceId/email', authenticateStaff, async (req: StaffAuthReque
 
     // Load and send email
     const htmlContent = await loadEmailTemplate('reference-decision-notification', {
-      CompanyName: company?.name || 'PropertyGoose',
+      CompanyName: resolvedCompanyName,
       TenantName: tenantName,
       PropertyAddress: propertyAddress,
       Decision: statusLabel,

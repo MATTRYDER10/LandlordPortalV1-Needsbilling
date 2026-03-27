@@ -118,7 +118,8 @@ export async function getSectionsInQueue(
         tenant_last_name_encrypted,
         property_address_encrypted,
         monthly_rent,
-        rent_share
+        rent_share,
+        is_guarantor
       )
     `)
     .eq('section_type', sectionType)

@@ -3616,7 +3616,7 @@ router.post('/submit/:token', async (req: Request, res) => {
     }
 
     //Check Creditsafe verification
-    const address = [data.current_address_line1, data.current_address_line2, data.current_city, data.current_postcode, data.current_country].filter((add) => !!((add || '').trim())).join(', ')
+    const address = [data.current_address_line1, data.current_address_line2].filter((add) => !!((add || '').trim())).join(', ')
 
     const creditSfaePayload = {
       firstName: data.first_name,

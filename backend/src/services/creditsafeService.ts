@@ -164,24 +164,50 @@ class CreditsafeService {
 
     try {
       // Get authentication token
-      const token = await this.authenticate()
+      let token = await this.authenticate()
 
       console.log('Sending Verify request to Creditsafe for:', request.firstName, request.lastName)
 
-      // Call Creditsafe Verify API - Direct Individual Report endpoint
-      const response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
-        params: {
-          firstName: request.firstName,
-          lastName: request.lastName,
-          dateOfBirth: request.dateOfBirth,
-          address: request.address,
-          postCode: request.postcode,
-          reasonForSearch: 'TV' // TV = Tenant Vetting
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`
+      let response
+      try {
+        // Call Creditsafe Verify API - Direct Individual Report endpoint
+        response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+          params: {
+            firstName: request.firstName,
+            lastName: request.lastName,
+            dateOfBirth: request.dateOfBirth,
+            address: request.address,
+            postCode: request.postcode,
+            reasonForSearch: 'TV' // TV = Tenant Vetting
+          },
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } catch (firstError: any) {
+        // If 401, clear cached token and retry once with fresh auth
+        if (firstError.response?.status === 401) {
+          console.log('Creditsafe token expired, re-authenticating...')
+          this.authToken = null
+          this.tokenExpiry = null
+          token = await this.authenticate()
+          response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+            params: {
+              firstName: request.firstName,
+              lastName: request.lastName,
+              dateOfBirth: request.dateOfBirth,
+              address: request.address,
+              postCode: request.postcode,
+              reasonForSearch: 'TV'
+            },
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        } else {
+          throw firstError
         }
-      })
+      }
 
       console.log('Creditsafe verification completed:', response.data.verifyMatch ? 'Match found' : 'No match')
 
@@ -210,26 +236,34 @@ class CreditsafeService {
     postCode: string,
   }): Promise<VerificationResponse> {
     const { firstName, lastName, dateOfBirth, address, postCode } = payload
-    
-    const token = await this.authenticate()
+
+    let token = await this.authenticate()
 
     console.log('Sending Verify request to Creditsafe for:', firstName, lastName)
 
-    //Call Creditsafe Verify API - Direct Individual Report endpoint
-    const response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
-      params: {
-        firstName: firstName,
-        lastName: lastName,
-        dateOfBirth: dateOfBirth,
-        address: address,
-        postCode: postCode,
-        reasonForSearch: 'TV'
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`
+    const params = { firstName, lastName, dateOfBirth, address, postCode, reasonForSearch: 'TV' }
+
+    let response
+    try {
+      response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+        params,
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    } catch (firstError: any) {
+      if (firstError.response?.status === 401) {
+        console.log('Creditsafe token expired in verify(), re-authenticating...')
+        this.authToken = null
+        this.tokenExpiry = null
+        token = await this.authenticate()
+        response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+          params,
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      } else {
+        throw firstError
       }
-    })
-    // Parse and return verification response
+    }
+
     return this.parseVerificationResponse(response.data)
   }
 

@@ -122,6 +122,7 @@
       :residential-confirmed-by="referenceData.residentialConfirmedBy"
       :current-address="referenceData.currentAddress"
       :previous-addresses="referenceData.previousAddresses"
+      :proof-of-address-url="referenceData.proofOfAddressUrl"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -279,6 +280,7 @@ interface ReferenceData {
   // Current and previous addresses
   currentAddress?: any
   previousAddresses?: any[]
+  proofOfAddressUrl?: string | null
   // Credit
   adverseCreditDetails?: string
   tasScore?: number

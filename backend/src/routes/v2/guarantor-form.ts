@@ -10,6 +10,7 @@ import express, { Request, Response, Router } from 'express'
 import { supabase } from '../../config/supabase'
 import { encrypt, decrypt, hash, generateToken } from '../../services/encryption'
 import { getReferenceByFormToken } from '../../services/v2/referenceServiceV2'
+import { logActivity } from '../../services/v2/activityServiceV2'
 import { initializeSections, updateSectionStatus } from '../../services/v2/sectionServiceV2'
 import { creditsafeService } from '../../services/creditsafeService'
 import { sanctionsService } from '../../services/sanctionsService'
@@ -319,23 +320,53 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       await initializeSections(reference.id, true) // true = is_guarantor
     }
 
-    // Mark IDENTITY and ADDRESS sections as READY since the guarantor provided that data
+    // Evidence-gated section transitions for guarantor
     const { data: guarantorSections } = await supabase
       .from('reference_sections_v2')
-      .select('id, section_type')
+      .select('id, section_type, section_data')
       .eq('reference_id', reference.id)
       .in('section_type', ['IDENTITY', 'ADDRESS'])
 
     if (guarantorSections) {
+      const now = new Date().toISOString()
       for (const section of guarantorSections) {
-        await updateSectionStatus(section.id, {
-          status: 'READY',
-          sectionData: {
-            submittedByGuarantor: true,
-            submittedAt: new Date().toISOString()
+        const baseSectionData = {
+          ...(section.section_data || {}),
+          submittedByGuarantor: true,
+          submittedAt: now
+        }
+
+        if (section.section_type === 'IDENTITY') {
+          if (identity.idDocumentUrl && !identity.idDocumentWillEmail) {
+            // ID uploaded in form — mark READY
+            await updateSectionStatus(section.id, {
+              status: 'READY',
+              sectionData: { ...baseSectionData, evidence_status: 'EVIDENCE_RECEIVED' }
+            })
+            console.log('[V2 GuarantorForm] ID uploaded - IDENTITY marked READY')
+          } else {
+            // Will email ID — stay PENDING, await upload
+            await updateSectionStatus(section.id, {
+              sectionData: { ...baseSectionData, evidence_status: 'AWAITING_UPLOAD' }
+            })
+            console.log('[V2 GuarantorForm] ID will email - IDENTITY awaiting upload')
           }
-        })
-        console.log(`[V2 GuarantorForm] Marked ${section.section_type} section as READY`)
+        } else if (section.section_type === 'ADDRESS') {
+          if (address.proofOfAddressUrl && !address.proofOfAddressWillEmail) {
+            // Proof of address uploaded — mark READY
+            await updateSectionStatus(section.id, {
+              status: 'READY',
+              sectionData: { ...baseSectionData, evidence_status: 'EVIDENCE_RECEIVED' }
+            })
+            console.log('[V2 GuarantorForm] Proof of address uploaded - ADDRESS marked READY')
+          } else {
+            // Will email proof of address — stay PENDING, await upload
+            await updateSectionStatus(section.id, {
+              sectionData: { ...baseSectionData, evidence_status: 'AWAITING_UPLOAD' }
+            })
+            console.log('[V2 GuarantorForm] Proof of address will email - ADDRESS awaiting upload')
+          }
+        }
       }
     }
 
@@ -350,14 +381,95 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       await createRefereeRequest(reference.id, reference.company_id, 'ACCOUNTANT', income.accountantEmail, income.accountantName)
     }
 
+    // INCOME evidence gate for guarantor
+    const hasGuarantorIncomeReferee = !!(income.employerRefEmail || income.accountantEmail)
+    const hasIncomeDocsUploaded = !!(
+      income.payslipsUrl || income.taxReturnUrl || income.savingsDocUrl ||
+      income.pensionDocUrl || income.rentalDocUrl
+    )
+    const allIncomeWillEmail = !hasIncomeDocsUploaded && (
+      income.payslipsWillEmail || income.taxReturnWillEmail || income.savingsDocWillEmail ||
+      income.pensionDocWillEmail || income.rentalDocWillEmail
+    )
+
+    const { data: guarantorIncSection } = await supabase
+      .from('reference_sections_v2')
+      .select('id, section_data')
+      .eq('reference_id', reference.id)
+      .eq('section_type', 'INCOME')
+      .single()
+
+    if (guarantorIncSection) {
+      const now = new Date().toISOString()
+      if (hasGuarantorIncomeReferee) {
+        // Has referee — stay PENDING, wait for referee form
+        await updateSectionStatus(guarantorIncSection.id, {
+          sectionData: {
+            ...(guarantorIncSection.section_data || {}),
+            evidence_status: 'AWAITING_REFEREE'
+          }
+        })
+        console.log('[V2 GuarantorForm] Income referee created - INCOME awaiting referee')
+      } else if (hasIncomeDocsUploaded) {
+        // Has uploaded income docs — mark READY
+        await updateSectionStatus(guarantorIncSection.id, {
+          status: 'READY',
+          sectionData: {
+            ...(guarantorIncSection.section_data || {}),
+            evidence_status: 'EVIDENCE_RECEIVED'
+          }
+        })
+        console.log('[V2 GuarantorForm] Income docs uploaded - INCOME marked READY')
+      } else if (allIncomeWillEmail) {
+        // All docs will email — stay PENDING, await upload
+        await updateSectionStatus(guarantorIncSection.id, {
+          sectionData: {
+            ...(guarantorIncSection.section_data || {}),
+            evidence_status: 'AWAITING_UPLOAD'
+          }
+        })
+        console.log('[V2 GuarantorForm] Income docs will email - INCOME awaiting upload')
+      } else {
+        // No referee, no docs, no will email — await evidence
+        await updateSectionStatus(guarantorIncSection.id, {
+          sectionData: {
+            ...(guarantorIncSection.section_data || {}),
+            evidence_status: 'AWAITING_EVIDENCE',
+            evidence_missing_reason: 'No referee contact or income documents provided'
+          }
+        })
+        console.log('[V2 GuarantorForm] No income evidence - INCOME awaiting evidence')
+      }
+    }
+
     // Auto-trigger Credit and AML checks
     triggerAutomatedChecks(reference.id, {
       firstName: identity.firstName,
       lastName: identity.lastName,
       dateOfBirth: identity.dateOfBirth,
-      address: address.line1 + (address.line2 ? ', ' + address.line2 : '') + ', ' + address.city,
+      address: address.line1 + (address.line2 ? ', ' + address.line2 : ''),
       postcode: address.postcode
     }).catch(err => console.error('[V2 GuarantorForm] Background checks error:', err))
+
+    // Log activity
+    await logActivity({
+      referenceId: reference.id,
+      action: 'FORM_SUBMITTED',
+      performedBy: 'guarantor',
+      performedByType: 'guarantor',
+      notes: `${identity.firstName} ${identity.lastName} submitted their guarantor form`
+    })
+
+    // Also log on the parent tenant's reference
+    if (reference.guarantor_for_reference_id) {
+      await logActivity({
+        referenceId: reference.guarantor_for_reference_id,
+        action: 'GUARANTOR_FORM_SUBMITTED',
+        performedBy: 'guarantor',
+        performedByType: 'guarantor',
+        notes: `Guarantor ${identity.firstName} ${identity.lastName} submitted their form`
+      })
+    }
 
     return res.json({
       success: true,
@@ -392,12 +504,28 @@ router.post('/:token/upload', async (req: Request, res: Response) => {
     // Decode base64 file data
     const buffer = Buffer.from(fileData, 'base64')
 
+    // Resolve content type — browsers sometimes send empty or generic types
+    const mimeMap: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.heic': 'image/heic',
+      '.heif': 'image/heif'
+    }
+    const ext = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+    const resolvedType = (fileType && fileType !== 'application/octet-stream' && fileType !== '')
+      ? fileType
+      : mimeMap[ext] || 'application/pdf'
+
     // Upload to storage
     const { error: uploadError } = await supabase
       .storage
       .from('reference-documents')
       .upload(filePath, buffer, {
-        contentType: fileType,
+        contentType: resolvedType,
         upsert: false
       })
 
@@ -557,7 +685,73 @@ async function createRefereeRequest(
       return
     }
 
-    console.log(`[V2 Guarantor] Created ${refereeType} referee request for ${email}, token: ${formToken}`)
+    // Get company info for email
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', companyId)
+      .maybeSingle()
+
+    const cd = companyData as any
+    const companyName = cd?.name || (cd?.name_encrypted ? decrypt(cd.name_encrypted) : null) || cd?.company_name || 'PropertyGoose'
+    const companyPhone = cd?.phone_encrypted ? decrypt(cd.phone_encrypted) || '' : ''
+    const companyEmail = cd?.email_encrypted ? decrypt(cd.email_encrypted) || '' : ''
+    const companyLogoUrl = cd?.logo_url || null
+
+    // Get guarantor name for the referee email
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', referenceId)
+      .single()
+
+    const tenantName = reference
+      ? `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+      : 'Guarantor'
+
+    // Build referee form URL
+    const { getV2FrontendUrl } = await import('../../utils/frontendUrl')
+    const frontendUrl = getV2FrontendUrl()
+    const refereeTypeToPath: Record<string, string> = {
+      'EMPLOYER': 'v2/employer-reference',
+      'LANDLORD': 'v2/landlord-reference',
+      'ACCOUNTANT': 'v2/accountant-reference'
+    }
+    const formUrl = `${frontendUrl}/${refereeTypeToPath[refereeType]}/${formToken}`
+    const refereeName = name || 'Referee'
+
+    // Send the appropriate email
+    try {
+      if (refereeType === 'EMPLOYER') {
+        const { sendEmployerReferenceRequest } = await import('../../services/emailService')
+        await sendEmployerReferenceRequest(email, refereeName, tenantName, formUrl, companyName, companyPhone, companyEmail, referenceId, companyLogoUrl)
+      } else if (refereeType === 'ACCOUNTANT') {
+        const { sendAccountantReferenceRequest } = await import('../../services/emailService')
+        await sendAccountantReferenceRequest(email, refereeName, tenantName, formUrl, companyName, companyPhone, companyEmail, referenceId)
+      }
+      console.log(`[V2 Guarantor] Sent ${refereeType} referee email to ${email}`)
+    } catch (emailError) {
+      console.error(`[V2 Guarantor] Failed to send ${refereeType} referee email:`, emailError)
+    }
+
+    // Create chase item
+    const sectionTypeMap: Record<string, string> = { 'EMPLOYER': 'INCOME', 'ACCOUNTANT': 'INCOME' }
+    const sectionType = sectionTypeMap[refereeType]
+    if (sectionType) {
+      const { data: section } = await supabase
+        .from('reference_sections_v2')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .eq('section_type', sectionType)
+        .single()
+
+      if (section) {
+        const { createChaseItem } = await import('../../services/v2/chaseServiceV2')
+        await createChaseItem(referenceId, section.id, refereeType as any, { name: refereeName, email, phone: undefined })
+      }
+    }
+
+    console.log(`[V2 Guarantor] Created ${refereeType} referee request for ${email}`)
   } catch (error) {
     console.error(`Error creating referee request:`, error)
   }

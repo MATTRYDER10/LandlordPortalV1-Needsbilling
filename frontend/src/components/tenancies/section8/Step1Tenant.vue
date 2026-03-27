@@ -45,13 +45,18 @@
         Property Address *
       </label>
       <div class="space-y-3">
-        <input
-          :value="formState.propertyAddress.line1"
-          @input="updateAddress('line1', ($event.target as HTMLInputElement).value)"
-          type="text"
-          placeholder="Address line 1"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm dark:bg-slate-900 dark:text-white"
-        />
+        <div class="relative overflow-visible">
+          <AddressAutocomplete
+            :modelValue="formState.propertyAddress.line1"
+            @update:modelValue="updateAddress('line1', $event)"
+            label="Address Line 1"
+            :required="true"
+            id="s8-property-address"
+            placeholder="Start typing address..."
+            @addressSelected="handlePropertyAddressSelected"
+            :allowManualEntry="true"
+          />
+        </div>
         <input
           :value="formState.propertyAddress.line2"
           @input="updateAddress('line2', ($event.target as HTMLInputElement).value)"
@@ -118,6 +123,7 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from 'lucide-vue-next'
 import type { S8FormState, Address } from '@/types/section8'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 interface Props {
   formState: S8FormState
@@ -128,6 +134,18 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   update: [updates: Partial<S8FormState>]
 }>()
+
+function handlePropertyAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  emit('update', {
+    propertyAddress: {
+      ...props.formState.propertyAddress,
+      line1: data.addressLine1,
+      line2: data.addressLine2 || props.formState.propertyAddress.line2,
+      town: data.city,
+      postcode: data.postcode,
+    },
+  })
+}
 
 function updateTenantName(index: number, value: string) {
   const names = [...props.formState.tenantNames]

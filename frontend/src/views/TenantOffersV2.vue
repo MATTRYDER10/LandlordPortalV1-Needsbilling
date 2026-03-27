@@ -202,6 +202,7 @@
               Clear Selection
             </button>
             <button
+              v-if="selectedOffersAllPending"
               @click="openBulkDeclineModal"
               class="px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-1"
             >
@@ -218,6 +219,7 @@
               Delete
             </button>
             <button
+              v-if="selectedOffersAllPending"
               @click="openSendToLandlordModal(selectedOfferIds)"
               class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center gap-1"
             >
@@ -316,6 +318,10 @@
               <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg flex items-center gap-1">
                 <Sparkles class="w-3 h-3" />
                 Deposit Replacement
+              </span>
+              <span v-if="offer.offer_unihomes || offer.unihomes_interested" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg flex items-center gap-1">
+                <Zap class="w-3 h-3" />
+                UniHomes{{ offer.unihomes_interested ? ' (Interested)' : '' }}
               </span>
               <span v-if="offer.reference_created" class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg flex items-center gap-1">
                 <CheckCircle class="w-3 h-3" />
@@ -632,23 +638,34 @@
                       />
                       <p class="text-xs text-gray-400 mt-1">5 weeks rent</p>
                     </div>
-                    <label class="flex items-start gap-3 cursor-pointer pb-6">
-                      <input
-                        v-model="sendForm.offer_deposit_replacement"
-                        type="checkbox"
-                        class="w-4 h-4 mt-1 text-primary border-gray-300 rounded focus:ring-primary"
-                      />
-                      <div>
-                        <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer Reposit</span>
-                        <p class="text-xs text-gray-500 mt-1">
-                          Reposit is a deposit replacement where tenants pay ~1 week's rent instead of a 5-week deposit.
-                          The landlord receives full deposit-equivalent protection.
-                        </p>
-                        <p class="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                          <strong>Important:</strong> The landlord MUST have a professional inventory and check-out report to make claims with Reposit.
-                        </p>
-                      </div>
-                    </label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6">
+                      <label class="flex items-start gap-3 cursor-pointer">
+                        <input
+                          v-model="sendForm.offer_deposit_replacement"
+                          type="checkbox"
+                          class="w-4 h-4 mt-1 text-primary border-gray-300 rounded focus:ring-primary"
+                        />
+                        <div>
+                          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer Reposit</span>
+                          <p class="text-xs text-gray-500 mt-1">
+                            Deposit replacement - tenants pay ~1 week's rent instead of 5-week deposit.
+                          </p>
+                        </div>
+                      </label>
+                      <label class="flex items-start gap-3 cursor-pointer">
+                        <input
+                          v-model="sendForm.offer_unihomes"
+                          type="checkbox"
+                          class="w-4 h-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div>
+                          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer UniHomes</span>
+                          <p class="text-xs text-gray-500 mt-1">
+                            All-inclusive bills package for tenants.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -897,10 +914,16 @@
                           </div>
                         </div>
 
-                        <!-- Job Title -->
-                        <div v-if="tenant.job_title" class="mt-1">
-                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                        <!-- Job Title & Badges -->
+                        <div class="mt-1 flex flex-wrap gap-1.5">
+                          <span v-if="tenant.job_title" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
                             {{ tenant.job_title }}
+                          </span>
+                          <span v-if="tenant.is_student" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                            Student
+                          </span>
+                          <span v-if="tenant.has_guarantor" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            Has Guarantor
                           </span>
                         </div>
 
@@ -1357,12 +1380,8 @@
                   </div>
                   <input v-model="newTenant.email" type="email" placeholder="Email address *"
                     class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                  <div class="grid grid-cols-2 gap-2">
-                    <input v-model="newTenant.phone" type="tel" placeholder="Phone (optional)"
-                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                    <input v-model.number="newTenant.rent_share" type="number" placeholder="Rent share £/mo"
-                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                  </div>
+                  <input v-model="newTenant.phone" type="tel" placeholder="Phone (optional)"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                   <div class="flex gap-2">
                     <button @click="addTenantToReceipt"
                       :disabled="!newTenant.first_name || !newTenant.last_name || !newTenant.email"
@@ -1441,7 +1460,8 @@ import {
   ThumbsDown,
   RotateCcw,
   Trash2,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -1487,6 +1507,13 @@ const manualLandlordEmail = ref('')
 const sendToLandlordSuccess = ref(false)
 const sendToLandlordError = ref('')
 const selectedOfferIds = ref<string[]>([])
+const selectedOffersAllPending = computed(() => {
+  if (selectedOfferIds.value.length === 0) return false
+  return selectedOfferIds.value.every(id => {
+    const offer = offers.value.find(o => o.id === id)
+    return offer?.status === 'pending'
+  })
+})
 
 // Resend offer state
 const resendingOfferId = ref<string | null>(null)
@@ -1528,7 +1555,8 @@ const sendForm = ref({
   holding_deposit_amount: null as number | null,
   deposit_amount: null as number | null,
   move_in_date: '',
-  offer_deposit_replacement: false
+  offer_deposit_replacement: false,
+  offer_unihomes: false
 })
 
 // Move-in date calendar
@@ -1713,8 +1741,8 @@ const statusCounts = computed(() => ({
   sent: offers.value.filter(o => o.status === 'sent').length,
   pending: offers.value.filter(o => o.status === 'pending').length,
   approved: offers.value.filter(o => o.status === 'approved' && !o.tenant_payment_confirmed_at).length,
-  payment_pending: offers.value.filter(o => o.status === 'approved' && o.tenant_payment_confirmed_at && !o.reference_id).length,
-  deposit_received: offers.value.filter(o => o.status === 'deposit_received' || o.status === 'holding_deposit_received' || (o.status === 'approved' && o.reference_id)).length
+  payment_pending: offers.value.filter(o => o.status === 'approved' && o.tenant_payment_confirmed_at).length,
+  deposit_received: offers.value.filter(o => o.status === 'deposit_received' || o.status === 'holding_deposit_received').length
 }))
 
 const filteredOffers = computed(() => {
@@ -1722,11 +1750,11 @@ const filteredOffers = computed(() => {
 
   if (statusFilter.value) {
     if (statusFilter.value === 'deposit_received') {
-      result = result.filter(o => o.status === 'deposit_received' || o.status === 'holding_deposit_received' || (o.status === 'approved' && o.reference_id))
+      result = result.filter(o => o.status === 'deposit_received' || o.status === 'holding_deposit_received')
     } else if (statusFilter.value === 'approved') {
       result = result.filter(o => o.status === 'approved' && !o.tenant_payment_confirmed_at)
     } else if (statusFilter.value === 'payment_pending') {
-      result = result.filter(o => o.status === 'approved' && o.tenant_payment_confirmed_at && !o.reference_id)
+      result = result.filter(o => o.status === 'approved' && o.tenant_payment_confirmed_at)
     } else {
       result = result.filter(o => o.status === statusFilter.value)
     }
@@ -1766,11 +1794,8 @@ const isFormValid = computed(() => {
 
 function formatStatus(status: string, offer?: any) {
   // Check for tenant marked as paid state
-  if (status === 'approved' && offer?.tenant_payment_confirmed_at && !offer?.reference_id) {
+  if (status === 'approved' && offer?.tenant_payment_confirmed_at) {
     return 'Tenant Marked as Paid'
-  }
-  if (status === 'approved' && offer?.reference_id) {
-    return 'Sent to Referencing'
   }
   const labels: Record<string, string> = {
     sent: 'Sent',
@@ -1786,11 +1811,8 @@ function formatStatus(status: string, offer?: any) {
 
 function getStatusClass(status: string, offer?: any) {
   // Check for payment pending state
-  if (status === 'approved' && offer?.tenant_payment_confirmed_at && !offer?.reference_id) {
+  if (status === 'approved' && offer?.tenant_payment_confirmed_at) {
     return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-  }
-  if (status === 'approved' && offer?.reference_id) {
-    return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
   }
   if (status === 'approved') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
   if (status === 'pending') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
@@ -2236,7 +2258,8 @@ function closeSendModal() {
     holding_deposit_amount: null,
     deposit_amount: null,
     move_in_date: '',
-    offer_deposit_replacement: false
+    offer_deposit_replacement: false,
+    offer_unihomes: false
   }
   // Reset calendar state
   showMoveInCalendar.value = false
@@ -2267,7 +2290,8 @@ async function sendOffer() {
       holding_deposit_amount: sendForm.value.holding_deposit_amount,
       deposit_amount: sendForm.value.deposit_amount,
       move_in_date: sendForm.value.move_in_date || null,
-      offer_deposit_replacement: sendForm.value.offer_deposit_replacement
+      offer_deposit_replacement: sendForm.value.offer_deposit_replacement,
+      offer_unihomes: sendForm.value.offer_unihomes
     }
 
     // Include linked property ID if a property was selected

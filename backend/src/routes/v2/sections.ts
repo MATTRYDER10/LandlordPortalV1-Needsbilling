@@ -258,8 +258,14 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
       return res.json({ items: [] })
     }
 
+    // Filter out guarantor sections that shouldn't exist (RESIDENTIAL, RTR)
+    const guarantorExcludedTypes = ['RESIDENTIAL', 'RTR']
+    const filteredSections = guarantorExcludedTypes.includes(sectionType as string)
+      ? sections.filter((s: any) => !s.reference?.is_guarantor)
+      : sections
+
     // Get company names for each section
-    const companyIds = [...new Set(sections.map((s: any) => s.reference?.company_id).filter(Boolean))]
+    const companyIds = [...new Set(filteredSections.map((s: any) => s.reference?.company_id).filter(Boolean))]
     const { data: companies } = await supabase
       .from('companies')
       .select('*')
@@ -268,7 +274,7 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
     const companyMap = new Map((companies || []).map((c: any) => [c.id, c.name || (c.name_encrypted ? decrypt(c.name_encrypted) : null) || c.company_name || 'Unknown']))
 
     // Get staff names for claimed sections
-    const staffIds = [...new Set(sections.filter(s => s.assigned_to).map(s => s.assigned_to))]
+    const staffIds = [...new Set(filteredSections.filter(s => s.assigned_to).map(s => s.assigned_to))]
     const { data: staffUsers } = staffIds.length > 0 ? await supabase
       .from('staff_users')
       .select('id, name')
@@ -277,7 +283,7 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
     const staffMap = new Map(staffUsers?.map(s => [s.id, s.name]) || [])
 
     // Transform to frontend format
-    const items = sections.map((section: any) => ({
+    const items = filteredSections.map((section: any) => ({
       id: section.id,
       section_id: section.id,
       section_type: section.section_type,
@@ -552,6 +558,25 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
     if (sectionFormData.payslipsUrl) evidence.payslips = { url: sectionFormData.payslipsUrl, filename: 'Payslips' }
     if (sectionFormData.taxReturnUrl) evidence.tax_return = { url: sectionFormData.taxReturnUrl, filename: 'Tax Return' }
 
+    // For RTR sections: also pull the passport from the Identity section if not already present
+    if (section.section_type === 'RTR' && !evidence.rtr_document) {
+      // Check Identity section's form_data for passportDocUrl
+      const { data: identitySection } = await supabase
+        .from('reference_sections_v2')
+        .select('section_data')
+        .eq('reference_id', section.reference_id)
+        .eq('section_type', 'IDENTITY')
+        .maybeSingle()
+
+      const identityFormData = identitySection?.section_data?.form_data || {}
+      if (identityFormData.passportDocUrl) {
+        evidence.passport = { url: identityFormData.passportDocUrl, filename: 'Passport (from ID)' }
+      }
+      if (identityFormData.idDocumentUrl) {
+        evidence.id_document_cross_ref = { url: identityFormData.idDocumentUrl, filename: 'ID Document (from ID section)' }
+      }
+    }
+
     // Get referee form submissions for INCOME (employer/accountant) and RESIDENTIAL (landlord)
     let refereeFormData: any = null
     if (section.section_type === 'INCOME' || section.section_type === 'RESIDENTIAL') {
@@ -575,6 +600,8 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
 
     // Get credit check if CREDIT section
     let creditCheck = null
+    let creditRequestData: any = null
+    let proofOfAddressForCredit: any = null
     if (section.section_type === 'CREDIT') {
       const { data: credit } = await supabase
         .from('creditsafe_verifications_v2')
@@ -588,7 +615,43 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
         if (credit.response_data_encrypted) {
           try { responseData = JSON.parse(decrypt(credit.response_data_encrypted) || '{}') } catch {}
         }
-        creditCheck = { ...credit, responseData }
+        if (credit.request_data_encrypted) {
+          try { creditRequestData = JSON.parse(decrypt(credit.request_data_encrypted) || '{}') } catch {}
+        }
+        creditCheck = { ...credit, responseData, requestData: creditRequestData }
+      }
+
+      // Fetch proof of address from RESIDENTIAL section evidence for cross-reference
+      const { data: resEvidence } = await supabase
+        .from('evidence_v2')
+        .select('file_path, file_name, file_type, created_at')
+        .eq('reference_id', section.reference_id)
+        .eq('section_type', 'RESIDENTIAL')
+        .limit(5)
+      if (resEvidence && resEvidence.length > 0) {
+        for (const file of resEvidence) {
+          const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(file.file_path)
+          proofOfAddressForCredit = {
+            url: urlData?.publicUrl || file.file_path,
+            filename: file.file_name,
+            type: file.file_type,
+            uploadedAt: file.created_at
+          }
+          break
+        }
+      }
+      // Also check form_data from residential section for proofOfAddressUrl
+      if (!proofOfAddressForCredit) {
+        const { data: resSection } = await supabase
+          .from('reference_sections_v2')
+          .select('section_data')
+          .eq('reference_id', section.reference_id)
+          .eq('section_type', 'RESIDENTIAL')
+          .maybeSingle()
+        const resFormData = (resSection?.section_data as any) || {}
+        if (resFormData.proofOfAddressUrl) {
+          proofOfAddressForCredit = { url: resFormData.proofOfAddressUrl, filename: 'Proof of Address' }
+        }
       }
     }
 
@@ -641,6 +704,8 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
       form_data: sectionFormData,
       evidence,
       credit_check: creditCheck,
+      credit_request_data: creditRequestData,
+      proof_of_address_for_credit: proofOfAddressForCredit,
       aml_check: amlCheck,
       referee_submissions: refereeFormData,
       rent_share: reference.rent_share || reference.monthly_rent,
@@ -655,6 +720,168 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
     })
   } catch (error: any) {
     console.error('[V2 Sections] Error getting section:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Re-run Creditsafe check for a CREDIT section
+ * Allows assessor to re-run with corrected address if needed
+ */
+router.post('/:id/rerun-credit-check', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    // Get section
+    const { data: section, error: secErr } = await supabase
+      .from('reference_sections_v2')
+      .select('id, reference_id, section_type')
+      .eq('id', id)
+      .single()
+
+    if (secErr || !section) {
+      return res.status(404).json({ error: 'Section not found' })
+    }
+
+    if (section.section_type !== 'CREDIT') {
+      return res.status(400).json({ error: 'Can only re-run credit checks for CREDIT sections' })
+    }
+
+    // Get reference for tenant data
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('*')
+      .eq('id', section.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get tenant identity from form_data
+    const formData = (reference.form_data as any) || {}
+    const identity = formData.identity || formData.personal || {}
+    const residential = formData.residential || {}
+    const currentAddress = residential.currentAddress || {}
+
+    // Always use the decrypted top-level fields (form_data identity may contain titles or encrypted values)
+    let firstName = decrypt(reference.tenant_first_name_encrypted) || identity.firstName || ''
+    let lastName = decrypt(reference.tenant_last_name_encrypted) || identity.lastName || ''
+    const dateOfBirth = (reference.tenant_dob_encrypted ? decrypt(reference.tenant_dob_encrypted) : null) || identity.dateOfBirth || ''
+
+    // Strip common titles from firstName (e.g. "Mr", "Mrs", "Miss", "Ms", "Dr")
+    const titles = ['mr', 'mrs', 'miss', 'ms', 'dr', 'prof', 'sir', 'lord', 'lady']
+    if (titles.includes(firstName.toLowerCase().trim())) {
+      // firstName is actually a title — split lastName into first + last
+      const parts = lastName.trim().split(/\s+/)
+      firstName = parts[0] || ''
+      lastName = parts.slice(1).join(' ') || ''
+    }
+
+    // Build address from current address fields (street only — no city, Creditsafe uses postcode for locality)
+    let address = currentAddress.line1 || ''
+    if (currentAddress.line2) address += ', ' + currentAddress.line2
+    const postcode = currentAddress.postcode || ''
+
+    // Allow overrides from request body
+    const overrides = req.body || {}
+    const finalAddress = overrides.address || address
+    const finalPostcode = overrides.postcode || postcode
+
+    if (!firstName || !lastName || !dateOfBirth || !finalAddress || !finalPostcode) {
+      return res.status(400).json({
+        error: 'Missing required data for credit check',
+        available: { firstName: !!firstName, lastName: !!lastName, dateOfBirth: !!dateOfBirth, address: !!finalAddress, postcode: !!finalPostcode }
+      })
+    }
+
+    // Run Creditsafe check
+    const { creditsafeService } = await import('../../services/creditsafeService')
+
+    if (!creditsafeService.isEnabled()) {
+      return res.status(503).json({ error: 'Creditsafe integration is not enabled' })
+    }
+
+    console.log(`[V2 Sections] Re-running credit check for ${firstName} ${lastName} at ${finalAddress}, ${finalPostcode}`)
+
+    const result = await creditsafeService.verifyIndividual({
+      firstName,
+      lastName,
+      dateOfBirth,
+      address: finalAddress,
+      postcode: finalPostcode
+    })
+
+    const requestPayload = { firstName, lastName, dateOfBirth, address: finalAddress, postcode: finalPostcode }
+
+    // Store new result in V2 table
+    await supabase.from('creditsafe_verifications_v2').insert({
+      reference_id: section.reference_id,
+      request_data_encrypted: encrypt(JSON.stringify(requestPayload)),
+      response_data_encrypted: encrypt(JSON.stringify(result)),
+      transaction_id: result.transactionId || null,
+      risk_level: result.riskLevel,
+      risk_score: result.riskScore,
+      status: result.status,
+      fraud_indicators: (result as any).fraudIndicators || null
+    })
+
+    // Update section_data with new results
+    const existingSectionData = (await supabase.from('reference_sections_v2').select('section_data').eq('id', id).single()).data?.section_data || {}
+    await supabase.from('reference_sections_v2').update({
+      section_data: {
+        ...(existingSectionData as any),
+        status: result.status,
+        riskLevel: result.riskLevel,
+        riskScore: result.riskScore,
+        verifyMatch: result.verifyMatch,
+        notFound: result.notFound,
+        ccjMatch: result.ccjMatch,
+        insolvencyMatch: result.insolvencyMatch,
+        electoralRegisterMatch: result.electoralRegisterMatch,
+        deceasedRegisterMatch: result.deceasedRegisterMatch,
+        ccjCount: result.countyCourtJudgments?.length || 0,
+        insolvencyCount: result.insolvencies?.length || 0,
+        transactionId: result.transactionId,
+        checkedAt: new Date().toISOString(),
+        rerunBy: staffUser.id,
+        rerunAt: new Date().toISOString()
+      },
+      updated_at: new Date().toISOString()
+    }).eq('id', id)
+
+    await logActivity({
+      referenceId: section.reference_id,
+      sectionId: id,
+      action: 'CREDIT_RERUN',
+      performedBy: staffUser.id,
+      performedByType: 'STAFF',
+      notes: `Re-ran Creditsafe check: ${result.status}, score ${result.riskScore}`
+    })
+
+    res.json({
+      message: 'Credit check re-run completed',
+      result: {
+        status: result.status,
+        riskLevel: result.riskLevel,
+        riskScore: result.riskScore,
+        verifyMatch: result.verifyMatch,
+        ccjMatch: result.ccjMatch,
+        insolvencyMatch: result.insolvencyMatch,
+        electoralRegisterMatch: result.electoralRegisterMatch,
+        deceasedRegisterMatch: result.deceasedRegisterMatch,
+        transactionId: result.transactionId,
+        rawResponse: result.rawResponse
+      },
+      requestUsed: requestPayload
+    })
+  } catch (error: any) {
+    console.error('[V2 Sections] Error re-running credit check:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -836,6 +1063,27 @@ router.post('/:id/report-issue', authenticateStaff, async (req: StaffAuthRequest
 
     const reqType = requestType || 'document'
 
+    // Check for active referee linked to this section type
+    let hasActiveReferee = false
+    let activeRefereeType: string | null = null
+    let activeRefereeCompleted = false
+    const refereeTypes = section.section_type === 'RESIDENTIAL' ? ['LANDLORD'] :
+      section.section_type === 'INCOME' ? ['EMPLOYER', 'ACCOUNTANT'] : []
+
+    if (refereeTypes.length > 0) {
+      const { data: referees } = await supabase
+        .from('referees_v2')
+        .select('id, referee_type, completed_at')
+        .eq('reference_id', section.reference_id)
+        .in('referee_type', refereeTypes)
+
+      if (referees && referees.length > 0) {
+        hasActiveReferee = true
+        activeRefereeType = referees[0].referee_type
+        activeRefereeCompleted = !!referees[0].completed_at
+      }
+    }
+
     // Update section: set PENDING, store issue data, clear assignment
     const sectionData = {
       ...(section.section_data || {}),
@@ -843,7 +1091,11 @@ router.post('/:id/report-issue', authenticateStaff, async (req: StaffAuthRequest
       issue_notes: notes,
       issue_reported_at: new Date().toISOString(),
       issue_request_type: reqType,
-      issue_status: 'OPEN'
+      issue_status: 'OPEN',
+      has_active_referee: hasActiveReferee,
+      active_referee_type: activeRefereeType,
+      active_referee_completed: activeRefereeCompleted,
+      evidence_status: hasActiveReferee ? 'AWAITING_REFEREE' : (section.section_data as any)?.evidence_status || undefined
     }
 
     await supabase
@@ -884,11 +1136,12 @@ router.post('/:id/report-issue', authenticateStaff, async (req: StaffAuthRequest
     // Get company details for branding
     const { data: company } = await supabase
       .from('companies')
-      .select('name, email, phone, logo_url')
+      .select('*')
       .eq('id', reference.company_id)
-      .single()
+      .maybeSingle()
 
-    const companyName = company?.name || 'PropertyGoose'
+    const co = company as any
+    const companyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'PropertyGoose'
     const agentLogoUrl = company?.logo_url || 'https://www.rgproperty.co.uk/images/propertygoose-logo.png'
 
     // Send tenant email
@@ -1085,9 +1338,13 @@ router.post('/issue-upload/:token/upload', async (req, res) => {
     const timestamp = Date.now()
     const filePath = `v2-evidence/${companyId}/${link.reference_id}/${sectionType}/${timestamp}-${fileName}`
 
+    const _mimeMap: Record<string, string> = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif' }
+    const _ext = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+    const _resolvedType = (fileType && fileType !== 'application/octet-stream' && fileType !== '') ? fileType : _mimeMap[_ext] || 'application/pdf'
+
     const { error: uploadError } = await supabase.storage
       .from('reference-documents')
-      .upload(filePath, buffer, { contentType: fileType || 'application/octet-stream' })
+      .upload(filePath, buffer, { contentType: _resolvedType })
 
     if (uploadError) {
       console.error('[V2 Sections] Upload error:', uploadError)
@@ -1277,9 +1534,13 @@ router.post('/issue-response/:token/submit', async (req, res) => {
       const timestamp = Date.now()
       const filePath = `v2-evidence/${companyId}/${link.reference_id}/${sectionType}/${timestamp}-${fileName}`
 
+      const __mimeMap: Record<string, string> = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif' }
+      const __ext = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+      const __resolvedType = (fileType && fileType !== 'application/octet-stream' && fileType !== '') ? fileType : __mimeMap[__ext] || 'application/pdf'
+
       await supabase.storage
         .from('reference-documents')
-        .upload(filePath, buffer, { contentType: fileType || 'application/octet-stream' })
+        .upload(filePath, buffer, { contentType: __resolvedType })
 
       await supabase
         .from('evidence_v2')
@@ -1399,15 +1660,35 @@ router.post('/:id/review-response', authenticateStaff, async (req: StaffAuthRequ
     const sectionData = { ...(section.section_data as Record<string, any> || {}) }
 
     if (action === 'accept_and_verify') {
+      // Evidence gate: for RESIDENTIAL and INCOME, check evidence exists before allowing verify
+      const evidenceGatedTypes = ['RESIDENTIAL', 'INCOME']
+      if (evidenceGatedTypes.includes(section.section_type)) {
+        const hasEvidence = section.referee_submitted_at || section.evidence_submitted_at
+        const hasReferee = sectionData.has_active_referee === true
+
+        if (!hasEvidence && hasReferee) {
+          return res.status(400).json({
+            error: 'Cannot send to verify queue: waiting for referee form submission. Use accept_and_chase to chase the referee instead.'
+          })
+        }
+
+        // If no evidence and no referee, the tenant response itself is the evidence
+        if (!hasEvidence && !hasReferee) {
+          sectionData.evidence_status = 'EVIDENCE_RECEIVED'
+        }
+      }
+
       // Set section back to READY so it enters the verify queue
       sectionData.issue_status = 'RESOLVED'
+      const now = new Date().toISOString()
       await supabase
         .from('reference_sections_v2')
         .update({
           queue_status: 'READY',
-          queue_entered_at: new Date().toISOString(),
+          queue_entered_at: now,
+          evidence_submitted_at: section.evidence_submitted_at || now,
           section_data: sectionData,
-          updated_at: new Date().toISOString()
+          updated_at: now
         })
         .eq('id', id)
 

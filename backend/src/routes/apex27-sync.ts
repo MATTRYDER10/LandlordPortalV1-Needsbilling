@@ -258,8 +258,89 @@ router.get('/logs', authenticateToken, async (req: AuthRequest, res) => {
 // ============================================================================
 
 /**
+ * Fuzzy-resolve an apex27_listing_id from a property ID.
+ * 3-level fallback: direct link → PG postcode search → Apex27 API search
+ */
+async function resolveApex27ListingId(
+  propertyId: string | null,
+  companyId: string,
+  apiKey: string
+): Promise<string | null> {
+  if (!propertyId) return null
+
+  // 1. Direct: property has apex27_listing_id
+  const { data: property } = await supabase
+    .from('properties')
+    .select('apex27_listing_id, postcode, address_line1_encrypted')
+    .eq('id', propertyId)
+    .eq('company_id', companyId)
+    .single()
+
+  if (property?.apex27_listing_id) return property.apex27_listing_id
+
+  // Need postcode for fallback searches
+  const postcode = property?.postcode
+  const address = property?.address_line1_encrypted ? decrypt(property.address_line1_encrypted) : null
+  if (!postcode) return null
+
+  // 2. PG search: other properties with same postcode that are linked
+  const { data: matchedProps } = await supabase
+    .from('properties')
+    .select('id, apex27_listing_id, address_line1_encrypted')
+    .eq('company_id', companyId)
+    .eq('postcode', postcode)
+    .not('apex27_listing_id', 'is', null)
+
+  if (matchedProps && matchedProps.length > 0) {
+    if (matchedProps.length === 1) return matchedProps[0].apex27_listing_id
+
+    if (address) {
+      const normAddr = normalizeAddressLine(address)
+      for (const p of matchedProps) {
+        const pAddr = p.address_line1_encrypted ? decrypt(p.address_line1_encrypted) : null
+        if (pAddr && normalizeAddressLine(pAddr) === normAddr) {
+          console.log(`[Apex27] Fuzzy-matched property to listing ${p.apex27_listing_id} via PG postcode search`)
+          return p.apex27_listing_id
+        }
+      }
+    }
+    console.log(`[Apex27] Best-guess matched property to listing ${matchedProps[0].apex27_listing_id}`)
+    return matchedProps[0].apex27_listing_id
+  }
+
+  // 3. Apex27 API search by postcode
+  const searchResult = await apex27Fetch<any[]>(apiKey, '/listings', {
+    transactionType: 'rent',
+    postalCode: postcode,
+    pageSize: 25
+  })
+
+  if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
+    const listings = searchResult.data
+    if (listings.length === 1) {
+      console.log(`[Apex27] Matched property to Apex27 listing ${listings[0].id} via API search`)
+      return String(listings[0].id)
+    }
+    if (address) {
+      const normAddr = normalizeAddressLine(address)
+      for (const l of listings) {
+        if (l.address1 && normalizeAddressLine(l.address1) === normAddr) {
+          console.log(`[Apex27] Matched property to Apex27 listing ${l.id} via API search + address`)
+          return String(l.id)
+        }
+      }
+    }
+    console.log(`[Apex27] Best-guess matched property to Apex27 listing ${listings[0].id}`)
+    return String(listings[0].id)
+  }
+
+  return null
+}
+
+/**
  * POST /api/apex27/documents/push
  * Push a document to Apex27
+ * Supports: tenancy_document, reference_report, property_document
  */
 router.post('/documents/push', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -280,10 +361,13 @@ router.post('/documents/push', authenticateToken, async (req: AuthRequest, res) 
       return res.status(400).json({ error: 'Apex27 is not configured' })
     }
 
-    // Look up the document and auto-resolve apex27_listing_id
     let documentName = ''
-    let documentPath = ''
+    let documentUrl = '' // direct URL (for reference reports)
+    let documentPath = '' // storage path (needs signed URL)
+    let propertyId: string | null = null
     let resolvedListingId = apex27ListingId || null
+
+    // ---- Resolve document info based on source type ----
 
     if (sourceType === 'tenancy_document') {
       const { data: doc } = await supabase
@@ -292,31 +376,33 @@ router.post('/documents/push', authenticateToken, async (req: AuthRequest, res) 
         .eq('id', sourceId)
         .single()
 
-      if (!doc) {
-        return res.status(404).json({ error: 'Document not found' })
-      }
+      if (!doc) return res.status(404).json({ error: 'Document not found' })
 
       documentName = doc.name
       documentPath = doc.file_path
 
-      // Auto-resolve apex27_listing_id from the tenancy's property
-      if (!resolvedListingId && doc.tenancy_id) {
+      if (doc.tenancy_id) {
         const { data: tenancy } = await supabase
           .from('tenancies')
           .select('property_id')
           .eq('id', doc.tenancy_id)
           .single()
-
-        if (tenancy?.property_id) {
-          const { data: property } = await supabase
-            .from('properties')
-            .select('apex27_listing_id')
-            .eq('id', tenancy.property_id)
-            .single()
-
-          resolvedListingId = property?.apex27_listing_id || null
-        }
+        propertyId = tenancy?.property_id || null
       }
+
+    } else if (sourceType === 'property_document') {
+      const { data: doc } = await supabase
+        .from('property_documents')
+        .select('id, file_name, file_path, property_id')
+        .eq('id', sourceId)
+        .single()
+
+      if (!doc) return res.status(404).json({ error: 'Document not found' })
+
+      documentName = doc.file_name
+      documentPath = doc.file_path
+      propertyId = doc.property_id
+
     } else if (sourceType === 'reference_report') {
       const { data: ref } = await supabase
         .from('tenant_references_v2')
@@ -324,166 +410,116 @@ router.post('/documents/push', authenticateToken, async (req: AuthRequest, res) 
         .eq('id', sourceId)
         .single()
 
-      if (!ref) {
-        return res.status(404).json({ error: 'Reference not found' })
-      }
-
-      if (!ref.report_pdf_url) {
-        return res.status(400).json({ error: 'Reference report has not been generated yet. Generate the report first.' })
-      }
+      if (!ref) return res.status(404).json({ error: 'Reference not found' })
+      if (!ref.report_pdf_url) return res.status(400).json({ error: 'Reference report has not been generated yet. Generate the report first.' })
 
       documentName = `Reference Report - ${sourceId.substring(0, 8)}`
+      documentUrl = ref.report_pdf_url
+      propertyId = ref.linked_property_id
 
-      // 1. Try to resolve via linked property's apex27_listing_id
-      if (!resolvedListingId && ref.linked_property_id) {
-        const { data: property } = await supabase
-          .from('properties')
-          .select('apex27_listing_id')
-          .eq('id', ref.linked_property_id)
-          .single()
-
-        resolvedListingId = property?.apex27_listing_id || null
-      }
-
-      // 2. Fallback: search all company properties by postcode for an apex27 link
-      if (!resolvedListingId && ref.property_postcode_encrypted) {
+      // For references without a linked property, try fuzzy by reference address
+      if (!propertyId && ref.property_postcode_encrypted) {
         const refPostcode = decrypt(ref.property_postcode_encrypted)
         if (refPostcode) {
-          const normPC = normalizePostcode(refPostcode)
+          // Search PG properties by postcode
           const { data: matchedProps } = await supabase
             .from('properties')
-            .select('id, apex27_listing_id, address_line1_encrypted')
+            .select('id, apex27_listing_id, postcode, address_line1_encrypted')
             .eq('company_id', companyData.companyId)
-            .eq('postcode', normPC)
+            .eq('postcode', normalizePostcode(refPostcode))
             .not('apex27_listing_id', 'is', null)
 
           if (matchedProps && matchedProps.length > 0) {
-            // If only one match, use it
+            const refAddr = ref.property_address_encrypted ? decrypt(ref.property_address_encrypted) : null
             if (matchedProps.length === 1) {
               resolvedListingId = matchedProps[0].apex27_listing_id
-            } else {
-              // Multiple matches — fuzzy match by address
-              const refAddr = ref.property_address_encrypted ? decrypt(ref.property_address_encrypted) : null
-              if (refAddr) {
+            } else if (refAddr) {
+              const normRefAddr = normalizeAddressLine(refAddr)
+              for (const p of matchedProps) {
+                const pAddr = p.address_line1_encrypted ? decrypt(p.address_line1_encrypted) : null
+                if (pAddr && normalizeAddressLine(pAddr) === normRefAddr) {
+                  resolvedListingId = p.apex27_listing_id
+                  break
+                }
+              }
+            }
+            if (!resolvedListingId) resolvedListingId = matchedProps[0].apex27_listing_id
+          }
+
+          // Last resort: search Apex27 API
+          if (!resolvedListingId) {
+            const refAddr = ref.property_address_encrypted ? decrypt(ref.property_address_encrypted) : null
+            const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', {
+              transactionType: 'rent', postalCode: refPostcode, pageSize: 25
+            })
+            if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
+              if (searchResult.data.length === 1) {
+                resolvedListingId = String(searchResult.data[0].id)
+              } else if (refAddr) {
                 const normRefAddr = normalizeAddressLine(refAddr)
-                for (const prop of matchedProps) {
-                  const propAddr = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
-                  if (propAddr && normalizeAddressLine(propAddr) === normRefAddr) {
-                    resolvedListingId = prop.apex27_listing_id
+                for (const l of searchResult.data) {
+                  if (l.address1 && normalizeAddressLine(l.address1) === normRefAddr) {
+                    resolvedListingId = String(l.id)
                     break
                   }
                 }
               }
-              // Still no match — use first result as best guess
-              if (!resolvedListingId) {
-                resolvedListingId = matchedProps[0].apex27_listing_id
-              }
+              if (!resolvedListingId) resolvedListingId = String(searchResult.data[0].id)
             }
-            console.log(`[Apex27] Fuzzy-matched reference property to listing ${resolvedListingId}`)
+          }
+
+          if (resolvedListingId) {
+            console.log(`[Apex27] Matched reference to Apex27 listing ${resolvedListingId} via fuzzy search`)
           }
         }
       }
-
-      // 3. Last resort: search Apex27 directly by postcode
-      if (!resolvedListingId && ref.property_postcode_encrypted) {
-        const refPostcode = decrypt(ref.property_postcode_encrypted)
-        const refAddr = ref.property_address_encrypted ? decrypt(ref.property_address_encrypted) : null
-        if (refPostcode) {
-          const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', {
-            transactionType: 'rent',
-            postalCode: refPostcode,
-            pageSize: 25
-          })
-
-          if (searchResult.success && Array.isArray(searchResult.data)) {
-            const listings = searchResult.data
-            if (listings.length === 1) {
-              resolvedListingId = String(listings[0].id)
-            } else if (listings.length > 1 && refAddr) {
-              const normRefAddr = normalizeAddressLine(refAddr)
-              for (const l of listings) {
-                if (l.address1 && normalizeAddressLine(l.address1) === normRefAddr) {
-                  resolvedListingId = String(l.id)
-                  break
-                }
-              }
-              if (!resolvedListingId) {
-                resolvedListingId = String(listings[0].id)
-              }
-            }
-            if (resolvedListingId) {
-              console.log(`[Apex27] Matched reference to Apex27 listing ${resolvedListingId} via API search`)
-            }
-          }
-        }
-      }
-
-      if (!resolvedListingId) {
-        return res.status(400).json({ error: 'Could not find a matching Apex27 listing for this property. Link the property via Initial Sync first.' })
-      }
-
-      // Push directly — report_pdf_url is already a public URL
-      const pushResult = await pushDocument(config.apiKey, {
-        listingId: resolvedListingId,
-        name: documentName,
-        url: ref.report_pdf_url
-      })
-
-      // Log and return early
-      await supabase
-        .from('apex27_document_pushes')
-        .insert({
-          company_id: companyData.companyId,
-          source_type: sourceType,
-          source_id: sourceId,
-          apex27_listing_id: resolvedListingId || null,
-          document_name: documentName,
-          document_url: ref.report_pdf_url,
-          status: pushResult.success ? 'success' : 'failed',
-          apex27_response: pushResult.response || pushResult.error,
-          pushed_by: companyData.userId
-        })
-
-      if (!pushResult.success) {
-        return res.status(500).json({ error: pushResult.error })
-      }
-
-      return res.json({ success: true, message: 'Reference report pushed to Apex27' })
     } else {
-      return res.status(400).json({ error: 'Invalid sourceType. Must be tenancy_document or reference_report' })
+      return res.status(400).json({ error: 'Invalid sourceType. Must be tenancy_document, property_document, or reference_report' })
+    }
+
+    // ---- Resolve listing ID via property (3-level fallback) ----
+
+    if (!resolvedListingId && propertyId) {
+      resolvedListingId = await resolveApex27ListingId(propertyId, companyData.companyId, config.apiKey)
     }
 
     if (!resolvedListingId) {
-      return res.status(400).json({ error: 'This property is not linked to Apex27. Run an Initial Sync first to link properties.' })
+      return res.status(400).json({ error: 'Could not find a matching Apex27 listing for this property. Link the property via Initial Sync first.' })
     }
 
-    // Generate a signed URL for the document (1 hour expiry)
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(documentPath, 3600)
+    // ---- Push the document ----
 
-    if (signedUrlError || !signedUrlData?.signedUrl) {
-      console.error('[Apex27] Error generating signed URL:', signedUrlError)
-      return res.status(500).json({ error: 'Failed to generate document URL' })
+    let finalUrl = documentUrl
+    if (!finalUrl && documentPath) {
+      // Property documents use 'property-documents' bucket, others use 'documents'
+      const bucket = (sourceType === 'property_document') ? 'property-documents' : 'documents'
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(documentPath, 3600)
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error(`[Apex27] Error generating signed URL (bucket: ${bucket}):`, signedUrlError)
+        return res.status(500).json({ error: 'Failed to generate document URL' })
+      }
+      finalUrl = signedUrlData.signedUrl
     }
 
-    // Push to Apex27
     const pushResult = await pushDocument(config.apiKey, {
       listingId: resolvedListingId,
       name: documentName,
-      url: signedUrlData.signedUrl
+      url: finalUrl
     })
 
-    // Log the push
+    // Log
     await supabase
       .from('apex27_document_pushes')
       .insert({
         company_id: companyData.companyId,
         source_type: sourceType,
         source_id: sourceId,
-        apex27_listing_id: resolvedListingId || null,
+        apex27_listing_id: resolvedListingId,
         document_name: documentName,
-        document_url: signedUrlData.signedUrl,
+        document_url: finalUrl,
         status: pushResult.success ? 'success' : 'failed',
         apex27_response: pushResult.response || pushResult.error,
         pushed_by: companyData.userId
@@ -575,21 +611,19 @@ router.post('/tenancy-summary/:tenancyId/push', authenticateToken, async (req: A
       return res.status(500).json({ error: 'Failed to generate document URL' })
     }
 
-    // Get property's apex27_listing_id
+    // Resolve Apex27 listing ID with fuzzy fallback
     const { data: tenancy } = await supabase
       .from('tenancies')
       .select('property_id')
       .eq('id', req.params.tenancyId)
       .single()
 
-    let listingId: string | undefined
-    if (tenancy?.property_id) {
-      const { data: property } = await supabase
-        .from('properties')
-        .select('apex27_listing_id')
-        .eq('id', tenancy.property_id)
-        .single()
-      listingId = property?.apex27_listing_id || undefined
+    const listingId = tenancy?.property_id
+      ? await resolveApex27ListingId(tenancy.property_id, companyData.companyId, config.apiKey)
+      : null
+
+    if (!listingId) {
+      return res.status(400).json({ error: 'Could not find a matching Apex27 listing for this property.' })
     }
 
     // Push to Apex27

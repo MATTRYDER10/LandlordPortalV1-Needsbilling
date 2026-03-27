@@ -129,6 +129,14 @@ router.post('/register/:tenancyId', authenticateToken, async (req: AuthRequest, 
           message: 'Deposit registration already in progress'
         })
       }
+      // Delete failed registration so we can retry clean
+      if (existingRegistration.status === 'failed') {
+        await supabase
+          .from('mydeposits_registrations')
+          .delete()
+          .eq('id', existingRegistration.id)
+        console.log(`[mydeposits] Deleted failed registration ${existingRegistration.id} for retry`)
+      }
     }
 
     // Validate form data
@@ -145,11 +153,43 @@ router.post('/register/:tenancyId', authenticateToken, async (req: AuthRequest, 
       return res.status(400).json({ error: 'Lead tenant name is required.' })
     }
 
-    // Build tenancy data from form
-    const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
-    const landlordAddressLine1 = landlordAddressParts[0] || ''
-    const landlordCity = landlordAddressParts[1] || ''
-    const landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+    // Get structured landlord address from DB (not the flat form string)
+    const { decrypt: decryptField } = await import('../services/encryption')
+    const tenancyRecord = await supabase
+      .from('tenancies')
+      .select('property_id')
+      .eq('id', tenancyId)
+      .single()
+
+    let landlordAddressLine1 = ''
+    let landlordCity = ''
+    let landlordPostcode = ''
+
+    if (tenancyRecord.data?.property_id) {
+      const { data: propLandlords } = await supabase
+        .from('property_landlords')
+        .select('landlords(residential_address_line1_encrypted, residential_city_encrypted, residential_postcode_encrypted)')
+        .eq('property_id', tenancyRecord.data.property_id)
+        .order('is_primary_contact', { ascending: false })
+        .limit(1)
+
+      if (propLandlords && propLandlords.length > 0) {
+        const ll = (propLandlords[0] as any).landlords
+        if (ll) {
+          landlordAddressLine1 = ll.residential_address_line1_encrypted ? decryptField(ll.residential_address_line1_encrypted) || '' : ''
+          landlordCity = ll.residential_city_encrypted ? decryptField(ll.residential_city_encrypted) || '' : ''
+          landlordPostcode = ll.residential_postcode_encrypted ? decryptField(ll.residential_postcode_encrypted) || '' : ''
+        }
+      }
+    }
+
+    // Fallback to form string if DB had nothing
+    if (!landlordAddressLine1 && landlord.address) {
+      const parts = (landlord.address || '').split(',').map((p: string) => p.trim())
+      landlordAddressLine1 = parts[0] || ''
+      landlordCity = parts.length > 2 ? parts[1] : ''
+      landlordPostcode = parts[parts.length - 1] || ''
+    }
 
     const formTenancyData = {
       id: tenancyId,
@@ -162,6 +202,7 @@ router.post('/register/:tenancyId', authenticateToken, async (req: AuthRequest, 
       tenancy_start_date: tenancy.startDate,
       end_date: tenancy.endDate,
       deposit_amount: deposit.amount || deposit.amountToProtect,
+      rent_amount: tenancy.rent,
       landlords: [{
         title: landlord.title,
         first_name: landlord.firstName,
@@ -230,6 +271,15 @@ router.post('/register/:tenancyId', authenticateToken, async (req: AuthRequest, 
         performed_by: userId,
         is_system_action: false
       })
+
+    // Queue certificate polling (custodial certs not available until payment)
+    const pollUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    await supabase
+      .from('mydeposits_registrations')
+      .update({ certificate_poll_until: pollUntil })
+      .eq('tenancy_id', tenancyId)
+      .eq('deposit_id', registerResult.depositId)
+    console.log(`[mydeposits] Cert polling queued until ${pollUntil} for deposit ${registerResult.depositId}`)
 
     res.json({
       success: true,

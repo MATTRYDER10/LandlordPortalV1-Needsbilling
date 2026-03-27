@@ -13,9 +13,7 @@
           <!-- Header -->
           <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <Sparkles class="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
+              <img src="/reposit-logo.png" alt="Reposit" class="h-7 w-auto" />
               <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create Reposit</h3>
                 <p class="text-sm text-gray-500 dark:text-slate-400">Deposit replacement for tenants</p>
@@ -101,7 +99,7 @@
               >
                 <option value="">Use default agent</option>
                 <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                  {{ agent.name || agent.id }}
+                  {{ agent.displayName }}
                 </option>
               </select>
             </div>
@@ -190,7 +188,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const creating = ref(false)
-const agents = ref<Array<{ id: string; name?: string }>>([])
+const agents = ref<Array<{ id: string; displayName: string }>>([])
 const selectedAgentId = ref('')
 const publishImmediately = ref(true)
 
@@ -206,7 +204,10 @@ const loadAgents = async () => {
 
     if (response.ok) {
       const data = await response.json()
-      agents.value = data.agents || []
+      agents.value = (data.agents || []).map((a: any) => ({
+        id: a.id,
+        displayName: [a.firstName, a.lastName].filter(Boolean).join(' ').trim() || a.email || a.id
+      }))
     }
   } catch (error) {
     console.error('Error loading agents:', error)

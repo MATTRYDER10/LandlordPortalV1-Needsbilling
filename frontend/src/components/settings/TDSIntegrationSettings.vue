@@ -242,26 +242,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Environment</label>
-          <div class="flex gap-4">
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="custodialForm.environment"
-                value="sandbox"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Sandbox (Testing)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="custodialForm.environment"
-                value="live"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Live (Production)</span>
-            </label>
+          <input type="hidden" v-model="custodialForm.environment" />
+          <div class="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <span class="text-sm font-medium text-green-700 dark:text-green-400">Live (Production)</span>
           </div>
         </div>
 
@@ -382,73 +365,8 @@
           </div>
         </div>
 
-        <div>
-          <label for="insured-client-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client ID</label>
-          <input
-            id="insured-client-id"
-            v-model="insuredForm.clientId"
-            name="tds-insured-clientid"
-            type="text"
-            :required="!insuredStatus?.configured"
-            autocomplete="off"
-            data-lpignore="true"
-            data-1p-ignore
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-            :placeholder="insuredStatus?.clientId || 'Enter your OAuth2 Client ID'"
-          />
-        </div>
-
-        <div>
-          <label for="insured-client-secret" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client Secret</label>
-          <div class="mt-1 relative">
-            <input
-              id="insured-client-secret"
-              v-model="insuredForm.clientSecret"
-              name="tds-insured-secret"
-              :type="showInsuredSecret ? 'text' : 'password'"
-              :required="!insuredStatus?.configured"
-              autocomplete="off"
-              data-lpignore="true"
-              data-1p-ignore
-              class="block w-full px-3 py-2 pr-20 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              placeholder="Enter your OAuth2 Client Secret"
-            />
-            <button
-              type="button"
-              @click="showInsuredSecret = !showInsuredSecret"
-              class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-            >
-              <Eye v-if="!showInsuredSecret" class="w-4 h-4" />
-              <EyeOff v-else class="w-4 h-4" />
-            </button>
-          </div>
-          <p v-if="insuredStatus?.configured && !insuredForm.clientSecret" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Leave blank to keep existing secret
-          </p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Environment</label>
-          <div class="flex gap-4">
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="insuredForm.environment"
-                value="sandbox"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Sandbox (Testing)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="insuredForm.environment"
-                value="live"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Live (Production)</span>
-            </label>
-          </div>
+        <div class="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+          <span class="text-sm font-medium text-green-700 dark:text-green-400">Live (Production)</span>
         </div>
 
         <div v-if="insuredError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
@@ -686,7 +604,7 @@ const fetchTDSSettings = async () => {
       if (data.custodial?.configured) {
         custodialForm.value.memberId = data.custodial.memberId || ''
         custodialForm.value.branchId = data.custodial.branchId || '0'
-        custodialForm.value.environment = data.custodial.environment || 'sandbox'
+        custodialForm.value.environment = 'live'
         console.log('[TDS Settings] Form values set:', custodialForm.value)
       }
 
@@ -696,7 +614,7 @@ const fetchTDSSettings = async () => {
         insuredForm.value.memberId = data.insured.memberId || ''
         insuredForm.value.branchId = data.insured.branchId || ''
         insuredForm.value.clientId = data.insured.clientId || ''
-        insuredForm.value.environment = data.insured.environment || 'sandbox'
+        insuredForm.value.environment = 'live'
       }
     }
   } catch (error) {

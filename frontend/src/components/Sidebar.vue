@@ -207,59 +207,97 @@
           </router-link>
         </nav>
 
+        <!-- Beta Section -->
+        <div :class="['border-t px-3 py-2 space-y-0.5 transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
+          <template v-for="item in betaNavigation" :key="item.name">
+            <!-- External link (InventoryGoose) -->
+            <a
+              v-if="item.isExternal"
+              :href="item.path"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              :class="isDark
+                ? 'text-white/70 hover:text-white hover:bg-white/10'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-primary/10'"
+            >
+              <img
+                v-if="item.isInventoryGoose"
+                src="/inventorygoose-logo.png"
+                alt="InventoryGoose"
+                class="w-5 h-5 mr-3 rounded-full"
+              />
+              <span class="flex-1 text-xs">{{ item.name }}</span>
+              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-primary/10 text-primary">Beta</span>
+            </a>
+            <!-- Internal router link (V2 items) -->
+            <router-link
+              v-else
+              :to="item.path"
+              @click="closeMobileMenu"
+              class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              :class="isActive(item.path)
+                ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg shadow-primary/30'
+                : isDark
+                  ? 'text-white/70 hover:text-white hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-primary/10'"
+            >
+              <component
+                :is="item.icon"
+                class="w-5 h-5 mr-3 transition-all duration-300"
+                :class="isActive(item.path)
+                  ? 'text-white'
+                  : isDark
+                    ? 'text-white/50 group-hover:text-primary'
+                    : 'text-gray-400 group-hover:text-primary'"
+              />
+              <span class="flex-1 text-xs">{{ item.name }}</span>
+              <span
+                class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full"
+                :class="isActive(item.path)
+                  ? 'bg-white/20 text-white'
+                  : 'bg-primary/10 text-primary'"
+              >Beta</span>
+              <div
+                v-if="isActive(item.path)"
+                class="w-1.5 h-1.5 rounded-full bg-white animate-pulse ml-1.5"
+              ></div>
+            </router-link>
+          </template>
+        </div>
+
         <!-- Bottom Section -->
         <div :class="['border-t transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
-          <!-- Dark Mode Toggle -->
-          <div class="px-4 py-3">
+          <!-- Dark Mode + Credits row -->
+          <div class="px-4 py-2 flex items-center justify-between gap-2">
             <button
               @click="toggleDarkMode"
-              :class="[
-                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 border',
-                isDark
-                  ? 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
-                  : 'bg-gray-100 hover:bg-gray-200 border-gray-200 hover:border-gray-300'
-              ]"
+              class="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all"
+              :class="isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'"
             >
-              <div class="flex items-center gap-3">
-                <!-- Sun/Moon Icon -->
-                <div class="relative w-5 h-5">
-                  <!-- Sun -->
-                  <svg
-                    class="absolute inset-0 transition-all duration-300"
-                    :class="isDark ? 'opacity-0 rotate-90 scale-50' : 'opacity-100 rotate-0 scale-100'"
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-                  >
-                    <circle cx="12" cy="12" r="4" class="text-amber-500" fill="currentColor" />
-                    <path class="text-amber-500" stroke-linecap="round" d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M8.34 15.66l-1.41 1.41m0-12.02l1.41 1.41m7.32 7.32l1.41 1.41" />
-                  </svg>
-                  <!-- Moon -->
-                  <svg
-                    class="absolute inset-0 transition-all duration-300"
-                    :class="isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'"
-                    fill="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path class="text-blue-300" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                  </svg>
-                </div>
-                <span :class="['text-xs font-medium', isDark ? 'text-white/70' : 'text-gray-600']">
-                  {{ isDark ? 'Dark Mode' : 'Light Mode' }}
-                </span>
+              <div class="relative w-4 h-4">
+                <svg
+                  class="absolute inset-0 transition-all duration-300"
+                  :class="isDark ? 'opacity-0 rotate-90 scale-50' : 'opacity-100 rotate-0 scale-100'"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="4" class="text-amber-500" fill="currentColor" />
+                  <path class="text-amber-500" stroke-linecap="round" d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07l-1.41 1.41M8.34 15.66l-1.41 1.41m0-12.02l1.41 1.41m7.32 7.32l1.41 1.41" />
+                </svg>
+                <svg
+                  class="absolute inset-0 transition-all duration-300"
+                  :class="isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'"
+                  fill="currentColor" viewBox="0 0 24 24"
+                >
+                  <path class="text-blue-300" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                </svg>
               </div>
-              <!-- Toggle Switch -->
-              <div
-                class="w-10 h-5 rounded-full transition-all duration-300 relative"
-                :class="isDark ? 'bg-primary' : 'bg-gray-300'"
-              >
-                <div
-                  class="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300"
-                  :class="isDark ? 'left-5' : 'left-0.5'"
-                ></div>
-              </div>
+              <span :class="['text-[11px] font-medium', isDark ? 'text-white/60' : 'text-gray-500']">
+                {{ isDark ? 'Dark' : 'Light' }}
+              </span>
             </button>
+            <CreditsDisplay compact />
           </div>
-
-          <!-- Credits Display -->
-          <CreditsDisplay />
 
           <!-- User Menu -->
           <div :class="['border-t transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
@@ -476,19 +514,24 @@ const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
 
-// Navigation in requested order
+// Main navigation (V1)
 const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: GooseDashboard },
   { name: 'Offers', path: '/tenant-offers', icon: GooseOffers },
-  { name: 'Offers V2', path: '/tenant-offers-v2', icon: GooseOffers },
   { name: 'References', path: '/references', icon: GooseClipboard },
-  { name: 'References V2', path: '/references-v2', icon: GooseClipboard },
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
   { name: 'Standalone Agreements', path: '/agreements/history', icon: GooseDocument },
   { name: 'Settings', path: '/settings', icon: GooseSettings },
   { name: 'Help Centre', path: '/help-centre', icon: GooseHelp }
+]
+
+// Beta navigation items (bottom of sidebar)
+const betaNavigation = [
+  { name: 'Offers V2', path: '/tenant-offers-v2', icon: GooseOffers, isExternal: false, isInventoryGoose: false },
+  { name: 'References V2', path: '/references-v2', icon: GooseClipboard, isExternal: false, isInventoryGoose: false },
+  { name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true }
 ]
 
 const userEmail = computed(() => authStore.user?.email || '')

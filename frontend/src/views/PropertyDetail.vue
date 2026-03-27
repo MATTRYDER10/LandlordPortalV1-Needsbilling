@@ -510,6 +510,16 @@
                       <span class="text-xs bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded">
                         {{ formatDocumentTag(doc.tag) }}
                       </span>
+                      <button
+                        v-if="apex27Connected"
+                        @click.stop="pushPropertyDocToApex27(doc.id)"
+                        :disabled="pushingDocId === doc.id"
+                        class="text-gray-400 hover:text-[#6B21A8]"
+                        title="Push to Apex27"
+                      >
+                        <Loader2 v-if="pushingDocId === doc.id" class="w-4 h-4 animate-spin" />
+                        <Upload v-else class="w-4 h-4" />
+                      </button>
                       <button @click.stop="downloadDocument(doc, true)" class="text-gray-400 hover:text-primary" title="Download">
                         <Download class="w-4 h-4" />
                       </button>
@@ -751,7 +761,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, X, KeyRound, Users, Plus, Trash2, Sparkles, Loader2, Send } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, X, KeyRound, Users, Plus, Trash2, Sparkles, Loader2, Send, Upload } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.vue'
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
@@ -845,6 +855,10 @@ const property = ref<Property | null>(null)
 const propertyLandlords = ref<PropertyLandlord[]>([])
 const complianceRecords = ref<ComplianceRecord[]>([])
 const propertyDocuments = ref<PropertyDocument[]>([])
+
+// Apex27
+const apex27Connected = ref(false)
+const pushingDocId = ref<string | null>(null)
 
 const rightTab = ref<'landlords' | 'documents' | 'activity' | 'tenancies'>('landlords')
 const documentTagFilter = ref('')
@@ -1388,7 +1402,7 @@ const formatPropertyType = (type: string | null) => {
     'maisonette': 'Maisonette',
     'other': 'Other'
   }
-  return types[type] || type
+  return types[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 const formatFurnishing = (status: string | null) => {
@@ -1441,7 +1455,45 @@ const formatDate = (dateString?: string | null, fallback = 'n/a') =>
     fallback
   )
 
+const loadApex27Status = async () => {
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/settings/apex27`, { token })
+    if (response.ok) {
+      const data = await response.json()
+      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+const pushPropertyDocToApex27 = async (docId: string) => {
+  pushingDocId.value = docId
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/apex27/documents/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceType: 'property_document', sourceId: docId }),
+      token
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Failed to push document')
+
+    // Simple success feedback
+    alert('Document pushed to Apex27')
+  } catch (err: any) {
+    console.error('[PropertyDetail] Error pushing to Apex27:', err)
+    alert(err.message || 'Failed to push to Apex27')
+  } finally {
+    pushingDocId.value = null
+  }
+}
+
 onMounted(() => {
   fetchProperty()
+  loadApex27Status()
 })
 </script>

@@ -134,7 +134,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date of Birth *</label>
                 <input
@@ -353,31 +353,9 @@
                     Open Camera & Take Photo
                   </button>
 
-                  <!-- Direct Upload Option -->
-                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
-                    <label
-                      class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors cursor-pointer"
-                    >
-                      <Upload class="w-4 h-4" />
-                      Upload Clear Photo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="hidden"
-                        @change="handleSelfieFileUpload"
-                      />
-                    </label>
-                    <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                      <p class="text-xs text-amber-800 dark:text-amber-300">
-                        <strong>Important:</strong> The photo must be clear and non-blurry, taken within 24 hours of this application.
-                        If you cannot provide a suitable photo, please go back and use the mobile version of this form where you can take a photo on your device.
-                      </p>
-                    </div>
-                  </div>
-
                   <!-- QR Code Mobile Capture Option -->
                   <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
-                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">No camera? Use your phone instead:</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">No camera? Take on a different device:</p>
                     <button
                       v-if="!mobileCapture.qrUrl"
                       type="button"
@@ -462,29 +440,40 @@
 
             <!-- UK Citizen - Passport Upload -->
             <div v-if="formData.rtr.citizenshipStatus === 'uk_citizen'" class="space-y-4">
-              <FileUpload
-                v-model="formData.rtr.passportDoc"
-                label="Upload Passport"
-                accept=".pdf,.jpg,.jpeg,.png"
-                acceptLabel="PDF, JPG, PNG up to 25MB"
-                helpText="Upload a clear copy of your passport photo page"
-                :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
-                :token="token"
-                section="rtr"
-                @uploaded="handleFileUploaded('rtr', 'passportDoc', $event)"
-              />
-
-              <div class="flex items-center gap-2">
-                <input
-                  v-model="formData.rtr.noPassport"
-                  type="checkbox"
-                  id="noPassport"
-                  class="w-4 h-4 text-primary rounded"
-                />
-                <label for="noPassport" class="text-sm text-gray-700 dark:text-slate-300">
-                  I don't have a passport
-                </label>
+              <!-- If passport was already uploaded as ID document, skip re-upload -->
+              <div v-if="formData.identity.documentType === 'passport' && (formData.identity.idDocument || formData.identity.idDocumentUrl)" class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div class="flex items-center gap-2">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                  <p class="text-sm font-medium text-green-800 dark:text-green-300">Passport already uploaded in Identity section</p>
+                </div>
+                <p class="text-xs text-green-600 dark:text-green-400 mt-1">Your passport will be used for Right to Rent verification.</p>
               </div>
+
+              <template v-else>
+                <FileUpload
+                  v-model="formData.rtr.passportDoc"
+                  label="Upload Passport"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  acceptLabel="PDF, JPG, PNG up to 25MB"
+                  helpText="Upload a clear copy of your passport photo page"
+                  :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
+                  :token="token"
+                  section="rtr"
+                  @uploaded="handleFileUploaded('rtr', 'passportDoc', $event)"
+                />
+
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="formData.rtr.noPassport"
+                    type="checkbox"
+                    id="noPassport"
+                    class="w-4 h-4 text-primary rounded"
+                  />
+                  <label for="noPassport" class="text-sm text-gray-700 dark:text-slate-300">
+                    I don't have a passport
+                  </label>
+                </div>
+              </template>
 
               <div v-if="formData.rtr.noPassport" class="pl-4 border-l-2 border-primary/30 space-y-4">
                 <div>
@@ -666,11 +655,10 @@
                 </div>
               </div>
 
-              <FileUpload
-                v-model="formData.income.payslips"
+              <MultiFileUpload
                 label="Upload Payslips (Last 3 Months)"
                 accept=".pdf,.jpg,.jpeg,.png"
-                helpText="Upload your most recent 3 payslips to verify income"
+                helpText="Upload your most recent 3 payslips to verify income — select multiple files"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
                 section="income"
@@ -727,26 +715,53 @@
 
               <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
                 <p class="text-sm text-blue-800 dark:text-blue-300">
-                  <strong>Income verification:</strong> Please either provide your accountant's details below so we can verify your income directly, <strong>or</strong> upload an official Tax Return / SA302 document confirming your previous year's self-employed income. At least one is required.
+                  <strong>Income verification:</strong> Please provide <strong>either</strong> your accountant's details so we can verify your income directly, <strong>or</strong> upload an official Tax Return / SA302 document. At least one option is required.
                 </p>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Name/Firm</label>
-                  <input
-                    v-model="formData.income.accountantName"
-                    type="text"
-                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Email</label>
-                  <input
-                    v-model="formData.income.accountantEmail"
-                    type="email"
-                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                  />
+              <!-- Option tabs -->
+              <div class="flex border border-gray-200 dark:border-slate-600 rounded-lg overflow-hidden mb-4">
+                <button
+                  type="button"
+                  @click="selfEmployedVerifyOption = 'accountant'"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors"
+                  :class="selfEmployedVerifyOption === 'accountant'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  Option A: Accountant Details
+                </button>
+                <button
+                  type="button"
+                  @click="selfEmployedVerifyOption = 'document'"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors"
+                  :class="selfEmployedVerifyOption === 'document'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  Option B: Upload Evidence
+                </button>
+              </div>
+
+              <!-- Option A: Accountant -->
+              <div v-if="selfEmployedVerifyOption === 'accountant'" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Name/Firm *</label>
+                    <input
+                      v-model="formData.income.accountantName"
+                      type="text"
+                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Email *</label>
+                    <input
+                      v-model="formData.income.accountantEmail"
+                      type="email"
+                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Phone</label>
@@ -758,17 +773,20 @@
                 </div>
               </div>
 
-              <FileUpload
-                v-model="formData.income.taxReturn"
-                label="Upload Tax Return/SA302"
-                required
-                accept=".pdf,.jpg,.jpeg,.png"
-                helpText="Upload your most recent tax return or SA302"
-                :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
-                :token="token"
-                section="income"
-                @uploaded="handleFileUploaded('income', 'taxReturn', $event)"
-              />
+              <!-- Option B: Upload Document -->
+              <div v-if="selfEmployedVerifyOption === 'document'">
+                <FileUpload
+                  v-model="formData.income.taxReturn"
+                  label="Upload Tax Return/SA302"
+                  :required="selfEmployedVerifyOption === 'document'"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  helpText="Upload your most recent tax return or SA302"
+                  :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
+                  :token="token"
+                  section="income"
+                  @uploaded="handleFileUploaded('income', 'taxReturn', $event)"
+                />
+              </div>
             </div>
 
             <!-- Benefits -->
@@ -809,12 +827,11 @@
                   class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                 />
               </div>
-              <FileUpload
-                v-model="formData.income.savingsDoc"
+              <MultiFileUpload
                 label="Upload Proof of Savings"
                 required
                 accept=".pdf,.jpg,.jpeg,.png"
-                helpText="Upload bank or investment statement showing your savings"
+                helpText="Upload bank or investment statements showing your savings — select multiple files"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
                 section="income"
@@ -858,38 +875,72 @@
               />
             </div>
 
-            <!-- Student -->
-            <div v-if="formData.income.sources.includes('student')" class="p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg space-y-4">
-              <h3 class="font-medium text-gray-900 dark:text-white">Student Details</h3>
+            <!-- Rental Income -->
+            <div v-if="formData.income.sources.includes('rental_income')" class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg space-y-4">
+              <h3 class="font-medium text-gray-900 dark:text-white">Landlord / Rental Income</h3>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">University/College *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monthly Rental Income (£) *</label>
                   <input
-                    v-model="formData.income.university"
-                    type="text"
+                    v-model.number="formData.income.rentalIncome"
+                    type="number"
+                    min="0"
                     required
                     class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Course *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Number of Rental Properties</label>
                   <input
-                    v-model="formData.income.course"
-                    type="text"
-                    required
+                    v-model.number="formData.income.rentalProperties"
+                    type="number"
+                    min="1"
                     class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
               <FileUpload
-                v-model="formData.income.studentDoc"
-                label="Upload Student ID or Enrollment Letter"
+                v-model="formData.income.rentalDoc"
+                label="Upload rental income statement or tenancy agreements"
                 accept=".pdf,.jpg,.jpeg,.png"
+                helpText="Upload bank statements showing rental income or tenancy agreements"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
                 section="income"
-                @uploaded="handleFileUploaded('income', 'studentDoc', $event)"
+                @uploaded="handleFileUploaded('income', 'rentalDoc', $event)"
               />
+            </div>
+
+            <!-- Student -->
+            <div v-if="formData.income.sources.includes('student')" class="p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg space-y-4">
+              <h3 class="font-medium text-gray-900 dark:text-white">Student Details</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">University/College</label>
+                  <input
+                    v-model="formData.income.university"
+                    type="text"
+                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Course</label>
+                  <input
+                    v-model="formData.income.course"
+                    type="text"
+                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Student ID Number</label>
+                <input
+                  v-model="formData.income.studentId"
+                  type="text"
+                  placeholder="e.g. STU-123456"
+                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                />
+              </div>
 
               <!-- Guarantor requirement notice -->
               <div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg border border-amber-300 dark:border-amber-700">
@@ -928,14 +979,15 @@
             <div class="space-y-4">
               <h3 class="font-medium text-gray-900 dark:text-white">Current Address</h3>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 1 *</label>
-                <input
+              <div class="relative overflow-visible">
+                <AddressAutocomplete
                   v-model="formData.residential.currentAddress.line1"
-                  type="text"
-                  required
-                  placeholder="House number and street"
-                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  label="Address Line 1"
+                  :required="true"
+                  id="current-address"
+                  placeholder="Start typing address..."
+                  @addressSelected="handleCurrentAddressSelected"
+                  :allowManualEntry="true"
                 />
               </div>
 
@@ -998,6 +1050,7 @@
               <FileUpload
                 v-model="formData.residential.proofOfAddress"
                 label="Proof of Address"
+                required
                 accept=".pdf,.jpg,.jpeg,.png"
                 helpText="Bank statement, utility bill, or council tax bill (dated within 3 months)"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
@@ -1092,10 +1145,11 @@
             </div>
 
             <!-- Previous Addresses -->
-            <div v-if="addressHistoryMonths < 36" class="space-y-4">
+            <div v-if="addressHistoryMonths < 36 || formData.residential.previousAddresses.length > 0" class="space-y-4">
               <div class="flex items-center justify-between">
                 <h3 class="font-medium text-gray-900 dark:text-white">Previous Addresses</h3>
                 <button
+                  v-if="addressHistoryMonths < 36"
                   type="button"
                   @click="addPreviousAddress"
                   class="text-sm text-primary hover:underline flex items-center gap-1"
@@ -1121,12 +1175,14 @@
                   </button>
                 </div>
 
-                <div>
-                  <input
+                <div class="relative overflow-visible">
+                  <AddressAutocomplete
                     v-model="addr.line1"
-                    type="text"
-                    placeholder="Address Line 1"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                    label="Address Line 1"
+                    :id="`prev-address-${index}`"
+                    placeholder="Start typing address..."
+                    @addressSelected="(data: any) => handlePreviousAddressSelected(index, data)"
+                    :allowManualEntry="true"
                   />
                 </div>
 
@@ -1168,49 +1224,6 @@
                   </div>
                 </div>
 
-                <div>
-                  <label class="text-xs text-gray-500">Previous landlord/agent name</label>
-                  <input
-                    v-model="addr.landlordName"
-                    type="text"
-                    placeholder="Previous landlord/agent name"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
-                  />
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="text-xs text-gray-500">Previous landlord/agent email</label>
-                    <input
-                      v-model="addr.landlordEmail"
-                      type="email"
-                      placeholder="Email address"
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label class="text-xs text-gray-500">Previous landlord/agent phone</label>
-                    <input
-                      v-model="addr.landlordPhone"
-                      type="text"
-                      placeholder="Phone number"
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label class="text-xs text-gray-500">Previous landlord type</label>
-                  <select
-                    v-model="addr.landlordType"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
-                  >
-                    <option value="">Select type...</option>
-                    <option value="Private Landlord">Private Landlord</option>
-                    <option value="Letting Agent">Letting Agent</option>
-                    <option value="Living with Family/Friends">Living with Family/Friends</option>
-                  </select>
-                </div>
               </div>
             </div>
           </div>
@@ -1226,36 +1239,38 @@
             <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Additional details about your circumstances</p>
           </div>
 
-          <div class="p-6 space-y-5">
-            <!-- Smoker -->
+          <div class="p-6 space-y-6">
+            <!-- Smoking -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Do you smoke? *</label>
-              <div class="flex gap-4">
-                <label class="flex items-center gap-2">
-                  <input v-model="formData.personal.smoker" type="radio" :value="true" class="text-primary" />
-                  <span class="text-sm text-gray-700 dark:text-slate-300">Yes</span>
-                </label>
-                <label class="flex items-center gap-2">
-                  <input v-model="formData.personal.smoker" type="radio" :value="false" class="text-primary" />
-                  <span class="text-sm text-gray-700 dark:text-slate-300">No</span>
-                </label>
-              </div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Do you smoke? *</label>
+              <select
+                v-model="formData.personal.smoker"
+                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option :value="null" disabled>Select...</option>
+                <option :value="true">Yes</option>
+                <option :value="false">No</option>
+              </select>
             </div>
 
             <!-- Pets -->
             <div>
-              <label class="flex items-center gap-2 mb-2">
-                <input v-model="formData.personal.hasPets" type="checkbox" class="w-4 h-4 text-primary rounded" />
-                <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I have pets</span>
-              </label>
-              <div v-if="formData.personal.hasPets" class="pl-6">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Do you have pets? *</label>
+              <select
+                v-model="formData.personal.hasPets"
+                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option :value="false">No</option>
+                <option :value="true">Yes</option>
+              </select>
+              <div v-if="formData.personal.hasPets" class="mt-3">
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Pet Details *</label>
                 <textarea
                   v-model="formData.personal.petDetails"
                   rows="2"
                   required
                   placeholder="Type, breed, size, etc."
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 ></textarea>
               </div>
             </div>
@@ -1265,7 +1280,7 @@
               <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Marital Status</label>
               <select
                 v-model="formData.personal.maritalStatus"
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
               >
                 <option value="">Select status</option>
                 <option value="single">Single</option>
@@ -1280,37 +1295,41 @@
             <!-- Dependants -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Number of Dependants</label>
-              <input
+              <select
                 v-model.number="formData.personal.dependants"
-                type="number"
-                min="0"
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-              />
+                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option v-for="n in 11" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
+              </select>
               <div v-if="formData.personal.dependants > 0" class="mt-3">
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Dependants Details</label>
                 <textarea
                   v-model="formData.personal.dependantsDetails"
                   rows="2"
                   placeholder="Ages, relationship, etc."
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 ></textarea>
               </div>
             </div>
 
             <!-- Adverse Credit -->
-            <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
-              <label class="flex items-center gap-2 mb-2">
-                <input v-model="formData.personal.hasAdverseCredit" type="checkbox" class="w-4 h-4 text-primary rounded" />
-                <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I have adverse credit history</span>
-              </label>
-              <div v-if="formData.personal.hasAdverseCredit" class="pl-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Do you have any adverse credit history? *</label>
+              <select
+                v-model="formData.personal.hasAdverseCredit"
+                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option :value="false">No</option>
+                <option :value="true">Yes</option>
+              </select>
+              <div v-if="formData.personal.hasAdverseCredit" class="mt-3">
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Please explain *</label>
                 <textarea
                   v-model="formData.personal.adverseCreditDetails"
                   rows="3"
                   required
                   placeholder="Please explain any CCJs, defaults, bankruptcies, or other adverse credit events..."
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 ></textarea>
               </div>
             </div>
@@ -1861,9 +1880,11 @@ import {
 } from 'lucide-vue-next'
 import QRCode from 'qrcode'
 import FileUpload from '@/components/forms/FileUpload.vue'
+import MultiFileUpload from '@/components/forms/MultiFileUpload.vue'
 import SignaturePad from '@/components/forms/SignaturePad.vue'
 import DeviceHandoffGate from '@/components/DeviceHandoffGate.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
@@ -1917,6 +1938,7 @@ const mobileCapture = ref({
 })
 
 const currentStep = ref(1)
+const selfEmployedVerifyOption = ref<'accountant' | 'document'>('accountant')
 
 const incomeSourceOptions = [
   { value: 'employed', label: 'Employed' },
@@ -1924,6 +1946,7 @@ const incomeSourceOptions = [
   { value: 'benefits', label: 'Benefits' },
   { value: 'savings', label: 'Savings' },
   { value: 'pension', label: 'Pension' },
+  { value: 'rental_income', label: 'Landlord/Rental Income' },
   { value: 'student', label: 'Student' },
   { value: 'unemployed', label: 'Unemployed' }
 ]
@@ -1943,8 +1966,10 @@ const steps = computed(() => {
     baseSteps.push({ id: 'guarantor', label: 'Guarantor' })
   }
 
-  // Always show deposit step - either as choice (if offered) or as sales pitch
-  baseSteps.push({ id: 'deposit', label: 'Deposit Options' })
+  // Only show deposit step when Reposit was offered by the agent
+  if (reference.value?.deposit_replacement_offered) {
+    baseSteps.push({ id: 'deposit', label: 'Deposit Options' })
+  }
 
   baseSteps.push({ id: 'consent', label: 'Consent' })
   return baseSteps
@@ -2017,9 +2042,16 @@ const formData = ref({
     pensionProvider: '',
     pensionDoc: null as File | null,
     pensionDocUrl: '',
+    // Rental Income
+    rentalIncome: null as number | null,
+    rentalProperties: null as number | null,
+    rentalDoc: null as File | null,
+    rentalDocUrl: '',
+    rentalDocWillEmail: false,
     // Student
     university: '',
     course: '',
+    studentId: '',
     studentDoc: null as File | null,
     studentDocUrl: ''
   },
@@ -2110,6 +2142,9 @@ const calculatedAnnualIncome = computed(() => {
   if (formData.value.income.sources.includes('pension') && formData.value.income.pensionAmount) {
     total += formData.value.income.pensionAmount * 12
   }
+  if (formData.value.income.sources.includes('rental_income') && formData.value.income.rentalIncome) {
+    total += formData.value.income.rentalIncome * 12
+  }
 
   return total
 })
@@ -2176,6 +2211,23 @@ const canSubmit = computed(() => {
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function handleCurrentAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  formData.value.residential.currentAddress.line1 = data.addressLine1
+  if (data.addressLine2) formData.value.residential.currentAddress.line2 = data.addressLine2
+  formData.value.residential.currentAddress.city = data.city
+  formData.value.residential.currentAddress.postcode = data.postcode
+}
+
+function handlePreviousAddressSelected(index: number, data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  const addr = formData.value.residential.previousAddresses[index]
+  if (addr) {
+    addr.line1 = data.addressLine1
+    if (data.addressLine2) addr.line2 = data.addressLine2
+    addr.city = data.city
+    addr.postcode = data.postcode
+  }
 }
 
 function addPreviousAddress() {

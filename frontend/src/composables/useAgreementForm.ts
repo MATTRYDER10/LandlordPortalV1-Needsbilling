@@ -54,7 +54,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   // Computed: Auto-calculate deposit (5 weeks rent)
   const calculatedDeposit = computed(() => {
     if (formData.value.rentAmount && formData.value.rentAmount > 0) {
-      return Math.round((formData.value.rentAmount * 12 / 52) * 5 * 100) / 100
+      return Math.floor((formData.value.rentAmount * 12 / 52) * 5)
     }
     return 0
   })

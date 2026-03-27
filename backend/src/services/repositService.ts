@@ -95,7 +95,7 @@ export async function getCompanyRepositConfig(companyId: string): Promise<Reposi
     referrerToken,
     apiKey,
     supplierId: data.reposit_supplier_id || '',
-    environment: (data.reposit_environment as 'sandbox' | 'live') || 'sandbox',
+    environment: (data.reposit_environment as 'sandbox' | 'live') || 'live',
     defaultAgentId: data.reposit_default_agent_id || undefined
   }
 }

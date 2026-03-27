@@ -39,81 +39,61 @@
             <!-- Form -->
             <form v-else @submit.prevent="handleSubmit" class="space-y-6">
                 <!-- Property Information -->
-                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Information</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2 relative overflow-visible">
-                            <AddressAutocomplete v-model="formData.property_address" label="Property Address"
-                                :required="true" id="property-address" placeholder="Start typing address..."
-                                @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
-                        </div>
-                        <div>
-                            <label for="property-city" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                City
-                            </label>
-                            <input id="property-city" v-model="formData.property_city" type="text" placeholder="City"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                        </div>
-                        <div>
-                            <label for="property-postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Postcode
-                            </label>
-                            <input id="property-postcode" v-model="formData.property_postcode" type="text"
-                                placeholder="Postcode"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                        </div>
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                    <div class="relative overflow-visible">
+                        <AddressAutocomplete v-model="formData.property_address" label="Property Address *"
+                            :required="true" id="property-address" placeholder="Start typing the property address..."
+                            @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
+                        <p v-if="formData.property_city || formData.property_postcode" class="mt-1.5 text-sm text-gray-600 dark:text-slate-400">
+                            {{ [formData.property_city, formData.property_postcode].filter(Boolean).join(', ') }}
+                        </p>
                     </div>
+                    <input type="hidden" v-model="formData.property_city" />
+                    <input type="hidden" v-model="formData.property_postcode" />
                 </div>
 
                 <!-- Offer Details -->
-                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Offer Details</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-orange-500 rounded-lg shadow p-5">
+                    <h2 class="text-lg font-semibold text-white mb-3">Offer Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label for="offered-rent" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Offered Rent Amount (£ per month) *
+                            <label for="offered-rent" class="block text-xs font-medium text-white/80 mb-1">
+                                Rent (£/month) *
                             </label>
                             <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
                                 step="0.01" required min="0" :max="originalOfferRent || undefined"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            <p v-if="originalOfferRent" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
+                            <p v-if="originalOfferRent" class="mt-1 text-xs text-white/70">
                                 Agent's offer: £{{ originalOfferRent }}/month
                             </p>
                         </div>
                         <div>
-                            <label for="move-in-date" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Proposed Move-in Date *
+                            <label for="move-in-date" class="block text-xs font-medium text-white/80 mb-1">
+                                Move-in Date *
                             </label>
                             <input id="move-in-date" v-model="formData.proposed_move_in_date" type="date" required
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
                         </div>
                         <div>
-                            <label for="tenancy-length" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Proposed Tenancy Length (months) *
+                            <label for="tenancy-length" class="block text-xs font-medium text-white/80 mb-1">
+                                Term (months) *
                             </label>
                             <input id="tenancy-length" v-model.number="formData.proposed_tenancy_length_months"
                                 type="number" required min="1" max="12"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Must be between 1 and 12 months</p>
-                        </div>
-                        <!-- <div>
-                            <label for="deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Deposit Amount (£) (Optional)
-                            </label>
-                            <input id="deposit-amount" v-model.number="formData.deposit_amount" type="number"
-                                step="0.01" min="0"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                        </div> -->
-                        <div class="md:col-span-2">
-                            <label for="special-conditions" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Special Conditions for Landlord to Consider
-                            </label>
-                            <textarea id="special-conditions" v-model="formData.special_conditions" rows="4"
-                                placeholder="Any special conditions or requests..."
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"></textarea>
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
+                            <p class="mt-1 text-xs text-white/70">1-12 months</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Special Conditions -->
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                    <label for="special-conditions" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Special Conditions for Landlord to Consider
+                    </label>
+                    <textarea id="special-conditions" v-model="formData.special_conditions" rows="3"
+                        placeholder="Any special conditions or requests..."
+                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white text-sm"></textarea>
                 </div>
 
                 <!-- Tenants -->
@@ -144,10 +124,12 @@
                             <div class="relative overflow-visible">
                                 <AddressAutocomplete v-model="tenant.address" :label="`Current Address`"
                                     :required="true" :id="`tenant-${index}-address`"
-                                    placeholder="Start typing address..."
+                                    placeholder="Start typing your address..."
                                     @addressSelected="(address) => handleTenantAddressSelected(index, address)"
                                     :allowManualEntry="true" />
-                                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
+                                <p v-if="tenant.address_city || tenant.address_postcode" class="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                                    {{ [tenant.address_city, tenant.address_postcode].filter(Boolean).join(', ') }}
+                                </p>
                             </div>
                             <div>
                                 <PhoneInput v-model="tenant.phone" :label="`Phone Number`" :id="`tenant-${index}-phone`"
@@ -162,8 +144,8 @@
                                     class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
 
-                            <!-- Checkbox options row -->
-                            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <!-- Student / Guarantor options -->
+                            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <label :for="`tenant-${index}-student`"
                                     class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
                                     :class="tenant.is_student
@@ -184,17 +166,6 @@
                                         type="checkbox"
                                         class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
                                     <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I have a guarantor</span>
-                                </label>
-
-                                <label :for="`tenant-${index}-no-ccj`"
-                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
-                                    :class="tenant.no_ccj_bankruptcy_iva
-                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
-                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
-                                    <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
-                                        type="checkbox" required
-                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
-                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">No CCJs, Bankruptcies or IVAs *</span>
                                 </label>
                             </div>
 
@@ -219,6 +190,31 @@
                                         class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                                 </div>
                             </template>
+
+                            <!-- No CCJs Declaration - full width at bottom -->
+                            <div class="md:col-span-2">
+                                <label :for="`tenant-${index}-no-ccj`"
+                                    class="flex items-center gap-3 w-full p-4 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.no_ccj_bankruptcy_iva
+                                        ? 'bg-orange-500 shadow-md'
+                                        : 'bg-orange-400 hover:bg-orange-500 shadow-sm hover:shadow-md'">
+                                    <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
+                                        type="checkbox" required
+                                        class="h-5 w-5 rounded border-white/50 text-orange-700 focus:ring-white bg-white/20 shrink-0" />
+                                    <div>
+                                        <span class="text-sm font-semibold text-white">I confirm I have no CCJs, Bankruptcies or IVAs *</span>
+                                    </div>
+                                </label>
+                                <button type="button" @click="tenant.showCcjHelp = !tenant.showCcjHelp" class="mt-1.5 text-xs text-gray-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 underline underline-offset-2">
+                                    What does this mean?
+                                </button>
+                                <div v-if="tenant.showCcjHelp" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-400 space-y-1.5">
+                                    <p><strong>CCJ (County Court Judgment)</strong> — A court order that can be registered against you if you fail to repay money you owe. CCJs stay on your credit file for 6 years.</p>
+                                    <p><strong>Bankruptcy</strong> — A legal process where your assets may be used to pay off debts you cannot afford. It severely impacts your ability to rent.</p>
+                                    <p><strong>IVA (Individual Voluntary Arrangement)</strong> — A formal agreement with your creditors to pay back debts over a set period, usually 5-6 years.</p>
+                                    <p class="pt-1 text-gray-500 dark:text-slate-500">If any of these apply to you, please speak to your letting agent before submitting this form.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -307,6 +303,66 @@
                         >
                             Learn more about Reposit →
                         </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UniHomes All-Inclusive Bills -->
+            <div v-if="unihomesOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+                <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">⚡</span>
+                        <div>
+                            <span class="font-semibold text-gray-900 dark:text-white">UniHomes</span>
+                            <span class="text-sm text-gray-500 dark:text-slate-400 ml-2">All-Inclusive Bills</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-5">
+                        <p class="text-blue-800 dark:text-blue-300 font-semibold">
+                            One simple payment covers all your bills
+                        </p>
+                        <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                            Electric, gas, water, broadband, TV licence — all included at a fixed weekly price per person.
+                        </p>
+                    </div>
+
+                    <!-- Pricing Table -->
+                    <div class="mb-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Pricing (per person per week)</h3>
+                        <div class="grid grid-cols-5 gap-2 text-center text-sm">
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">1</div><div class="text-gray-500">£66</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">2</div><div class="text-gray-500">£38</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">3</div><div class="text-gray-500">£30</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">4</div><div class="text-gray-500">£26</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">5</div><div class="text-gray-500">£24</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">6</div><div class="text-gray-500">£22</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">7</div><div class="text-gray-500">£21</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">8</div><div class="text-gray-500">£20</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">9</div><div class="text-gray-500">£19</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">10</div><div class="text-gray-500">£18</div></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 text-center">Number of people / price per person per week</p>
+                    </div>
+
+                    <!-- Opt-in Checkbox -->
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="unihomes-opt-in"
+                                v-model="formData.unihomes_interested"
+                                type="checkbox"
+                                class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900"
+                            />
+                            <label for="unihomes-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
+                                <span class="font-medium">Yes, I want UniHomes all-inclusive bills</span>
+                                <p class="text-gray-500 dark:text-slate-400 mt-1">
+                                    We'll set up your bills package before your move-in date.
+                                </p>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -457,13 +513,15 @@ const formData = ref({
             job_title: '',
             is_student: false,
             has_guarantor: false,
-            no_ccj_bankruptcy_iva: false
+            no_ccj_bankruptcy_iva: false,
+            showCcjHelp: false
         }
     ],
     signature: '',
     signature_name: '',
     terms_agreed: false,
-    deposit_replacement_requested: false
+    deposit_replacement_requested: false,
+    unihomes_interested: false
 })
 
 const parseBooleanQueryParam = (value: string | string[] | undefined): boolean => {
@@ -479,6 +537,10 @@ const parseBooleanQueryParam = (value: string | string[] | undefined): boolean =
 
 const depositReplacementOffered = computed(() =>
     parseBooleanQueryParam(route.query.deposit_replacement_offered as string | string[] | undefined)
+)
+
+const unihomesOffered = computed(() =>
+    parseBooleanQueryParam(route.query.unihomes as string | string[] | undefined)
 )
 
 const isV2Offer = computed(() =>
@@ -500,7 +562,8 @@ const addTenant = () => {
         job_title: '',
         is_student: false,
         has_guarantor: false,
-        no_ccj_bankruptcy_iva: false
+        no_ccj_bankruptcy_iva: false,
+        showCcjHelp: false
     })
 }
 
@@ -614,6 +677,8 @@ const handleSubmit = async () => {
             })),
             deposit_replacement_offered: depositReplacementOffered.value,
             deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false,
+            unihomes_offered: unihomesOffered.value,
+            unihomes_interested: unihomesOffered.value ? formData.value.unihomes_interested : false,
             is_v2: isV2Offer.value,
             form_ref: formRef || undefined
         }

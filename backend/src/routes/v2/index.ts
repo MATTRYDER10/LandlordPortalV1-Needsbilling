@@ -16,6 +16,7 @@ import adminRouter from './admin'
 import verifyRouter from './verify'
 import offersRouter from './offers'
 import mobileCaptureRouter from './mobile-capture'
+import uploadLinkRouter from './upload-link'
 import groupAssessmentRouter from './groupAssessment'
 
 export {
@@ -31,5 +32,6 @@ export {
   verifyRouter,
   offersRouter,
   mobileCaptureRouter,
+  uploadLinkRouter,
   groupAssessmentRouter
 }

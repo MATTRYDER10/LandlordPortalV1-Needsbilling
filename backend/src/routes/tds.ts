@@ -106,6 +106,115 @@ async function getTenancyWithDetails(tenancyId: string, companyId: string) {
 }
 
 /**
+ * Send deposit protection certificate to all active tenants on a tenancy.
+ * Downloads the cert PDF and emails it as an attachment.
+ * Returns true if cert was successfully sent.
+ */
+export async function sendCertificateToTenants(
+  tenancyId: string,
+  companyId: string,
+  userId: string,
+  dan: string,
+  schemeName: string,
+  depositAmount: number,
+  propertyAddress: string | null,
+  depositScheme: string // 'tds_insured' | 'tds_custodial' | 'mydeposits'
+): Promise<boolean> {
+  const { data: tenants } = await supabase
+    .from('tenancy_tenants')
+    .select('id, tenant_email_encrypted, tenant_name_encrypted, is_lead_tenant')
+    .eq('tenancy_id', tenancyId)
+    .eq('is_active', true)
+
+  if (!tenants || tenants.length === 0) {
+    console.log(`[DepositCert] No active tenants found for tenancy ${tenancyId}`)
+    return false
+  }
+
+  // Download the certificate
+  let certBuffer: Buffer | undefined
+  let certContentType = 'application/pdf'
+  try {
+    let certResult: { success: boolean; buffer?: Buffer; contentType?: string }
+    if (depositScheme === 'tds_insured') {
+      certResult = await downloadInsuredCertificate(companyId, dan)
+    } else if (depositScheme === 'mydeposits') {
+      const { downloadCertificate } = await import('../services/mydepositsService')
+      certResult = await downloadCertificate(companyId, dan)
+    } else {
+      certResult = await downloadDPC(companyId, dan)
+    }
+    if (certResult.success && certResult.buffer) {
+      certBuffer = certResult.buffer
+      certContentType = certResult.contentType || 'application/pdf'
+    } else {
+      console.log(`[DepositCert] Certificate not available yet for DAN ${dan}`)
+      return false
+    }
+  } catch (certErr) {
+    console.error('[DepositCert] Certificate download failed:', certErr)
+    return false
+  }
+
+  // Get company name for the email
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, logo_url')
+    .eq('id', companyId)
+    .single()
+  const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'Your letting agent'
+  const logoUrl = companyData?.logo_url || null
+
+  let sentCount = 0
+  for (const tenant of tenants) {
+    const tenantEmail = tenant.tenant_email_encrypted ? decrypt(tenant.tenant_email_encrypted) : null
+    const tenantName = tenant.tenant_name_encrypted ? decrypt(tenant.tenant_name_encrypted) : 'Tenant'
+
+    if (!tenantEmail) continue
+
+    const emailHtml = loadEmailTemplate('deposit-certificate', {
+      TenantName: tenantName || 'Tenant',
+      CompanyName: companyName || 'Your letting agent',
+      SchemeName: schemeName,
+      DAN: dan,
+      DepositAmount: `£${depositAmount.toLocaleString('en-GB')}`,
+      ProtectionDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      PropertyAddress: propertyAddress || 'Your property',
+      AgentLogoUrl: logoUrl || 'https://www.propertygoose.co.uk/logo.png'
+    })
+
+    await sendEmail({
+      to: tenantEmail,
+      subject: `Your Deposit is Protected - ${schemeName} (DAN: ${dan})`,
+      html: emailHtml,
+      attachments: [{
+        filename: `Deposit_Certificate_${dan}.pdf`,
+        content: certBuffer!
+      }]
+    }).catch(err => console.error(`[DepositCert] Email failed for ${tenantEmail}:`, err))
+
+    console.log(`[DepositCert] Certificate sent to tenant: ${tenantEmail}`)
+    sentCount++
+  }
+
+  // Log activity
+  await supabase
+    .from('tenancy_activity')
+    .insert({
+      tenancy_id: tenancyId,
+      action: 'DEPOSIT_CERTIFICATE_SENT',
+      category: 'payment',
+      title: 'Deposit Certificate Sent to Tenant(s)',
+      description: `${schemeName} deposit protection certificate (DAN: ${dan}) emailed to ${sentCount} tenant(s)`,
+      metadata: { dan, scheme: schemeName, tenantCount: sentCount },
+      performed_by: userId,
+      is_system_action: true
+    })
+
+  return true
+}
+
+/**
  * Save registration and update tenancy
  */
 async function saveRegistrationAndUpdateTenancy(
@@ -216,7 +325,7 @@ async function saveRegistrationAndUpdateTenancy(
       read: false
     })
 
-    // Email notification
+    // Email notification to agent
     if (agentEmail) {
       await sendEmail({
         to: agentEmail,
@@ -232,6 +341,26 @@ async function saveRegistrationAndUpdateTenancy(
           <p style="font-size:14px;color:#6b7280;">Download the certificate from PropertyGoose.</p>
         </div>`
       }).catch(err => console.error('[TDS] Notification email failed:', err))
+    }
+
+    // Send deposit protection certificate to tenant(s)
+    // Insured: cert available immediately, send now
+    // Custodial: cert not available until payment, queue for daily polling (up to 30 days)
+    if (schemeType === 'insured') {
+      try {
+        await sendCertificateToTenants(tenancyId, companyId, userId, dan, schemeName, depositAmount, propertyAddress, 'tds_insured')
+      } catch (tenantEmailErr) {
+        console.error('[TDS] Tenant certificate email error:', tenantEmailErr)
+      }
+    } else {
+      // Custodial: set polling deadline — scheduler will check daily
+      const pollUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      await supabase
+        .from('tds_registrations')
+        .update({ certificate_poll_until: pollUntil })
+        .eq('tenancy_id', tenancyId)
+        .eq('dan', dan)
+      console.log(`[TDS] Custodial cert polling queued until ${pollUntil} for DAN ${dan}`)
     }
   } catch (notifyErr) {
     console.error('[TDS] Notification error:', notifyErr)

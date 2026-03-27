@@ -75,12 +75,21 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-500 dark:text-slate-400">Status</p>
-                  <span
-                    class="inline-block mt-1 px-3 py-1 text-sm font-semibold rounded-full"
-                    :class="statusClass"
-                  >
-                    {{ statusLabel }}
-                  </span>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span
+                      class="inline-block px-3 py-1 text-sm font-semibold rounded-full"
+                      :class="statusClass"
+                    >
+                      {{ statusLabel }}
+                    </span>
+                    <span
+                      v-if="tenancy?.offer_unihomes"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                    >
+                      <Zap class="w-3.5 h-3.5" />
+                      UniHomes{{ tenancy?.unihomes_interested ? ' (Interested)' : '' }}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <!-- Pending tenancy actions -->
@@ -263,6 +272,7 @@
               v-if="activeTenantChange && tenancy?.status === 'active'"
               :tenant-change="activeTenantChange"
               :tenants="tenants"
+              :reference-statuses="tenantChangeRefStatuses"
               @continue="showTenantChangeModal = true"
             />
 
@@ -596,17 +606,10 @@
                         rel="noopener noreferrer"
                         class="flex items-center gap-2"
                       >
-                        <!-- Light mode logo -->
                         <img
-                          src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png"
+                          src="/reposit-logo.png"
                           alt="Reposit"
-                          class="h-5 w-auto dark:hidden"
-                        />
-                        <!-- Dark mode logo (white version) -->
-                        <img
-                          src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-white.png"
-                          alt="Reposit"
-                          class="h-5 w-auto hidden dark:block"
+                          class="h-5 w-auto"
                         />
                       </a>
                       <a
@@ -886,7 +889,9 @@
                     </div>
                     <span class="text-sm font-bold text-[#1E3A8A] dark:text-white">TDS</span>
                     <span class="text-xs text-gray-500 dark:text-slate-400">
-                      <span v-if="hasTDSCustodial && hasTDSInsured">Custodial & Insured</span>
+                      <span v-if="tdsSchemePreference === 'insured'">Insured</span>
+                      <span v-else-if="tdsSchemePreference === 'custodial'">Custodial</span>
+                      <span v-else-if="hasTDSCustodial && hasTDSInsured">Custodial & Insured</span>
                       <span v-else-if="hasTDSCustodial">Custodial</span>
                       <span v-else-if="hasTDSInsured">Insured</span>
                     </span>
@@ -926,9 +931,9 @@
                       Not yet registered
                     </p>
 
-                    <!-- Single scheme: Direct button -->
+                    <!-- Scheme-specific or auto-detect button -->
                     <button
-                      v-if="hasTDSCustodial && !hasTDSInsured"
+                      v-if="tdsSchemePreference === 'custodial' || (hasTDSCustodial && !hasTDSInsured && !tdsSchemePreference)"
                       @click="openTDSRegistrationModal('custodial')"
                       class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
                     >
@@ -937,7 +942,7 @@
                     </button>
 
                     <button
-                      v-else-if="hasTDSInsured && !hasTDSCustodial"
+                      v-else-if="tdsSchemePreference === 'insured' || (hasTDSInsured && !hasTDSCustodial && !tdsSchemePreference)"
                       @click="openTDSRegistrationModal('insured')"
                       class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
                     >
@@ -945,8 +950,8 @@
                       Register with TDS Insured
                     </button>
 
-                    <!-- Both schemes: Dropdown -->
-                    <div v-else-if="hasTDSCustodial && hasTDSInsured" class="relative mt-2">
+                    <!-- Both schemes configured and no preference: Dropdown -->
+                    <div v-else-if="hasTDSCustodial && hasTDSInsured && !tdsSchemePreference" class="relative mt-2">
                       <button
                         @click="showTDSSchemeMenu = !showTDSSchemeMenu"
                         class="w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
@@ -1774,7 +1779,7 @@
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div v-if="propertyDetails.property_type">
                       <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Type</p>
-                      <p class="font-medium text-gray-900 dark:text-white capitalize">{{ propertyDetails.property_type?.replace('_', ' ') }}</p>
+                      <p class="font-medium text-gray-900 dark:text-white">{{ propertyDetails.property_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) }}</p>
                     </div>
                     <div v-if="propertyDetails.number_of_bedrooms">
                       <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Bedrooms</p>
@@ -1937,7 +1942,7 @@
                   <div class="flex items-center gap-2">
                     <button
                       v-if="apex27Connected"
-                      @click="pushDocToApex27(doc.id, 'tenancy_document')"
+                      @click="pushDocToApex27(doc.id, 'property_document')"
                       :disabled="pushingDocId === doc.id"
                       class="p-1 text-gray-400 dark:text-slate-500 hover:text-[#6B21A8] dark:hover:text-[#9333EA]"
                       title="Push to Apex27"
@@ -2054,6 +2059,160 @@
               </router-link>
             </div>
           </div>
+
+          <!-- Inspections Tab -->
+          <div v-if="activeTab === 'inspections'" class="space-y-6">
+            <!-- Book Inspection Button -->
+            <div v-if="tenancy?.status === 'pending' || tenancy?.status === 'active'" class="flex justify-end">
+              <button
+                @click="showBookInspectionModal = true"
+                class="px-4 py-2 text-sm font-medium text-white bg-[#10B981] hover:bg-[#059669] rounded-md flex items-center gap-2"
+              >
+                <Plus class="w-4 h-4" />
+                Book Inspection
+              </button>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loadingInspections" class="flex items-center justify-center py-12">
+              <Loader2 class="w-8 h-8 animate-spin text-[#10B981]" />
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="igAppointments.length === 0" class="text-center py-12">
+              <ClipboardCheck class="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
+              <p class="text-sm text-gray-500 dark:text-slate-400">No inspections booked yet.</p>
+              <p v-if="tenancy?.status === 'pending' || tenancy?.status === 'active'" class="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                Book an inventory, check out, or mid-term inspection via InventoryGoose.
+              </p>
+            </div>
+
+            <!-- Inspection Cards -->
+            <div v-else class="space-y-3">
+              <div
+                v-for="appt in igAppointments"
+                :key="appt.id"
+                class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-[#10B981]/20">
+                      <ClipboardCheck class="w-4 h-4 text-[#10B981]" />
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ igTypeLabels[appt.type] || appt.type }}</span>
+                        <span
+                          class="px-2 py-0.5 rounded-full text-xs font-medium"
+                          :class="igStatusColors[appt.status] || 'bg-gray-100 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300'"
+                        >
+                          {{ igStatusLabels[appt.status] || appt.status }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                        {{ formatInspectionDate(appt.scheduled_date) }} at {{ appt.scheduled_time }}
+                        <span v-if="appt.assessor_name"> &middot; {{ appt.assessor_name }}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-3 flex items-center gap-2 flex-wrap">
+                  <a
+                    v-if="appt.report_url"
+                    :href="appt.report_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="px-3 py-1 text-xs font-medium text-[#10B981] border border-[#10B981]/30 rounded-md hover:bg-[#10B981]/10 flex items-center gap-1"
+                  >
+                    <ExternalLink class="w-3 h-3" />
+                    View Report
+                  </a>
+                  <button
+                    v-if="(appt.status === 'signed' || appt.status === 'finalised') && appt.ig_report_id"
+                    @click="downloadInspectionReport(appt.ig_report_id)"
+                    class="px-3 py-1 text-xs font-medium text-[#10B981] border border-[#10B981]/30 rounded-md hover:bg-[#10B981]/10 flex items-center gap-1"
+                  >
+                    <Download class="w-3 h-3" />
+                    Download PDF
+                  </button>
+                  <button
+                    v-if="appt.status === 'scheduled'"
+                    @click="openEditInspection(appt)"
+                    class="px-3 py-1 text-xs font-medium text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-1"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    v-if="appt.status === 'scheduled'"
+                    @click="openCancelInspection(appt)"
+                    class="px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <!-- Signatories (when signed) -->
+                <div v-if="appt.signatories && appt.signatories.length > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Signatories</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="(sig, idx) in appt.signatories"
+                      :key="idx"
+                      class="px-2 py-0.5 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full"
+                    >
+                      {{ sig.name }} ({{ sig.role }})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cancel Inspection Confirmation Modal -->
+          <Teleport to="body">
+            <div v-if="showCancelInspectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCancelInspectionModal = false">
+              <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Cancel Inspection</h3>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
+                  Are you sure you want to cancel this inspection? The assessor will be notified automatically.
+                </p>
+                <div class="flex justify-end gap-3">
+                  <button
+                    @click="showCancelInspectionModal = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
+                  >
+                    Keep Inspection
+                  </button>
+                  <button
+                    @click="confirmCancelInspection"
+                    :disabled="cancellingInspection"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
+                  >
+                    <Loader2 v-if="cancellingInspection" class="w-4 h-4 animate-spin" />
+                    Cancel Inspection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
+
+          <!-- Book Inspection Modal -->
+          <BookInspectionModal
+            v-if="tenancy"
+            v-model:open="showBookInspectionModal"
+            :tenancy-id="tenancy.id"
+            @booked="fetchInspections"
+          />
+
+          <!-- Edit Inspection Modal -->
+          <EditInspectionModal
+            v-if="selectedInspection"
+            v-model:open="showEditInspectionModal"
+            :appointment="selectedInspection"
+            @updated="fetchInspections"
+          />
 
           <!-- Rent Tab -->
           <div v-if="activeTab === 'rent'" class="space-y-6">
@@ -2522,6 +2681,8 @@
       :show="showRegisterWithMyDepositsModal"
       :tenancy="fullTenancyData || tenancy"
       :scheme-type="selectedMyDepositsScheme"
+      :landlords="allLandlords"
+      :property="propertyDetails"
       @update:show="showRegisterWithMyDepositsModal = $event"
       @registered="handleMyDepositsRegistered"
     />
@@ -2855,7 +3016,7 @@ import {
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
-  Sparkles, Star, RefreshCw, AlertTriangle
+  Sparkles, Star, RefreshCw, AlertTriangle, Zap
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2878,6 +3039,8 @@ import TenantChangeModal from './TenantChangeModal.vue'
 import TenantChangeStatusTracker from './TenantChangeStatusTracker.vue'
 import MoveOutNoticeModal from './MoveOutNoticeModal.vue'
 import CreateRepositModal from './CreateRepositModal.vue'
+import BookInspectionModal from './BookInspectionModal.vue'
+import EditInspectionModal from './EditInspectionModal.vue'
 import { API_URL } from '@/lib/apiUrl'
 import { authFetch } from '@/lib/authFetch'
 
@@ -2895,7 +3058,7 @@ const emit = defineEmits<{
 const toast = useToast()
 const authStore = useAuthStore()
 // State
-const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'rent' | 'activity'>('overview')
+const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'activity'>('overview')
 const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
@@ -2931,12 +3094,128 @@ const cancellingRentDueDateChange = ref<string | null>(null)
 // Tenant Change state
 const showTenantChangeModal = ref(false)
 const activeTenantChange = ref<any>(null)
+const tenantChangeRefStatuses = ref<any[]>([])
 const loadingTenantChange = ref(false)
 
 // Review Link state
 const showReviewLinkModal = ref(false)
 const sendingReviewLink = ref(false)
 const reviewNote = ref('')
+
+// InventoryGoose Inspection state
+const showBookInspectionModal = ref(false)
+const showEditInspectionModal = ref(false)
+const showCancelInspectionModal = ref(false)
+const igAppointments = ref<any[]>([])
+const loadingInspections = ref(false)
+const cancellingInspection = ref(false)
+const selectedInspection = ref<any>(null)
+
+const igStatusColors: Record<string, string> = {
+  scheduled: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+  in_progress: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
+  ai_running: 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300',
+  ai_complete: 'bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300',
+  edit: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
+  finalised: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
+  signed: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
+  cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
+}
+
+const igStatusLabels: Record<string, string> = {
+  scheduled: 'Scheduled',
+  in_progress: 'In Progress',
+  ai_running: 'AI Processing',
+  ai_complete: 'AI Complete',
+  edit: 'Editing',
+  finalised: 'Finalised',
+  signed: 'Signed',
+  cancelled: 'Cancelled'
+}
+
+const igTypeLabels: Record<string, string> = {
+  inventory: 'Inventory',
+  checkout: 'Check Out',
+  mid_term: 'Mid-Term'
+}
+
+function formatInspectionDate(dateStr: string): string {
+  if (!dateStr) return ''
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+async function fetchInspections() {
+  if (!props.tenancy?.id) return
+  loadingInspections.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/appointments/${props.tenancy.id}`, {
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      const data = await response.json()
+      igAppointments.value = data.appointments || []
+    }
+  } catch (err) {
+    console.error('[Inspections] Error fetching:', err)
+  } finally {
+    loadingInspections.value = false
+  }
+}
+
+function openEditInspection(appointment: any) {
+  selectedInspection.value = appointment
+  showEditInspectionModal.value = true
+}
+
+function openCancelInspection(appointment: any) {
+  selectedInspection.value = appointment
+  showCancelInspectionModal.value = true
+}
+
+async function confirmCancelInspection() {
+  if (!selectedInspection.value) return
+  cancellingInspection.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/appointments/${selectedInspection.value.id}`, {
+      method: 'DELETE',
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      showCancelInspectionModal.value = false
+      selectedInspection.value = null
+      await fetchInspections()
+    }
+  } catch (err) {
+    console.error('[Inspections] Error cancelling:', err)
+  } finally {
+    cancellingInspection.value = false
+  }
+}
+
+async function downloadInspectionReport(reportId: string) {
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/reports/${reportId}/pdf`, {
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-report-${reportId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+  } catch (err) {
+    console.error('[Inspections] Error downloading report:', err)
+  }
+}
 
 // Reposit state
 const showCreateRepositModal = ref(false)
@@ -3014,6 +3293,14 @@ const isRepositScheme = computed(() => {
 const isTDSScheme = computed(() => {
   const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
   return s === 'tds' || s.startsWith('tds') || s.includes('tds')
+})
+
+// Specific TDS scheme type from tenancy
+const tdsSchemePreference = computed(() => {
+  const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
+  if (s === 'tds_insured' || s === 'tds insured') return 'insured'
+  if (s === 'tds_custodial' || s === 'tds custodial') return 'custodial'
+  return null // generic 'tds' — show whatever is configured
 })
 
 const isMyDepositsScheme = computed(() => {
@@ -3223,6 +3510,8 @@ watch(() => props.open, async (isOpen) => {
     // Reset document upload state
     selectedDocument.value = null
     documentTag.value = 'other'
+    // Reset IG inspections state
+    igAppointments.value = []
     // Reset rent due date changes state
     rentDueDateChanges.value = []
     selectedRentDueDateChange.value = null
@@ -3276,6 +3565,13 @@ watch(() => props.open, async (isOpen) => {
   }
 })
 
+// Lazy-load inspections when tab is selected
+watch(activeTab, (tab) => {
+  if (tab === 'inspections' && igAppointments.value.length === 0) {
+    fetchInspections()
+  }
+})
+
 // Tabs
 const tabs = [
   { key: 'overview' as const, label: 'Overview' },
@@ -3283,6 +3579,7 @@ const tabs = [
   { key: 'landlord' as const, label: 'Landlord' },
   { key: 'property' as const, label: 'Property' },
   { key: 'documents' as const, label: 'Documents' },
+  { key: 'inspections' as const, label: 'Inspections' },
   { key: 'rent' as const, label: 'Tenancy Changes' },
   { key: 'activity' as const, label: 'Activity' }
 ]
@@ -4297,7 +4594,28 @@ const loadAdditionalData = async () => {
       specialClauses.value = []
     }
 
-    // Load guarantors and tenant addresses from reference data
+    // Populate tenant addresses immediately from tenancy data (no extra API call)
+    const tenants = fullTenancyData.value?.tenants || []
+    if (tenants.length > 0) {
+      const addressMap = new Map<string, any>()
+      for (const t of tenants) {
+        const name = `${t.first_name || ''} ${t.last_name || ''}`.trim()
+        if (name && (t.residential_address_line1 || t.residential_city || t.residential_postcode)) {
+          addressMap.set(name.toLowerCase(), {
+            line1: t.residential_address_line1 || '',
+            line2: t.residential_address_line2 || '',
+            city: t.residential_city || '',
+            postcode: t.residential_postcode || ''
+          })
+        }
+      }
+      if (addressMap.size > 0) {
+        tenantAddressMap.value = addressMap
+        console.log('[TenancyDrawer] Loaded tenant addresses from tenancy data (instant):', addressMap.size)
+      }
+    }
+
+    // Load guarantors and fallback addresses from reference data
     const referenceId = fullTenancyData.value?.primary_reference_id || props.tenancy?.primary_reference_id
     console.log('[TenancyDrawer] Looking for reference ID:', referenceId, 'from fullTenancyData:', fullTenancyData.value?.primary_reference_id, 'or props:', props.tenancy?.primary_reference_id)
     if (referenceId) {
@@ -4342,8 +4660,15 @@ const loadAdditionalData = async () => {
             })
           }
 
-          tenantAddressMap.value = addressMap
-          console.log('[TenancyDrawer] Loaded tenant addresses from reference:', addressMap.size)
+          // Merge with existing addresses (don't overwrite instant-loaded data)
+          const existing = tenantAddressMap.value
+          for (const [key, val] of addressMap) {
+            if (!existing.has(key)) {
+              existing.set(key, val)
+            }
+          }
+          tenantAddressMap.value = new Map(existing)
+          console.log('[TenancyDrawer] Merged tenant addresses from reference, total:', tenantAddressMap.value.size)
 
           // Guarantors can come from multiple places:
           // 1. guarantorReferences array (new system - for standalone references)
@@ -4477,9 +4802,16 @@ const loadAdditionalData = async () => {
         }
       }
 
-      tenantAddressMap.value = addressMap
+      // Merge with existing addresses
+      const existing = tenantAddressMap.value
+      for (const [key, val] of addressMap) {
+        if (!existing.has(key)) {
+          existing.set(key, val)
+        }
+      }
+      tenantAddressMap.value = new Map(existing)
       guarantors.value = allGuarantors
-      console.log('[TenancyDrawer] Loaded tenant addresses from individual refs:', addressMap.size)
+      console.log('[TenancyDrawer] Merged tenant addresses from individual refs, total:', tenantAddressMap.value.size)
     }
   } catch (error) {
     console.error('Error loading additional data:', error)
@@ -4835,9 +5167,11 @@ const loadActiveTenantChange = async () => {
     if (response.ok) {
       const data = await response.json()
       activeTenantChange.value = data.tenantChange || null
+      tenantChangeRefStatuses.value = data.referenceStatuses || []
     } else if (response.status === 404) {
       // No active tenant change - this is normal
       activeTenantChange.value = null
+      tenantChangeRefStatuses.value = []
     }
   } catch (error) {
     console.error('Error loading active tenant change:', error)
@@ -5196,10 +5530,6 @@ const deleteDocument = async (documentId: string) => {
       `${API_URL}/api/properties/${tenancy.value.property_id}/documents/${documentId}`,
       {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-,
         token
       }
     )

@@ -71,6 +71,10 @@ export type V2RefereeType =
   | 'LANDLORD'
   | 'AGENT'
   | 'ACCOUNTANT'
+  | 'TENANT'
+  | 'GUARANTOR'
+
+export type V2ChaseType = 'TENANT' | 'REFEREE' | 'GUARANTOR' | 'UPLOAD'
 
 export type V2PreviousLandlordType =
   | 'landlord'
@@ -190,7 +194,7 @@ export interface V2SectionRow {
 export interface V2ChaseItemRow {
   id: string
   reference_id: string
-  section_id: string
+  section_id: string | null
   referee_type: V2RefereeType
   referee_name_encrypted: string | null
   referee_email_encrypted: string | null
@@ -207,6 +211,11 @@ export interface V2ChaseItemRow {
   resolution_type: string | null
   unable_reason: string | null
   verbal_reference_id: string | null
+  chase_type: V2ChaseType
+  chase_note: string | null
+  email_checked: boolean
+  call_checked: boolean
+  cooldown_until: string | null
   created_at: string
   updated_at: string
 }

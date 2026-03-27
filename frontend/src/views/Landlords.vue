@@ -159,6 +159,9 @@
                   <div class="flex items-center">
                     <div>
                       <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ landlord.company_name || `${landlord.first_name} ${landlord.last_name}` }}
+                      </div>
+                      <div v-if="landlord.company_name" class="text-xs text-gray-400 dark:text-slate-500">
                         {{ landlord.first_name }} {{ landlord.last_name }}
                       </div>
                       <div class="text-sm text-gray-500 dark:text-slate-400">{{ landlord.email }}</div>

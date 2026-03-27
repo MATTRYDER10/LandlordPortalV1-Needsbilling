@@ -381,7 +381,7 @@ export async function createTenancyFromReference(
     endDate,
     fixedTermEndDate: endDate,
     monthlyRent: reference.monthly_rent,
-    depositAmount: agreement?.deposit_amount || Math.round((reference.monthly_rent * 12 / 52) * 5 * 100) / 100, // Default to 5 weeks rent
+    depositAmount: agreement?.deposit_amount || Math.floor((reference.monthly_rent * 12 / 52) * 5), // Default to 5 weeks rent
     billsIncluded: reference.bills_included || false,
     createdBy
   }, [{

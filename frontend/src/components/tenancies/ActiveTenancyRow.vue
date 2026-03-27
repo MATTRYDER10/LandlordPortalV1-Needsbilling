@@ -157,6 +157,15 @@
           <Calendar class="w-2.5 h-2.5" />
           Rent due: {{ rentDueDay }}
         </span>
+
+        <!-- UniHomes -->
+        <span
+          v-if="tenancy.offer_unihomes"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+        >
+          <Zap class="w-2.5 h-2.5" />
+          UniHomes{{ tenancy.unihomes_interested ? ' (Interested)' : '' }}
+        </span>
       </div>
     </div>
   </div>
@@ -176,7 +185,8 @@ import {
   Mail,
   Shield,
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  Zap
 } from 'lucide-vue-next'
 
 interface TenancyTenant {

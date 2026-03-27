@@ -205,11 +205,22 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
       return parseFloat(checklist.total_effective_income) || parseFloat(checklist.annual_income) || refAnnualIncome || 0
     }
 
-    // Helper: parse intended decision from final_decision_notes
-    function getIntendedDecision(notes: string | null): string {
-      if (!notes) return 'PENDING'
-      const match = notes.match(/INDIVIDUAL_DECISION:\s*(\w+)/)
-      return match ? match[1] : 'PENDING'
+    // Helper: parse intended decision from final_decision_notes or status
+    function getIntendedDecision(notes: string | null, status?: string | null): string {
+      // First try parsing from notes (INDIVIDUAL_DECISION: prefix)
+      if (notes) {
+        const match = notes.match(/INDIVIDUAL_DECISION:\s*(\w+)/)
+        if (match) return match[1]
+      }
+      // Fallback: if status is a final decision status, use it directly
+      // This handles guarantors that went through the single-tenant flow
+      const finalStatuses = ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED', 'INDIVIDUAL_COMPLETE', 'GROUP_ASSESSMENT']
+      if (status && finalStatuses.includes(status)) {
+        // INDIVIDUAL_COMPLETE and GROUP_ASSESSMENT mean they passed individual review
+        if (status === 'INDIVIDUAL_COMPLETE' || status === 'GROUP_ASSESSMENT') return 'ACCEPTED'
+        return status
+      }
+      return 'PENDING'
     }
 
     // Get all children with their sections and guarantors
@@ -235,13 +246,17 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
             annual_income: gIncome,
             max_affordable_rent: gIncome ? Math.round((gIncome / 32) * 100) / 100 : null,
             final_decision_notes: childGuarantor.final_decision_notes,
-            individual_decision: getIntendedDecision(childGuarantor.final_decision_notes),
+            individual_decision: getIntendedDecision(childGuarantor.final_decision_notes, childGuarantor.status),
             report_pdf_url: childGuarantor.report_pdf_url,
             sections: guarantorSections
           }
         }
 
-        const maxAffordableRent = effectiveIncome ? Math.round((effectiveIncome / 30) * 100) / 100 : null
+        // If tenant has no income but has guarantor, use guarantor's max affordable rent
+        let maxAffordableRent = effectiveIncome ? Math.round((effectiveIncome / 30) * 100) / 100 : null
+        if (!maxAffordableRent && guarantorDetail) {
+          maxAffordableRent = guarantorDetail.max_affordable_rent
+        }
 
         return {
           id: child.id,
@@ -254,7 +269,7 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
           rent_share: child.rent_share,
           max_affordable_rent: maxAffordableRent,
           final_decision_notes: child.final_decision_notes,
-          individual_decision: getIntendedDecision(child.final_decision_notes),
+          individual_decision: getIntendedDecision(child.final_decision_notes, child.status),
           report_pdf_url: child.report_pdf_url,
           sections: childSections,
           guarantor: guarantorDetail
@@ -262,14 +277,15 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
       })
     )
 
-    // Also check if parent itself has a guarantor (single tenant + guarantor case)
+    // Check if parent has a guarantor (works for both single tenant and group parent)
     let parentGuarantor = null
-    if (!parentRef.is_group_parent) {
+    {
       const gRef = await getGuarantor(parentId)
       if (gRef) {
         const gSections = await getSections(gRef.id)
-        const maxAffordableRent = gRef.annual_income
-          ? Math.round((gRef.annual_income / 32) * 100) / 100
+        const gEffectiveIncome = getEffectiveIncome(gSections || [], gRef.annual_income)
+        const maxAffordableRent = gEffectiveIncome
+          ? Math.round((gEffectiveIncome / 32) * 100) / 100
           : null
 
         parentGuarantor = {
@@ -279,7 +295,7 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
           tenant_first_name: decrypt(gRef.tenant_first_name_encrypted),
           tenant_last_name: decrypt(gRef.tenant_last_name_encrypted),
           tenant_email: decrypt(gRef.tenant_email_encrypted),
-          annual_income: gRef.annual_income,
+          annual_income: gEffectiveIncome,
           affordability_ratio: gRef.affordability_ratio,
           affordability_pass: gRef.affordability_pass,
           max_affordable_rent: maxAffordableRent,
@@ -291,9 +307,13 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
 
     // Calculate parent income and affordability from sections
     const parentEffectiveIncome = getEffectiveIncome(parentSections || [], parentRef.annual_income)
-    const parentMaxAffordableRent = parentEffectiveIncome
+    let parentMaxAffordableRent = parentEffectiveIncome
       ? Math.round((parentEffectiveIncome / 30) * 100) / 100
       : null
+    // If parent has no income but has guarantor, use guarantor's max affordable rent
+    if (!parentMaxAffordableRent && parentGuarantor) {
+      parentMaxAffordableRent = parentGuarantor.max_affordable_rent
+    }
 
     // Build full members list — parent + children (for frontend to iterate)
     const allMembers = []
@@ -310,7 +330,7 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
         rent_share: parentRef.rent_share,
         max_affordable_rent: parentMaxAffordableRent,
         final_decision_notes: parentRef.final_decision_notes,
-        individual_decision: getIntendedDecision(parentRef.final_decision_notes),
+        individual_decision: getIntendedDecision(parentRef.final_decision_notes, parentRef.status),
         report_pdf_url: parentRef.report_pdf_url,
         sections: parentSections,
         guarantor: parentGuarantor,
@@ -328,7 +348,7 @@ router.get('/:parentId', authenticateStaff, async (req: StaffAuthRequest, res) =
         ...parentDecrypted,
         annual_income: parentEffectiveIncome,
         max_affordable_rent: parentMaxAffordableRent,
-        individual_decision: getIntendedDecision(parentRef.final_decision_notes),
+        individual_decision: getIntendedDecision(parentRef.final_decision_notes, parentRef.status),
         report_pdf_url: parentRef.report_pdf_url,
         guarantor: parentGuarantor
       },
@@ -536,7 +556,7 @@ router.post('/:parentId/decision', authenticateStaff, async (req: StaffAuthReque
           const agentHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#f3f4f6;">
             <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
               <div style="background:#f97316;padding:24px;text-align:center;">
-                <img src="https://www.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
+                <img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
               </div>
               <div style="padding:32px;">
                 <div style="background:${statusBg};border-radius:8px;padding:12px;text-align:center;margin-bottom:20px;">
@@ -565,14 +585,8 @@ router.post('/:parentId/decision', authenticateStaff, async (req: StaffAuthReque
       console.error('[V2 GroupAssessment] Error sending agent notification:', notifyErr.message || notifyErr)
     }
 
-    // Send tenant notifications
+    // Send tenant notifications — neutral "References Completed" (don't reveal decision)
     try {
-      const isAccepted = ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION'].includes(decision)
-      const decisionLabel = decision === 'ACCEPTED' ? 'Accepted'
-        : decision === 'ACCEPTED_WITH_GUARANTOR' ? 'Accepted (with Guarantor)'
-        : decision === 'ACCEPTED_ON_CONDITION' ? 'Accepted on Condition'
-        : 'Unsuccessful'
-
       const sendTenantNotification = async (refId: string) => {
         const refData = await getReferenceDecrypted(refId)
         if (!refData) return
@@ -580,17 +594,13 @@ router.post('/:parentId/decision', authenticateStaff, async (req: StaffAuthReque
         if (!tenantEmail) return
         const propertyAddress = refData.propertyAddress || 'your property'
         const refNumber = refData.reference.reference_number || null
-        const statusColor = isAccepted ? '#16a34a' : '#dc2626'
-        const statusBg = isAccepted ? '#f0fdf4' : '#fef2f2'
-        const bodyText = isAccepted
-          ? `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Congratulations! Your reference application for <strong>${propertyAddress}</strong> has been <strong style="color: ${statusColor};">${decisionLabel}</strong>.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your letting agent will be in touch with the next steps regarding your tenancy.</p>`
-          : `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">We have completed the assessment of your reference application for <strong>${propertyAddress}</strong>. Unfortunately, your application has been <strong style="color: ${statusColor};">${decisionLabel}</strong>.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Please contact your letting agent for further information.</p>`
+        const bodyText = `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your reference checks for <strong>${propertyAddress}</strong> have now been completed.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your letting agent will be in touch with the next steps regarding your application.</p>`
         const refLine = refNumber ? `<p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Reference: ${refNumber}</p>` : ''
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f3f4f6;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:#f97316;padding:24px;text-align:center;"><img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" /></td></tr><tr><td style="padding:32px;"><div style="background-color:${statusBg};border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;"><span style="font-size:18px;font-weight:700;color:${statusColor};">Application ${decisionLabel}</span></div>${bodyText}${refLine}</td></tr><tr><td style="padding:24px;background-color:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} PropertyGoose. This is an automated message.</p></td></tr></table></td></tr></table></body></html>`
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f3f4f6;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:#f97316;padding:24px;text-align:center;"><img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" /></td></tr><tr><td style="padding:32px;"><div style="background-color:#f0fdf4;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;"><span style="font-size:18px;font-weight:700;color:#16a34a;">References Completed</span></div>${bodyText}${refLine}</td></tr><tr><td style="padding:24px;background-color:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} PropertyGoose. This is an automated message.</p></td></tr></table></td></tr></table></body></html>`
 
         await sendEmail({
           to: tenantEmail,
-          subject: `Reference Application ${decisionLabel} - ${propertyAddress}`,
+          subject: `References Completed - ${propertyAddress}`,
           html
         })
         console.log(`[V2 GroupAssessment] Tenant notification sent to: ${tenantEmail}`)

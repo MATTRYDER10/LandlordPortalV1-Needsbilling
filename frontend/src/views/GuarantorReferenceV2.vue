@@ -93,6 +93,16 @@
 
       <!-- Form -->
       <form v-else-if="reference && !showDeviceGate" @submit.prevent="handleSubmit" novalidate class="space-y-6">
+        <!-- Back to device selection -->
+        <button
+          type="button"
+          @click="showDeviceGate = true"
+          class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        >
+          <ChevronLeft class="w-4 h-4" />
+          Back to device selection
+        </button>
+
         <!-- Reference Info Banner -->
         <div class="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
           <p class="text-sm text-purple-800 dark:text-purple-300">
@@ -138,7 +148,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date of Birth *</label>
                 <input
@@ -354,6 +364,43 @@
                     <Camera class="w-5 h-5" />
                     Open Camera & Take Photo
                   </button>
+
+                  <!-- QR Code Mobile Capture Option -->
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">No camera? Take on a different device:</p>
+                    <button
+                      v-if="!mobileCapture.qrUrl"
+                      type="button"
+                      @click="generateMobileCaptureQR"
+                      :disabled="mobileCapture.generating"
+                      class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    >
+                      <QrCode class="w-4 h-4" />
+                      {{ mobileCapture.generating ? 'Generating...' : 'Scan QR Code on Phone' }}
+                    </button>
+
+                    <!-- QR Code Display -->
+                    <div v-if="mobileCapture.qrUrl" class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-center">
+                      <img :src="mobileCapture.qrDataUrl" alt="QR Code" class="w-48 h-48 mx-auto mb-3" />
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Scan with your phone camera</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">Take a selfie on your mobile device</p>
+
+                      <!-- Status indicator -->
+                      <div class="flex items-center justify-center gap-2 text-sm" :class="mobileCapture.selfieUploaded ? 'text-green-600' : 'text-gray-400'">
+                        <CheckCircle2 v-if="mobileCapture.selfieUploaded" class="w-4 h-4" />
+                        <Clock v-else class="w-4 h-4 animate-pulse" />
+                        <span>Selfie {{ mobileCapture.selfieUploaded ? 'uploaded' : 'waiting...' }}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        @click="cancelMobileCapture"
+                        class="mt-3 text-xs text-gray-400 hover:text-gray-600 underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -376,14 +423,15 @@
           </div>
 
           <div class="p-6 space-y-5">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 1 *</label>
-              <input
+            <div class="relative overflow-visible">
+              <AddressAutocomplete
                 v-model="formData.address.line1"
-                type="text"
-                required
-                placeholder="Street address"
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                label="Address Line 1"
+                :required="true"
+                id="guarantor-address"
+                placeholder="Start typing address..."
+                @addressSelected="handleGuarantorAddressSelected"
+                :allowManualEntry="true"
               />
             </div>
 
@@ -620,12 +668,11 @@
 
               <!-- Payslips Upload with Email Option -->
               <div class="space-y-3">
-                <FileUpload
+                <MultiFileUpload
                   v-if="!formData.income.payslipsWillEmail"
-                  v-model="formData.income.payslips"
                   label="Upload Payslips (Last 3 Months)"
                   accept=".pdf,.jpg,.jpeg,.png"
-                  helpText="Upload your most recent 3 payslips to verify income"
+                  helpText="Upload your most recent 3 payslips to verify income — select multiple files"
                   :uploadUrl="`${API_URL}/api/v2/guarantor-form/${token}/upload`"
                   :token="token"
                   section="income"
@@ -709,32 +756,65 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Name/Firm</label>
-                  <input
-                    v-model="formData.income.accountantName"
-                    type="text"
-                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Email</label>
-                  <input
-                    v-model="formData.income.accountantEmail"
-                    type="email"
-                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                  />
+              <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+                <p class="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>Income verification:</strong> Please provide <strong>either</strong> your accountant's details so we can verify your income directly, <strong>or</strong> upload an official Tax Return / SA302 document. At least one option is required.
+                </p>
+              </div>
+
+              <!-- Option tabs -->
+              <div class="flex border border-gray-200 dark:border-slate-600 rounded-lg overflow-hidden mb-4">
+                <button
+                  type="button"
+                  @click="selfEmployedVerifyOption = 'accountant'"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors"
+                  :class="selfEmployedVerifyOption === 'accountant'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  Option A: Accountant Details
+                </button>
+                <button
+                  type="button"
+                  @click="selfEmployedVerifyOption = 'document'"
+                  class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors"
+                  :class="selfEmployedVerifyOption === 'document'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  Option B: Upload Evidence
+                </button>
+              </div>
+
+              <!-- Option A: Accountant -->
+              <div v-if="selfEmployedVerifyOption === 'accountant'" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Name/Firm *</label>
+                    <input
+                      v-model="formData.income.accountantName"
+                      type="text"
+                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Email *</label>
+                    <input
+                      v-model="formData.income.accountantEmail"
+                      type="email"
+                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <!-- Tax Return Upload with Email Option -->
-              <div class="space-y-3">
+              <!-- Option B: Upload Document -->
+              <div v-if="selfEmployedVerifyOption === 'document'" class="space-y-3">
                 <FileUpload
                   v-if="!formData.income.taxReturnWillEmail"
                   v-model="formData.income.taxReturn"
                   label="Upload Tax Return/SA302"
-                  required
+                  :required="selfEmployedVerifyOption === 'document' && !formData.income.taxReturnWillEmail"
                   accept=".pdf,.jpg,.jpeg,.png"
                   helpText="Upload your most recent tax return or SA302"
                   :uploadUrl="`${API_URL}/api/v2/guarantor-form/${token}/upload`"
@@ -788,13 +868,12 @@
               </div>
 
               <div class="space-y-3">
-                <FileUpload
+                <MultiFileUpload
                   v-if="!formData.income.savingsDocWillEmail"
-                  v-model="formData.income.savingsDoc"
                   label="Upload Proof of Savings"
                   required
                   accept=".pdf,.jpg,.jpeg,.png"
-                  helpText="Upload bank or investment statement showing your savings"
+                  helpText="Upload bank or investment statements showing your savings — select multiple files"
                   :uploadUrl="`${API_URL}/api/v2/guarantor-form/${token}/upload`"
                   :token="token"
                   section="income"
@@ -1096,16 +1175,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  Loader2, CheckCircle, AlertCircle, User, Home, Briefcase,
-  FileSignature, ChevronLeft, ChevronRight, Camera, Mail, Send, Info
+  Loader2, CheckCircle, CheckCircle2, AlertCircle, User, Home, Briefcase,
+  FileSignature, ChevronLeft, ChevronRight, Camera, Mail, Send, Info, QrCode, Clock
 } from 'lucide-vue-next'
+import QRCode from 'qrcode'
 import FileUpload from '@/components/forms/FileUpload.vue'
+import MultiFileUpload from '@/components/forms/MultiFileUpload.vue'
 import SignaturePad from '@/components/forms/SignaturePad.vue'
 import DeviceHandoffGate from '@/components/DeviceHandoffGate.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
@@ -1147,7 +1229,20 @@ const selfieUploading = ref(false)
 const sendingUploadLink = ref<string | null>(null)
 const uploadLinksSent = ref<Record<string, boolean>>({})
 
+// Mobile capture state
+const mobileCapture = ref({
+  generating: false,
+  qrUrl: '',
+  qrDataUrl: '',
+  sessionId: '',
+  captureToken: '',
+  idPhotoUploaded: false,
+  selfieUploaded: false,
+  pollInterval: null as ReturnType<typeof setInterval> | null
+})
+
 const currentStep = ref(1)
+const selfEmployedVerifyOption = ref<'accountant' | 'document'>('accountant')
 
 // Guarantor-specific income sources (NO student/unemployed)
 const incomeSourceOptions = [
@@ -1304,6 +1399,13 @@ const canSubmit = computed(() => {
          formData.value.consent.signature &&
          formData.value.consent.printedName
 })
+
+function handleGuarantorAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  formData.value.address.line1 = data.addressLine1
+  if (data.addressLine2) formData.value.address.line2 = data.addressLine2
+  formData.value.address.city = data.city
+  formData.value.address.postcode = data.postcode
+}
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -1597,11 +1699,90 @@ function removeSelfie() {
   stopCamera()
 }
 
+// ============================================================================
+// MOBILE CAPTURE (QR Code)
+// ============================================================================
+
+async function generateMobileCaptureQR() {
+  mobileCapture.value.generating = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/mobile-capture/generate/${token.value}`, {
+      method: 'POST'
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      cameraError.value = data.error || 'Failed to generate QR code'
+      return
+    }
+
+    mobileCapture.value.captureToken = data.captureToken
+    mobileCapture.value.sessionId = data.sessionId
+    mobileCapture.value.qrUrl = data.captureUrl
+
+    // Generate QR code image
+    mobileCapture.value.qrDataUrl = await QRCode.toDataURL(data.captureUrl, {
+      width: 256,
+      margin: 1,
+      color: { dark: '#1f2937', light: '#ffffff' }
+    })
+
+    // Start polling for upload status
+    startMobileCapturePolling()
+  } catch (err: any) {
+    cameraError.value = err.message || 'Failed to generate QR code'
+  } finally {
+    mobileCapture.value.generating = false
+  }
+}
+
+function startMobileCapturePolling() {
+  if (mobileCapture.value.pollInterval) {
+    clearInterval(mobileCapture.value.pollInterval)
+  }
+  mobileCapture.value.pollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/v2/mobile-capture/status/${token.value}/${mobileCapture.value.sessionId}`
+      )
+      if (!response.ok) return
+      const data = await response.json()
+
+      mobileCapture.value.selfieUploaded = data.selfieUploaded
+
+      // If selfie uploaded, update form data and stop polling
+      if (data.selfieUploaded) {
+        if (data.selfieUrl) {
+          formData.value.identity.selfieUrl = data.selfieUrl
+          selfieUploaded.value = true
+          selfiePreview.value = data.selfieUrl
+        }
+        cancelMobileCapture()
+      }
+    } catch {
+      // Silently continue polling
+    }
+  }, 3000)
+}
+
+function cancelMobileCapture() {
+  if (mobileCapture.value.pollInterval) {
+    clearInterval(mobileCapture.value.pollInterval)
+    mobileCapture.value.pollInterval = null
+  }
+  mobileCapture.value.qrUrl = ''
+  mobileCapture.value.qrDataUrl = ''
+  mobileCapture.value.sessionId = ''
+  mobileCapture.value.captureToken = ''
+  mobileCapture.value.idPhotoUploaded = false
+  mobileCapture.value.selfieUploaded = false
+}
+
 onMounted(() => {
   loadReference()
 })
 
 onUnmounted(() => {
   stopCamera()
+  cancelMobileCapture()
 })
 </script>

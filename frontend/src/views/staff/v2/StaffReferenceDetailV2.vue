@@ -117,6 +117,19 @@
                   <span class="font-medium text-gray-900 dark:text-white">{{ sectionLabels[section.section_type] || section.section_type }}</span>
                   <div class="flex items-center gap-2 mt-0.5">
                     <span class="text-xs text-gray-500">{{ section.queue_status }}</span>
+                    <span v-if="section.section_data?.evidence_status && section.queue_status === 'PENDING'" class="text-xs px-2 py-0.5 rounded-full"
+                      :class="{
+                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400': section.section_data.evidence_status === 'AWAITING_EVIDENCE',
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400': ['AWAITING_REFEREE', 'AWAITING_UPLOAD'].includes(section.section_data.evidence_status),
+                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': section.section_data.evidence_status === 'AUTO_PASSED'
+                      }"
+                    >
+                      {{ section.section_data.evidence_status === 'AWAITING_EVIDENCE' ? 'Awaiting Evidence' :
+                         section.section_data.evidence_status === 'AWAITING_REFEREE' ? 'Awaiting Referee' :
+                         section.section_data.evidence_status === 'AWAITING_UPLOAD' ? 'Awaiting Upload' :
+                         section.section_data.evidence_status === 'AUTO_PASSED' ? 'Auto-Passed' :
+                         section.section_data.evidence_status }}
+                    </span>
                     <span v-if="section.section_data?.issue_status" class="text-xs px-2 py-0.5 rounded-full"
                       :class="section.section_data.issue_status === 'RESOLVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
                     >

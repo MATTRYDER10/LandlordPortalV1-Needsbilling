@@ -56,6 +56,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       deposit_amount,
       move_in_date,
       offer_deposit_replacement,
+      offer_unihomes,
       bills_included,
       linked_property_id
     } = req.body
@@ -105,6 +106,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
 
     // Generate V2 offer form link
     const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
+    const unihomesQuery = offer_unihomes ? '&unihomes=1' : ''
     const billsIncludedQuery = bills_included ? '&bills_included=1' : ''
     const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
     const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
@@ -115,7 +117,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     const moveInDateQuery = move_in_date ? `&move_in_date=${encodeURIComponent(move_in_date)}` : ''
     const propertyIdQuery = propertyIdToLink ? `&linked_property_id=${encodeURIComponent(propertyIdToLink)}` : ''
     // Add v2 flag to the URL so tenant form knows it's V2
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
 
     // Send email to tenant
     try {
@@ -151,6 +153,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
           deposit_amount: deposit_amount || null,
           move_in_date: move_in_date || null,
           offer_deposit_replacement: !!offer_deposit_replacement,
+          offer_unihomes: !!offer_unihomes,
           linked_property_id: propertyIdToLink || null,
           is_v2: true,
           status: 'sent'
@@ -179,7 +182,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       success: true,
       message: 'V2 offer form link sent successfully',
       email: tenant_email,
-      deposit_replacement_offered: !!offer_deposit_replacement
+      deposit_replacement_offered: !!offer_deposit_replacement,
+      unihomes_offered: !!offer_unihomes
     })
   } catch (error: any) {
     console.error('[V2 Offers] Error sending offer link:', error)
@@ -251,6 +255,7 @@ router.post('/resend/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     // Generate V2 offer form link
     const depositReplacementQuery = sentForm.offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
+    const unihomesQuery = sentForm.offer_unihomes ? '&unihomes=1' : ''
     const billsIncludedQuery = sentForm.bills_included ? '&bills_included=1' : ''
     const propertyAddressQuery = propertyAddress ? `&property_address=${encodeURIComponent(propertyAddress)}` : ''
     const propertyCityQuery = propertyCity ? `&property_city=${encodeURIComponent(propertyCity)}` : ''
@@ -261,7 +266,7 @@ router.post('/resend/:id', authenticateToken, async (req: AuthRequest, res) => {
     const moveInDateQuery = sentForm.move_in_date ? `&move_in_date=${encodeURIComponent(sentForm.move_in_date)}` : ''
     const propertyIdQuery = sentForm.linked_property_id ? `&linked_property_id=${encodeURIComponent(sentForm.linked_property_id)}` : ''
 
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
 
     // Send email to tenant (email only, no new record)
     await sendTenantOfferRequest(
@@ -419,6 +424,7 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode: form.property_postcode_encrypted ? decrypt(form.property_postcode_encrypted) : '',
       rent_amount: form.rent_amount,
       offer_deposit_replacement: form.offer_deposit_replacement,
+      offer_unihomes: form.offer_unihomes,
       linked_property_id: form.linked_property_id,
       sent_at: form.sent_at,
       created_at: form.created_at
@@ -567,6 +573,7 @@ router.get('/landlord-decision/:token', async (req, res) => {
         tenancyLengthMonths: offer.proposed_tenancy_length_months || null,
         depositAmount: offer.deposit_amount || null,
         depositReplacementRequested: offer.deposit_replacement_requested || false,
+        unihomesInterested: offer.unihomes_interested || false,
         billsIncluded: offer.bills_included || false,
         specialConditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : null,
         landlordDecision: offer.landlord_decision || null,
@@ -691,29 +698,25 @@ router.post('/landlord-decision/:token', async (req, res) => {
         : 'PropertyGoose'
       const agentLogoUrl = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
+      // Get agent email - try company email first, then fall back to auth user who created the offer
       let agentEmail: string | null = null
-      if (offer.created_by) {
-        const { data: member } = await supabase
-          .from('company_members')
-          .select('email_encrypted')
-          .eq('user_id', offer.created_by)
-          .eq('company_id', offer.company_id)
-          .single()
 
-        if (member?.email_encrypted) {
-          agentEmail = decrypt(member.email_encrypted)
-        }
+      // Use company email (most reliable - this is where agents want notifications)
+      const { data: companyForEmail } = await supabase
+        .from('companies')
+        .select('email_encrypted')
+        .eq('id', offer.company_id)
+        .single()
+
+      if (companyForEmail?.email_encrypted) {
+        agentEmail = decrypt(companyForEmail.email_encrypted)
       }
 
-      if (!agentEmail) {
-        const { data: members } = await supabase
-          .from('company_members')
-          .select('email_encrypted')
-          .eq('company_id', offer.company_id)
-          .limit(1)
-
-        if (members && members.length > 0 && members[0].email_encrypted) {
-          agentEmail = decrypt(members[0].email_encrypted)
+      // Fallback: get email from the auth user who created the offer
+      if (!agentEmail && offer.created_by) {
+        const { data: { user } } = await supabase.auth.admin.getUserById(offer.created_by)
+        if (user?.email) {
+          agentEmail = user.email
         }
       }
 
@@ -943,14 +946,7 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
       .from('tenant_offers')
       .select(`
         *,
-        tenant_offer_tenants (
-          id,
-          tenant_order,
-          name_encrypted,
-          annual_income_encrypted,
-          job_title_encrypted,
-          rent_share
-        )
+        tenant_offer_tenants (*)
       `)
       .in('id', offerIds)
       .eq('company_id', companyId)
@@ -1066,7 +1062,9 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
             firstName,
             jobTitle: jobTitle || undefined,
             annualIncome: annualIncome || undefined,
-            rentShare: tenant.rent_share || undefined
+            rentShare: tenant.rent_share || undefined,
+            isStudent: (tenant as any).is_student || false,
+            hasGuarantor: (tenant as any).has_guarantor || false
           }
         })
 
@@ -1080,6 +1078,7 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
         tenancyLengthMonths: offer.proposed_tenancy_length_months || null,
         depositAmount: offer.deposit_amount || null,
         depositReplacementRequested: offer.deposit_replacement_requested || false,
+        unihomesInterested: offer.unihomes_interested || false,
         billsIncluded: offer.bills_included || false,
         specialConditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : null,
         status: offer.status || 'PENDING',

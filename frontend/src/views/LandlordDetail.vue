@@ -110,7 +110,7 @@
                       {{ getPropertyDisplayAddress(lp) }}
                     </div>
                     <div class="text-xs text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                      <span v-if="lp.property_type" class="capitalize">{{ lp.property_type }}</span>
+                      <span v-if="lp.property_type">{{ lp.property_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) }}</span>
                       <span v-if="lp.number_of_bedrooms">{{ lp.number_of_bedrooms }} bed</span>
                       <span :class="lp.status === 'in_tenancy' ? 'text-green-600' : 'text-gray-500'">
                         {{ lp.status === 'in_tenancy' ? 'In Tenancy' : 'Vacant' }}

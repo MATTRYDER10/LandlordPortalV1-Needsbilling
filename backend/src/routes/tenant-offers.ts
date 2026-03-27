@@ -462,6 +462,8 @@ router.post('/submit', async (req, res) => {
             tenants, // Array of tenant objects
             deposit_replacement_offered,
             deposit_replacement_requested,
+            unihomes_offered,
+            unihomes_interested,
             linked_property_id,
             is_v2,
             form_ref // Unique reference for this offer form
@@ -529,6 +531,8 @@ router.post('/submit', async (req, res) => {
         const depositReplacementOfferedFromQuery = normalizeBoolean(req.query.deposit_replacement_offered)
         const depositReplacementOffered = normalizeBoolean(deposit_replacement_offered) || depositReplacementOfferedFromQuery
         const depositReplacementRequested = depositReplacementOffered && normalizeBoolean(deposit_replacement_requested)
+        const unihomesOfferedBool = normalizeBoolean(unihomes_offered) || normalizeBoolean(req.query.unihomes)
+        const unihomesInterestedBool = unihomesOfferedBool && normalizeBoolean(unihomes_interested)
 
         // Calculate deposit amount: £0 if deposit replacement requested, otherwise 5 weeks rent
         const rentAmount = parseFloat(offered_rent_amount)
@@ -552,6 +556,8 @@ router.post('/submit', async (req, res) => {
                 status: 'pending',
                 deposit_replacement_offered: depositReplacementOffered,
                 deposit_replacement_requested: depositReplacementRequested,
+                unihomes_offered: unihomesOfferedBool,
+                unihomes_interested: unihomesInterestedBool,
                 linked_property_id: linked_property_id || null,
                 is_v2: is_v2 === true
             })
@@ -1179,6 +1185,62 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(400).json({ error: updateError.message })
         }
 
+        // Update Apex27 listing status to "Let Agreed" if property is linked
+        try {
+            if (offer.linked_property_id) {
+                const { data: property } = await supabase
+                    .from('properties')
+                    .select('apex27_listing_id, company_id')
+                    .eq('id', offer.linked_property_id)
+                    .single()
+
+                if (property?.apex27_listing_id) {
+                    const { data: integration } = await supabase
+                        .from('company_integrations')
+                        .select('apex27_api_key_encrypted')
+                        .eq('company_id', property.company_id)
+                        .single()
+
+                    if (integration?.apex27_api_key_encrypted) {
+                        const apiKey = decrypt(integration.apex27_api_key_encrypted)
+                        if (apiKey) {
+                            // First GET the current listing to preserve required fields
+                            const getResponse = await fetch(`https://api.apex27.co.uk/listings/${property.apex27_listing_id}`, {
+                                headers: { 'X-Api-Key': apiKey }
+                            })
+                            if (getResponse.ok) {
+                                const listing: any = await getResponse.json()
+                                const apex27Response = await fetch(`https://api.apex27.co.uk/listings/${property.apex27_listing_id}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'X-Api-Key': apiKey,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        branchId: listing.branchId,
+                                        transactionType: listing.transactionType || 'rent',
+                                        propertyType: listing.propertyType || 'house',
+                                        bedrooms: listing.bedrooms || 1,
+                                        bathrooms: listing.bathrooms || 1,
+                                        status: 'let_agreed'
+                                    })
+                                })
+                                if (apex27Response.ok) {
+                                    console.log(`[Apex27] Updated listing ${property.apex27_listing_id} to let_agreed`)
+                                } else {
+                                    const errText = await apex27Response.text()
+                                    console.warn(`[Apex27] Failed to update listing status: ${apex27Response.status} - ${errText}`)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (apex27Err) {
+            console.error('[Apex27] Error updating listing status:', apex27Err)
+            // Non-blocking - don't fail the offer approval
+        }
+
         // Get company and decrypted details
         const company = (offer as any).companies
         const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
@@ -1206,6 +1268,8 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
 
         const tenancyLengthMonths = finalTenancyLength
         const moveInDate = finalMoveInDate
+            ? new Date(finalMoveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            : 'To be confirmed'
         const depositAmount = finalDepositAmount
 
         // Get tenant emails
@@ -1702,7 +1766,6 @@ router.post('/:id/mark-referencing', authenticateToken, async (req: AuthRequest,
             .from('tenant_offers')
             .update({
                 status: 'holding_deposit_received',
-                reference_id: reference_id || null,
                 holding_deposit_received_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -1897,6 +1960,174 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         const emailFailures: { email: string; reason: string }[] = []
         let emailsSent = 0
 
+        // ============================================================
+        // V2 REFERENCE CREATION (when offer is_v2 = true)
+        // ============================================================
+        if (offer.is_v2) {
+            const { createReference } = await import('../services/v2/referenceServiceV2')
+            const { sendTenantReferenceRequest: sendV2TenantEmail } = await import('../services/emailService')
+            const { getV2FrontendUrl } = await import('../utils/frontendUrl')
+            const v2FrontendUrl = getV2FrontendUrl()
+
+            let parentRefId: string | null = null
+
+            // Multi-tenant: create group parent first
+            if (tenants.length > 1) {
+                const parentRef = await createReference({
+                    companyId,
+                    tenantFirstName: tenants[0].first_name,
+                    tenantLastName: tenants[0].last_name,
+                    tenantEmail: tenants[0].email,
+                    tenantPhone: tenants[0].phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenants[0].rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    isGroupParent: true,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                })
+                if (!parentRef) {
+                    return res.status(500).json({ error: 'Failed to create V2 parent reference' })
+                }
+                parentRefId = parentRef.id
+                referenceId = parentRef.id
+            }
+
+            // Create a V2 reference for each tenant
+            for (let i = 0; i < tenants.length; i++) {
+                const tenant = tenants[i]
+                const isParentTenant = tenants.length > 1 && i === 0
+
+                // For multi-tenant, skip creating separate ref for the parent tenant (already created above)
+                // Actually V2 group flow: parent is group container, each tenant gets their own child ref
+                const ref = tenants.length > 1 && !isParentTenant ? await createReference({
+                    companyId,
+                    tenantFirstName: tenant.first_name,
+                    tenantLastName: tenant.last_name,
+                    tenantEmail: tenant.email,
+                    tenantPhone: tenant.phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenant.rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    parentReferenceId: parentRefId || undefined,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                }) : (tenants.length === 1 ? await createReference({
+                    companyId,
+                    tenantFirstName: tenant.first_name,
+                    tenantLastName: tenant.last_name,
+                    tenantEmail: tenant.email,
+                    tenantPhone: tenant.phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenant.rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                }) : null)
+
+                // For single tenant, set referenceId from the one we just created
+                if (tenants.length === 1 && ref) {
+                    referenceId = ref.id
+                }
+
+                // The ref returned has _formToken for the email link
+                const targetRef = isParentTenant ? null : ref
+                if (!targetRef && !isParentTenant) continue
+
+                // For the parent tenant in multi-flow, we already have the parent ref
+                const refForEmail = isParentTenant ? { id: parentRefId!, _formToken: (await supabase.from('tenant_references_v2').select('form_token_hash').eq('id', parentRefId!).single()).data?.form_token_hash } : targetRef
+
+                const formToken = (targetRef as any)?._formToken || null
+                if (!formToken && !isParentTenant) {
+                    emailFailures.push({ email: tenant.email, reason: 'No form token generated' })
+                    continue
+                }
+
+                createdReferences.push(targetRef || { id: parentRefId })
+
+                // Send V2 tenant reference email
+                const tenantEmail = tenant.email?.trim()
+                if (!tenantEmail) {
+                    emailFailures.push({ email: '', reason: 'Missing tenant email' })
+                    continue
+                }
+
+                const isGuarantor = false
+                const formPath = isGuarantor ? 'guarantor-reference-v2' : 'submit-reference-v2'
+                const formUrl = `${v2FrontendUrl}/${formPath}/${formToken}`
+
+                try {
+                    await sendV2TenantEmail(
+                        tenantEmail,
+                        `${tenant.first_name} ${tenant.last_name}`.trim(),
+                        formUrl,
+                        companyName,
+                        propertyAddress || undefined,
+                        companyPhone || undefined,
+                        companyEmail || undefined,
+                        (targetRef?.id || parentRefId) as string,
+                        companyLogoUrl
+                    )
+                    emailsSent++
+                } catch (emailError: any) {
+                    console.error('Failed to send V2 reference email:', emailError)
+                    emailFailures.push({ email: tenantEmail, reason: emailError.message })
+                }
+            }
+
+            // Deduct credit
+            try {
+                const { deductCredits } = await import('../services/creditService')
+                await deductCredits(companyId, 1, referenceId, 'reference', `V2 Reference for offer ${id}`)
+            } catch (creditError: any) {
+                console.error('Failed to deduct credit:', creditError)
+            }
+
+            // Update offer with reference ID
+            await supabase
+                .from('tenant_offers')
+                .update({ reference_id: referenceId })
+                .eq('id', id)
+
+            return res.json({
+                success: true,
+                message: 'Holding deposit marked as received and V2 references created',
+                reference_id: referenceId,
+                references_created: createdReferences.length,
+                holding_deposit_amount_paid: parsedAmount,
+                emails_sent: emailsSent,
+                email_failures: emailFailures,
+                is_v2: true
+            })
+        }
+
+        // ============================================================
+        // V1 REFERENCE CREATION (legacy flow)
+        // ============================================================
         if (tenants.length > 1) {
             // Multi-tenant flow
             const parentToken = generateToken()

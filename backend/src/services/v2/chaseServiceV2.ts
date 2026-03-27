@@ -10,6 +10,7 @@ import { encrypt, decrypt } from '../encryption'
 import {
   V2ChaseItemRow,
   V2ChaseStatus,
+  V2ChaseType,
   V2RefereeType,
   V2SectionType
 } from './types'
@@ -33,6 +34,9 @@ export async function createChaseItem(
   }
 ): Promise<V2ChaseItemRow | null> {
   try {
+    const now = new Date()
+    const cooldownUntil = new Date(now.getTime() + 12 * 60 * 60 * 1000) // 12h cooldown
+
     const { data, error } = await supabase
       .from('chase_items_v2')
       .insert({
@@ -42,8 +46,10 @@ export async function createChaseItem(
         referee_name_encrypted: encrypt(refereeDetails.name),
         referee_email_encrypted: encrypt(refereeDetails.email),
         referee_phone_encrypted: refereeDetails.phone ? encrypt(refereeDetails.phone) : null,
-        status: 'WAITING',
-        initial_sent_at: new Date().toISOString()
+        status: 'IN_CHASE_QUEUE',
+        chase_queue_entered_at: now.toISOString(),
+        initial_sent_at: now.toISOString(),
+        cooldown_until: cooldownUntil.toISOString()
       })
       .select()
       .single()
@@ -106,9 +112,10 @@ export async function getChaseItemForSection(sectionId: string): Promise<V2Chase
 }
 
 /**
- * Get items in chase queue (24hrs passed, no response)
+ * Get items in chase queue (including cooldown items)
+ * Sorted: active (no cooldown) first by oldest-chased, cooldown items at bottom
  */
-export async function getChaseQueue(limit: number = 50): Promise<V2ChaseItemRow[]> {
+export async function getChaseQueue(limit: number = 50): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('chase_items_v2')
@@ -127,7 +134,7 @@ export async function getChaseQueue(limit: number = 50): Promise<V2ChaseItemRow[
         )
       `)
       .eq('status', 'IN_CHASE_QUEUE')
-      .order('chase_queue_entered_at', { ascending: true })
+      .order('last_chased_at', { ascending: true, nullsFirst: true })
       .limit(limit)
 
     if (error) {
@@ -135,7 +142,35 @@ export async function getChaseQueue(limit: number = 50): Promise<V2ChaseItemRow[
       return []
     }
 
-    return data || []
+    if (!data) return []
+
+    const now = Date.now()
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000
+
+    // Enrich with computed fields and sort
+    const enriched = data.map((item: any) => {
+      const inCooldown = item.cooldown_until && new Date(item.cooldown_until).getTime() > now
+      const isOverdue = item.last_chased_at
+        && (now - new Date(item.last_chased_at).getTime()) > twentyFourHoursMs
+        && !inCooldown
+
+      return {
+        ...item,
+        is_overdue: !!isOverdue,
+        in_cooldown: !!inCooldown
+      }
+    })
+
+    // Sort: active first (no cooldown), then cooldown items
+    enriched.sort((a: any, b: any) => {
+      if (a.in_cooldown !== b.in_cooldown) return a.in_cooldown ? 1 : -1
+      // Within same group, oldest chased first (nulls first = never chased)
+      const aTime = a.last_chased_at ? new Date(a.last_chased_at).getTime() : 0
+      const bTime = b.last_chased_at ? new Date(b.last_chased_at).getTime() : 0
+      return aTime - bTime
+    })
+
+    return enriched
   } catch (error) {
     console.error('[ChaseServiceV2] Error:', error)
     return []
@@ -167,57 +202,77 @@ export async function getChaseItemDecrypted(chaseItemId: string): Promise<{
 // ============================================================================
 
 /**
- * Process items that should move to chase queue (24hrs passed)
- * This should be called by a scheduled job
+ * Process items that should move to chase queue (12hrs passed)
+ * Also creates tenant chase items and auto-resolves completed ones
  */
 export async function processChaseQueue(): Promise<number> {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
     const now = new Date().toISOString()
 
-    // Find items that have been waiting > 24hrs
+    // Find referee items that have been waiting > 12hrs
     const { data: itemsToChase, error: fetchError } = await supabase
       .from('chase_items_v2')
       .select('id')
       .eq('status', 'WAITING')
-      .lt('initial_sent_at', twentyFourHoursAgo)
+      .lt('initial_sent_at', twelveHoursAgo)
 
-    if (fetchError || !itemsToChase || itemsToChase.length === 0) {
-      return 0
-    }
+    let movedCount = 0
 
-    // Update them to IN_CHASE_QUEUE
-    const { error: updateError } = await supabase
-      .from('chase_items_v2')
-      .update({
-        status: 'IN_CHASE_QUEUE',
-        chase_queue_entered_at: now,
-        updated_at: now
-      })
-      .in('id', itemsToChase.map(i => i.id))
+    if (!fetchError && itemsToChase && itemsToChase.length > 0) {
+      // Update them to IN_CHASE_QUEUE
+      const { error: updateError } = await supabase
+        .from('chase_items_v2')
+        .update({
+          status: 'IN_CHASE_QUEUE',
+          chase_queue_entered_at: now,
+          updated_at: now
+        })
+        .in('id', itemsToChase.map(i => i.id))
 
-    if (updateError) {
-      console.error('[ChaseServiceV2] Error moving items to chase queue:', updateError)
-      return 0
-    }
+      if (updateError) {
+        console.error('[ChaseServiceV2] Error moving items to chase queue:', updateError)
+      } else {
+        // Create CHASE work items for each
+        for (const item of itemsToChase) {
+          const chaseItem = await getChaseItem(item.id)
+          if (chaseItem && chaseItem.section_id) {
+            await supabase
+              .from('work_items_v2')
+              .insert({
+                reference_id: chaseItem.reference_id,
+                section_id: chaseItem.section_id,
+                work_type: 'CHASE',
+                status: 'AVAILABLE'
+              })
+          }
+        }
 
-    // Create CHASE work items for each
-    for (const item of itemsToChase) {
-      const chaseItem = await getChaseItem(item.id)
-      if (chaseItem) {
-        await supabase
-          .from('work_items_v2')
-          .insert({
-            reference_id: chaseItem.reference_id,
-            section_id: chaseItem.section_id,
-            work_type: 'CHASE',
-            status: 'AVAILABLE'
-          })
+        movedCount = itemsToChase.length
+        console.log(`[ChaseServiceV2] Moved ${movedCount} items to chase queue`)
       }
     }
 
-    console.log(`[ChaseServiceV2] Moved ${itemsToChase.length} items to chase queue`)
-    return itemsToChase.length
+    // Create tenant chase items and auto-resolve completed ones
+    const tenantCreated = await createTenantChaseItems()
+    const tenantResolved = await autoResolveTenantChases()
+
+    // Create guarantor chase items and auto-resolve completed ones
+    const guarantorCreated = await createGuarantorChaseItems()
+    const guarantorResolved = await autoResolveGuarantorChases()
+
+    // Create chase items for "will email" doc uploads and auto-resolve completed ones
+    const uploadCreated = await createWillEmailChaseItems()
+    const uploadResolved = await autoResolveWillEmailChases()
+
+    if (tenantCreated > 0) console.log(`[ChaseServiceV2] Created ${tenantCreated} tenant chase items`)
+    if (tenantResolved > 0) console.log(`[ChaseServiceV2] Auto-resolved ${tenantResolved} tenant chases`)
+    if (guarantorCreated > 0) console.log(`[ChaseServiceV2] Created ${guarantorCreated} guarantor chase items`)
+    if (guarantorResolved > 0) console.log(`[ChaseServiceV2] Auto-resolved ${guarantorResolved} guarantor chases`)
+    if (uploadCreated > 0) console.log(`[ChaseServiceV2] Created ${uploadCreated} will-email upload chase items`)
+    if (uploadResolved > 0) console.log(`[ChaseServiceV2] Auto-resolved ${uploadResolved} will-email upload chases`)
+
+    return movedCount + tenantCreated + guarantorCreated + uploadCreated
   } catch (error) {
     console.error('[ChaseServiceV2] Error processing chase queue:', error)
     return 0
@@ -305,14 +360,16 @@ export async function markChaseReceived(chaseItemId: string): Promise<boolean> {
     }
 
     // Mark section as ready for verification
-    await markSectionReady(chaseItem.section_id, true)
+    if (chaseItem.section_id) {
+      await markSectionReady(chaseItem.section_id, true)
 
-    // Complete the work item
-    await supabase
-      .from('work_items_v2')
-      .update({ status: 'COMPLETED', completed_at: now, updated_at: now })
-      .eq('section_id', chaseItem.section_id)
-      .eq('work_type', 'CHASE')
+      // Complete the work item
+      await supabase
+        .from('work_items_v2')
+        .update({ status: 'COMPLETED', completed_at: now, updated_at: now })
+        .eq('section_id', chaseItem.section_id)
+        .eq('work_type', 'CHASE')
+    }
 
     console.log(`[ChaseServiceV2] Chase item ${chaseItemId} marked as received`)
     return true
@@ -352,14 +409,16 @@ export async function markChaseVerbalObtained(
     }
 
     // Mark section as ready for verification (with verbal badge)
-    await markSectionReady(chaseItem.section_id, true)
+    if (chaseItem.section_id) {
+      await markSectionReady(chaseItem.section_id, true)
 
-    // Complete the CHASE work item
-    await supabase
-      .from('work_items_v2')
-      .update({ status: 'COMPLETED', completed_at: now, updated_at: now })
-      .eq('section_id', chaseItem.section_id)
-      .eq('work_type', 'CHASE')
+      // Complete the CHASE work item
+      await supabase
+        .from('work_items_v2')
+        .update({ status: 'COMPLETED', completed_at: now, updated_at: now })
+        .eq('section_id', chaseItem.section_id)
+        .eq('work_type', 'CHASE')
+    }
 
     console.log(`[ChaseServiceV2] Chase item ${chaseItemId} marked as verbal obtained`)
     return true
@@ -402,6 +461,437 @@ export async function markChaseUnable(
       .eq('id', chaseItemId)
 
     console.log(`[ChaseServiceV2] Chase item ${chaseItemId} marked as unable to obtain`)
+    return true
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error:', error)
+    return false
+  }
+}
+
+// ============================================================================
+// TENANT CHASE ITEMS
+// ============================================================================
+
+/**
+ * Create chase items for tenants who haven't submitted their form after 12hrs
+ */
+export async function createTenantChaseItems(): Promise<number> {
+  try {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+    const now = new Date().toISOString()
+
+    // Find references where tenant hasn't submitted and it's been > 12hrs
+    const { data: refs, error: refError } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, property_address_encrypted')
+      .eq('status', 'SENT')
+      .is('form_submitted_at', null)
+      .lt('created_at', twelveHoursAgo)
+
+    if (refError || !refs || refs.length === 0) return 0
+
+    let created = 0
+    for (const ref of refs) {
+      // Check if active tenant chase already exists
+      const { data: existing } = await supabase
+        .from('chase_items_v2')
+        .select('id')
+        .eq('reference_id', ref.id)
+        .eq('chase_type', 'TENANT')
+        .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) continue
+
+      const tenantName = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+      const tenantEmail = decrypt(ref.tenant_email_encrypted) || ''
+      const tenantPhone = decrypt(ref.tenant_phone_encrypted) || null
+
+      const { error: insertError } = await supabase
+        .from('chase_items_v2')
+        .insert({
+          reference_id: ref.id,
+          section_id: null,
+          referee_type: 'TENANT',
+          chase_type: 'TENANT',
+          referee_name_encrypted: encrypt(tenantName),
+          referee_email_encrypted: encrypt(tenantEmail),
+          referee_phone_encrypted: tenantPhone ? encrypt(tenantPhone) : null,
+          status: 'IN_CHASE_QUEUE',
+          chase_queue_entered_at: now,
+          initial_sent_at: now
+        })
+
+      if (!insertError) created++
+    }
+
+    return created
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error creating tenant chase items:', error)
+    return 0
+  }
+}
+
+/**
+ * Auto-resolve tenant chase items where the tenant has now submitted their form
+ */
+export async function autoResolveTenantChases(): Promise<number> {
+  try {
+    const now = new Date().toISOString()
+
+    // Find active tenant chases
+    const { data: tenantChases, error } = await supabase
+      .from('chase_items_v2')
+      .select('id, reference_id')
+      .eq('chase_type', 'TENANT')
+      .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+
+    if (error || !tenantChases || tenantChases.length === 0) return 0
+
+    let resolved = 0
+    for (const chase of tenantChases) {
+      // Check if tenant has now submitted
+      const { data: ref } = await supabase
+        .from('tenant_references_v2')
+        .select('form_submitted_at')
+        .eq('id', chase.reference_id)
+        .single()
+
+      if (ref?.form_submitted_at) {
+        await supabase
+          .from('chase_items_v2')
+          .update({
+            status: 'RECEIVED',
+            resolution_type: 'TENANT_SUBMITTED',
+            resolved_at: now,
+            updated_at: now
+          })
+          .eq('id', chase.id)
+        resolved++
+      }
+    }
+
+    return resolved
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error auto-resolving tenant chases:', error)
+    return 0
+  }
+}
+
+/**
+ * Create chase items for guarantors who haven't submitted their form after 12hrs
+ */
+export async function createGuarantorChaseItems(): Promise<number> {
+  try {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+    const now = new Date().toISOString()
+
+    // Find guarantor references where form hasn't been submitted and it's been > 12hrs
+    const { data: refs, error: refError } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, guarantor_for_reference_id')
+      .eq('is_guarantor', true)
+      .is('form_submitted_at', null)
+      .in('status', ['SENT', 'COLLECTING_EVIDENCE'])
+      .lt('created_at', twelveHoursAgo)
+
+    if (refError || !refs || refs.length === 0) return 0
+
+    let created = 0
+    for (const ref of refs) {
+      // Check if active guarantor chase already exists
+      const { data: existing } = await supabase
+        .from('chase_items_v2')
+        .select('id')
+        .eq('reference_id', ref.id)
+        .eq('chase_type', 'GUARANTOR')
+        .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) continue
+
+      const guarantorName = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+      const guarantorEmail = decrypt(ref.tenant_email_encrypted) || ''
+      const guarantorPhone = decrypt(ref.tenant_phone_encrypted) || null
+
+      // Get the parent tenant name for display
+      let tenantName = 'Unknown Tenant'
+      if (ref.guarantor_for_reference_id) {
+        const { data: parentRef } = await supabase
+          .from('tenant_references_v2')
+          .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+          .eq('id', ref.guarantor_for_reference_id)
+          .single()
+        if (parentRef) {
+          tenantName = `${decrypt(parentRef.tenant_first_name_encrypted) || ''} ${decrypt(parentRef.tenant_last_name_encrypted) || ''}`.trim()
+        }
+      }
+
+      const { error: insertError } = await supabase
+        .from('chase_items_v2')
+        .insert({
+          reference_id: ref.id,
+          section_id: null,
+          referee_type: 'GUARANTOR',
+          chase_type: 'GUARANTOR',
+          referee_name_encrypted: encrypt(guarantorName),
+          referee_email_encrypted: encrypt(guarantorEmail),
+          referee_phone_encrypted: guarantorPhone ? encrypt(guarantorPhone) : null,
+          status: 'IN_CHASE_QUEUE',
+          chase_queue_entered_at: now,
+          initial_sent_at: now
+        })
+
+      if (!insertError) created++
+    }
+
+    return created
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error creating guarantor chase items:', error)
+    return 0
+  }
+}
+
+/**
+ * Auto-resolve guarantor chase items where the guarantor has now submitted their form
+ */
+export async function autoResolveGuarantorChases(): Promise<number> {
+  try {
+    const now = new Date().toISOString()
+
+    // Find active guarantor chases
+    const { data: guarantorChases, error } = await supabase
+      .from('chase_items_v2')
+      .select('id, reference_id')
+      .eq('chase_type', 'GUARANTOR')
+      .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+
+    if (error || !guarantorChases || guarantorChases.length === 0) return 0
+
+    let resolved = 0
+    for (const chase of guarantorChases) {
+      // Check if guarantor has now submitted
+      const { data: ref } = await supabase
+        .from('tenant_references_v2')
+        .select('form_submitted_at')
+        .eq('id', chase.reference_id)
+        .single()
+
+      if (ref?.form_submitted_at) {
+        await supabase
+          .from('chase_items_v2')
+          .update({
+            status: 'RECEIVED',
+            resolution_type: 'GUARANTOR_SUBMITTED',
+            resolved_at: now,
+            updated_at: now
+          })
+          .eq('id', chase.id)
+        resolved++
+      }
+    }
+
+    return resolved
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error auto-resolving guarantor chases:', error)
+    return 0
+  }
+}
+
+/**
+ * Create chase items for tenants/guarantors who selected "will email" docs but haven't uploaded yet (12hrs+)
+ */
+export async function createWillEmailChaseItems(): Promise<number> {
+  try {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+    const now = new Date().toISOString()
+
+    // Find references submitted 12+ hours ago that have form_data with willEmail flags still true
+    const { data: refs, error } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, form_data, is_guarantor')
+      .not('form_submitted_at', 'is', null)
+      .lt('form_submitted_at', twelveHoursAgo)
+      .in('status', ['COLLECTING_EVIDENCE', 'ACTION_REQUIRED'])
+
+    if (error || !refs || refs.length === 0) return 0
+
+    // WillEmail field names to check across form_data sections
+    const willEmailFields = [
+      { section: 'income', fields: ['payslipsWillEmail', 'taxReturnWillEmail', 'savingsDocWillEmail', 'pensionDocWillEmail', 'rentalDocWillEmail'] },
+      { section: 'identity', fields: ['idDocumentWillEmail'] },
+      { section: 'address', fields: ['proofOfAddressWillEmail'] }
+    ]
+
+    let created = 0
+    for (const ref of refs) {
+      const formData = ref.form_data || {}
+
+      // Check if any willEmail flag is still true (hasn't been uploaded yet)
+      let hasOutstandingUpload = false
+      for (const { section, fields } of willEmailFields) {
+        const sectionData = formData[section] || {}
+        for (const field of fields) {
+          if (sectionData[field] === true) {
+            // Check the corresponding URL field is still empty
+            const urlField = field.replace('WillEmail', 'Url')
+            if (!sectionData[urlField]) {
+              hasOutstandingUpload = true
+              break
+            }
+          }
+        }
+        if (hasOutstandingUpload) break
+      }
+
+      if (!hasOutstandingUpload) continue
+
+      // Check if active chase already exists for this reference
+      const { data: existing } = await supabase
+        .from('chase_items_v2')
+        .select('id')
+        .eq('reference_id', ref.id)
+        .eq('chase_type', 'UPLOAD')
+        .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) continue
+
+      const name = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+      const email = decrypt(ref.tenant_email_encrypted) || ''
+      const phone = decrypt(ref.tenant_phone_encrypted) || null
+
+      const { error: insertError } = await supabase
+        .from('chase_items_v2')
+        .insert({
+          reference_id: ref.id,
+          section_id: null,
+          referee_type: ref.is_guarantor ? 'GUARANTOR' : 'TENANT',
+          chase_type: 'UPLOAD',
+          referee_name_encrypted: encrypt(name),
+          referee_email_encrypted: encrypt(email),
+          referee_phone_encrypted: phone ? encrypt(phone) : null,
+          status: 'IN_CHASE_QUEUE',
+          chase_queue_entered_at: now,
+          initial_sent_at: now
+        })
+
+      if (!insertError) created++
+    }
+
+    return created
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error creating will-email chase items:', error)
+    return 0
+  }
+}
+
+/**
+ * Auto-resolve will-email chase items where all outstanding docs have been uploaded
+ */
+export async function autoResolveWillEmailChases(): Promise<number> {
+  try {
+    const now = new Date().toISOString()
+
+    const { data: uploadChases, error } = await supabase
+      .from('chase_items_v2')
+      .select('id, reference_id')
+      .eq('chase_type', 'UPLOAD')
+      .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+
+    if (error || !uploadChases || uploadChases.length === 0) return 0
+
+    const willEmailFields = [
+      { section: 'income', fields: ['payslipsWillEmail', 'taxReturnWillEmail', 'savingsDocWillEmail', 'pensionDocWillEmail', 'rentalDocWillEmail'] },
+      { section: 'identity', fields: ['idDocumentWillEmail'] },
+      { section: 'address', fields: ['proofOfAddressWillEmail'] }
+    ]
+
+    let resolved = 0
+    for (const chase of uploadChases) {
+      const { data: ref } = await supabase
+        .from('tenant_references_v2')
+        .select('form_data')
+        .eq('id', chase.reference_id)
+        .single()
+
+      if (!ref) continue
+
+      const formData = ref.form_data || {}
+      let stillOutstanding = false
+
+      for (const { section, fields } of willEmailFields) {
+        const sectionData = formData[section] || {}
+        for (const field of fields) {
+          if (sectionData[field] === true) {
+            const urlField = field.replace('WillEmail', 'Url')
+            if (!sectionData[urlField]) {
+              stillOutstanding = true
+              break
+            }
+          }
+        }
+        if (stillOutstanding) break
+      }
+
+      if (!stillOutstanding) {
+        await supabase
+          .from('chase_items_v2')
+          .update({
+            status: 'RECEIVED',
+            resolution_type: 'DOCS_UPLOADED',
+            resolved_at: now,
+            updated_at: now
+          })
+          .eq('id', chase.id)
+        resolved++
+      }
+    }
+
+    return resolved
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error auto-resolving will-email chases:', error)
+    return 0
+  }
+}
+
+/**
+ * Complete a chase cycle (email + call done, add note, start cooldown)
+ */
+export async function completeChaseCycle(
+  chaseItemId: string,
+  note: string,
+  staffUserId: string
+): Promise<boolean> {
+  try {
+    const chaseItem = await getChaseItem(chaseItemId)
+    if (!chaseItem) return false
+
+    const now = new Date()
+    const cooldownUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+
+    const { error } = await supabase
+      .from('chase_items_v2')
+      .update({
+        chase_note: note,
+        last_chased_at: now.toISOString(),
+        cooldown_until: cooldownUntil.toISOString(),
+        email_checked: false,
+        call_checked: false,
+        chase_count: chaseItem.chase_count + 1,
+        updated_at: now.toISOString()
+      })
+      .eq('id', chaseItemId)
+
+    if (error) {
+      console.error('[ChaseServiceV2] Error completing chase cycle:', error)
+      return false
+    }
+
+    console.log(`[ChaseServiceV2] Completed chase cycle for ${chaseItemId}, cooldown until ${cooldownUntil.toISOString()}`)
     return true
   } catch (error) {
     console.error('[ChaseServiceV2] Error:', error)

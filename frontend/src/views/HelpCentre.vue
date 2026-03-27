@@ -22,6 +22,19 @@
       <div class="flex-1 overflow-y-auto">
         <div class="max-w-6xl mx-auto px-6 py-8 space-y-10">
 
+          <!-- Bug Report Banner -->
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-5 flex items-start gap-4">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+              <Bug class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 class="font-semibold text-gray-900 dark:text-white text-sm">Report Technical Issues</h3>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                Click the <strong>bug icon</strong> in the bottom-right corner of any page to report technical issues directly to our team. Issues will be picked up and resolved as quickly as possible, usually within 24 hours Monday - Saturday.
+              </p>
+            </div>
+          </div>
+
           <!-- Quick Stats -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-4 text-center">
@@ -153,7 +166,8 @@ import {
   Clock,
   ChevronRight,
   MessageCircle,
-  Mail
+  Mail,
+  Bug
 } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import HelpSearch from '@/components/help/HelpSearch.vue'

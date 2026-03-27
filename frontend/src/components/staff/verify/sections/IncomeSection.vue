@@ -24,6 +24,28 @@
         Review income documentation and verify affordability against the rent amount.
       </p>
 
+      <!-- Evidence Status Banner -->
+      <div v-if="evidenceStatus === 'AWAITING_EVIDENCE'" class="evidence-banner evidence-banner-amber">
+        <AlertTriangle class="banner-icon" />
+        <span>No income evidence on file. Waiting for referee or proof of income upload.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'AWAITING_REFEREE'" class="evidence-banner evidence-banner-blue">
+        <Clock class="banner-icon" />
+        <span>Awaiting employer/accountant referee form submission.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'AWAITING_UPLOAD'" class="evidence-banner evidence-banner-blue">
+        <Clock class="banner-icon" />
+        <span>Waiting for income document upload (email link sent).</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'REFEREE_RECEIVED'" class="evidence-banner evidence-banner-green">
+        <CheckCircle class="banner-icon" />
+        <span>Referee reference received.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'EVIDENCE_RECEIVED'" class="evidence-banner evidence-banner-green">
+        <CheckCircle class="banner-icon" />
+        <span>Income evidence received.</span>
+      </div>
+
       <!-- Confirmation Status Badge -->
       <div v-if="incomeConfirmedAt" class="confirmation-status">
         <CheckCircle class="check-icon" />
@@ -718,7 +740,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { CheckCircle, GraduationCap, AlertTriangle, FileText, X } from 'lucide-vue-next'
+import { CheckCircle, GraduationCap, AlertTriangle, FileText, X, Clock } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 import EvidencePreview from '../shared/EvidencePreview.vue'
@@ -727,6 +749,10 @@ import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 const authToken = computed(() => authStore.session?.access_token || '')
+
+const evidenceStatus = computed(() => {
+  return (props.section as any).section_data?.evidence_status || null
+})
 
 interface IncomeSource {
   type: string
@@ -1198,6 +1224,57 @@ const formatIncomeExpectation = (value: string | null | undefined) => {
 .section-description {
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+.evidence-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.evidence-banner .banner-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.evidence-banner-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.dark .evidence-banner-amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.evidence-banner-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.dark .evidence-banner-blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.evidence-banner-green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.dark .evidence-banner-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .confirmation-status {

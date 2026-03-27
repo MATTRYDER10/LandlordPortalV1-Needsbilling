@@ -21,6 +21,7 @@ import {
   editReferenceField
 } from '../../services/v2/referenceServiceV2'
 import { logActivity, getActivityForReference } from '../../services/v2/activityServiceV2'
+import { deductCredits } from '../../services/creditService'
 import { getSections } from '../../services/v2/sectionServiceV2'
 import { V2ReferenceStatus, CreateV2ReferenceInput } from '../../services/v2/types'
 import { auditReferenceStarted, auditReferenceCompleted } from '../../services/propertyAuditService'
@@ -253,6 +254,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           return res.status(500).json({ error: `Failed to create reference for tenant ${i + 1}` })
         }
 
+        // Deduct 1 credit for tenant reference
+        try {
+          await deductCredits(companyId, 1, reference.id, `V2 tenant reference: ${tenant.first_name} ${tenant.last_name}`, req.user?.id)
+          console.log(`[V2 References] Deducted 1 credit for tenant ${tenant.first_name} ${tenant.last_name}`)
+        } catch (creditError: any) {
+          console.error(`[V2 References] Credit deduction failed:`, creditError.message)
+          // Don't fail the request - reference is already created
+        }
+
         // Log property audit for reference started
         if (propertyIdToLink) {
           try {
@@ -310,6 +320,26 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             console.error(`[V2 References] Failed to send email to ${tenant.email}:`, emailError.message)
             // Don't fail the request - email is non-critical
           }
+        }
+      }
+
+      // Update linked offer status to 'holding_deposit_received' (referencing)
+      if (offer_id && createdReferences.length > 0) {
+        try {
+          const { error: offerUpdateError } = await supabase
+            .from('tenant_offers')
+            .update({
+              status: 'holding_deposit_received',
+              holding_deposit_received_at: new Date().toISOString()
+            })
+            .eq('id', offer_id)
+          if (offerUpdateError) {
+            console.error('[V2 References] Failed to update offer status:', offerUpdateError.message)
+          } else {
+            console.log('[V2 References] Offer', offer_id, 'marked as referencing')
+          }
+        } catch (err) {
+          console.error('[V2 References] Error updating offer:', err)
         }
       }
 
@@ -479,23 +509,41 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       sectionsByRef.set(s.reference_id, arr)
     }
 
+    // Batch fetch UniHome data from linked offers
+    const offerIds = [...new Set(references.map(r => r.offer_id).filter(Boolean))]
+    const offerUnihomesMap = new Map<string, { offer_unihomes: boolean; unihomes_interested: boolean }>()
+    if (offerIds.length > 0) {
+      const { data: offers } = await supabase
+        .from('tenant_offers')
+        .select('id, offer_unihomes, unihomes_interested')
+        .in('id', offerIds)
+      for (const o of (offers || [])) {
+        offerUnihomesMap.set(o.id, { offer_unihomes: o.offer_unihomes, unihomes_interested: o.unihomes_interested })
+      }
+    }
+
     // Decrypt fields (sync - no extra DB calls)
-    const decryptedReferences = references.map(ref => ({
-      ...ref,
-      tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
-      tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
-      tenant_email: decrypt(ref.tenant_email_encrypted),
-      tenant_phone: decrypt(ref.tenant_phone_encrypted),
-      property_address: decrypt(ref.property_address_encrypted),
-      property_city: decrypt(ref.property_city_encrypted),
-      property_postcode: decrypt(ref.property_postcode_encrypted),
-      form_data: decryptFormData(ref.form_data),
-      sections: sectionsByRef.get(ref.id) || [],
-      has_open_issues: (sectionsByRef.get(ref.id) || []).some((s: any) => {
-        const issueStatus = s.section_data?.issue_status
-        return issueStatus === 'OPEN' || issueStatus === 'RESPONSE_PENDING_REVIEW'
-      })
-    }))
+    const decryptedReferences = references.map(ref => {
+      const offerData = ref.offer_id ? offerUnihomesMap.get(ref.offer_id) : null
+      return {
+        ...ref,
+        tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+        tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
+        tenant_email: decrypt(ref.tenant_email_encrypted),
+        tenant_phone: decrypt(ref.tenant_phone_encrypted),
+        property_address: decrypt(ref.property_address_encrypted),
+        property_city: decrypt(ref.property_city_encrypted),
+        property_postcode: decrypt(ref.property_postcode_encrypted),
+        form_data: decryptFormData(ref.form_data),
+        sections: sectionsByRef.get(ref.id) || [],
+        has_open_issues: (sectionsByRef.get(ref.id) || []).some((s: any) => {
+          const issueStatus = s.section_data?.issue_status
+          return issueStatus === 'OPEN' || issueStatus === 'RESPONSE_PENDING_REVIEW'
+        }),
+        offer_unihomes: offerData?.offer_unihomes || false,
+        unihomes_interested: offerData?.unihomes_interested || false
+      }
+    })
 
     res.json({ references: decryptedReferences, total })
   } catch (error: any) {
@@ -523,13 +571,16 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Decrypt form_data + run all queries in parallel for speed
-    const [decryptedFormData, sections, guarantor, creditResult, amlResult, children] = await Promise.all([
+    const [decryptedFormData, sections, guarantor, creditResult, amlResult, children, offerResult] = await Promise.all([
       Promise.resolve(decryptFormData(result.reference.form_data)),
       getSections(id),
       getGuarantor(id),
       supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
       supabase.from('sanctions_screenings_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
-      result.reference.is_group_parent ? getGroupChildren(id) : Promise.resolve(null)
+      result.reference.is_group_parent ? getGroupChildren(id) : Promise.resolve(null),
+      result.reference.offer_id
+        ? supabase.from('tenant_offers').select('offer_unihomes, unihomes_interested').eq('id', result.reference.offer_id).maybeSingle().then(r => r.data)
+        : Promise.resolve(null)
     ])
 
     res.json({
@@ -552,7 +603,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         accountant_name: decrypt(result.reference.accountant_name_encrypted),
         accountant_email: decrypt(result.reference.accountant_email_encrypted),
         accountant_phone: decrypt(result.reference.accountant_phone_encrypted),
-        form_data: decryptedFormData
+        form_data: decryptedFormData,
+        offer_unihomes: offerResult?.offer_unihomes || false,
+        unihomes_interested: offerResult?.unihomes_interested || false
       },
       sections,
       children,
@@ -973,27 +1026,64 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
 
     console.log('[V2 References] Token updated for reference:', id)
 
-    // Build form URL using new token
-    const formUrl = `${getV2FrontendUrl()}/submit-reference-v2/${newToken}`
+    // Build form URL based on whether this is a guarantor or tenant reference
+    const isGuarantor = reference.is_guarantor || false
+    const formPath = isGuarantor ? 'guarantor-reference-v2' : 'submit-reference-v2'
+    const formUrl = `${getV2FrontendUrl()}/${formPath}/${newToken}`
 
     // Get tenant name
     const tenantName = result.tenantName || 'Tenant'
 
-    // Send email (correct parameter order)
-    await sendTenantReferenceRequest(
-      tenantEmail,
-      tenantName,
-      formUrl,
-      companyName,
-      result.propertyAddress || undefined,
-      companyPhone || undefined,
-      companyEmail || undefined,
-      id,
-      companyLogoUrl
-    )
+    if (isGuarantor) {
+      // Send guarantor-specific email
+      const { sendGuarantorReferenceRequest } = await import('../../services/emailService')
+
+      // Get the tenant name from the parent reference
+      let parentTenantName = 'the tenant'
+      if (reference.guarantor_for_reference_id) {
+        const { data: parentRef } = await supabase
+          .from('tenant_references_v2')
+          .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+          .eq('id', reference.guarantor_for_reference_id)
+          .single()
+        if (parentRef) {
+          const fn = parentRef.tenant_first_name_encrypted ? decrypt(parentRef.tenant_first_name_encrypted) : ''
+          const ln = parentRef.tenant_last_name_encrypted ? decrypt(parentRef.tenant_last_name_encrypted) : ''
+          parentTenantName = `${fn} ${ln}`.trim() || 'the tenant'
+        }
+      }
+
+      await sendGuarantorReferenceRequest(
+        tenantEmail,
+        tenantName,
+        parentTenantName,
+        result.propertyAddress || 'the property',
+        companyName,
+        companyPhone || '',
+        companyEmail || '',
+        formUrl,
+        id,
+        companyLogoUrl,
+        reference.monthly_rent || undefined,
+        reference.rent_share || reference.monthly_rent || undefined
+      )
+    } else {
+      // Send tenant reference email
+      await sendTenantReferenceRequest(
+        tenantEmail,
+        tenantName,
+        formUrl,
+        companyName,
+        result.propertyAddress || undefined,
+        companyPhone || undefined,
+        companyEmail || undefined,
+        id,
+        companyLogoUrl
+      )
+    }
 
     res.json({
-      message: 'Reference request email resent',
+      message: `${isGuarantor ? 'Guarantor' : 'Reference'} request email resent`,
       sentTo: tenantEmail
     })
   } catch (error: any) {
@@ -1587,9 +1677,13 @@ router.post('/:id/sections/:sectionId/upload', authenticateToken, async (req: Au
     const timestamp = Date.now()
     const filePath = `v2-evidence/${reference.company_id}/${id}/${section.section_type.toLowerCase()}/${timestamp}-${fileName}`
 
+    const mimeMap: Record<string, string> = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif' }
+    const extFromName = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+    const resolvedFileType = (fileType && fileType !== 'application/octet-stream' && fileType !== '') ? fileType : mimeMap[extFromName] || 'application/pdf'
+
     const { error: uploadError } = await supabase.storage
       .from('reference-documents')
-      .upload(filePath, buffer, { contentType: fileType })
+      .upload(filePath, buffer, { contentType: resolvedFileType })
 
     if (uploadError) {
       return res.status(500).json({ error: 'Failed to upload file' })
@@ -1775,6 +1869,140 @@ router.get('/:id/convert/validate', authenticateToken, async (req: AuthRequest, 
     res.json(result)
   } catch (error: any) {
     console.error('[V2 References] Error validating conversion:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Add guarantor to an existing V2 reference
+ */
+router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(401).json({ error: 'Company not found' })
+
+    const { id } = req.params
+    const { firstName, lastName, email, phone, relationship } = req.body
+
+    if (!firstName || !lastName || !email || !relationship) {
+      return res.status(400).json({ error: 'First name, last name, email, and relationship are required' })
+    }
+
+    // Get the tenant reference
+    const { data: tenantRef, error: refError } = await supabase
+      .from('tenant_references_v2')
+      .select('*')
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !tenantRef) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    if (tenantRef.is_guarantor) {
+      return res.status(400).json({ error: 'Cannot add a guarantor to a guarantor reference' })
+    }
+
+    if (tenantRef.guarantor_reference_id) {
+      return res.status(400).json({ error: 'This tenant already has a guarantor' })
+    }
+
+    // Create guarantor reference
+    const formToken = generateToken()
+    const formTokenHash = hash(formToken)
+
+    const { data: guarantorRef, error: insertError } = await supabase
+      .from('tenant_references_v2')
+      .insert({
+        company_id: companyId,
+        branch_id: tenantRef.branch_id,
+        created_by: req.user?.id,
+        tenant_first_name_encrypted: encrypt(firstName),
+        tenant_last_name_encrypted: encrypt(lastName),
+        tenant_email_encrypted: encrypt(email),
+        tenant_phone_encrypted: phone ? encrypt(phone) : null,
+        property_address_encrypted: tenantRef.property_address_encrypted,
+        property_city: tenantRef.property_city,
+        property_postcode: tenantRef.property_postcode,
+        monthly_rent: tenantRef.rent_share || tenantRef.monthly_rent,
+        rent_share: tenantRef.rent_share || tenantRef.monthly_rent,
+        move_in_date: tenantRef.move_in_date,
+        is_guarantor: true,
+        guarantor_for_reference_id: tenantRef.id,
+        guarantor_relationship: relationship,
+        form_token_hash: formTokenHash,
+        status: 'SENT',
+        offer_id: tenantRef.offer_id
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('[V2 References] Error creating guarantor:', insertError)
+      return res.status(500).json({ error: 'Failed to create guarantor reference' })
+    }
+
+    // Link guarantor to tenant reference
+    await supabase
+      .from('tenant_references_v2')
+      .update({ guarantor_reference_id: guarantorRef.id })
+      .eq('id', tenantRef.id)
+
+    // Send guarantor email
+    try {
+      const { sendGuarantorReferenceRequest } = await import('../../services/emailService')
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+        .eq('id', companyId)
+        .single()
+
+      const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
+      const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
+      const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+      const propertyAddress = tenantRef.property_address_encrypted ? (decrypt(tenantRef.property_address_encrypted) || 'the property') : 'the property'
+      const tenantName = `${decrypt(tenantRef.tenant_first_name_encrypted) || ''} ${decrypt(tenantRef.tenant_last_name_encrypted) || ''}`.trim()
+
+      const guarantorFormUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference-v2/${formToken}`
+
+      await sendGuarantorReferenceRequest(
+        email,
+        firstName,
+        tenantName,
+        propertyAddress,
+        companyName,
+        companyPhone,
+        companyEmail,
+        guarantorFormUrl,
+        guarantorRef.id,
+        company?.logo_url || null,
+        tenantRef.monthly_rent || undefined,
+        tenantRef.rent_share || tenantRef.monthly_rent || undefined
+      )
+    } catch (emailErr) {
+      console.error('[V2 References] Failed to send guarantor email:', emailErr)
+    }
+
+    // Deduct 0.5 credits for guarantor reference
+    try {
+      await deductCredits(companyId, 0.5, guarantorRef.id, `V2 guarantor reference: ${firstName} ${lastName}`, req.user?.id)
+      console.log(`[V2 References] Deducted 0.5 credits for guarantor ${firstName} ${lastName}`)
+    } catch (creditError: any) {
+      console.error(`[V2 References] Guarantor credit deduction failed:`, creditError.message)
+    }
+
+    console.log(`[V2 References] Added guarantor ${firstName} ${lastName} for reference ${id}`)
+
+    res.json({
+      success: true,
+      guarantorReference: {
+        id: guarantorRef.id,
+        reference_number: guarantorRef.reference_number
+      }
+    })
+  } catch (error: any) {
+    console.error('[V2 References] Error adding guarantor:', error)
     res.status(500).json({ error: error.message })
   }
 })

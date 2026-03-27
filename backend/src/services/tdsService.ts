@@ -113,7 +113,7 @@ export async function getCompanyTDSConfig(companyId: string): Promise<TDSConfig 
     apiKey,
     memberId: data.tds_member_id || '',
     branchId: data.tds_branch_id || '0',
-    environment: (data.tds_environment as 'sandbox' | 'live') || 'sandbox'
+    environment: (data.tds_environment as 'sandbox' | 'live') || 'live'
   }
 }
 

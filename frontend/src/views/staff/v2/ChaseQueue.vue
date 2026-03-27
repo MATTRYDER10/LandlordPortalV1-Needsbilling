@@ -77,21 +77,37 @@
         <div
           v-for="item in filteredItems"
           :key="item.id"
-          class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4"
+          class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 transition-opacity"
+          :class="{ 'opacity-50': item.in_cooldown }"
         >
+          <!-- Header row -->
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-gray-900 dark:text-white">
-                  {{ item.referee_name }}
+                  {{ item.chase_type === 'TENANT' ? item.tenant_name : item.referee_name }}
                 </span>
                 <span class="px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="getRefereeTypeClass(item.referee_type)">
-                  {{ item.referee_type }}
+                  :class="getRefereeTypeClass(item.chase_type === 'TENANT' ? 'TENANT' : item.chase_type === 'GUARANTOR' ? 'GUARANTOR' : item.chase_type === 'UPLOAD' ? 'UPLOAD' : item.referee_type)">
+                  {{ item.chase_type === 'TENANT' ? 'CHASE TENANT' : item.chase_type === 'GUARANTOR' ? 'GUARANTOR' : item.chase_type === 'UPLOAD' ? 'AWAITING UPLOAD' : item.referee_type }}
+                </span>
+                <span v-if="item.is_overdue" class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                  OVERDUE
                 </span>
               </div>
               <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
-                For: {{ item.tenant_name }} - {{ item.section_type }}
+                <template v-if="item.chase_type === 'TENANT'">
+                  {{ item.property_address }} - Tenant form not submitted
+                </template>
+                <template v-else-if="item.chase_type === 'GUARANTOR'">
+                  For: {{ item.tenant_name }} - Guarantor form not submitted
+                </template>
+                <template v-else-if="item.chase_type === 'UPLOAD'">
+                  {{ item.referee_type === 'GUARANTOR' ? 'Guarantor' : 'Tenant' }} selected "email me a link" — documents not yet uploaded
+                </template>
+                <template v-else>
+                  For: {{ item.tenant_name }} - {{ item.section_type }}
+                </template>
               </p>
               <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                 {{ item.referee_email }}
@@ -101,18 +117,68 @@
               </p>
             </div>
             <div class="text-right">
-              <div class="text-sm font-medium" :class="getAgeColor(item.age_hours)">
-                {{ formatAge(item.age_hours) }}
-              </div>
-              <div class="text-xs text-gray-400">since sent</div>
+              <template v-if="item.in_cooldown">
+                <div class="text-sm font-medium text-gray-400">
+                  Next chase in {{ formatCooldown(item.cooldown_until) }}
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-sm font-medium" :class="getAgeColor(item.age_hours)">
+                  {{ formatAge(item.age_hours) }}
+                </div>
+                <div class="text-xs text-gray-400">since sent</div>
+              </template>
               <div v-if="item.chase_count > 0" class="text-xs text-amber-600 mt-1">
                 Chased {{ item.chase_count }}x
               </div>
             </div>
           </div>
 
-          <!-- Actions -->
-          <div class="mt-4 flex flex-wrap gap-2">
+          <!-- Chase Checkboxes -->
+          <div v-if="!item.in_cooldown" class="mt-3 flex items-center gap-4 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                :checked="item.email_checked"
+                :disabled="item.email_checked || actionLoading === item.id"
+                @change="onEmailChecked(item)"
+                class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span class="text-sm font-medium" :class="item.email_checked ? 'text-green-600' : 'text-gray-700 dark:text-slate-300'">
+                Email Sent
+              </span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                :checked="item.call_checked"
+                :disabled="item.call_checked || actionLoading === item.id"
+                @change="onCallChecked(item)"
+                class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span class="text-sm font-medium" :class="item.call_checked ? 'text-green-600' : 'text-gray-700 dark:text-slate-300'">
+                Called
+              </span>
+            </label>
+            <span v-if="item.email_checked && item.call_checked" class="text-xs text-green-600 font-medium ml-auto">
+              Both done - add note below
+            </span>
+          </div>
+
+          <!-- Cooldown Resend Button (available even during cooldown) -->
+          <div v-if="item.in_cooldown" class="mt-3 flex flex-wrap gap-2">
+            <button
+              @click="item.chase_type === 'REFEREE' ? resendEmail(item) : resendForm(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 disabled:opacity-50"
+            >
+              <Mail class="w-4 h-4" />
+              Resend {{ item.chase_type === 'REFEREE' ? 'Email' : 'Form' }}
+            </button>
+          </div>
+
+          <!-- REFEREE Actions (only for referee chase type, not in cooldown) -->
+          <div v-if="item.chase_type === 'REFEREE' && !item.in_cooldown" class="mt-3 flex flex-wrap gap-2">
             <button
               @click="resendEmail(item)"
               :disabled="actionLoading === item.id"
@@ -160,6 +226,13 @@
               <XCircle class="w-4 h-4" />
               Unable to Obtain
             </button>
+          </div>
+
+          <!-- Chase Note (last note) -->
+          <div v-if="item.chase_note" class="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+            <p class="text-xs text-amber-700 dark:text-amber-400">
+              <span class="font-medium">Last note:</span> {{ item.chase_note }}
+            </p>
           </div>
 
           <!-- Chase History -->
@@ -309,6 +382,50 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Chase Note Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="showNoteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Where do things stand with this chase?</h3>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">
+              {{ noteModalItem?.chase_type === 'TENANT' ? noteModalItem?.tenant_name : noteModalItem?.referee_name }}
+            </p>
+            <div>
+              <textarea
+                v-model="chaseNote"
+                rows="4"
+                placeholder="E.g. Spoke to receptionist, employer will respond by Friday..."
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div class="flex gap-3 mt-4">
+              <button
+                @click="showNoteModal = false"
+                class="flex-1 py-2 px-4 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                @click="submitChaseNote"
+                :disabled="!chaseNote.trim() || noteSubmitting"
+                class="flex-1 py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+              >
+                {{ noteSubmitting ? 'Saving...' : 'Complete Chase' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -351,21 +468,34 @@ const callNotes = ref('')
 const showUnableModal = ref(false)
 const unableModalItem = ref<any>(null)
 const unableReason = ref('')
+const showNoteModal = ref(false)
+const noteModalItem = ref<any>(null)
+const chaseNote = ref('')
+const noteSubmitting = ref(false)
 
 const tabs = computed(() => [
   { value: 'all', label: 'All', count: items.value.length },
-  { value: 'EMPLOYER', label: 'Employer', count: items.value.filter(i => i.referee_type === 'EMPLOYER').length },
-  { value: 'LANDLORD', label: 'Landlord', count: items.value.filter(i => i.referee_type === 'LANDLORD').length },
-  { value: 'AGENT', label: 'Agent', count: items.value.filter(i => i.referee_type === 'AGENT').length }
+  { value: 'TENANT', label: 'Tenant', count: items.value.filter(i => i.chase_type === 'TENANT').length },
+  { value: 'GUARANTOR', label: 'Guarantor', count: items.value.filter(i => i.chase_type === 'GUARANTOR').length },
+  { value: 'UPLOAD', label: 'Uploads', count: items.value.filter(i => i.chase_type === 'UPLOAD').length },
+  { value: 'EMPLOYER', label: 'Employer', count: items.value.filter(i => i.referee_type === 'EMPLOYER' && i.chase_type === 'REFEREE').length },
+  { value: 'LANDLORD', label: 'Landlord', count: items.value.filter(i => i.referee_type === 'LANDLORD' && i.chase_type === 'REFEREE').length },
+  { value: 'AGENT', label: 'Agent', count: items.value.filter(i => i.referee_type === 'AGENT' && i.chase_type === 'REFEREE').length }
 ])
 
 const filteredItems = computed(() => {
   if (activeTab.value === 'all') return items.value
-  return items.value.filter(i => i.referee_type === activeTab.value)
+  if (activeTab.value === 'TENANT') return items.value.filter(i => i.chase_type === 'TENANT')
+  if (activeTab.value === 'GUARANTOR') return items.value.filter(i => i.chase_type === 'GUARANTOR')
+  if (activeTab.value === 'UPLOAD') return items.value.filter(i => i.chase_type === 'UPLOAD')
+  return items.value.filter(i => i.referee_type === activeTab.value && i.chase_type === 'REFEREE')
 })
 
 function getRefereeTypeClass(type: string) {
   switch (type) {
+    case 'TENANT': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+    case 'GUARANTOR': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
+    case 'UPLOAD': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
     case 'EMPLOYER': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     case 'LANDLORD': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
     case 'AGENT': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -383,6 +513,15 @@ function formatAge(hours: number): string {
   if (hours < 24) return `${Math.floor(hours)} hours`
   const days = Math.floor(hours / 24)
   return `${days} day${days > 1 ? 's' : ''}`
+}
+
+function formatCooldown(cooldownUntil: string): string {
+  const remaining = new Date(cooldownUntil).getTime() - Date.now()
+  if (remaining <= 0) return 'now'
+  const hours = Math.floor(remaining / (1000 * 60 * 60))
+  const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+  if (hours > 0) return `${hours}h ${mins}m`
+  return `${mins}m`
 }
 
 function formatDate(dateStr: string): string {
@@ -422,6 +561,102 @@ async function fetchItems() {
     console.error('Error fetching chase items:', error)
   } finally {
     loading.value = false
+  }
+}
+
+async function onEmailChecked(item: any) {
+  actionLoading.value = item.id
+  try {
+    const endpoint = (item.chase_type === 'TENANT' || item.chase_type === 'GUARANTOR' || item.chase_type === 'UPLOAD')
+      ? `${API_URL}/api/v2/chase/${item.id}/tenant-chase-email`
+      : `${API_URL}/api/v2/chase/${item.id}/resend-email`
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    if (response.ok) {
+      item.email_checked = true
+      checkBothDone(item)
+    }
+  } catch (error) {
+    console.error('Error sending chase email:', error)
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+async function onCallChecked(item: any) {
+  actionLoading.value = item.id
+  try {
+    const response = await fetch(`${API_URL}/api/v2/chase/${item.id}/check-called`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    if (response.ok) {
+      item.call_checked = true
+      checkBothDone(item)
+    }
+  } catch (error) {
+    console.error('Error checking called:', error)
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+function checkBothDone(item: any) {
+  if (item.email_checked && item.call_checked) {
+    noteModalItem.value = item
+    chaseNote.value = ''
+    showNoteModal.value = true
+  }
+}
+
+async function submitChaseNote() {
+  if (!noteModalItem.value || !chaseNote.value.trim()) return
+
+  noteSubmitting.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/chase/${noteModalItem.value.id}/complete-chase`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ note: chaseNote.value.trim() })
+    })
+
+    if (response.ok) {
+      showNoteModal.value = false
+      await fetchItems()
+    }
+  } catch (error) {
+    console.error('Error completing chase:', error)
+  } finally {
+    noteSubmitting.value = false
+  }
+}
+
+async function resendForm(item: any) {
+  actionLoading.value = item.id
+  try {
+    await fetch(`${API_URL}/api/v2/chase/${item.id}/tenant-chase-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+    await fetchItems()
+  } catch (error) {
+    console.error('Error resending form:', error)
+  } finally {
+    actionLoading.value = null
   }
 }
 

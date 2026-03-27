@@ -66,6 +66,8 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
         first_name_encrypted,
         last_name_encrypted,
         email_encrypted,
+        is_company,
+        company_name_encrypted,
         aml_status,
         aml_completed_at,
         created_at
@@ -96,6 +98,8 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
       first_name: decrypt(landlord.first_name_encrypted),
       last_name: decrypt(landlord.last_name_encrypted),
       email: decrypt(landlord.email_encrypted),
+      is_company: landlord.is_company,
+      company_name: decrypt(landlord.company_name_encrypted),
       aml_status: landlord.aml_status,
       aml_completed_at: landlord.aml_completed_at,
       created_at: landlord.created_at
@@ -108,7 +112,8 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
       filteredLandlords = decryptedLandlords.filter(landlord => {
         const fullName = `${landlord.first_name || ''} ${landlord.last_name || ''}`.toLowerCase()
         const email = (landlord.email || '').toLowerCase()
-        return fullName.includes(searchLower) || email.includes(searchLower)
+        const companyName = (landlord.company_name || '').toLowerCase()
+        return fullName.includes(searchLower) || email.includes(searchLower) || companyName.includes(searchLower)
       })
       // Apply pagination to search results
       const searchTotal = filteredLandlords.length

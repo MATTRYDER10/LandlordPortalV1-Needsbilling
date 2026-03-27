@@ -65,165 +65,75 @@
         </div>
       </div>
 
-      <!-- Configuration Form -->
-      <form @submit.prevent="saveCredentials" class="space-y-4" data-form-type="other">
-        <!-- Hidden fields to trap browser autofill -->
-        <input type="text" name="trap-username" style="display:none" tabindex="-1" autocomplete="username" />
-        <input type="password" name="trap-password" style="display:none" tabindex="-1" autocomplete="current-password" />
-
-        <div>
-          <label for="mydeposits-client-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client ID</label>
-          <input
-            id="mydeposits-client-id"
-            v-model="form.clientId"
-            name="mydeposits-client-id"
-            type="text"
-            :required="!status?.configured"
-            autocomplete="off"
-            data-lpignore="true"
-            data-1p-ignore
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-            :placeholder="status?.clientId || 'Enter your OAuth2 Client ID'"
-          />
-        </div>
-
-        <div>
-          <label for="mydeposits-client-secret" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client Secret</label>
-          <div class="mt-1 relative">
-            <input
-              id="mydeposits-client-secret"
-              v-model="form.clientSecret"
-              name="mydeposits-client-secret"
-              :type="showSecret ? 'text' : 'password'"
-              :required="!status?.configured"
-              autocomplete="off"
-              data-lpignore="true"
-              data-1p-ignore
-              class="block w-full px-3 py-2 pr-20 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              :placeholder="status?.clientSecretHint || 'Enter your OAuth2 Client Secret'"
-            />
-            <button
-              type="button"
-              @click="showSecret = !showSecret"
-              class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-            >
-              <Eye v-if="!showSecret" class="w-4 h-4" />
-              <EyeOff v-else class="w-4 h-4" />
-            </button>
-          </div>
-          <p v-if="status?.configured && !form.clientSecret" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Leave blank to keep existing secret
+      <!-- Simple Link Flow -->
+      <div v-if="!status?.authorized" class="space-y-4">
+        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p class="text-sm text-blue-800 dark:text-blue-300">
+            Click the button below to link your mydeposits account. You'll be redirected to mydeposits to log in and authorize PropertyGoose.
           </p>
         </div>
 
+        <button
+          type="button"
+          @click="linkAccount"
+          :disabled="linking"
+          class="w-full px-4 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <ExternalLink v-if="!linking" class="w-4 h-4" />
+          <Loader2 v-else class="w-4 h-4 animate-spin" />
+          {{ linking ? 'Connecting...' : 'Link mydeposits Account' }}
+        </button>
+      </div>
+
+      <!-- Member/Branch ID Display (after linked) -->
+      <div v-if="status?.memberId" class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Environment</label>
-          <div class="flex gap-4">
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="form.environment"
-                value="sandbox"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Sandbox (Testing)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="form.environment"
-                value="live"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Live (Production)</span>
-            </label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Member ID</label>
+          <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
+            <span class="text-gray-900 dark:text-white font-mono">{{ status.memberId }}</span>
           </div>
         </div>
-
-        <!-- Member/Branch ID Display (read-only, populated after OAuth) -->
-        <div v-if="status?.memberId" class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Member ID</label>
-            <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
-              <span class="text-gray-900 dark:text-white font-mono">{{ status.memberId }}</span>
-            </div>
-          </div>
-          <div v-if="status?.branchId">
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Branch ID</label>
-            <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
-              <span class="text-gray-900 dark:text-white font-mono">{{ status.branchId }}</span>
-            </div>
+        <div v-if="status?.branchId">
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Branch ID</label>
+          <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
+            <span class="text-gray-900 dark:text-white font-mono">{{ status.branchId }}</span>
           </div>
         </div>
+      </div>
 
-        <div v-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
-          {{ error }}
-        </div>
+      <div v-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
+        {{ error }}
+      </div>
 
-        <div v-if="success" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
-          {{ success }}
-        </div>
+      <div v-if="success" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
+        {{ success }}
+      </div>
 
-        <div class="flex items-center justify-between pt-4 border-t dark:border-slate-700">
-          <div class="flex gap-3">
-            <button
-              type="submit"
-              :disabled="saving"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
-            >
-              {{ saving ? 'Saving...' : 'Save Credentials' }}
-            </button>
-
-            <!-- Link Account Button -->
-            <button
-              v-if="status?.configured && !status?.authorized"
-              type="button"
-              @click="linkAccount"
-              :disabled="linking"
-              class="px-4 py-2 text-sm font-medium text-white bg-[#00A3E0] hover:bg-[#00A3E0]/90 rounded-md disabled:opacity-50 flex items-center gap-2"
-            >
-              <ExternalLink class="w-4 h-4" />
-              {{ linking ? 'Redirecting...' : 'Link Account' }}
-            </button>
-
-            <!-- Test Button -->
-            <button
-              v-if="status?.configured && status?.authorized"
-              type="button"
-              @click="testConnection"
-              :disabled="testing"
-              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md disabled:opacity-50"
-            >
-              <span v-if="testing" class="flex items-center gap-2">
-                <Loader2 class="w-4 h-4 animate-spin" />
-                Testing...
-              </span>
-              <span v-else>Test Connection</span>
-            </button>
-          </div>
+      <!-- Actions -->
+      <div v-if="status?.configured" class="flex items-center justify-between pt-4 border-t dark:border-slate-700">
+        <div class="flex gap-3">
           <button
-            v-if="status?.configured"
+            v-if="status?.authorized"
             type="button"
-            @click="removeIntegration"
-            :disabled="removing"
-            class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+            @click="testConnection"
+            :disabled="testing"
+            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md disabled:opacity-50"
           >
-            {{ removing ? 'Removing...' : 'Remove Integration' }}
+            <span v-if="testing" class="flex items-center gap-2">
+              <Loader2 class="w-4 h-4 animate-spin" />
+              Testing...
+            </span>
+            <span v-else>Test Connection</span>
           </button>
         </div>
-      </form>
-
-      <!-- Authorization Required Notice -->
-      <div v-if="status?.configured && !status?.authorized" class="mt-4 pt-4 border-t dark:border-slate-700">
-        <div class="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
-          <AlertTriangle class="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <h5 class="text-sm font-medium text-yellow-800 dark:text-yellow-400">Account Linking Required</h5>
-            <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-              Click "Link Account" to authorize PropertyGoose to access your mydeposits account. You'll be redirected to mydeposits to complete the authorization.
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          @click="removeIntegration"
+          :disabled="removing"
+          class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+        >
+          {{ removing ? 'Removing...' : 'Remove Integration' }}
+        </button>
       </div>
 
       <!-- Last tested info -->
@@ -349,7 +259,7 @@ const fetchSettings = async () => {
       if (data.configured) {
         form.value.clientId = data.clientId || ''
         form.value.schemeType = data.schemeType || 'custodial'
-        form.value.environment = data.environment || 'sandbox'
+        form.value.environment = 'live'
       }
     }
   } catch (err) {
@@ -370,9 +280,7 @@ const handleOAuthCallback = async () => {
     error.value = ''
 
     try {
-      const redirectUri = import.meta.env.PROD
-        ? `${window.location.origin}/settings/mydeposits?mydeposits_callback=true`
-        : 'http://localhost:5173/settings/mydeposits?mydeposits_callback=true'
+      const redirectUri = `${window.location.origin}/settings/mydeposits?mydeposits_callback=true`
 
       const response = await fetch(`${API_URL}/api/settings/mydeposits/auth/callback`, {
         method: 'POST',

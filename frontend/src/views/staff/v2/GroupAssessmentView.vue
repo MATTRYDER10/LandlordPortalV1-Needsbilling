@@ -474,8 +474,14 @@ const groupMembers = computed<GroupMember[]>(() => {
         const gMatch = m.guarantor.final_decision_notes.match(/INDIVIDUAL_DECISION:\s*(\S+)/)
         if (gMatch) gResult = gMatch[1]
       }
-      if (m.guarantor.individual_decision) gResult = m.guarantor.individual_decision
+      if (m.guarantor.individual_decision && m.guarantor.individual_decision !== 'PENDING') gResult = m.guarantor.individual_decision
       if (m.guarantor.individual_result) gResult = m.guarantor.individual_result
+      // Fallback: derive from status if no explicit decision found
+      if (!gResult && m.guarantor.status) {
+        const finalStatuses = ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED']
+        if (finalStatuses.includes(m.guarantor.status)) gResult = m.guarantor.status
+        else if (['INDIVIDUAL_COMPLETE', 'GROUP_ASSESSMENT'].includes(m.guarantor.status)) gResult = 'ACCEPTED'
+      }
 
       guarantor = {
         id: m.guarantor.id,
@@ -491,6 +497,12 @@ const groupMembers = computed<GroupMember[]>(() => {
       }
     }
 
+    // If tenant has zero/low income but has a guarantor, use guarantor's max affordable rent
+    let effectiveMaxAffordable = maxAffordable
+    if (!isGuarantor && guarantor && maxAffordable === 0) {
+      effectiveMaxAffordable = guarantor.max_affordable_rent
+    }
+
     return {
       id: m.id,
       name,
@@ -499,7 +511,7 @@ const groupMembers = computed<GroupMember[]>(() => {
       role_label: isGuarantor ? 'Guarantor' : 'Tenant',
       individual_result: individualResult,
       annual_income: annualIncome,
-      max_affordable_rent: maxAffordable,
+      max_affordable_rent: effectiveMaxAffordable,
       report_pdf_url: m.report_pdf_url || null,
       guarantor
     }
@@ -521,7 +533,13 @@ const rentShareTotalMatches = computed(() => {
 
 const combinedAffordability = computed(() => {
   const tenants = tenantMembers.value
-  const totalAnnualIncome = tenants.reduce((sum, t) => sum + t.annual_income, 0)
+  // For tenants with zero income but a guarantor, use guarantor's income instead
+  const totalAnnualIncome = tenants.reduce((sum, t) => {
+    if (t.annual_income === 0 && t.guarantor) {
+      return sum + (t.guarantor.annual_income || 0)
+    }
+    return sum + t.annual_income
+  }, 0)
   const totalMonthlyRent = groupData.value?.monthly_rent || 0
   const totalAnnualRent = totalMonthlyRent * 12
   const ratio = totalAnnualRent > 0 ? totalAnnualIncome / totalAnnualRent : 0

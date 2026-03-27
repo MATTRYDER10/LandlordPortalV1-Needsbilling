@@ -6,9 +6,9 @@ import { decrypt } from './encryption'
  * Includes: property, tenants, landlords, pre-tenancy actions, agreement, deposit,
  * compliance, reference results, notes, and full audit trail
  */
-export async function generateTenancySummary(tenancyId: string, companyId: string): Promise<{ success: boolean; html?: string; title?: string; error?: string }> {
+export async function generateTenancySummary(tenancyId: string, _companyId?: string): Promise<{ success: boolean; html?: string; title?: string; error?: string }> {
   try {
-    // Load full tenancy data
+    // Load full tenancy data (no company_id filter — tenancy ID is unique and auth is checked in the route)
     const { data: tenancy, error: tenancyError } = await supabase
       .from('tenancies')
       .select(`
@@ -25,7 +25,6 @@ export async function generateTenancySummary(tenancyId: string, companyId: strin
         agreements (id, status, sent_at, signed_at, created_at)
       `)
       .eq('id', tenancyId)
-      .eq('company_id', companyId)
       .single()
 
     if (tenancyError || !tenancy) {

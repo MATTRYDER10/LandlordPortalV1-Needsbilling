@@ -118,15 +118,34 @@
               </div>
             </div>
 
+            <!-- Guarantors -->
+            <div v-if="previewData.guarantors?.length > 0" class="space-y-2">
+              <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300">Guarantors ({{ previewData.guarantors.length }})</h4>
+              <div
+                v-for="guarantor in previewData.guarantors"
+                :key="guarantor.referenceId"
+                class="flex items-center justify-between p-3 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-lg"
+              >
+                <div>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ guarantor.firstName }} {{ guarantor.lastName }}</span>
+                  <span class="ml-2 text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400 px-2 py-0.5 rounded-full">Guarantor</span>
+                  <p class="text-sm text-gray-500">{{ guarantor.email }}</p>
+                </div>
+                <span class="text-xs text-gray-500">For: {{ guarantor.forTenantName }}</span>
+              </div>
+            </div>
+
             <!-- Deposit Options -->
             <div class="space-y-3">
               <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300">Deposit</h4>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm text-gray-600 dark:text-slate-400 mb-1">Scheme</label>
+                  <label class="block text-sm text-gray-600 dark:text-slate-400 mb-1">Scheme *</label>
                   <select
                     v-model="options.depositScheme"
+                    required
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    :class="{ 'border-red-300 dark:border-red-700': !options.depositScheme }"
                   >
                     <option value="">Select scheme...</option>
                     <option value="dps">DPS</option>
@@ -185,7 +204,7 @@
           </button>
           <button
             @click="convert"
-            :disabled="converting"
+            :disabled="converting || !options.depositScheme"
             class="flex-1 py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Loader2 v-if="converting" class="w-4 h-4 animate-spin" />
@@ -234,7 +253,7 @@ const options = ref({
 
 const defaultDepositAmount = computed(() => {
   if (!previewData.value) return 0
-  return Math.round((previewData.value.monthlyRent * 12 / 52) * 5 * 100) / 100
+  return Math.floor((previewData.value.monthlyRent * 12 / 52) * 5)
 })
 
 watch(() => props.show, async (isOpen) => {

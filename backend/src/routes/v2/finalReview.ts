@@ -266,10 +266,11 @@ router.get('/section-detail/:sectionId', authenticateStaff, requireFinalReviewRo
     if (reference.company_id) {
       const { data: company } = await supabase
         .from('companies')
-        .select('name')
+        .select('*')
         .eq('id', reference.company_id)
-        .single()
-      companyName = company?.name || 'Unknown'
+        .maybeSingle()
+      const co = company as any
+      companyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'Unknown'
     }
 
     // Decrypt data for display
@@ -518,9 +519,11 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
     const isGroupParent = !!reference.is_group_parent
     const guarantor = await getGuarantor(referenceId)
     const hasGuarantor = !!guarantor
+    const isGuarantorRef = !!reference.is_guarantor || !!reference.guarantor_for_reference_id
 
     // Determine if this is a multi/guarantor flow
-    const isMultiOrGuarantor = hasParent || isGroupParent || hasGuarantor
+    // Also includes when this reference IS a guarantor (needs INDIVIDUAL_COMPLETE before group assessment)
+    const isMultiOrGuarantor = hasParent || isGroupParent || hasGuarantor || isGuarantorRef
 
     if (isMultiOrGuarantor) {
       // ============================================================
@@ -594,7 +597,7 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
             const agentHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#f3f4f6;">
               <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                 <div style="background:#f97316;padding:24px;text-align:center;">
-                  <img src="https://www.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
+                  <img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
                 </div>
                 <div style="padding:32px;">
                   <div style="background:#eff6ff;border-radius:8px;padding:12px;text-align:center;margin-bottom:20px;">
@@ -622,19 +625,35 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
       }
 
       // Check if ALL group members are now INDIVIDUAL_COMPLETE
-      const parentId = reference.parent_reference_id || (isGroupParent ? referenceId : null)
+      // For guarantors, find the tenant they're guaranteeing and check from that context
+      let parentId = reference.parent_reference_id || (isGroupParent ? referenceId : null)
+      let tenantForGuarantor: string | null = null
       let allGroupComplete = false
+
+      if (isGuarantorRef && reference.guarantor_for_reference_id) {
+        // This IS a guarantor — find the tenant it belongs to
+        tenantForGuarantor = reference.guarantor_for_reference_id
+        const tenantRef = await getReference(tenantForGuarantor)
+        if (tenantRef?.parent_reference_id) {
+          // Tenant is part of a multi-tenant group
+          parentId = tenantRef.parent_reference_id
+        }
+      }
 
       if (parentId) {
         allGroupComplete = await checkAllGroupMembersComplete(parentId)
+      } else if (isGuarantorRef && tenantForGuarantor) {
+        // Guarantor for a single tenant (no group parent)
+        // Check if the tenant is also INDIVIDUAL_COMPLETE
+        const tenantRef = await getReference(tenantForGuarantor)
+        allGroupComplete = tenantRef?.status === 'INDIVIDUAL_COMPLETE'
+        if (!allGroupComplete) {
+          console.log(`[V2 FinalReview] Tenant ${tenantForGuarantor} not yet INDIVIDUAL_COMPLETE. Waiting for tenant.`)
+        }
       } else if (hasGuarantor && !hasParent && !isGroupParent) {
-        // Single tenant with guarantor (no group parent) — check if guarantor is also done
-        // For this case, the "group" is just this tenant + its guarantor
-        // The guarantor's final review would also need to be INDIVIDUAL_COMPLETE
+        // Single tenant with guarantor — check if guarantor is also done
         const guarantorRef = await getReference(guarantor!.id)
-        allGroupComplete = guarantorRef?.status === 'INDIVIDUAL_COMPLETE' || guarantorRef?.status === ('INDIVIDUAL_COMPLETE' as any)
-        // If only 2 members (tenant + guarantor), and tenant just became INDIVIDUAL_COMPLETE,
-        // we need the guarantor to also be INDIVIDUAL_COMPLETE
+        allGroupComplete = guarantorRef?.status === 'INDIVIDUAL_COMPLETE'
         if (!allGroupComplete) {
           console.log(`[V2 FinalReview] Guarantor ${guarantor!.id} not yet INDIVIDUAL_COMPLETE. Waiting.`)
         }
@@ -654,7 +673,6 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
           if (childGuarantor) allMemberIds.push(childGuarantor.id)
         }
         if (parentRef && !parentRef.is_group_parent) {
-          // Edge case: parent could have a guarantor too
           const parentGuarantor = await getGuarantor(parentId)
           if (parentGuarantor) allMemberIds.push(parentGuarantor.id)
         }
@@ -684,39 +702,41 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
             section_id: null,
             work_type: 'GROUP_ASSESSMENT',
             status: 'AVAILABLE',
-            priority: 15 // Higher priority than final review
+            priority: 15
           })
           console.log(`[V2 FinalReview] GROUP_ASSESSMENT work item created for parent ${parentId}`)
         }
-      } else if (allGroupComplete && !parentId && hasGuarantor) {
-        // Single tenant + guarantor case — both complete, create group assessment on tenant
-        console.log(`[V2 FinalReview] Tenant + guarantor both INDIVIDUAL_COMPLETE. Creating GROUP_ASSESSMENT for ${referenceId}.`)
+      } else if (allGroupComplete && !parentId && (hasGuarantor || isGuarantorRef)) {
+        // Single tenant + guarantor case — both complete, create group assessment
+        const tenantId = isGuarantorRef ? tenantForGuarantor! : referenceId
+        const guarantorId = isGuarantorRef ? referenceId : guarantor!.id
+        console.log(`[V2 FinalReview] Tenant + guarantor both INDIVIDUAL_COMPLETE. Creating GROUP_ASSESSMENT for tenant ${tenantId}.`)
 
         await supabase
           .from('tenant_references_v2')
           .update({ status: 'GROUP_ASSESSMENT', updated_at: new Date().toISOString() })
-          .eq('id', referenceId)
+          .eq('id', tenantId)
         await supabase
           .from('tenant_references_v2')
           .update({ status: 'GROUP_ASSESSMENT', updated_at: new Date().toISOString() })
-          .eq('id', guarantor!.id)
+          .eq('id', guarantorId)
 
         const { data: existingGroupWI } = await supabase
           .from('work_items_v2')
           .select('id')
-          .eq('reference_id', referenceId)
+          .eq('reference_id', tenantId)
           .eq('work_type', 'GROUP_ASSESSMENT')
           .maybeSingle()
 
         if (!existingGroupWI) {
           await supabase.from('work_items_v2').insert({
-            reference_id: referenceId,
+            reference_id: tenantId,
             section_id: null,
             work_type: 'GROUP_ASSESSMENT',
             status: 'AVAILABLE',
             priority: 15
           })
-          console.log(`[V2 FinalReview] GROUP_ASSESSMENT work item created for tenant+guarantor ${referenceId}`)
+          console.log(`[V2 FinalReview] GROUP_ASSESSMENT work item created for tenant+guarantor ${tenantId}`)
         }
       }
 
@@ -806,7 +826,7 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
             const agentHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#f3f4f6;">
               <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                 <div style="background:#f97316;padding:24px;text-align:center;">
-                  <img src="https://www.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
+                  <img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" />
                 </div>
                 <div style="padding:32px;">
                   <div style="background:${statusBg};border-radius:8px;padding:12px;text-align:center;margin-bottom:20px;">
@@ -837,22 +857,12 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
         console.error('[V2 FinalReview] Error sending agent notification:', notifyErr.message || notifyErr)
       }
 
-      // Send tenant email notification
+      // Send tenant email notification — neutral "References Completed" (don't reveal decision)
       try {
-        const isAccepted = ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION'].includes(decision)
-        const decisionLabel = decision === 'ACCEPTED' ? 'Accepted'
-          : decision === 'ACCEPTED_WITH_GUARANTOR' ? 'Accepted (with Guarantor)'
-          : decision === 'ACCEPTED_ON_CONDITION' ? 'Accepted on Condition'
-          : 'Unsuccessful'
-
         const buildTenantEmailHtml = (propertyAddress: string, refNumber: string | null) => {
-          const statusColor = isAccepted ? '#16a34a' : '#dc2626'
-          const statusBg = isAccepted ? '#f0fdf4' : '#fef2f2'
-          const bodyText = isAccepted
-            ? `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Congratulations! Your reference application for <strong>${propertyAddress}</strong> has been <strong style="color: ${statusColor};">${decisionLabel}</strong>.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your letting agent will be in touch with the next steps regarding your tenancy.</p>`
-            : `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">We have completed the assessment of your reference application for <strong>${propertyAddress}</strong>. Unfortunately, your application has been <strong style="color: ${statusColor};">${decisionLabel}</strong>.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Please contact your letting agent for further information.</p>`
+          const bodyText = `<p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your reference checks for <strong>${propertyAddress}</strong> have now been completed.</p><p style="margin: 0 0 16px; font-size: 15px; color: #374151;">Your letting agent will be in touch with the next steps regarding your application.</p>`
           const refLine = refNumber ? `<p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">Reference: ${refNumber}</p>` : ''
-          return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f3f4f6;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:#f97316;padding:24px;text-align:center;"><img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" /></td></tr><tr><td style="padding:32px;"><div style="background-color:${statusBg};border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;"><span style="font-size:18px;font-weight:700;color:${statusColor};">Application ${decisionLabel}</span></div>${bodyText}${refLine}</td></tr><tr><td style="padding:24px;background-color:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} PropertyGoose. This is an automated message.</p></td></tr></table></td></tr></table></body></html>`
+          return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f3f4f6;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:#f97316;padding:24px;text-align:center;"><img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height:40px;" /></td></tr><tr><td style="padding:32px;"><div style="background-color:#f0fdf4;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;"><span style="font-size:18px;font-weight:700;color:#16a34a;">References Completed</span></div>${bodyText}${refLine}</td></tr><tr><td style="padding:24px;background-color:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} PropertyGoose. This is an automated message.</p></td></tr></table></td></tr></table></body></html>`
         }
 
         const sendTenantNotification = async (refId: string) => {
@@ -865,7 +875,7 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
           const html = buildTenantEmailHtml(propertyAddress, refNumber)
           await sendEmail({
             to: tenantEmail,
-            subject: `Reference Application ${decisionLabel} - ${propertyAddress}`,
+            subject: `References Completed - ${propertyAddress}`,
             html
           })
           console.log(`[V2 FinalReview] Tenant notification sent to: ${tenantEmail}`)
@@ -953,9 +963,23 @@ async function checkAllGroupMembersComplete(parentReferenceId: string): Promise<
     }
 
     // If parent is not a pure group parent (it also has sections), check its status too
-    // Group parents typically don't have their own sections, but check to be safe
     if (!parent.is_group_parent && parent.status !== 'INDIVIDUAL_COMPLETE') {
       return false
+    }
+
+    // Check parent's guarantor if any
+    if (!parent.is_group_parent) {
+      const { data: parentGuarantor } = await supabase
+        .from('tenant_references_v2')
+        .select('id, status')
+        .eq('guarantor_for_reference_id', parentReferenceId)
+        .eq('is_guarantor', true)
+        .maybeSingle()
+
+      if (parentGuarantor && parentGuarantor.status !== 'INDIVIDUAL_COMPLETE') {
+        console.log(`[V2 FinalReview] Parent guarantor ${parentGuarantor.id} status is ${parentGuarantor.status}, not INDIVIDUAL_COMPLETE`)
+        return false
+      }
     }
 
     return true

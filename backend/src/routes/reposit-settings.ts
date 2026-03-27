@@ -276,4 +276,113 @@ router.get('/agents', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+/**
+ * POST /api/settings/reposit/request-integration
+ * Send integration request email to Reposit
+ */
+router.post('/request-integration', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyData = await getUserCompanyAndRole(req)
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' })
+    }
+
+    // Get user profile
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId)
+    const userName = authUser?.user?.user_metadata?.full_name || 'Unknown'
+    const userEmail = authUser?.user?.email || 'Unknown'
+
+    // Get company name (try encrypted first, then fallback)
+    const { decrypt } = await import('../services/encryption')
+    const { data: company } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', companyData.companyId)
+      .maybeSingle()
+
+    const co = company as any
+    const companyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'Unknown Company'
+
+    // Send email to Reposit
+    const { sendEmail } = await import('../services/emailService')
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <tr><td style="background-color:#f97316;padding:24px 32px;">
+          <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">PropertyGoose Integration Request</h1>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+            Hi Reposit Team,
+          </p>
+          <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+            A PropertyGoose customer would like to integrate Reposit deposit replacement into their tenancy management workflow.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;padding:20px;margin-bottom:24px;">
+            <tr><td style="padding:12px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:8px 0;color:#6b7280;font-size:14px;width:140px;">Company Name</td>
+                  <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:600;">${companyName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#6b7280;font-size:14px;">Contact Name</td>
+                  <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:600;">${userName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#6b7280;font-size:14px;">Contact Email</td>
+                  <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:600;">${userEmail}</td>
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+            Please provide the following credentials for this company:
+          </p>
+          <ul style="margin:0 0 24px;padding-left:20px;color:#374151;font-size:15px;line-height:1.8;">
+            <li><strong>Supplier ID</strong></li>
+            <li><strong>Referrer Token</strong></li>
+            <li><strong>API Key</strong></li>
+          </ul>
+          <p style="margin:0 0 8px;color:#374151;font-size:15px;line-height:1.6;">
+            Please send responses back to <a href="mailto:dev@propertygoose.co.uk" style="color:#f97316;text-decoration:none;font-weight:600;">dev@propertygoose.co.uk</a>
+          </p>
+          <p style="margin:24px 0 0;color:#9ca3af;font-size:13px;">
+            This is an automated request from the PropertyGoose platform.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+    await sendEmail({
+      to: 'partners@reposit.co.uk',
+      cc: 'dev@propertygoose.co.uk',
+      subject: `Reposit Integration Request — ${companyName}`,
+      html
+    })
+
+    console.log(`[Reposit] Integration request sent for ${companyName} by ${userName} (${userEmail})`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error sending Reposit integration request:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
 export default router

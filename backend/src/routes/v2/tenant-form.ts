@@ -12,6 +12,7 @@ import { getReferenceByFormToken, getReferenceDecrypted } from '../../services/v
 import { initializeSections, updateSectionStatus } from '../../services/v2/sectionServiceV2'
 import { sendGuarantorReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAccountantReferenceRequest } from '../../services/emailService'
 import { createChaseItem } from '../../services/v2/chaseServiceV2'
+import { logActivity } from '../../services/v2/activityServiceV2'
 import { getV2FrontendUrl } from '../../utils/frontendUrl'
 import { creditsafeService } from '../../services/creditsafeService'
 import { sanctionsService } from '../../services/sanctionsService'
@@ -86,7 +87,7 @@ router.get('/:token', async (req: Request, res: Response) => {
 
     // If still no deposit amount, calculate based on 5 weeks' rent (standard UK deposit)
     if (!depositAmount && reference.monthly_rent) {
-      depositAmount = Math.round((reference.monthly_rent / 4.33) * 5 * 100) / 100
+      depositAmount = Math.floor((reference.monthly_rent / 4.33) * 5)
     }
 
     // Check if company has Reposit integration enabled
@@ -284,6 +285,11 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
         pensionAmount: income.pensionAmount || null,
         pensionProvider: income.pensionProvider || null,
         pensionDocUrl: income.pensionDocUrl || null,
+        // Rental Income
+        rentalIncome: income.rentalIncome || null,
+        rentalProperties: income.rentalProperties || null,
+        rentalDocUrl: income.rentalDocUrl || null,
+        rentalDocWillEmail: income.rentalDocWillEmail || false,
         // Student
         university: income.university || null,
         course: income.course || null,
@@ -402,6 +408,15 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
+    // Log activity
+    await logActivity({
+      referenceId: reference.id,
+      action: 'FORM_SUBMITTED',
+      performedBy: 'tenant',
+      performedByType: 'tenant',
+      notes: `${identity.firstName} ${identity.lastName} submitted their reference form`
+    })
+
     // Initialize sections for verification (if not already done)
     const existingSections = await supabase
       .from('reference_sections_v2')
@@ -417,13 +432,17 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     const tenantFullName = `${identity.firstName} ${identity.lastName}`.trim()
 
     // Create referee requests
-    // Employer reference
-    if (income.employerRefEmail) {
+    // Check if income source is student-only (no income verification needed)
+    const incomeSources: string[] = Array.isArray(income.sources) ? income.sources : []
+    const isStudentOnly = incomeSources.length === 1 && incomeSources.includes('student')
+
+    // Employer reference (skip if student-only — no income verification required)
+    if (income.employerRefEmail && !isStudentOnly) {
       await createRefereeRequest(reference.id, reference.company_id, 'EMPLOYER', income.employerRefEmail, tenantFullName, income.employerRefName)
     }
 
-    // Accountant reference (for self-employed)
-    if (income.accountantEmail) {
+    // Accountant reference (for self-employed, skip if student-only)
+    if (income.accountantEmail && !isStudentOnly) {
       await createRefereeRequest(reference.id, reference.company_id, 'ACCOUNTANT', income.accountantEmail, tenantFullName, income.accountantName)
     }
 
@@ -445,6 +464,13 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     if (guarantor && guarantor.firstName && guarantor.email) {
       console.log('[V2 TenantForm] Creating guarantor reference for:', guarantor.email)
       await createGuarantorReference(reference, guarantor)
+      await logActivity({
+        referenceId: reference.id,
+        action: 'GUARANTOR_ADDED',
+        performedBy: 'tenant',
+        performedByType: 'tenant',
+        notes: `Guarantor ${guarantor.firstName} ${guarantor.lastName} added (${guarantor.email})`
+      })
     }
 
     // Mark IDENTITY and RTR sections as READY (tenant provided evidence in form)
@@ -467,51 +493,163 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
         console.log(`[V2 TenantForm] Marked ${section.section_type} section as READY`)
       }
 
-      // If no landlord referees needed (living with family for all), mark RESIDENTIAL as READY too
-      const hasLandlordReferee = (residential.previousAddresses || []).some(
-        (addr: any) => addr.landlordEmail && addr.landlordType !== 'Living with Family/Friends'
+      // RESIDENTIAL evidence gate
+      const isLivingWithFamily = residential.currentLivingSituation === 'living_with_family'
+      const hasLandlordReferee = !!(
+        (residential.currentLandlordEmail && !isLivingWithFamily) ||
+        (residential.previousAddresses || []).some(
+          (addr: any) => addr.landlordEmail && addr.landlordType !== 'Living with Family/Friends'
+        )
       )
-      if (!hasLandlordReferee) {
-        const { data: resSections } = await supabase
-          .from('reference_sections_v2')
-          .select('id')
-          .eq('reference_id', reference.id)
-          .eq('section_type', 'RESIDENTIAL')
-          .single()
 
-        if (resSections) {
+      const { data: resSection } = await supabase
+        .from('reference_sections_v2')
+        .select('id, section_data')
+        .eq('reference_id', reference.id)
+        .eq('section_type', 'RESIDENTIAL')
+        .single()
+
+      if (resSection) {
+        const now = new Date().toISOString()
+        if (isLivingWithFamily && !hasLandlordReferee) {
+          // Living with family, no landlord referee — auto-pass
           await supabase
             .from('reference_sections_v2')
             .update({
-              queue_status: 'READY',
-              evidence_submitted_at: new Date().toISOString(),
-              queue_entered_at: new Date().toISOString()
+              queue_status: 'COMPLETED',
+              decision: 'PASS',
+              completed_at: now,
+              assessor_notes: 'Auto-passed: living with family - no residential reference required',
+              section_data: {
+                ...(resSection.section_data || {}),
+                evidence_status: 'AUTO_PASSED',
+                auto_pass_reason: 'Living with family'
+              },
+              updated_at: now
             })
-            .eq('id', resSections.id)
-          console.log('[V2 TenantForm] No landlord referee needed - marked RESIDENTIAL as READY')
+            .eq('id', resSection.id)
+          console.log('[V2 TenantForm] Living with family - RESIDENTIAL auto-passed')
+          await logActivity({
+            referenceId: reference.id,
+            sectionId: resSection.id,
+            action: 'RESIDENTIAL_AUTO_PASS',
+            performedBy: 'system',
+            performedByType: 'system',
+            notes: 'Living with family - residential section auto-passed'
+          })
+        } else if (hasLandlordReferee) {
+          // Has landlord/agent referee — stay PENDING, wait for referee form
+          await supabase
+            .from('reference_sections_v2')
+            .update({
+              section_data: {
+                ...(resSection.section_data || {}),
+                evidence_status: 'AWAITING_REFEREE'
+              },
+              updated_at: now
+            })
+            .eq('id', resSection.id)
+          console.log('[V2 TenantForm] Landlord referee created - RESIDENTIAL awaiting referee')
+        } else {
+          // Not living with family AND no referee — stay PENDING, await evidence
+          await supabase
+            .from('reference_sections_v2')
+            .update({
+              section_data: {
+                ...(resSection.section_data || {}),
+                evidence_status: 'AWAITING_EVIDENCE',
+                evidence_missing_reason: 'No landlord/agent contact provided'
+              },
+              updated_at: now
+            })
+            .eq('id', resSection.id)
+          console.log('[V2 TenantForm] No landlord referee and not living with family - RESIDENTIAL awaiting evidence')
         }
       }
 
-      // If no employer/accountant referee needed, mark INCOME as READY
-      const hasIncomeReferee = income.employerRefEmail || income.accountantEmail
-      if (!hasIncomeReferee) {
-        const { data: incSection } = await supabase
-          .from('reference_sections_v2')
-          .select('id')
-          .eq('reference_id', reference.id)
-          .eq('section_type', 'INCOME')
-          .single()
+      // INCOME evidence gate
+      const isStudentIncome = incomeSources.includes('student')
+      const isStudentOnlyIncome = incomeSources.length === 1 && isStudentIncome
+      const hasIncomeReferee = !!(income.employerRefEmail || income.accountantEmail) && !isStudentOnlyIncome
 
-        if (incSection) {
+      const { data: incSection } = await supabase
+        .from('reference_sections_v2')
+        .select('id, section_data')
+        .eq('reference_id', reference.id)
+        .eq('section_type', 'INCOME')
+        .single()
+
+      if (incSection) {
+        const now = new Date().toISOString()
+        if (isStudentOnlyIncome) {
+          // Student-only income — no verification needed, move straight to READY
           await supabase
             .from('reference_sections_v2')
             .update({
               queue_status: 'READY',
-              evidence_submitted_at: new Date().toISOString(),
-              queue_entered_at: new Date().toISOString()
+              evidence_submitted_at: now,
+              queue_entered_at: now,
+              section_data: {
+                ...(incSection.section_data || {}),
+                evidence_status: 'STUDENT_EXEMPT',
+                income_source: 'student'
+              },
+              updated_at: now
             })
             .eq('id', incSection.id)
-          console.log('[V2 TenantForm] No income referee needed - marked INCOME as READY')
+          console.log('[V2 TenantForm] Student income - INCOME section moved to READY (student exempt)')
+        } else if (hasIncomeReferee) {
+          // Has employer/accountant referee — stay PENDING, wait for referee form
+          await supabase
+            .from('reference_sections_v2')
+            .update({
+              section_data: {
+                ...(incSection.section_data || {}),
+                evidence_status: 'AWAITING_REFEREE'
+              },
+              updated_at: now
+            })
+            .eq('id', incSection.id)
+          console.log('[V2 TenantForm] Income referee created - INCOME awaiting referee')
+        } else {
+          // No referee — check if tenant uploaded evidence (savings doc, benefits doc, pension doc, etc.)
+          const hasUploadedEvidence = !!(
+            income.savingsDocUrl || income.benefitsDocUrl || income.pensionDocUrl ||
+            income.rentalDocUrl || income.payslipsUrl || income.taxReturnUrl
+          )
+
+          if (hasUploadedEvidence) {
+            // Evidence already provided, move to READY for staff review
+            await supabase
+              .from('reference_sections_v2')
+              .update({
+                queue_status: 'READY',
+                evidence_submitted_at: now,
+                queue_entered_at: now,
+                section_data: {
+                  ...(incSection.section_data || {}),
+                  evidence_status: 'EVIDENCE_UPLOADED',
+                  income_source: incomeSources.join(', ')
+                },
+                updated_at: now
+              })
+              .eq('id', incSection.id)
+            console.log('[V2 TenantForm] Income evidence uploaded (no referee) - INCOME moved to READY')
+          } else {
+            // No referee and no evidence — stay PENDING
+            await supabase
+              .from('reference_sections_v2')
+              .update({
+                section_data: {
+                  ...(incSection.section_data || {}),
+                  evidence_status: 'AWAITING_EVIDENCE',
+                  evidence_missing_reason: 'No referee contact or income documents provided'
+                },
+                updated_at: now
+              })
+              .eq('id', incSection.id)
+            console.log('[V2 TenantForm] No income referee or evidence - INCOME awaiting evidence')
+          }
         }
       }
     } catch (sectionErr) {
@@ -523,7 +661,7 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       firstName: identity.firstName,
       lastName: identity.lastName,
       dateOfBirth: identity.dateOfBirth,
-      address: residential.currentAddress.line1 + (residential.currentAddress.line2 ? ', ' + residential.currentAddress.line2 : '') + ', ' + residential.currentAddress.city,
+      address: residential.currentAddress.line1 + (residential.currentAddress.line2 ? ', ' + residential.currentAddress.line2 : ''),
       postcode: residential.currentAddress.postcode
     }).catch(err => console.error('[V2 TenantForm] Background checks error:', err))
 
@@ -556,18 +694,34 @@ router.post('/:token/upload', async (req: Request, res: Response) => {
     // Decode base64 file data
     const buffer = Buffer.from(fileData, 'base64')
 
+    // Resolve content type — browsers sometimes send empty or generic types
+    const mimeMap: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.heic': 'image/heic',
+      '.heif': 'image/heif'
+    }
+    const ext = '.' + (fileName || '').split('.').pop()?.toLowerCase()
+    const resolvedType = (fileType && fileType !== 'application/octet-stream' && fileType !== '')
+      ? fileType
+      : mimeMap[ext] || 'application/pdf'
+
     // Upload to storage
     const { error: uploadError } = await supabase
       .storage
       .from('reference-documents')
       .upload(filePath, buffer, {
-        contentType: fileType,
+        contentType: resolvedType,
         upsert: false
       })
 
     if (uploadError) {
-      console.error('Error uploading file:', uploadError)
-      return res.status(500).json({ error: 'Failed to upload file' })
+      console.error('Error uploading file:', uploadError.message, 'Size:', buffer.length, 'bytes')
+      return res.status(500).json({ error: `Failed to upload file: ${uploadError.message}` })
     }
 
     // Get the public URL
@@ -783,6 +937,15 @@ async function createGuarantorReference(
 
     console.log('[V2 TenantForm] Guarantor reference created:', guarantorRef?.id, guarantorRef?.reference_number)
 
+    // Deduct 0.5 credits for guarantor reference
+    try {
+      const { deductCredits } = await import('../../services/creditService')
+      await deductCredits(tenantReference.company_id, 0.5, guarantorRef.id, `V2 guarantor reference: ${guarantor.firstName} ${guarantor.lastName}`)
+      console.log(`[V2 TenantForm] Deducted 0.5 credits for guarantor ${guarantor.firstName} ${guarantor.lastName}`)
+    } catch (creditError: any) {
+      console.error(`[V2 TenantForm] Guarantor credit deduction failed:`, creditError.message)
+    }
+
     // Link guarantor to tenant reference
     await supabase
       .from('tenant_references_v2')
@@ -987,6 +1150,26 @@ async function triggerAutomatedChecks(
   })
 
   console.log(`[V2 AutoChecks] Completed automated checks for reference ${referenceId}`)
+
+  // Log activity for completed checks
+  if (results[0]?.status === 'fulfilled') {
+    await logActivity({
+      referenceId,
+      action: 'CREDIT_CHECK_COMPLETED',
+      performedBy: 'system',
+      performedByType: 'system',
+      notes: `Credit check completed: ${results[0].value?.status || 'unknown'}`
+    })
+  }
+  if (results[1]?.status === 'fulfilled') {
+    await logActivity({
+      referenceId,
+      action: 'AML_CHECK_COMPLETED',
+      performedBy: 'system',
+      performedByType: 'system',
+      notes: `AML/Sanctions check completed: ${results[1].value?.risk_level || 'unknown'}`
+    })
+  }
 }
 
 export default router

@@ -129,6 +129,28 @@
             />
             <p class="text-xs text-gray-400 mt-2">{{ section.evidence.rtr_document.filename || 'Right to Rent Document' }}</p>
           </div>
+          <!-- Passport from Identity section (UK citizens using passport as RTR proof) -->
+          <div v-if="section.evidence?.passport" class="text-center">
+            <p class="text-xs text-gray-500 mb-2 font-medium">Passport</p>
+            <img
+              :src="section.evidence.passport.url"
+              alt="Passport"
+              class="max-h-64 mx-auto rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+              @click="viewImage(section.evidence.passport.url)"
+            />
+            <p class="text-xs text-gray-400 mt-2">{{ section.evidence.passport.filename }}</p>
+          </div>
+          <!-- ID Document from Identity section -->
+          <div v-if="section.evidence?.id_document_cross_ref" class="text-center">
+            <p class="text-xs text-gray-500 mb-2 font-medium">ID Document</p>
+            <img
+              :src="section.evidence.id_document_cross_ref.url"
+              alt="ID Document"
+              class="max-h-64 mx-auto rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+              @click="viewImage(section.evidence.id_document_cross_ref.url)"
+            />
+            <p class="text-xs text-gray-400 mt-2">{{ section.evidence.id_document_cross_ref.filename }}</p>
+          </div>
           <!-- Move-in date reminder -->
           <div v-if="section?.reference?.move_in_date" class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <p class="text-xs text-gray-500 mb-1">Move-in Date</p>
@@ -291,6 +313,96 @@
           <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
             <p class="text-xs text-gray-400">Transaction ID: {{ section.credit_check.transaction_id || 'N/A' }}</p>
           </div>
+
+          <!-- Creditsafe Re-Run Panel -->
+          <div class="border border-blue-200 dark:border-blue-800 rounded-xl overflow-hidden">
+            <button
+              @click="showCreditRerun = !showCreditRerun"
+              class="w-full flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+            >
+              <div class="flex items-center gap-2">
+                <CreditCard class="w-5 h-5 text-blue-600" />
+                <span class="font-semibold text-blue-800 dark:text-blue-300">Re-Run Creditsafe Check</span>
+              </div>
+              <ChevronDown class="w-4 h-4 text-blue-500 transition-transform" :class="{ 'rotate-180': showCreditRerun }" />
+            </button>
+
+            <div v-if="showCreditRerun" class="p-4 space-y-4 bg-white dark:bg-slate-800">
+              <!-- What Creditsafe received -->
+              <div>
+                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Data Sent to Creditsafe</h4>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                  <div class="p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                    <span class="text-gray-500 text-xs">First Name</span>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ section.credit_check.requestData?.firstName || 'N/A' }}</p>
+                  </div>
+                  <div class="p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                    <span class="text-gray-500 text-xs">Last Name</span>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ section.credit_check.requestData?.lastName || 'N/A' }}</p>
+                  </div>
+                  <div class="p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                    <span class="text-gray-500 text-xs">Date of Birth</span>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ section.credit_check.requestData?.dateOfBirth || 'N/A' }}</p>
+                  </div>
+                  <div class="col-span-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <span class="text-amber-600 dark:text-amber-400 text-xs font-semibold">Address (as sent to Creditsafe)</span>
+                    <p class="font-mono font-medium text-gray-900 dark:text-white mt-0.5">{{ section.credit_check.requestData?.address || 'N/A' }}</p>
+                  </div>
+                  <div class="p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <span class="text-amber-600 dark:text-amber-400 text-xs font-semibold">Postcode (as sent)</span>
+                    <p class="font-mono font-medium text-gray-900 dark:text-white mt-0.5">{{ section.credit_check.requestData?.postcode || 'N/A' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proof of Address cross-reference -->
+              <div v-if="section.proof_of_address_for_credit" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <FileText class="w-4 h-4 text-blue-500" />
+                    <div>
+                      <p class="text-sm font-medium text-blue-800 dark:text-blue-300">Proof of Address</p>
+                      <p class="text-xs text-blue-600 dark:text-blue-400">Compare with address sent to Creditsafe</p>
+                    </div>
+                  </div>
+                  <a :href="section.proof_of_address_for_credit.url" target="_blank" class="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-300 font-medium">
+                    View Document
+                  </a>
+                </div>
+              </div>
+              <div v-else class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                <p class="text-xs text-gray-400">No proof of address uploaded yet</p>
+              </div>
+
+              <!-- Re-run button -->
+              <div class="flex items-center gap-3">
+                <button
+                  @click="rerunCreditCheck()"
+                  :disabled="creditRerunLoading"
+                  class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-sm"
+                >
+                  <RefreshCcw v-if="!creditRerunLoading" class="w-4 h-4" />
+                  <RefreshCcw v-else class="w-4 h-4 animate-spin" />
+                  {{ creditRerunLoading ? 'Running...' : 'Re-Run Creditsafe Check' }}
+                </button>
+                <p class="text-xs text-gray-400">Uses the same name/address/DOB shown above. Page will refresh with new results.</p>
+              </div>
+
+              <!-- Raw Response Data (collapsible) -->
+              <div v-if="creditResponseData?.rawResponse || section.credit_check.responseData">
+                <button
+                  @click="showRawCreditData = !showRawCreditData"
+                  class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
+                >
+                  <ChevronDown class="w-3 h-3 transition-transform" :class="{ 'rotate-180': showRawCreditData }" />
+                  {{ showRawCreditData ? 'Hide' : 'Show' }} Raw Creditsafe Response
+                </button>
+                <div v-if="showRawCreditData" class="mt-2 p-3 bg-slate-900 rounded-lg overflow-x-auto">
+                  <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap">{{ JSON.stringify(creditResponseData?.rawResponse || section.credit_check.responseData, null, 2) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- AML Results -->
@@ -401,7 +513,9 @@ import {
   Shield,
   FileText,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  RefreshCcw
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -414,6 +528,9 @@ const submitting = ref(false)
 const section = ref<any>(null)
 const viewingImage = ref<string | null>(null)
 const collectedInputValues = ref<Record<string, any>>({})
+const showCreditRerun = ref(false)
+const showRawCreditData = ref(false)
+const creditRerunLoading = ref(false)
 
 const sectionId = computed(() => route.params.sectionId as string)
 
@@ -427,7 +544,7 @@ const hasEvidence = computed(() => {
 const filteredFormData = computed(() => {
   if (!section.value?.form_data) return {}
   const skip = ['selfieUrl', 'idDocumentUrl', 'passportDocUrl', 'alternativeDocUrl', 'supportingDocUrl',
-    'proofOfAddressUrl', 'payslipsUrl', 'taxReturnUrl', 'studentDocUrl', 'savingsDocUrl', 'pensionDocUrl',
+    'proofOfAddressUrl', 'payslipsUrl', 'taxReturnUrl', 'studentDocUrl', 'savingsDocUrl', 'pensionDocUrl', 'rentalDocUrl',
     'benefitsDocUrl', 'bankStatementsUrl', 'accountsDocUrl', 'otherDocUrl',
     'signature', 'proofOfAddress',
     'selfie', 'idDocument', 'passportDoc', 'alternativeDoc', 'supportingDoc', 'taxReturn', 'studentDoc']
@@ -477,8 +594,11 @@ const labelMap: Record<string, string> = {
   employerRefName: 'Employer Ref Name', employerRefEmail: 'Employer Ref Email',
   selfEmployedBusinessName: 'Business Name', selfEmployedNature: 'Nature of Business',
   selfEmployedAnnualIncome: 'Annual Income', selfEmployedStartDate: 'Business Start Date',
+  hourlyRate: 'Hourly Rate', hoursPerWeek: 'Hours Per Week', payFrequency: 'Pay Frequency',
+  payType: 'Pay Type', calculatedAnnualIncome: 'Calculated Annual Income',
   accountantName: 'Accountant', accountantEmail: 'Accountant Email', accountantPhone: 'Accountant Phone',
   benefitsMonthlyAmount: 'Monthly Benefits', savingsAmount: 'Savings', pensionMonthlyAmount: 'Monthly Pension',
+  rentalIncome: 'Monthly Rental Income', rentalProperties: 'Number of Rental Properties',
   currentLivingSituation: 'Living Situation', currentLandlordName: 'Current Landlord',
   currentLandlordEmail: 'Landlord Email', currentLandlordPhone: 'Landlord Phone',
   smoker: 'Smoker', hasPets: 'Has Pets', petDetails: 'Pet Details',
@@ -511,6 +631,7 @@ const valueMap: Record<string, string> = {
   'benefits': 'Benefits',
   'savings': 'Savings/Investments',
   'pension': 'Pension',
+  'rental_income': 'Landlord/Rental Income',
   'student': 'Student',
   'unemployed': 'Unemployed',
   'landlord_rental': 'Landlord Rental Income',
@@ -530,7 +651,8 @@ const valueMap: Record<string, string> = {
 }
 
 const moneyKeys = new Set(['annualSalary', 'selfEmployedAnnualIncome', 'benefitsMonthlyAmount', 'savingsAmount',
-  'pensionMonthlyAmount', 'monthlyRent', 'hourlyRate', 'calculatedAnnualIncome', 'annualIncome', 'rentShare'])
+  'pensionMonthlyAmount', 'monthlyRent', 'hourlyRate', 'calculatedAnnualIncome', 'annualIncome', 'rentShare',
+  'rentalIncome'])
 const dateKeys = new Set(['employmentStartDate', 'selfEmployedStartDate', 'dateOfBirth', 'tenancyStartDate',
   'tenancyEndDate', 'moveInDate', 'startDate', 'endDate'])
 
@@ -848,9 +970,9 @@ const checklistSteps = computed(() => {
         } : undefined,
         inputFields: [
           { name: 'monthly_income', label: 'Monthly Income Evidenced (£)', type: 'text', placeholder: 'e.g. 2900' },
-          { name: 'annual_income', label: 'Annual Income (auto: monthly × 12)', type: 'text', placeholder: annualPlaceholder, readonly: true },
+          { name: 'annual_income', label: 'Annual Income (auto: monthly x 12, editable)', type: 'text', placeholder: annualPlaceholder },
           { name: 'savings', label: 'Confirmed Savings (£) — 90% of declared', type: 'text', placeholder: savingsPlaceholder },
-          { name: 'total_effective_income', label: 'Total Effective Income (annual + savings)', type: 'text', placeholder: 'Auto-calculated', readonly: true }
+          { name: 'total_effective_income', label: 'Total Effective Income (annual + savings, editable)', type: 'text', placeholder: 'Auto-calculated' }
         ],
         refereeConfirmedAnnual,
         tenantDeclaredSavings: confirmedSavings
@@ -1091,6 +1213,35 @@ const checklistSteps = computed(() => {
   }
 })
 
+async function rerunCreditCheck() {
+  creditRerunLoading.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/sections/${sectionId.value}/rerun-credit-check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+
+    if (response.ok) {
+      // Refresh the section to show new results
+      await fetchSection()
+      showCreditRerun.value = false
+      showRawCreditData.value = false
+    } else {
+      const err = await response.json()
+      alert(`Credit check failed: ${err.error || 'Unknown error'}`)
+    }
+  } catch (error) {
+    console.error('Error re-running credit check:', error)
+    alert('Failed to re-run credit check')
+  } finally {
+    creditRerunLoading.value = false
+  }
+}
+
 async function fetchSection() {
   loading.value = true
   try {
@@ -1136,17 +1287,23 @@ function onStepComplete(index: number, data: any) {
     collectedInputValues.value.savings = String(completedStep.tenantDeclaredSavings)
   }
 
+  // Pre-populate annual from referee if available and not already set
+  const refereeAnnual = completedStep?.refereeConfirmedAnnual
+  if (refereeAnnual && !collectedInputValues.value.annual_income) {
+    collectedInputValues.value.annual_income = String(Math.round(refereeAnnual))
+    collectedInputValues.value.monthly_income = String(Math.round(refereeAnnual / 12))
+  }
+
   // Auto-calculate income fields
   const monthly = parseFloat(collectedInputValues.value.monthly_income)
   const savings = parseFloat(collectedInputValues.value.savings)
-  const annualFromRef = completedStep?.refereeConfirmedAnnual || parseFloat(collectedInputValues.value.annual_income) || 0
 
-  if (!isNaN(monthly)) {
+  if (!isNaN(monthly) && !collectedInputValues.value.annual_income) {
     collectedInputValues.value.annual_income = String(Math.round(monthly * 12))
   }
 
-  // Total effective = annual income + confirmed savings (90% already deducted)
-  const annual = !isNaN(monthly) ? monthly * 12 : annualFromRef
+  // Total effective = annual income + confirmed savings
+  const annual = parseFloat(collectedInputValues.value.annual_income) || 0
   const confirmedSavings = !isNaN(savings) ? savings : 0
   if (annual > 0 || confirmedSavings > 0) {
     collectedInputValues.value.total_effective_income = String(Math.round(annual + confirmedSavings))

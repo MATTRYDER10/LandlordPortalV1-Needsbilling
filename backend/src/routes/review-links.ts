@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
+import { decrypt } from '../services/encryption'
 import { sendEmail } from '../services/emailService'
 
 const router = Router()
@@ -88,9 +89,9 @@ router.post('/send', authenticateToken, requireMember, async (req: AuthRequest, 
     // Get company info for email
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url, primary_color')
+      .select('*')
       .eq('id', companyId)
-      .single()
+      .maybeSingle()
 
     // Get tenancy info
     const { data: tenancy } = await supabase
@@ -99,7 +100,8 @@ router.post('/send', authenticateToken, requireMember, async (req: AuthRequest, 
       .eq('id', tenancy_id)
       .single()
 
-    const companyName = company?.name || 'PropertyGoose'
+    const rlCo = company as any
+    const companyName = rlCo?.name || (rlCo?.name_encrypted ? decrypt(rlCo.name_encrypted) : null) || rlCo?.company_name || 'PropertyGoose'
     const propertyAddress = tenancy?.property_address || 'your property'
     const logoUrl = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
     const primaryColor = company?.primary_color || '#f97316'

@@ -88,8 +88,8 @@ const ctx = ref<CanvasRenderingContext2D | null>(null)
 const isDrawing = ref(false)
 const hasSignature = ref(false)
 const error = ref('')
-const lastPoint = ref<{ x: number; y: number } | null>(null)
-const lastEmitTime = ref(0)
+// Store points for current stroke to draw smooth continuous lines
+const points = ref<{ x: number; y: number }[]>([])
 
 onMounted(() => {
   setTimeout(() => {
@@ -102,12 +102,14 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 
-const lastEmittedValue = ref<string | null>(null)
+// Track whether the user has interacted with the pad (drawn anything)
+const userHasDrawn = ref(false)
 
+// Only restore signature from modelValue on initial load or external reset
+// NEVER redraw while user is drawing — this causes the erasing bug on mobile
 watch(() => props.modelValue, (newValue) => {
-  // Skip if this change came from our own emit (prevents redraw loop that causes erasing)
-  if (Date.now() - lastEmitTime.value < 1000) return
-  if (newValue === lastEmittedValue.value) return
+  // Once user has drawn, ignore all external modelValue changes
+  if (userHasDrawn.value) return
 
   if (newValue && canvas.value && ctx.value) {
     const img = new Image()
@@ -121,7 +123,7 @@ watch(() => props.modelValue, (newValue) => {
       hasSignature.value = true
     }
     img.src = newValue
-  } else if (!newValue) {
+  } else if (!newValue && !userHasDrawn.value) {
     clear()
   }
 })
@@ -150,7 +152,7 @@ function initCanvas(retryCount = 0) {
   if (ctx.value) {
     ctx.value.scale(dpr, dpr)
     ctx.value.strokeStyle = '#1a1a1a'
-    ctx.value.lineWidth = 2.5
+    ctx.value.lineWidth = 3
     ctx.value.lineCap = 'round'
     ctx.value.lineJoin = 'round'
     ctx.value.imageSmoothingEnabled = true
@@ -178,93 +180,84 @@ function getPos(event: MouseEvent | Touch): { x: number; y: number } {
   }
 }
 
+function beginStroke(pos: { x: number; y: number }) {
+  isDrawing.value = true
+  userHasDrawn.value = true
+  points.value = [pos]
+
+  if (!ctx.value) return
+  ctx.value.beginPath()
+  ctx.value.moveTo(pos.x, pos.y)
+  // Draw a dot so single clicks are visible
+  ctx.value.lineTo(pos.x + 0.1, pos.y + 0.1)
+  ctx.value.stroke()
+}
+
+function continueStroke(pos: { x: number; y: number }) {
+  if (!isDrawing.value || !ctx.value) return
+
+  points.value.push(pos)
+  const pts = points.value
+  const len = pts.length
+
+  if (len < 2) return
+
+  // Use quadratic curve through midpoints for silky smooth lines
+  // This avoids the "dots" problem by continuing the existing path
+  ctx.value.beginPath()
+  ctx.value.moveTo(pts[len - 2].x, pts[len - 2].y)
+
+  if (len >= 3) {
+    // Smooth curve: use previous point as control, midpoint as endpoint
+    const prev = pts[len - 3]
+    const curr = pts[len - 2]
+    const next = pts[len - 1]
+    const midX = (curr.x + next.x) / 2
+    const midY = (curr.y + next.y) / 2
+    ctx.value.quadraticCurveTo(curr.x, curr.y, midX, midY)
+  } else {
+    // Just 2 points — draw a straight line
+    ctx.value.lineTo(pos.x, pos.y)
+  }
+
+  ctx.value.stroke()
+}
+
+function endStroke() {
+  if (!isDrawing.value) return
+  isDrawing.value = false
+  points.value = []
+  hasSignature.value = true
+  emit('update:modelValue', getSignatureData())
+}
+
 function startDrawing(event: MouseEvent) {
   event.preventDefault()
-  isDrawing.value = true
-  const pos = getPos(event)
-  lastPoint.value = pos
-  ctx.value?.beginPath()
-  ctx.value?.moveTo(pos.x, pos.y)
-  // Draw a small dot for click without drag
-  ctx.value?.arc(pos.x, pos.y, 1, 0, Math.PI * 2)
-  ctx.value?.fill()
+  beginStroke(getPos(event))
 }
 
 function draw(event: MouseEvent) {
-  if (!isDrawing.value || !ctx.value) return
+  if (!isDrawing.value) return
   event.preventDefault()
-
-  const pos = getPos(event)
-
-  // Draw smooth line using quadratic curves
-  if (lastPoint.value) {
-    ctx.value.beginPath()
-    ctx.value.moveTo(lastPoint.value.x, lastPoint.value.y)
-
-    // Use quadratic curve for smoother lines
-    const midX = (lastPoint.value.x + pos.x) / 2
-    const midY = (lastPoint.value.y + pos.y) / 2
-    ctx.value.quadraticCurveTo(lastPoint.value.x, lastPoint.value.y, midX, midY)
-    ctx.value.stroke()
-  }
-
-  lastPoint.value = pos
+  continueStroke(getPos(event))
 }
 
 function handleTouchStart(event: TouchEvent) {
   event.preventDefault()
   if (event.touches.length === 1) {
-    isDrawing.value = true
-    const pos = getPos(event.touches[0])
-    lastPoint.value = pos
-    ctx.value?.beginPath()
-    ctx.value?.moveTo(pos.x, pos.y)
-    // Draw a small dot for tap without drag
-    ctx.value?.arc(pos.x, pos.y, 1, 0, Math.PI * 2)
-    ctx.value?.fill()
+    beginStroke(getPos(event.touches[0]))
   }
 }
 
 function handleTouchMove(event: TouchEvent) {
   event.preventDefault()
-  if (!isDrawing.value || !ctx.value || event.touches.length !== 1) return
-
-  const pos = getPos(event.touches[0])
-
-  // Draw smooth line using quadratic curves
-  if (lastPoint.value) {
-    ctx.value.beginPath()
-    ctx.value.moveTo(lastPoint.value.x, lastPoint.value.y)
-
-    const midX = (lastPoint.value.x + pos.x) / 2
-    const midY = (lastPoint.value.y + pos.y) / 2
-    ctx.value.quadraticCurveTo(lastPoint.value.x, lastPoint.value.y, midX, midY)
-    ctx.value.stroke()
+  if (event.touches.length === 1) {
+    continueStroke(getPos(event.touches[0]))
   }
-
-  lastPoint.value = pos
 }
 
 function stopDrawing() {
-  if (isDrawing.value) {
-    isDrawing.value = false
-    lastPoint.value = null
-    hasSignature.value = !isCanvasEmpty()
-    if (hasSignature.value) {
-      const data = getSignatureData()
-      lastEmitTime.value = Date.now()
-      lastEmittedValue.value = data
-      emit('update:modelValue', data)
-    }
-  }
-}
-
-function isCanvasEmpty(): boolean {
-  if (!canvas.value || !ctx.value) return true
-  const imageData = ctx.value.getImageData(0, 0, canvas.value.width, canvas.value.height)
-  return !imageData.data.some((channel, index) => {
-    return index % 4 === 3 && channel !== 0
-  })
+  endStroke()
 }
 
 function getSignatureData(): string {
@@ -276,7 +269,8 @@ function clear() {
   const dpr = window.devicePixelRatio || 1
   ctx.value.clearRect(0, 0, canvas.value.width / dpr, canvas.value.height / dpr)
   hasSignature.value = false
-  lastPoint.value = null
+  userHasDrawn.value = false
+  points.value = []
   emit('update:modelValue', null)
 }
 

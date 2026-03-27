@@ -219,7 +219,7 @@
             <div>
               <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Affordability Below Threshold</p>
               <p class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                Consider ACCEPTED_WITH_GUARANTOR or ACCEPTED_ON_CONDITION
+                {{ referenceData?.reference?.is_guarantor ? 'Consider ACCEPTED_ON_CONDITION or REJECTED' : 'Consider ACCEPTED_WITH_GUARANTOR or ACCEPTED_ON_CONDITION' }}
               </p>
             </div>
           </div>
@@ -245,6 +245,7 @@
           </button>
 
           <button
+            v-if="!referenceData?.reference?.is_guarantor"
             @click="selectDecision('ACCEPTED_WITH_GUARANTOR')"
             class="p-4 rounded-xl border-2 text-left transition-all"
             :class="decision === 'ACCEPTED_WITH_GUARANTOR'
@@ -759,6 +760,31 @@ const allTenants = computed<TenantView[]>(() => {
   if (!referenceData.value) return []
 
   const data = referenceData.value
+  const ref = data.reference
+
+  // If this reference is a guarantor, use guarantor section types and affordability
+  if (ref.is_guarantor) {
+    const name = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim()
+    const rentShare = ref.rent_share || 0
+    const incomeSection = (data.sections || []).find((s: any) => s.section_type === 'INCOME')
+    const checklist = (incomeSection?.section_data as any)?.checklist_results || {}
+    const annualIncome = parseFloat(checklist.total_effective_income) || parseFloat(checklist.annual_income) || ref.annual_income || 0
+    const annualRent = rentShare * 12
+    const ratio = annualRent > 0 ? annualIncome / annualRent : 0
+    const pass = annualIncome >= 32 * rentShare
+
+    return [{
+      id: ref.id,
+      name,
+      rent_share: rentShare,
+      annual_income: annualIncome,
+      affordability_ratio: ratio,
+      affordability_pass: pass,
+      sections: data.sections || [],
+      sectionBadges: buildSectionBadges(data.sections || [], GUARANTOR_SECTION_TYPES),
+      guarantor: null
+    }]
+  }
 
   // Each individual gets their own final review — always show just this one person
   return [

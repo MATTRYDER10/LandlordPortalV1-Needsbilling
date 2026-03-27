@@ -4,9 +4,9 @@
       v-if="show"
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
     >
-      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-[#00A3E0]/30">
+      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col border-2 border-[#00A3E0]/30">
         <!-- mydeposits Branded Header -->
-        <div class="px-6 py-4 border-b border-[#00A3E0]/30 sticky top-0 bg-gradient-to-r from-[#00A3E0]/10 to-[#003366]/5 dark:from-[#00A3E0]/20 dark:to-[#003366]/10">
+        <div class="px-6 py-4 border-b border-[#00A3E0]/30 flex-shrink-0 bg-gradient-to-r from-[#00A3E0]/10 to-[#003366]/5 dark:from-[#00A3E0]/20 dark:to-[#003366]/10 rounded-t-lg z-10">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#00A3E0]">
@@ -23,6 +23,8 @@
           </div>
         </div>
 
+        <!-- Scrollable Content -->
+        <div class="overflow-y-auto flex-1">
         <!-- Success State -->
         <div v-if="registrationComplete" class="p-6">
           <div class="text-center py-8">
@@ -73,9 +75,16 @@
               </button>
             </div>
             <div v-if="editingSections.property" class="space-y-3 bg-gray-50 dark:bg-slate-800 p-4 rounded-lg">
-              <div>
-                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Address Line 1 *</label>
-                <input v-model="formData.property.addressLine1" type="text" required class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg text-sm" />
+              <div class="relative overflow-visible">
+                <AddressAutocomplete
+                  v-model="formData.property.addressLine1"
+                  label="Address Line 1"
+                  :required="true"
+                  id="mydeposits-property-address"
+                  placeholder="Start typing address..."
+                  @addressSelected="handlePropertyAddressSelected"
+                  :allowManualEntry="true"
+                />
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -328,6 +337,7 @@
             </button>
           </div>
         </div>
+        </div><!-- end scrollable content -->
       </div>
     </div>
   </Teleport>
@@ -340,11 +350,14 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch } from '@/lib/authFetch'
 import { API_URL } from '@/lib/apiUrl'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const props = defineProps<{
   show: boolean
   tenancy: any
   schemeType: 'custodial'
+  landlords?: any[]
+  property?: any
 }>()
 
 const emit = defineEmits<{
@@ -447,19 +460,24 @@ watch(() => props.show, (newShow) => {
 })
 
 function populateFormData(tenancy: any) {
-  // Property
-  const property = tenancy.property || tenancy.properties || {}
+  // Property — prefer decrypted prop, fall back to tenancy data
+  const prop = props.property || tenancy.property || tenancy.properties || {}
+  // Handle various property data shapes:
+  // - Flat: { address_line1, city, county, postcode }
+  // - Nested: { address: { line1, city, postcode, formatted } }
+  const addr = (prop.address && typeof prop.address === 'object') ? prop.address : {}
   formData.value.property = {
-    addressLine1: property.address_line1 || property.address || '',
-    city: property.city || property.town || '',
-    county: property.county || '',
-    postcode: property.postcode || ''
+    addressLine1: prop.address_line1 || addr.line1 || '',
+    city: prop.city || addr.city || addr.town || '',
+    county: prop.county || addr.county || '',
+    postcode: prop.postcode || addr.postcode || ''
   }
+  console.log('[MyDepositsModal] Property populated:', formData.value.property, 'from prop:', JSON.stringify(prop).substring(0, 200))
 
   // Tenancy dates
   formData.value.tenancy = {
     startDate: tenancy.tenancy_start_date || tenancy.start_date || '',
-    endDate: tenancy.end_date || ''
+    endDate: tenancy.tenancy_end_date || tenancy.end_date || ''
   }
 
   // Deposit
@@ -468,31 +486,66 @@ function populateFormData(tenancy: any) {
     receivedDate: tenancy.deposit_received_at ? tenancy.deposit_received_at.split('T')[0] : new Date().toISOString().split('T')[0]
   }
 
-  // Landlord
-  const landlord = tenancy.landlord || tenancy.landlords?.[0] || {}
+  // Landlord — prefer decrypted props.landlords, fall back to tenancy data
+  const landlordsList = props.landlords || []
+  const primaryLandlord = landlordsList.find((l: any) => l.is_primary_contact) || landlordsList[0] || tenancy.landlord || {}
+  // Landlord name may be a full "name" field or split into first/last
+  let llFirstName = primaryLandlord.first_name || primaryLandlord.firstName || ''
+  let llLastName = primaryLandlord.last_name || primaryLandlord.lastName || ''
+  if (!llFirstName && !llLastName && primaryLandlord.name) {
+    const parts = primaryLandlord.name.trim().split(' ')
+    llFirstName = parts[0] || ''
+    llLastName = parts.slice(1).join(' ') || ''
+  }
+
+  // Build landlord address from separate fields
+  const llAddress = [
+    primaryLandlord.address_line1 || primaryLandlord.addressLine1 || '',
+    primaryLandlord.city || '',
+    primaryLandlord.postcode || ''
+  ].filter(Boolean).join(', ') || primaryLandlord.address || ''
+
   formData.value.landlord = {
-    title: landlord.title || '',
-    firstName: landlord.first_name || landlord.firstName || '',
-    lastName: landlord.last_name || landlord.lastName || '',
-    email: landlord.email || '',
-    address: landlord.address || ''
+    title: primaryLandlord.title || '',
+    firstName: llFirstName,
+    lastName: llLastName,
+    email: primaryLandlord.email || '',
+    address: llAddress
   }
 
   // Tenants
   const tenants = tenancy.tenants || []
-  formData.value.tenants = tenants.map((t: any, index: number) => ({
-    title: t.title || '',
-    firstName: t.first_name || t.firstName || '',
-    lastName: t.last_name || t.lastName || '',
-    email: t.email || '',
-    phone: t.phone || '',
-    isLead: t.is_lead || t.isLead || index === 0
-  }))
+  formData.value.tenants = tenants.map((t: any, index: number) => {
+    // Tenant name may be full "first_name"/"last_name" or combined
+    let firstName = t.first_name || t.firstName || ''
+    let lastName = t.last_name || t.lastName || ''
+    // If no split name, try parsing from a full name field
+    if (!firstName && !lastName && t.name) {
+      const parts = t.name.trim().split(' ')
+      firstName = parts[0] || ''
+      lastName = parts.slice(1).join(' ') || ''
+    }
+
+    return {
+      title: t.title || '',
+      firstName,
+      lastName,
+      email: t.email || '',
+      phone: t.phone || '',
+      isLead: t.is_lead_tenant || t.is_lead || t.isLead || index === 0
+    }
+  })
 
   // Ensure at least one tenant is marked as lead
   if (formData.value.tenants.length > 0 && !formData.value.tenants.some(t => t.isLead)) {
     formData.value.tenants[0].isLead = true
   }
+}
+
+function handlePropertyAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  formData.value.property.addressLine1 = data.addressLine1
+  formData.value.property.city = data.city
+  formData.value.property.postcode = data.postcode
 }
 
 function setLeadTenant(index: number) {

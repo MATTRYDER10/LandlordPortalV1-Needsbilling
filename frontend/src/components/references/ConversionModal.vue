@@ -268,20 +268,21 @@
               <!-- Deposit Scheme -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Deposit Protection Scheme
+                  Deposit Protection Scheme *
                 </label>
                 <select
                   v-model="options.depositScheme"
+                  required
                   class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  :class="{ 'border-red-300': !options.depositScheme }"
                 >
                   <option value="">Select scheme...</option>
-                  <option value="dps_custodial">DPS Custodial</option>
-                  <option value="dps_insured">DPS Insured</option>
-                  <option value="mydeposits_custodial">MyDeposits Custodial</option>
-                  <option value="mydeposits_insured">MyDeposits Insured</option>
                   <option value="tds_custodial">TDS Custodial</option>
                   <option value="tds_insured">TDS Insured</option>
-                  <option value="reposit">Reposit (Deposit-free)</option>
+                  <option value="mydeposits">mydeposits</option>
+                  <option value="dps">DPS</option>
+                  <option value="reposit">Reposit (Deposit-Free)</option>
+                  <option value="landlord_held">Landlord Held</option>
                   <option value="no_deposit">No Deposit</option>
                 </select>
               </div>
@@ -462,7 +463,7 @@ const pendingPropertyData = ref<any>(null)
 // Computed
 const defaultDeposit = computed(() => {
   if (!previewData.value) return 0
-  return Math.round((previewData.value.monthlyRent * 12 / 52) * 5 * 100) / 100 // 5 weeks rent
+  return Math.floor((previewData.value.monthlyRent * 12 / 52) * 5) // 5 weeks rent
 })
 
 const defaultRentDueDay = computed(() => {
@@ -544,6 +545,7 @@ const canConvert = computed(() => {
   if (validationErrors.value.length > 0) return false
   if (needsPropertySelection.value && !selectedProperty.value && !pendingPropertyData.value) return false
   if (!rentSharesValid.value) return false
+  if (!options.value.depositScheme) return false
   return !!previewData.value
 })
 
@@ -819,7 +821,7 @@ const splitRentEvenly = () => {
 // When rent changes, recalculate shares
 const onRentChange = () => {
   // Update deposit default (5 weeks)
-  options.value.depositAmount = Math.round((editableDetails.value.monthlyRent * 12 / 52) * 5 * 100) / 100
+  options.value.depositAmount = Math.floor((editableDetails.value.monthlyRent * 12 / 52) * 5)
   // Recalculate rent shares
   initializeRentShares()
 }

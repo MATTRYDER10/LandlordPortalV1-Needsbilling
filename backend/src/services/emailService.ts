@@ -523,7 +523,8 @@ export async function sendTenantReferenceRequest(
   companyPhone?: string,
   companyEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -534,6 +535,7 @@ export async function sendTenantReferenceRequest(
     PropertyAddress: capitalizeWords(propertyAddress || ''),
     ContactInfo: contactInfo,
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -573,7 +575,8 @@ export async function sendEmployerReferenceRequest(
   agentPhone?: string | null,
   agentEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('employer-reference-request', {
     EmployerName: employerName,
@@ -583,6 +586,7 @@ export async function sendEmployerReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -622,7 +626,8 @@ export async function sendLandlordReferenceRequest(
   agentPhone?: string | null,
   agentEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('landlord-reference-request', {
     LandlordName: landlordName,
@@ -632,6 +637,7 @@ export async function sendLandlordReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -670,7 +676,8 @@ export async function sendAccountantReferenceRequest(
   agentCompanyName?: string | null,
   agentPhone?: string | null,
   agentEmail?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('accountant-reference-request', {
     AccountantName: accountantName,
@@ -680,6 +687,7 @@ export async function sendAccountantReferenceRequest(
     AgentCompanyName: agentCompanyName || '',
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -719,7 +727,8 @@ export async function sendAgentReferenceRequest(
   agentPhone?: string | null,
   agentEmailContact?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('agent-reference-request', {
     AgentName: agentName,
@@ -729,6 +738,7 @@ export async function sendAgentReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmailContact || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -3015,6 +3025,8 @@ export async function sendLandlordOfferSummary(
       jobTitle?: string
       annualIncome?: number
       rentShare?: number
+      isStudent?: boolean
+      hasGuarantor?: boolean
     }>
   }>,
   companyName: string,
@@ -3043,9 +3055,12 @@ export async function sendLandlordOfferSummary(
       const jobText = tenant.jobTitle || 'Not provided'
       const rentShareText = tenant.rentShare ? `£${tenant.rentShare}/month` : ''
 
+      const studentBadge = tenant.isStudent ? '<span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;background-color:#dbeafe;color:#1d4ed8;border-radius:9999px;margin-left:8px;">Student</span>' : ''
+      const guarantorBadge = tenant.hasGuarantor ? '<span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;background-color:#fef3c7;color:#92400e;border-radius:9999px;margin-left:4px;">Has Guarantor</span>' : ''
+
       return `
         <div style="margin: 0 0 12px; padding: 12px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb;">
-          <p style="margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #111827;">${capitalizeWords(tenant.firstName)}</p>
+          <p style="margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #111827;">${capitalizeWords(tenant.firstName)}${studentBadge}${guarantorBadge}</p>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
               <td style="padding: 2px 0; font-size: 13px; color: #6b7280; width: 100px;">Job Title:</td>

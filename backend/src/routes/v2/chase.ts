@@ -12,8 +12,10 @@ import { supabase } from '../../config/supabase'
 import {
   getChaseQueue,
   getChaseItemDecrypted,
+  getChaseItem,
   recordChaseAction,
-  markChaseUnable
+  markChaseUnable,
+  completeChaseCycle
 } from '../../services/v2/chaseServiceV2'
 import {
   recordVerbalReference,
@@ -26,7 +28,8 @@ import {
   sendEmployerReferenceRequest,
   sendLandlordReferenceRequest,
   sendAgentReferenceRequest,
-  sendAccountantReferenceRequest
+  sendAccountantReferenceRequest,
+  sendTenantReferenceRequest
 } from '../../services/emailService'
 import {
   sendEmployerReferenceRequestSMS,
@@ -91,11 +94,39 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
 
     const companyMap = new Map((companies || []).map((c: any) => [c.id, c.name || (c.name_encrypted ? decrypt(c.name_encrypted) : null) || c.company_name || 'Unknown']))
 
+    // For guarantor chases, fetch the parent tenant names
+    const guarantorItems = items.filter((i: any) => i.chase_type === 'GUARANTOR')
+    const guarantorRefIds = guarantorItems.map((i: any) => i.reference_id).filter(Boolean)
+    const parentTenantMap = new Map<string, string>()
+    if (guarantorRefIds.length > 0) {
+      const { data: guarantorRefs } = await supabase
+        .from('tenant_references_v2')
+        .select('id, guarantor_for_reference_id')
+        .in('id', guarantorRefIds)
+      const parentRefIds = (guarantorRefs || []).map(r => r.guarantor_for_reference_id).filter(Boolean)
+      if (parentRefIds.length > 0) {
+        const { data: parentRefs } = await supabase
+          .from('tenant_references_v2')
+          .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+          .in('id', parentRefIds)
+        const parentMap = new Map((parentRefs || []).map(r => [r.id, `${decrypt(r.tenant_first_name_encrypted)} ${decrypt(r.tenant_last_name_encrypted)}`.trim()]))
+        for (const gRef of (guarantorRefs || [])) {
+          if (gRef.guarantor_for_reference_id && parentMap.has(gRef.guarantor_for_reference_id)) {
+            parentTenantMap.set(gRef.id, parentMap.get(gRef.guarantor_for_reference_id)!)
+          }
+        }
+      }
+    }
+
     // Transform to frontend format
     const enrichedItems = items.map((item: any) => {
-      const tenantName = item.reference
+      let tenantName = item.reference
         ? `${decrypt(item.reference.tenant_first_name_encrypted)} ${decrypt(item.reference.tenant_last_name_encrypted)}`
         : 'Unknown'
+      // For guarantor chases, tenant_name should be the parent tenant (not the guarantor)
+      if (item.chase_type === 'GUARANTOR' && parentTenantMap.has(item.reference_id)) {
+        tenantName = parentTenantMap.get(item.reference_id)!
+      }
 
       const hoursWaiting = item.chase_queue_entered_at
         ? Math.round((Date.now() - new Date(item.chase_queue_entered_at).getTime()) / (1000 * 60 * 60))
@@ -105,7 +136,7 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
         id: item.id,
         reference_id: item.reference_id,
         section_type: item.section?.section_type || null,
-        // Both naming conventions for frontend compatibility
+        chase_type: item.chase_type || 'REFEREE',
         contact_type: item.referee_type,
         referee_type: item.referee_type,
         contact_name: decrypt(item.referee_name_encrypted) || 'Unknown',
@@ -127,7 +158,13 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
         age_hours: hoursWaiting,
         urgency: hoursWaiting > 72 ? 'URGENT' : hoursWaiting > 48 ? 'WARNING' : 'NORMAL',
         chase_history: item.chase_history || [],
-        created_at: item.created_at
+        created_at: item.created_at,
+        email_checked: item.email_checked || false,
+        call_checked: item.call_checked || false,
+        cooldown_until: item.cooldown_until || null,
+        chase_note: item.chase_note || null,
+        is_overdue: item.is_overdue || false,
+        in_cooldown: item.in_cooldown || false
       }
     })
 
@@ -428,6 +465,10 @@ router.post('/:id/verbal', authenticateStaff, async (req: StaffAuthRequest, res)
       return res.status(400).json({ error: 'Invalid responses', details: validation.errors })
     }
 
+    if (!chaseItem.section_id) {
+      return res.status(400).json({ error: 'Cannot record verbal reference for tenant chase items' })
+    }
+
     // Record verbal reference
     const input: RecordVerbalReferenceInput = {
       referenceId: chaseItem.reference_id,
@@ -479,6 +520,171 @@ router.post('/:id/unable', authenticateStaff, async (req: StaffAuthRequest, res)
     res.json({ message: 'Marked as unable to obtain', chaseItemId: id })
   } catch (error: any) {
     console.error('[V2 Chase] Error marking unable:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Complete chase cycle (email + call done, note submitted)
+ */
+router.post('/:id/complete-chase', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { note } = req.body
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    if (!note || typeof note !== 'string') {
+      return res.status(400).json({ error: 'Note is required' })
+    }
+
+    const success = await completeChaseCycle(id, note, staffUser.id)
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to complete chase cycle' })
+    }
+
+    res.json({ message: 'Chase cycle completed', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error completing chase cycle:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Send tenant chase email (resend tenant form link)
+ */
+router.post('/:id/tenant-chase-email', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    // Get chase item and verify it's a tenant chase
+    const chaseItem = await getChaseItem(id)
+    if (!chaseItem) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+    if (chaseItem.chase_type !== 'TENANT' && chaseItem.chase_type !== 'GUARANTOR') {
+      return res.status(400).json({ error: 'This endpoint is only for tenant/guarantor chases' })
+    }
+
+    // Get the reference
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select(`
+        id,
+        company_id,
+        is_guarantor,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        tenant_email_encrypted,
+        property_address_encrypted,
+        companies:company_id (
+          name_encrypted,
+          phone_encrypted,
+          email_encrypted,
+          logo_url
+        )
+      `)
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Generate new form token
+    const newToken = generateToken()
+    const newTokenHash = hash(newToken)
+
+    await supabase
+      .from('tenant_references_v2')
+      .update({ form_token_hash: newTokenHash, updated_at: new Date().toISOString() })
+      .eq('id', reference.id)
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+    const company = reference.companies as any
+    const companyName = company ? decrypt(company.name_encrypted) || '' : ''
+    const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
+    const logoUrl = company?.logo_url
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+
+    const isGuarantor = reference.is_guarantor || false
+    const formPath = isGuarantor ? 'guarantor-reference-v2' : 'submit-reference-v2'
+    const formUrl = `${frontendUrl}/${formPath}/${newToken}`
+
+    if (isGuarantor) {
+      // Get parent tenant name for guarantor email
+      const { data: parentRef } = await supabase
+        .from('tenant_references_v2')
+        .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+        .eq('guarantor_reference_id', reference.id)
+        .maybeSingle()
+      const parentTenantName = parentRef
+        ? `${decrypt(parentRef.tenant_first_name_encrypted)} ${decrypt(parentRef.tenant_last_name_encrypted)}`.trim()
+        : 'the tenant'
+
+      const { sendGuarantorReferenceRequest } = await import('../../services/emailService')
+      await sendGuarantorReferenceRequest(
+        tenantEmail, tenantName, parentTenantName, propertyAddress,
+        companyName, companyPhone, companyEmail, formUrl, reference.id, logoUrl
+      )
+    } else {
+      await sendTenantReferenceRequest(
+        tenantEmail, tenantName, formUrl,
+        companyName, propertyAddress, companyPhone, companyEmail, reference.id, logoUrl
+      )
+    }
+
+    // Mark email_checked on the chase item
+    await supabase
+      .from('chase_items_v2')
+      .update({ email_checked: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    await recordChaseAction(id, 'EMAIL', staffUser.id)
+
+    res.json({ message: 'Tenant chase email sent', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error sending tenant chase email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Mark chase item as called
+ */
+router.post('/:id/check-called', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    const { error } = await supabase
+      .from('chase_items_v2')
+      .update({ call_checked: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      return res.status(500).json({ error: 'Failed to update chase item' })
+    }
+
+    await recordChaseAction(id, 'CALL', staffUser.id)
+
+    res.json({ message: 'Call checked', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error checking called:', error)
     res.status(500).json({ error: error.message })
   }
 })

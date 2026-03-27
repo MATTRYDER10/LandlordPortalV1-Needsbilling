@@ -230,10 +230,21 @@ router.get('/auth/start', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    const config = await getCompanyMyDepositsConfig(companyId)
+    // Ensure company_integrations record exists with platform credentials
+    let config = await getCompanyMyDepositsConfig(companyId)
+    if (!config) {
+      // Auto-create with platform credentials
+      const { saveMyDepositsConfig } = await import('../services/mydepositsService')
+      await saveMyDepositsConfig(companyId, {
+        clientId: 'platform',
+        environment: 'live',
+        schemeType: 'custodial'
+      })
+      config = await getCompanyMyDepositsConfig(companyId)
+    }
 
-    if (!config || !config.clientId) {
-      return res.status(400).json({ error: 'mydeposits is not configured. Please save credentials first.' })
+    if (!config) {
+      return res.status(500).json({ error: 'Failed to initialize mydeposits configuration' })
     }
 
     // Generate PKCE values
@@ -247,7 +258,7 @@ router.get('/auth/start', authenticateToken, async (req: AuthRequest, res) => {
     })).toString('base64')
 
     const authUrl = getAuthorizationUrl(
-      { clientId: config.clientId, environment: config.environment },
+      {},
       redirectUri,
       codeChallenge,
       state
@@ -325,6 +336,9 @@ router.post('/auth/callback', authenticateToken, async (req: AuthRequest, res) =
     if (!saveResult.success) {
       return res.status(500).json({ error: saveResult.error })
     }
+
+    // Auto-mark as connected — OAuth success is proof of working connection
+    await updateMyDepositsTestStatus(companyData.companyId, 'success')
 
     res.json({
       success: true,

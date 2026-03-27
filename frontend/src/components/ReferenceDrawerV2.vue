@@ -38,6 +38,10 @@
           >
             {{ formatStatus(refData?.status) }}
           </span>
+          <span v-if="refData?.offer_unihomes" class="px-3 py-1 text-sm font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 flex items-center gap-1">
+            <Zap class="w-3.5 h-3.5" />
+            UniHomes{{ refData?.unihomes_interested ? ' (Interested)' : '' }}
+          </span>
           <span class="text-sm text-gray-500">
             £{{ refData?.monthly_rent }}/month
           </span>
@@ -203,7 +207,7 @@
                       <!-- Section Data -->
                       <div v-if="getSectionFormData(section.section_type)" class="space-y-2">
                         <div
-                          v-for="(value, key) in getSectionFormData(section.section_type)"
+                          v-for="(value, key) in getFilteredSectionFormData(section.section_type)"
                           :key="key"
                           class="flex justify-between text-sm"
                         >
@@ -326,7 +330,15 @@
 
       <!-- Footer Actions -->
       <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-3">
+          <button
+            v-if="!fullReference?.reference?.is_guarantor && !fullReference?.reference?.guarantor_reference_id"
+            @click="showAddGuarantorModal = true"
+            class="px-4 py-2 border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-2"
+          >
+            <UserPlus class="w-4 h-4" />
+            + Guarantor
+          </button>
           <button
             @click="showDeleteConfirm = true"
             class="px-4 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center gap-2"
@@ -354,6 +366,61 @@
           </button>
         </div>
       </div>
+
+      <!-- Add Guarantor Modal -->
+      <Transition name="modal">
+        <div v-if="showAddGuarantorModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl">
+            <div class="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">Add Guarantor</h2>
+              <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">A guarantor form will be sent to their email</p>
+            </div>
+            <div class="p-6 space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name *</label>
+                  <input v-model="guarantorForm.firstName" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Last Name *</label>
+                  <input v-model="guarantorForm.lastName" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email *</label>
+                <input v-model="guarantorForm.email" type="email" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone</label>
+                <input v-model="guarantorForm.phone" type="tel" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Relationship *</label>
+                <select v-model="guarantorForm.relationship" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm">
+                  <option value="">Select...</option>
+                  <option value="parent">Parent</option>
+                  <option value="family">Family Member</option>
+                  <option value="friend">Friend</option>
+                  <option value="employer">Employer</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <p v-if="addGuarantorError" class="text-sm text-red-600">{{ addGuarantorError }}</p>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
+              <button @click="showAddGuarantorModal = false" class="px-4 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg text-sm">Cancel</button>
+              <button
+                @click="submitAddGuarantor"
+                :disabled="addingGuarantor || !guarantorForm.firstName || !guarantorForm.lastName || !guarantorForm.email || !guarantorForm.relationship"
+                class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 text-sm"
+              >
+                <Loader2 v-if="addingGuarantor" class="w-4 h-4 animate-spin" />
+                Send Guarantor Form
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <!-- V2 Conversion Modal -->
       <ConversionModalV2
@@ -518,7 +585,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { X, Check, Clock, AlertCircle, XCircle, FileText, Send, Mail, RefreshCw, Loader2, ChevronDown, Trash2, AlertTriangle, CheckCircle2, Pencil, Upload, ArrowRightCircle, Users } from 'lucide-vue-next'
+import { X, Check, Clock, AlertCircle, XCircle, FileText, Send, Mail, RefreshCw, Loader2, ChevronDown, Trash2, AlertTriangle, CheckCircle2, Pencil, Upload, ArrowRightCircle, Users, UserPlus, Zap } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 import EditableField from './EditableField.vue'
 import ConversionModalV2 from './references/ConversionModalV2.vue'
@@ -552,6 +619,18 @@ const sendToLandlordError = ref('')
 const showDeleteConfirm = ref(false)
 const deleting = ref(false)
 const showConversionModal = ref(false)
+
+// Add Guarantor
+const showAddGuarantorModal = ref(false)
+const addingGuarantor = ref(false)
+const addGuarantorError = ref('')
+const guarantorForm = ref({
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  relationship: ''
+})
 const expandedSections = ref<Set<string>>(new Set())
 const showActivityLog = ref(false)
 const loadingActivity = ref(false)
@@ -613,8 +692,8 @@ const displaySections = computed(() => {
   // - GUARANTOR only shown for tenant references when guarantor info provided
   // - For guarantor references: hide GUARANTOR and RESIDENTIAL sections
   return sections.filter(s => {
-    // Guarantor references don't have GUARANTOR or RESIDENTIAL sections
-    if (isGuarantor && (s.section_type === 'GUARANTOR' || s.section_type === 'RESIDENTIAL')) {
+    // Guarantor references don't have GUARANTOR, RESIDENTIAL or RTR sections
+    if (isGuarantor && (s.section_type === 'GUARANTOR' || s.section_type === 'RESIDENTIAL' || s.section_type === 'RTR')) {
       return false
     }
 
@@ -714,7 +793,6 @@ function getSectionFormData(sectionType: string): Record<string, any> | null {
         const riskLabel = score >= 80 ? 'Low' : score >= 60 ? 'Medium/Low' : score >= 40 ? 'Medium' : 'High'
         return {
           'Risk Level': riskLabel,
-          'Risk Score': `${score}/100`,
           'Electoral Roll': sd.electoralRegisterMatch ? 'Pass' : 'Not Found',
           'CCJ Check': sd.ccjMatch ? `Fail (${sd.ccjCount || 0} found)` : 'Pass',
           'Insolvency Check': sd.insolvencyMatch ? `Fail (${sd.insolvencyCount || 0} found)` : 'Pass',
@@ -742,7 +820,6 @@ function getSectionFormData(sectionType: string): Record<string, any> | null {
 
     return {
       'Creditsafe Risk Level': riskLabel,
-      'Creditsafe Score': `${score}/100`,
       'Electoral Roll': responseData?.electoralRegisterMatch ? 'Pass' : 'Not Found',
       'CCJ Check': responseData?.ccjMatch ? `Fail (${ccjCount} found)` : 'Pass',
       ...(ccjCount > 0 ? { 'CCJ Count': ccjCount } : {}),
@@ -801,6 +878,24 @@ function getSectionFormData(sectionType: string): Record<string, any> | null {
 
   if (Object.keys(flattened).length === 0 && Object.keys(sectionDecisionInfo).length === 0) return null
   return { ...flattened, ...sectionDecisionInfo }
+}
+
+// Filter out WillEmail fields that are false and Url fields that are empty strings
+function getFilteredSectionFormData(sectionType: string): Record<string, any> | null {
+  const data = getSectionFormData(sectionType)
+  if (!data) return null
+
+  const filtered: Record<string, any> = {}
+  for (const [key, value] of Object.entries(data)) {
+    const lastKey = key.includes('.') ? key.split('.').pop()! : key
+    // Hide WillEmail fields when false (only show when true as "Will email separately")
+    if (lastKey.endsWith('WillEmail') && value === false) continue
+    // Hide Url fields with empty string values
+    if (lastKey.endsWith('Url') && value === '') continue
+    filtered[key] = value
+  }
+
+  return Object.keys(filtered).length > 0 ? filtered : null
 }
 
 // Label mapping for known field keys
@@ -1087,6 +1182,10 @@ const monetaryFields = new Set([
 
 function formatDisplayValue(key: string, value: any): string {
   const lastKey = key.includes('.') ? key.split('.').pop()! : key
+  // WillEmail fields that are true should display as "Will email separately"
+  if (lastKey.endsWith('WillEmail') && value === true) {
+    return 'Will email separately'
+  }
   const lowerKey = lastKey.toLowerCase()
   // Check explicit monetary fields or any key containing salary/income/amount/pension/savings
   // Exclude phone/email/name/date/address fields
@@ -1141,13 +1240,15 @@ const hasFinalReport = computed(() => {
 
 const canResendEmail = computed(() => {
   const status = fullReference.value?.reference?.status || props.reference?.status
-  // Can resend if reference is still pending tenant submission
-  return ['SENT', 'COLLECTING_EVIDENCE'].includes(status)
+  // Can resend only if reference hasn't been submitted yet
+  return status === 'SENT'
 })
 
 const canConvertToTenancy = computed(() => {
   const ref = refData.value
   if (!ref) return false
+  // Only show on parent/standalone — child references must convert from the parent
+  if (ref.parent_reference_id) return false
   // Can convert any status except SENT, and not already converted
   return ref.status !== 'SENT' && !ref.converted_to_tenancy_id
 })
@@ -1354,6 +1455,7 @@ function getSectionLabel(type: string) {
 
 function getSectionStatusLabel(section: any) {
   if (section.decision === 'PASS') return 'Passed'
+  if (section.decision === 'PASS_WITH_CONDITION') return 'Conditional Pass'
   if (section.decision === 'FAIL' || section.decision === 'REJECT') return 'Failed'
   if (section.status === 'IN_REVIEW') return 'In Review'
   if (section.is_ready_for_review) return 'Ready for Review'
@@ -1363,6 +1465,7 @@ function getSectionStatusLabel(section: any) {
 
 function getSectionIcon(section: any) {
   if (section.decision === 'PASS') return Check
+  if (section.decision === 'PASS_WITH_CONDITION') return AlertCircle
   if (section.decision === 'FAIL' || section.decision === 'REJECT') return XCircle
   if (section.status === 'IN_REVIEW') return Clock
   if (section.is_ready_for_review) return AlertCircle
@@ -1371,6 +1474,7 @@ function getSectionIcon(section: any) {
 
 function getSectionIconClass(section: any) {
   if (section.decision === 'PASS') return 'text-green-600'
+  if (section.decision === 'PASS_WITH_CONDITION') return 'text-amber-600'
   if (section.decision === 'FAIL' || section.decision === 'REJECT') return 'text-red-600'
   if (section.status === 'IN_REVIEW') return 'text-blue-600'
   if (section.is_ready_for_review) return 'text-amber-600'
@@ -1380,6 +1484,9 @@ function getSectionIconClass(section: any) {
 function getSectionBadgeClass(section: any) {
   if (section.decision === 'PASS') {
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+  }
+  if (section.decision === 'PASS_WITH_CONDITION') {
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   }
   if (section.decision === 'FAIL' || section.decision === 'REJECT') {
     return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -1431,6 +1538,39 @@ async function resendReferenceEmail() {
     toast.error(error.message || 'Failed to resend email')
   } finally {
     resendingEmail.value = false
+  }
+}
+
+async function submitAddGuarantor() {
+  addingGuarantor.value = true
+  addGuarantorError.value = ''
+  try {
+    const refId = fullReference.value?.reference?.id
+    if (!refId) throw new Error('Reference not found')
+
+    const response = await fetch(`${API_URL}/api/v2/references/${refId}/add-guarantor`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json',
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      },
+      body: JSON.stringify(guarantorForm.value)
+    })
+
+    if (response.ok) {
+      showAddGuarantorModal.value = false
+      guarantorForm.value = { firstName: '', lastName: '', email: '', phone: '', relationship: '' }
+      toast.success('Guarantor form sent successfully')
+      emit('updated')
+    } else {
+      const data = await response.json()
+      addGuarantorError.value = data.error || 'Failed to add guarantor'
+    }
+  } catch (err: any) {
+    addGuarantorError.value = err.message || 'Failed to add guarantor'
+  } finally {
+    addingGuarantor.value = false
   }
 }
 

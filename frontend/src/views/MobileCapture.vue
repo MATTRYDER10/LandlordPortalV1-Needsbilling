@@ -222,11 +222,12 @@ import {
   UserCircle
 } from 'lucide-vue-next'
 
-// For mobile capture, always derive API URL from current hostname so phones on LAN can reach the backend
-// (VITE_API_URL points to localhost which isn't reachable from a phone)
-const API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? `http://${window.location.hostname}:3001`
-  : (import.meta.env.VITE_API_URL ?? '')
+// Use VITE_API_URL (works for ngrok and production), fallback to deriving from hostname for LAN dev
+const API_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL
+  : typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? `http://${window.location.hostname}:3001`
+    : ''
 
 const route = useRoute()
 const captureToken = route.params.captureToken as string

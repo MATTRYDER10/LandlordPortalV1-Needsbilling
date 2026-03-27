@@ -163,6 +163,8 @@
               v-model="inputValues[field.name]"
               :placeholder="field.placeholder"
               :readonly="field.readonly"
+              @focus="activeInputField = field.name"
+              @blur="activeInputField = null"
               class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               :class="field.readonly ? 'bg-gray-100 dark:bg-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800'"
             />
@@ -392,6 +394,50 @@ function formatLabel(key: string): string {
     .replace(/([A-Z])/g, ' $1')
     .replace(/^./, str => str.toUpperCase())
     .trim()
+}
+
+// Auto-calculate income fields when source inputs change
+// Track which field the user is actively editing to prevent overwriting
+const activeInputField = ref<string | null>(null)
+
+watch(() => inputValues.monthly_income, (val) => {
+  // Don't auto-calc annual if user is actively editing annual
+  if (activeInputField.value === 'annual_income') return
+  const monthly = parseFloat(val)
+  if (!isNaN(monthly) && monthly > 0) {
+    inputValues.annual_income = String(Math.round(monthly * 12))
+  }
+  recalcTotalIncome()
+})
+
+watch(() => inputValues.savings, () => {
+  recalcTotalIncome()
+})
+
+watch(() => inputValues.annual_income, (val) => {
+  // Don't reverse-calc monthly if user is actively editing monthly
+  if (activeInputField.value === 'monthly_income') return
+  // Only reverse-calc monthly when user is directly editing annual
+  if (activeInputField.value === 'annual_income') {
+    const annual = parseFloat(val)
+    if (!isNaN(annual) && annual > 0) {
+      inputValues.monthly_income = String(Math.round(annual / 12))
+    }
+  }
+  recalcTotalIncome()
+})
+
+function recalcTotalIncome() {
+  // Don't overwrite if user is actively editing total
+  if (activeInputField.value === 'total_effective_income') return
+  const annual = parseFloat(inputValues.annual_income) || 0
+  const savings = parseFloat(inputValues.savings) || 0
+  if (annual > 0 || savings > 0) {
+    const newTotal = String(Math.round(annual + savings))
+    if (inputValues.total_effective_income !== newTotal) {
+      inputValues.total_effective_income = newTotal
+    }
+  }
 }
 
 // Watch for step changes to reset state

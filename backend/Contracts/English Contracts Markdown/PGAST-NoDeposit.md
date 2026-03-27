@@ -62,10 +62,6 @@ References to the ‘Fixtures and Fittings’ mean any of the Landlord’s conte
 
 Any person(s) who has agreed to meet all of the Tenant’s responsibilities under the Agreement in the event the Tenant defaults on any of their obligations under this Agreement.
 
-## **ICE**
-
-‘ICE’ is an Independent Case Examiner of the DPS.
-
 ## **Insurable Risks**
 
 ‘Insurable Risks’ means fire, storm, tempest and such other perils that are included in the Landlord’s insurance policy if affected.
@@ -75,7 +71,7 @@ Where the Tenant is more than one person the Tenant’s covenants are joint and 
 
 ## **Landlord**
 
-The expression ‘Landlord’ shall include anyone lawfully entitled to the Premises upon the termination of the Tenancy.
+The person or persons owning an interest in the property which gives the right to possession of it when this tenancy ends, and anyone who later owns the property. Where this contract provides that the landlord may or may not do something, it is inferred that someone acting on behalf of the landlord may or may not also do that thing.
 
 **Agent**  
 Where the Landlord has appointed and agent to deal with the letting of their property, either in a tenant find only or a managed capacity.
@@ -86,7 +82,7 @@ Where the Landlord has appointed and agent to deal with the letting of their pro
 
 ## **The Premises**
 
-References to ‘the Premises’ include reference to any part or parts of the Premises and the curtilage of the same, together with the garden, garage and parking space (if applicable) 
+The property which has been agreed to be let including any parts of the exterior forming part of the let (e.g. gardens, paths, fences, outbuildings or boundaries). Where the property is a flat or forms only part of a building, the letting includes the use with others of communal access ways, gardens and other similar facilities to which the landlord is entitled under the terms of his/her lease.
 
 ## **Relevant Persons**
 
@@ -99,7 +95,7 @@ Where the Deposit is held as ‘Stakeholder’ no deductions can be made from th
 
 ## **The Tenant**
 
-‘The Tenant’ includes anyone to whom the Tenancy has been lawfully transferred.
+The person or persons entitled to possession of the property under this agreement.
 
 ## **The Term/the Tenancy**
 
@@ -215,7 +211,9 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **8.3.1** To permit the Landlord, or any superior Landlord, or contractors or those authorised by the Landlord, upon giving at least 24 hours’ notice in writing (except in an emergency) to enter the Premises at all reasonable times for the purpose of inspection and repair, to include inspection and repair to any adjoining or neighbouring Premises.
 
-**8.3.2** To permit the Premises to be viewed during the last two months of the Term at all reasonable times upon previous appointment during normal working hours made by any person who is or is acting on behalf of a prospective purchaser or tenant of the Premises who is authorised by the Landlord to view the Premises and to erect “For Sale” or “To Let” boards at their discretion.
+**8.3.2 Occupancy**
+
+Only the named tenants and any permitted occupiers listed in this agreement may reside at the Premises. Guests are welcome but must not stay at the Premises for more than 48 consecutive hours without the prior written consent of the Landlord or their Agent. Any person who remains in occupation beyond this period without consent may be considered an unauthorised occupier, which shall constitute a breach of this agreement. The maximum number of occupants permitted at the Premises shall not exceed the number of tenants and permitted occupiers named in this agreement, unless otherwise agreed in writing by the Landlord.
 
 **8.3.3** To indemnify the Landlord for any loss incurred by the Landlord as a result of the Tenant failing to keep a previously agreed appointment with any third party at the Premises.
 

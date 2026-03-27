@@ -251,15 +251,17 @@ async function sendComplianceEmail(
     // Get company info for email
     const { data: company } = await supabaseAdmin
       .from('companies')
-      .select('id, name, primary_email')
+      .select('*')
       .eq('id', record.company_id)
-      .single()
+      .maybeSingle()
 
-    if (!company || !company.primary_email) {
+    const compCo = company as any
+    if (!compCo || !compCo.primary_email) {
       console.log('[ComplianceScheduler] No company email found, skipping email')
       return false
     }
 
+    const resolvedName = compCo.name || (compCo.name_encrypted ? decrypt(compCo.name_encrypted) : null) || compCo.company_name || 'PropertyGoose'
     const address = getPropertyAddress(property)
     const complianceTypeName = formatComplianceType(record.compliance_type)
     const isExpired = daysRemaining <= 0
@@ -268,7 +270,7 @@ async function sendComplianceEmail(
     const templateName = isExpired ? 'compliance-expired-urgent' : 'compliance-expiring-reminder'
 
     const templateVars = {
-      CompanyName: company.name,
+      CompanyName: resolvedName,
       PropertyAddress: address,
       ComplianceType: complianceTypeName,
       ExpiryDate: new Date(record.expiry_date).toLocaleDateString('en-GB', {

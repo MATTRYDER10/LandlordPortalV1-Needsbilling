@@ -356,6 +356,75 @@
                   />
                 </div>
               </div>
+
+              <!-- Tenant Address -->
+              <div class="mt-4">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Tenant Current Address *</h4>
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="col-span-2 relative overflow-visible">
+                    <AddressAutocomplete
+                      v-model="form.tenantAddressLine1"
+                      label="Address Line 1"
+                      :required="true"
+                      id="tenant-address"
+                      placeholder="Start typing address..."
+                      @addressSelected="handleTenantAddressSelected"
+                      :allowManualEntry="true"
+                    />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 2</label>
+                    <input
+                      v-model="form.tenantAddressLine2"
+                      type="text"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City *</label>
+                    <input
+                      v-model="form.tenantCity"
+                      type="text"
+                      required
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Postcode *</label>
+                    <input
+                      v-model="form.tenantPostcode"
+                      type="text"
+                      required
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Deposit Scheme -->
+            <div class="border-t border-gray-200 dark:border-slate-700 pt-6">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                    Deposit Scheme *
+                  </label>
+                  <select
+                    v-model="form.depositScheme"
+                    required
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select scheme...</option>
+                    <option value="tds_custodial">TDS Custodial</option>
+                    <option value="tds_insured">TDS Insured</option>
+                    <option value="mydeposits">mydeposits</option>
+                    <option value="dps">DPS</option>
+                    <option value="reposit">Reposit (Deposit-Free)</option>
+                    <option value="landlord_held">Landlord Held</option>
+                    <option value="no_deposit">No Deposit</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- Notes -->
@@ -407,6 +476,7 @@ import { useAuthStore } from '@/stores/auth'
 import { authFetch } from '@/lib/authFetch'
 import { X, Calendar, Search } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const props = defineProps<{
   show: boolean
@@ -544,10 +614,25 @@ const isValid = computed(() => {
   if (!hasReferenceWithTenants && !hasManualTenant) {
     return false
   }
+  // Deposit scheme is mandatory
+  if (!form.value.depositScheme) {
+    return false
+  }
+  // Tenant address mandatory for manual entry
+  if (!hasReferenceWithTenants && (!form.value.tenantAddressLine1 || !form.value.tenantCity || !form.value.tenantPostcode)) {
+    return false
+  }
   return true
 })
 
 // Methods
+function handleTenantAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  form.value.tenantAddressLine1 = data.addressLine1
+  if (data.addressLine2) form.value.tenantAddressLine2 = data.addressLine2
+  form.value.tenantCity = data.city
+  form.value.tenantPostcode = data.postcode
+}
+
 const ordinal = (n: number): string => {
   // Handle 11th, 12th, 13th specially
   if (n >= 11 && n <= 13) return n + 'th'
@@ -599,7 +684,7 @@ const calculateDeposit = () => {
   // 5 weeks pro-rata: (monthly rent * 12 / 52) * 5
   if (form.value.monthlyRent > 0) {
     const weeklyRent = (form.value.monthlyRent * 12) / 52
-    form.value.depositAmount = Math.round(weeklyRent * 5 * 100) / 100
+    form.value.depositAmount = Math.floor(weeklyRent * 5)
   }
 }
 
@@ -876,10 +961,10 @@ const handleSubmit = async () => {
       propertyId: propertyId,
       tenancyType: form.value.tenancyType,
       startDate: form.value.startDate,
-      // Only send endDate if it has a value (periodic tenancies have no end date)
       endDate: form.value.endDate && form.value.endDate.trim() ? form.value.endDate : null,
       monthlyRent: form.value.monthlyRent,
       depositAmount: form.value.depositAmount || undefined,
+      depositScheme: form.value.depositScheme || undefined,
       rentDueDay: form.value.rentDueDay,
       notes: form.value.notes || undefined
     }
@@ -912,7 +997,11 @@ const handleSubmit = async () => {
         lastName: form.value.tenantLastName,
         email: form.value.tenantEmail || undefined,
         phone: form.value.tenantPhone || undefined,
-        isLeadTenant: true
+        isLeadTenant: true,
+        residentialAddressLine1: form.value.tenantAddressLine1 || undefined,
+        residentialAddressLine2: form.value.tenantAddressLine2 || undefined,
+        residentialCity: form.value.tenantCity || undefined,
+        residentialPostcode: form.value.tenantPostcode || undefined
       }]
     }
 
@@ -958,6 +1047,11 @@ watch(() => props.show, async (isShow) => {
       tenantLastName: '',
       tenantEmail: '',
       tenantPhone: '',
+      tenantAddressLine1: '',
+      tenantAddressLine2: '',
+      tenantCity: '',
+      tenantPostcode: '',
+      depositScheme: '',
       notes: ''
     }
     error.value = ''

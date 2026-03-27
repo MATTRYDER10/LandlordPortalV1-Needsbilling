@@ -150,6 +150,15 @@ export async function createReference(
 
     console.log(`[ReferenceServiceV2] Created V2 reference ${data.id} with ${sections?.length || 0} sections`)
 
+    // Log activity
+    await logActivity({
+      referenceId: data.id,
+      action: 'REFERENCE_CREATED',
+      performedBy: input.createdBy || 'system',
+      performedByType: 'agent',
+      notes: `Reference created for ${input.tenantFirstName} ${input.tenantLastName}`
+    })
+
     // Return the reference with the form token (needed for sending email)
     return {
       ...data,

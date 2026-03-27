@@ -1,5 +1,21 @@
 <template>
+  <!-- Compact mode: inline credits badge -->
+  <router-link
+    v-if="compact"
+    to="/billing"
+    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all"
+    :class="[
+      billingStore.isLowCredits ? 'bg-amber-100 dark:bg-amber-900/30' : isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100',
+    ]"
+  >
+    <Coins class="w-3.5 h-3.5 text-primary" />
+    <span :class="['text-xs font-bold', isDark ? 'text-white' : 'text-gray-900']">{{ billingStore.creditsCount.toFixed(2) }}</span>
+    <span v-if="billingStore.isLowCredits" class="w-3 h-3 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center">!</span>
+  </router-link>
+
+  <!-- Full mode: original display -->
   <div
+    v-else
     class="credits-display transition-all duration-300"
     :class="[
       billingStore.isLowCredits ? 'low-credits' : '',
@@ -26,6 +42,12 @@ import { onMounted, onUnmounted } from 'vue'
 import { Coins } from 'lucide-vue-next'
 import { useBillingStore } from '../stores/billing'
 import { useDarkMode } from '@/composables/useDarkMode'
+
+const props = withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false
+})
 
 const billingStore = useBillingStore()
 const { isDark } = useDarkMode()

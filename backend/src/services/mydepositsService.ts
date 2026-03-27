@@ -2,20 +2,25 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt } from './encryption'
 import crypto from 'crypto'
 
-// mydeposits API endpoints (Total Property API)
+// mydeposits API endpoints
 const MYDEPOSITS_API_ENDPOINTS = {
-  sandbox: 'https://api.sandbox.totalproperty.co.uk/totalproperty',
+  sandbox: 'https://gtw.sandbox.totalproperty.co.uk/rs/api',
   live: 'https://api.totalproperty.co.uk/totalproperty'
 }
 
-// OAuth endpoints - includes /totalpropertyauth base path
+// OAuth endpoints
 const MYDEPOSITS_AUTH_ENDPOINTS = {
   sandbox: 'https://authapi.sandbox.totalproperty.co.uk/totalpropertyauth',
   live: 'https://authapi.totalproperty.co.uk/totalpropertyauth'
 }
 
 const API_VERSION = 'v1'
+const DEPOSITS_PATH = '' // gateway /totalproperty already includes the base
 const USER_AGENT = 'PropertyGoose/1.0'
+
+// Platform-level mydeposits OAuth credentials (same for all agents)
+const MYDEPOSITS_CLIENT_ID = process.env.MYDEPOSITS_CLIENT_ID || 'XBqHwL8hnP9qdK9cDGcs'
+const MYDEPOSITS_CLIENT_SECRET = process.env.MYDEPOSITS_CLIENT_SECRET || '36Zd0jsf/E7/By5nqIitE1Q7/MMvyfr27FaoIRKGEzg='
 
 // mydeposits config interface
 interface MyDepositsConfig {
@@ -113,24 +118,29 @@ export async function getCompanyMyDepositsConfig(companyId: string): Promise<MyD
     .eq('company_id', companyId)
     .single()
 
-  if (error || !data || !data.mydeposits_client_id) {
+  if (error || !data) {
     return null
   }
 
-  const clientSecret = data.mydeposits_client_secret_encrypted ? decrypt(data.mydeposits_client_secret_encrypted) : ''
+  // Check if we have tokens (authorized) — client credentials come from platform
+  const hasTokens = !!data.mydeposits_access_token_encrypted
+  if (!hasTokens && !data.mydeposits_client_id) {
+    return null
+  }
+
   const accessToken = data.mydeposits_access_token_encrypted ? decrypt(data.mydeposits_access_token_encrypted) : ''
   const refreshToken = data.mydeposits_refresh_token_encrypted ? decrypt(data.mydeposits_refresh_token_encrypted) : ''
 
   return {
-    clientId: data.mydeposits_client_id,
-    clientSecret: clientSecret || '',
+    clientId: MYDEPOSITS_CLIENT_ID,
+    clientSecret: MYDEPOSITS_CLIENT_SECRET,
     accessToken: accessToken || '',
     refreshToken: refreshToken || '',
     tokenExpiresAt: data.mydeposits_token_expires_at ? new Date(data.mydeposits_token_expires_at) : null,
     memberId: data.mydeposits_member_id || '',
     branchId: data.mydeposits_branch_id || '',
     schemeType: (data.mydeposits_scheme_type as 'custodial') || 'custodial',
-    environment: (data.mydeposits_environment as 'sandbox' | 'live') || 'sandbox'
+    environment: 'live' as const
   }
 }
 
@@ -138,14 +148,14 @@ export async function getCompanyMyDepositsConfig(companyId: string): Promise<MyD
  * Get OAuth authorization URL with PKCE
  */
 export function getAuthorizationUrl(
-  config: { clientId: string; environment: 'sandbox' | 'live' },
+  config: { clientId?: string; environment?: 'sandbox' | 'live' },
   redirectUri: string,
   codeChallenge: string,
   state: string
 ): string {
-  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS[config.environment]
+  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS['live']
   return `${authUrl}/connect/authorize?` +
-    `client_id=${encodeURIComponent(config.clientId)}&` +
+    `client_id=${encodeURIComponent(MYDEPOSITS_CLIENT_ID)}&` +
     `code_challenge=${encodeURIComponent(codeChallenge)}&` +
     `code_challenge_method=S256&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -156,28 +166,29 @@ export function getAuthorizationUrl(
  * Exchange authorization code for tokens (with PKCE)
  */
 export async function exchangeCodeForTokens(
-  config: { clientId: string; clientSecret: string; environment: 'sandbox' | 'live' },
+  config: { clientId?: string; clientSecret?: string; environment?: 'sandbox' | 'live' },
   authorizationCode: string,
   codeVerifier: string,
   redirectUri: string
 ): Promise<{ success: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; memberId?: string; branchId?: string; error?: string }> {
-  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS[config.environment]
+  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS['live']
 
   try {
-    const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
-
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code: authorizationCode,
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier
+      code_verifier: codeVerifier,
+      client_id: MYDEPOSITS_CLIENT_ID,
+      client_secret: MYDEPOSITS_CLIENT_SECRET
     })
+
+    console.log(`[mydeposits] Token exchange POST ${authUrl}/connect/token`)
 
     const response = await fetch(`${authUrl}/connect/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`,
         'User-Agent': USER_AGENT
       },
       body: body.toString()
@@ -220,21 +231,22 @@ export async function refreshAccessToken(
   companyId: string,
   config: MyDepositsConfig
 ): Promise<{ success: boolean; accessToken?: string; error?: string }> {
-  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS[config.environment]
+  const authUrl = MYDEPOSITS_AUTH_ENDPOINTS['live']
 
   try {
-    const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
-
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: config.refreshToken
+      refresh_token: config.refreshToken,
+      client_id: MYDEPOSITS_CLIENT_ID,
+      client_secret: MYDEPOSITS_CLIENT_SECRET
     })
+
+    console.log(`[mydeposits] Token refresh POST ${authUrl}/connect/token`)
 
     const response = await fetch(`${authUrl}/connect/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`,
         'User-Agent': USER_AGENT
       },
       body: body.toString()
@@ -296,16 +308,26 @@ export async function getValidAccessToken(
   // Check if token is still valid (with 5 minute buffer)
   if (config.accessToken && config.tokenExpiresAt) {
     const bufferMs = 5 * 60 * 1000 // 5 minutes
-    if (new Date(config.tokenExpiresAt).getTime() > Date.now() + bufferMs) {
+    const expiresAt = new Date(config.tokenExpiresAt).getTime()
+    const now = Date.now()
+    if (expiresAt > now + bufferMs) {
+      console.log(`[mydeposits] Token still valid (expires in ${Math.round((expiresAt - now) / 1000)}s)`)
       return { success: true, accessToken: config.accessToken }
     }
+    console.log(`[mydeposits] Token expired or expiring soon (expires at ${config.tokenExpiresAt})`)
+  } else {
+    console.log(`[mydeposits] No token or no expiry — has token: ${!!config.accessToken}, has expiry: ${!!config.tokenExpiresAt}`)
   }
 
   // Token expired or expiring soon, refresh it
   if (config.refreshToken) {
-    return await refreshAccessToken(companyId, config)
+    console.log('[mydeposits] Attempting token refresh...')
+    const result = await refreshAccessToken(companyId, config)
+    console.log(`[mydeposits] Token refresh result: success=${result.success}, error=${result.error || 'none'}`)
+    return result
   }
 
+  console.log('[mydeposits] No refresh token available')
   return { success: false, error: 'No valid token available. Please re-authorize.' }
 }
 
@@ -325,14 +347,17 @@ export async function testConnection(
   }
 
   try {
-    // Use member info endpoint to test connection
-    const response = await fetch(`${baseUrl}/${API_VERSION}/member`, {
+    const testUrl = `${baseUrl}/${API_VERSION}/deposits`
+    console.log(`[mydeposits] Test: GET ${testUrl}`)
+    const response = await fetch(testUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenResult.accessToken}`,
         'User-Agent': USER_AGENT
       }
     })
+
+    console.log(`[mydeposits] Test connection response: ${response.status} from ${testUrl}`)
 
     if (response.ok) {
       return { success: true, message: 'Connection successful' }
@@ -342,6 +367,8 @@ export async function testConnection(
       return { success: false, message: 'Authorization failed. Please re-authorize.' }
     }
 
+    const errorText = await response.text()
+    console.error(`[mydeposits] Test connection failed: ${response.status}`, errorText.substring(0, 200))
     return { success: false, message: `Connection test failed (status ${response.status})` }
   } catch (err) {
     console.error('mydeposits connection test error:', err)
@@ -447,67 +474,260 @@ export function mapTenancyToMyDepositsPayload(
 }
 
 /**
+ * Helper: make authenticated API call to mydeposits
+ */
+async function mydepositsApiFetch(
+  baseUrl: string,
+  accessToken: string,
+  method: string,
+  path: string,
+  body?: any
+): Promise<{ ok: boolean; status: number; data: any }> {
+  const url = `${baseUrl}/${API_VERSION}${path}`
+  console.log(`[mydeposits] ${method} ${url}`)
+  if (body) console.log(`[mydeposits] Body:`, JSON.stringify(body).substring(0, 500))
+
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+      'User-Agent': USER_AGENT
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  })
+
+  const text = await response.text()
+  console.log(`[mydeposits] Response ${response.status}:`, text.substring(0, 300))
+
+  let data: any
+  try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
+  return { ok: response.ok, status: response.status, data }
+}
+
+/**
  * Register a deposit with mydeposits
+ * Full flow: 1) Create property  2) Create tenancy with tenants  3) Create deposit
  */
 export async function registerDeposit(
   companyId: string,
   tenancy: any,
   depositReceivedDate: string
-): Promise<{ success: boolean; depositId?: string; error?: string }> {
+): Promise<{ success: boolean; depositId?: string; paymentReference?: string | null; error?: string }> {
   const config = await getCompanyMyDepositsConfig(companyId)
-
   if (!config) {
     return { success: false, error: 'mydeposits not configured for this company' }
   }
 
-  // Get valid access token
   const tokenResult = await getValidAccessToken(companyId, config)
   if (!tokenResult.success || !tokenResult.accessToken) {
     return { success: false, error: tokenResult.error || 'Failed to get valid access token' }
   }
 
   const baseUrl = MYDEPOSITS_API_ENDPOINTS[config.environment]
-  const schemeEndpoint = 'custodial'
-  const payload = mapTenancyToMyDepositsPayload(tenancy, depositReceivedDate)
+  const token = tokenResult.accessToken
+  const mapped = mapTenancyToMyDepositsPayload(tenancy, depositReceivedDate)
 
   try {
-    const response = await fetch(`${baseUrl}/${API_VERSION}/${schemeEndpoint}/deposit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${tokenResult.accessToken}`,
-        'User-Agent': USER_AGENT
-      },
-      body: JSON.stringify(payload)
-    })
+    // ── Step 1: Create property in mydeposits ──
+    console.log('[mydeposits] Step 1: Creating property...')
+    const landlord = mapped.landlord
 
-    const responseText = await response.text()
-    if (!responseText) {
-      return { success: false, error: 'Empty response from mydeposits API' }
+    // Get office ID — stored as branchId in config, or discovered from existing properties
+    let officeId: number | null = null
+
+    // Use stored branchId (set during MyDeposits setup)
+    if (config.branchId) {
+      officeId = parseInt(config.branchId)
+      if (isNaN(officeId)) officeId = null
     }
 
-    let data: any
-    try {
-      data = JSON.parse(responseText)
-    } catch {
-      return { success: false, error: `Invalid response: ${responseText.substring(0, 100)}` }
-    }
-
-    // Handle success response
-    if (response.ok && (data.depositId || data.deposit_id || data.id)) {
-      return {
-        success: true,
-        depositId: data.depositId || data.deposit_id || data.id
+    // Fallback: try to get from an existing property
+    if (!officeId) {
+      const propsResult = await mydepositsApiFetch(baseUrl, token, 'GET', '/properties?take=1&pageSize=1')
+      if (propsResult.ok && propsResult.data?.data?.length > 0) {
+        const propId = propsResult.data.data[0].propertyId || propsResult.data.data[0].id
+        if (propId) {
+          const detailResult = await mydepositsApiFetch(baseUrl, token, 'GET', `/properties/${propId}`)
+          if (detailResult.ok && detailResult.data?.agencyOfficeId) {
+            officeId = detailResult.data.agencyOfficeId
+          }
+        }
       }
     }
 
-    // Handle errors
-    if (data.errors && Array.isArray(data.errors)) {
-      const errorMessages = data.errors.map((e: any) => e.message || e.error).join(', ')
-      return { success: false, error: errorMessages }
+    if (!officeId) {
+      return { success: false, error: 'MyDeposits Office ID not configured. Please set it in Settings > mydeposits.' }
     }
 
-    return { success: false, error: data.error || data.message || 'Failed to register deposit with mydeposits' }
+    console.log(`[mydeposits] Using officeId: ${officeId}`)
+
+    // Search for existing property first
+    let propertyId: number | null = null
+    const searchResult = await mydepositsApiFetch(baseUrl, token, 'POST', '/look-up/properties/search', {
+      searchText: mapped.propertyPostcode
+    })
+    if (searchResult.ok && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
+      // Try to match by address
+      const addrLower = mapped.propertyAddressLine1.toLowerCase()
+      const match = searchResult.data.find((p: any) =>
+        (p.text || p.address || '').toLowerCase().includes(addrLower)
+      ) || searchResult.data[0]
+      propertyId = match.id
+      console.log(`[mydeposits] Found existing property: ${propertyId} (${match.text || match.address})`)
+    }
+
+    // Create property if not found
+    if (!propertyId) {
+      console.log('[mydeposits] No existing property found, creating...')
+      const propertyPayload: any = {
+        name: `${mapped.propertyAddressLine1}, ${mapped.propertyPostcode}`,
+        officeId: officeId || undefined,
+        address: {
+          addressLine1: mapped.propertyAddressLine1,
+          addressLine2: mapped.propertyAddressLine2 || undefined,
+          city: mapped.propertyTown,
+          postcode: mapped.propertyPostcode,
+          country: { id: 225 },
+          region: { id: 1 },
+          isAddressSetManually: true
+        },
+        landlord: {
+          email: landlord.email,
+          firstName: landlord.firstName,
+          lastName: landlord.lastName,
+          phone: landlord.mobile || '+440000000000'
+        }
+      }
+
+      const propResult = await mydepositsApiFetch(baseUrl, token, 'POST', '/properties/manage-by-agency', propertyPayload)
+      if (!propResult.ok) {
+        const errors = propResult.data?.errors || []
+        const errMsg = JSON.stringify(errors)
+        // If it failed because property already exists, search again
+        const isAlreadyExists = errors.some((e: any) =>
+          e.code === 'PropertyIsNotUniqueForAgent' || e.code === 'PropertyAlreadyExistsInYourAccount'
+        )
+        if (isAlreadyExists) {
+          // Re-search — it exists but didn't match our first search
+          const retry = await mydepositsApiFetch(baseUrl, token, 'POST', '/look-up/properties/search', {
+            searchText: mapped.propertyAddressLine1
+          })
+          if (retry.ok && Array.isArray(retry.data) && retry.data.length > 0) {
+            propertyId = retry.data[0].id
+            console.log(`[mydeposits] Found property on retry: ${propertyId}`)
+          }
+        }
+        if (!propertyId) {
+          return { success: false, error: `Failed to create property in mydeposits: ${errMsg.substring(0, 200)}` }
+        }
+      } else {
+        propertyId = propResult.data.propertyId
+        console.log(`[mydeposits] Property created: ${propertyId}`)
+      }
+    }
+
+    // ── Step 2: Create tenancy with tenants ──
+    console.log('[mydeposits] Step 2: Creating tenancy...')
+    const tenants = mapped.tenants.map((t: any) => ({
+      email: t.email,
+      firstName: t.firstName,
+      lastName: t.lastName,
+      phoneNumber: t.mobile || '+440000000000',
+      isLeadTenant: t.isLeadTenant || false
+    }))
+
+    // Ensure at least one lead tenant
+    if (!tenants.some((t: any) => t.isLeadTenant) && tenants.length > 0) {
+      tenants[0].isLeadTenant = true
+    }
+
+    const depositAmount = Math.round(Number(mapped.depositAmount) || 0)
+    const monthlyRent = Math.round(Number(tenancy.rent_amount) || depositAmount / 5 * 4.33)
+    const tenancyPayload = {
+      propertyId,
+      tenancyDetails: {
+        rent: monthlyRent,
+        rentFrequency: { id: 1, text: 'Monthly' },
+        depositAmount,
+        isDepositAmountSetManually: true,
+        startDate: mapped.tenancyStartDate,
+        endDate: mapped.tenancyEndDate || undefined,
+        tenancyName: `${mapped.propertyAddressLine1} ${Date.now()}`
+      },
+      tenants
+    }
+
+    const tenancyResult = await mydepositsApiFetch(baseUrl, token, 'POST', '/tenancies', tenancyPayload)
+    if (!tenancyResult.ok) {
+      const errMsg = JSON.stringify(tenancyResult.data?.errors || tenancyResult.data)
+      return { success: false, error: `Failed to create tenancy in mydeposits: ${errMsg.substring(0, 200)}` }
+    }
+
+    const mdTenancyId = tenancyResult.data.tenancyId
+    console.log(`[mydeposits] Tenancy created: ${mdTenancyId}`)
+
+    // ── Step 3: Get available schemes and create deposit ──
+    console.log('[mydeposits] Step 3: Getting schemes and creating deposit...')
+    const schemesResult = await mydepositsApiFetch(baseUrl, token, 'GET', `/tenancies/${mdTenancyId}/available-deposit-schemes`)
+
+    let schemeId: number | null = null
+    if (schemesResult.ok && schemesResult.data?.schemes?.length > 0) {
+      // Prefer custodial scheme
+      const custodialScheme = schemesResult.data.schemes.find(
+        (s: any) => s.schemeType?.text?.toLowerCase().includes('custodial')
+      )
+      schemeId = custodialScheme?.id || schemesResult.data.schemes[0].id
+      console.log(`[mydeposits] Using scheme: ${schemeId} (${custodialScheme?.name || schemesResult.data.schemes[0].name})`)
+    }
+
+    if (!schemeId) {
+      return { success: false, error: 'No available deposit schemes found for this tenancy in mydeposits' }
+    }
+
+    const depositPayload = {
+      tenancyId: mdTenancyId,
+      schemeId,
+      tenantPaidDepositDate: new Date(mapped.depositReceivedDate).toISOString()
+    }
+
+    const depositResult = await mydepositsApiFetch(baseUrl, token, 'POST', '/deposits', depositPayload)
+    if (!depositResult.ok) {
+      const errMsg = JSON.stringify(depositResult.data?.errors || depositResult.data)
+      return { success: false, error: `Failed to create deposit in mydeposits: ${errMsg.substring(0, 200)}` }
+    }
+
+    const depositId = String(depositResult.data.depositId)
+    console.log(`[mydeposits] Deposit created: ${depositId}`)
+
+    // ── Step 4: Initiate bank transfer payment ──
+    console.log('[mydeposits] Step 4: Initiating bank transfer payment...')
+    const paymentPayload = {
+      paymentMethodTypeId: 2, // Bank transfer
+      amount: depositAmount
+    }
+
+    const paymentResult = await mydepositsApiFetch(baseUrl, token, 'POST', `/deposits/${depositId}/payments`, paymentPayload)
+    let paymentReference: string | null = null
+
+    if (paymentResult.ok) {
+      paymentReference = paymentResult.data.paymentReference || null
+      const paymentId = paymentResult.data.paymentId
+      console.log(`[mydeposits] Payment initiated: id=${paymentId}, ref=${paymentReference}`)
+
+      // Get full payment details for the bank transfer reference
+      if (paymentId) {
+        const paymentDetails = await mydepositsApiFetch(baseUrl, token, 'GET', `/payments/${paymentId}`)
+        if (paymentDetails.ok) {
+          paymentReference = paymentDetails.data.paymentReference || paymentReference
+          console.log(`[mydeposits] Payment details:`, JSON.stringify(paymentDetails.data).substring(0, 300))
+        }
+      }
+    } else {
+      console.log(`[mydeposits] Payment initiation failed (non-blocking): ${JSON.stringify(paymentResult.data).substring(0, 200)}`)
+    }
+
+    return { success: true, depositId, paymentReference }
   } catch (err) {
     console.error('mydeposits registerDeposit error:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to connect to mydeposits API' }
@@ -533,10 +753,9 @@ export async function getDepositStatus(
   }
 
   const baseUrl = MYDEPOSITS_API_ENDPOINTS[config.environment]
-  const schemeEndpoint = 'custodial'
 
   try {
-    const response = await fetch(`${baseUrl}/${API_VERSION}/${schemeEndpoint}/deposit/${depositId}`, {
+    const response = await fetch(`${baseUrl}/${API_VERSION}/deposits/${depositId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenResult.accessToken}`,
@@ -636,10 +855,10 @@ export async function downloadCertificate(
   }
 
   const baseUrl = MYDEPOSITS_API_ENDPOINTS[config.environment]
-  const schemeEndpoint = 'custodial'
 
   try {
-    const response = await fetch(`${baseUrl}/${API_VERSION}/${schemeEndpoint}/deposit/${depositId}/certificate`, {
+    // API returns JSON with downloadUrl, not the PDF directly
+    const response = await fetch(`${baseUrl}/${API_VERSION}/deposits/${depositId}/certificate`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenResult.accessToken}`,
@@ -648,13 +867,29 @@ export async function downloadCertificate(
     })
 
     if (!response.ok) {
-      return { success: false, error: 'Failed to download certificate' }
+      console.error(`[mydeposits] Certificate API error: ${response.status}`)
+      return { success: false, error: 'Failed to get certificate from mydeposits' }
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer())
-    const contentType = response.headers.get('content-type') || 'application/pdf'
+    const data: any = await response.json()
+    console.log('[mydeposits] Certificate response:', JSON.stringify(data).substring(0, 300))
 
-    return { success: true, buffer, contentType }
+    // Response has downloadUrl — fetch the actual PDF from that URL
+    if (data.downloadUrl) {
+      const pdfResponse = await fetch(data.downloadUrl)
+      if (!pdfResponse.ok) {
+        return { success: false, error: 'Failed to download certificate PDF' }
+      }
+      const buffer = Buffer.from(await pdfResponse.arrayBuffer())
+      return { success: true, buffer, contentType: 'application/pdf' }
+    }
+
+    // If not generated yet
+    if (data.isGenerated === false) {
+      return { success: false, error: 'Certificate not yet generated. Please try again later.' }
+    }
+
+    return { success: false, error: 'No download URL in certificate response' }
   } catch (err) {
     console.error('mydeposits downloadCertificate error:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to download certificate' }
@@ -710,25 +945,23 @@ export async function saveMyDepositsTokens(
 export async function saveMyDepositsConfig(
   companyId: string,
   config: {
-    clientId: string
-    clientSecret: string
-    schemeType: 'custodial'
-    environment: 'sandbox' | 'live'
+    clientId?: string
+    clientSecret?: string
+    schemeType?: 'custodial'
+    environment?: 'sandbox' | 'live'
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const encryptedSecret = encrypt(config.clientSecret)
-
   const { data: existing } = await supabase
     .from('company_integrations')
     .select('id')
     .eq('company_id', companyId)
     .single()
 
-  const updateData = {
-    mydeposits_client_id: config.clientId,
-    mydeposits_client_secret_encrypted: encryptedSecret,
-    mydeposits_scheme_type: config.schemeType,
-    mydeposits_environment: config.environment,
+  const updateData: Record<string, any> = {
+    mydeposits_client_id: MYDEPOSITS_CLIENT_ID,
+    mydeposits_client_secret_encrypted: encrypt(MYDEPOSITS_CLIENT_SECRET),
+    mydeposits_scheme_type: config.schemeType || 'custodial',
+    mydeposits_environment: 'live',
     updated_at: new Date().toISOString()
   }
 

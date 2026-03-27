@@ -769,6 +769,11 @@
           <Apex27IntegrationSettings />
         </div>
 
+        <!-- InventoryGoose Tab -->
+        <div v-else-if="activeTab === 'inventorygoose'" class="max-w-3xl">
+          <IGIntegrationSettings />
+        </div>
+
         <!-- Billing Tab -->
         <div v-else-if="activeTab === 'billing'">
           <Billing />
@@ -937,6 +942,7 @@ import RepositIntegrationSettings from '../components/settings/RepositIntegratio
 import MyDepositsIntegrationSettings from '../components/settings/MyDepositsIntegrationSettings.vue'
 import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
 import Apex27IntegrationSettings from '../components/settings/Apex27IntegrationSettings.vue'
+import IGIntegrationSettings from '../components/settings/IGIntegrationSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
@@ -961,6 +967,7 @@ const activeTab = computed(() => {
   if (path.includes('/settings/mydeposits')) return 'mydeposits'
   if (path.includes('/settings/review-links')) return 'review-links'
   if (path.includes('/settings/apex27')) return 'apex27'
+  if (path.includes('/settings/inventorygoose')) return 'inventorygoose'
   // Legacy route support
   if (path.includes('/settings/integrations')) return 'tds'
   return 'profile'
@@ -978,6 +985,7 @@ const tabs = computed(() => {
     { id: 'reposit', name: 'Reposit' },
     { id: 'review-links', name: 'Review Links' },
     { id: 'apex27', name: 'Apex27 CRM' },
+    { id: 'inventorygoose', name: 'InventoryGoose' },
     { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }
   ]

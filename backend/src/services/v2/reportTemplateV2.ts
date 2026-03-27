@@ -480,11 +480,13 @@ function buildHeader(data: V2ReportData): string {
     ? `<div style="background:#fff;border-radius:6px;padding:6px 12px;display:flex;align-items:center;justify-content:center;max-width:140px;max-height:48px;"><img src="${data.company.logoBase64}" style="max-height:36px;max-width:120px;object-fit:contain;" /></div>`
     : `<div class="rr-agent-slot">${data.company.name}</div>`
 
+  const reportTitle = data.reference.is_guarantor ? 'Guarantor Reference Report' : 'Tenant Reference Report'
+
   return `
   <div class="rr-header">
     <div class="rr-logo-area">
       ${pgLogo}
-      <span style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;letter-spacing:0.5px;margin-left:12px;">Tenant Reference Report</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;letter-spacing:0.5px;margin-left:12px;">${reportTitle}</span>
     </div>
     ${agentLogo}
   </div>`
@@ -588,7 +590,15 @@ function buildPage1(data: V2ReportData, totalPages: number): string {
     </div>
 
     <div class="rr-grid">
-      ${data.sections.map(s => buildSectionCard(s, data.reference, data)).join('\n')}
+      ${data.sections
+        .filter(s => {
+          // Guarantors only show: IDENTITY, ADDRESS, INCOME, CREDIT, AML
+          if (ref.is_guarantor) {
+            return ['IDENTITY', 'ADDRESS', 'INCOME', 'CREDIT', 'AML'].includes(s.section_type)
+          }
+          return true
+        })
+        .map(s => buildSectionCard(s, data.reference, data)).join('\n')}
     </div>
 
     ${buildFooter(data, 1, totalPages)}
@@ -693,6 +703,84 @@ function buildPage2Identity(data: V2ReportData, totalPages: number): string {
 
       ${rtrSection?.assessor_notes ? `<div style="font-size:11px;color:var(--pg-muted);margin-top:8px;"><strong>Assessor Notes:</strong> ${esc(rtrSection.assessor_notes)}</div>` : ''}
       ${rtrSection?.condition_text ? `<div class="rr-cond-note">${esc(rtrSection.condition_text)}</div>` : ''}
+    </div>
+
+    ${buildFooter(data, 2, totalPages)}
+  </div>`
+}
+
+function buildGuarantorPage2Identity(data: V2ReportData, totalPages: number): string {
+  const ref = data.reference
+  const firstName = decryptSafe(ref.tenant_first_name_encrypted)
+  const lastName = decryptSafe(ref.tenant_last_name_encrypted)
+  const dob = decryptSafe(ref.tenant_dob_encrypted)
+  const email = decryptSafe(ref.tenant_email_encrypted)
+  const phone = decryptSafe(ref.tenant_phone_encrypted)
+
+  const identitySection = data.sections.find(s => s.section_type === 'IDENTITY')
+  const identityData = (identitySection?.section_data || {}) as Record<string, any>
+  const identityChecklist = identityData.checklist_results || {}
+  const formData = (ref.form_data || {}) as Record<string, any>
+  const identityForm = formData.identity || {}
+
+  const docType = identityChecklist.document_type || identityForm.documentType || identityData.document_type || 'Not specified'
+  const expiryDate = identityChecklist.expiry_date || identityChecklist.document_expiry || ''
+
+  // Address verification (proof of address for guarantors)
+  const addressSection = data.sections.find(s => s.section_type === 'ADDRESS')
+  const addressData = (addressSection?.section_data || {}) as Record<string, any>
+  const addressChecklist = addressData.checklist_results || {}
+
+  const currentAddr = [
+    decryptSafe(ref.current_address_line1_encrypted),
+    decryptSafe(ref.current_address_line2_encrypted),
+    decryptSafe(ref.current_city_encrypted),
+    decryptSafe(ref.current_postcode_encrypted)
+  ].filter(Boolean).join(', ')
+
+  return `
+  <div class="rr-page" style="page-break-before:always;">
+    ${buildHeader(data)}
+
+    <!-- IDENTITY DETAIL -->
+    <div class="rr-section-divider">
+      <span class="rr-section-divider-label">Identity Verification</span>
+      <div class="rr-section-divider-line"></div>
+      ${getDividerBadge(identitySection?.decision as V2SectionDecision | null)}
+    </div>
+
+    <div class="rr-income-wrap">
+      <table class="rr-afford-table">
+        <tr><td>Full Name</td><td>${esc(firstName)} ${esc(lastName)}</td></tr>
+        <tr><td>Date of Birth</td><td>${dob ? formatDate(dob) : 'N/A'}</td></tr>
+        <tr><td>Email</td><td>${esc(email) || 'N/A'}</td></tr>
+        ${phone ? `<tr><td>Phone</td><td>${esc(phone)}</td></tr>` : ''}
+        <tr><td>Document Type</td><td>${esc(formatValue(docType))}</td></tr>
+        ${expiryDate ? `<tr><td>Expiry Date</td><td>${formatDate(expiryDate)}</td></tr>` : ''}
+        ${identityChecklist.document_expiry_valid !== undefined ? `<tr><td>Document Valid</td><td style="color:${identityChecklist.document_expiry_valid ? 'var(--pass-text)' : 'var(--fail-text)'}">${identityChecklist.document_expiry_valid ? '\u2713 Yes' : '\u2717 Expired'}</td></tr>` : ''}
+        ${identityChecklist.facial_match !== undefined ? `<tr><td>Facial Recognition</td><td style="color:${identityChecklist.facial_match ? 'var(--pass-text)' : 'var(--fail-text)'}">${identityChecklist.facial_match ? '\u2713 Clear' : '\u2717 Failed'}</td></tr>` : ''}
+      </table>
+
+      ${identitySection?.assessor_notes ? `<div style="font-size:11px;color:var(--pg-muted);margin-top:8px;"><strong>Assessor Notes:</strong> ${esc(identitySection.assessor_notes)}</div>` : ''}
+    </div>
+
+    <!-- ADDRESS / PROOF OF ADDRESS -->
+    <div class="rr-section-divider">
+      <span class="rr-section-divider-label">Proof of Address</span>
+      <div class="rr-section-divider-line"></div>
+      ${getDividerBadge(addressSection?.decision as V2SectionDecision | null)}
+    </div>
+
+    <div class="rr-income-wrap">
+      <table class="rr-afford-table">
+        ${currentAddr ? `<tr><td>Current Address</td><td>${esc(currentAddr)}</td></tr>` : ''}
+        ${addressChecklist.address_confirmed !== undefined ? `<tr><td>Address Confirmed</td><td style="color:${addressChecklist.address_confirmed ? 'var(--pass-text)' : 'var(--fail-text)'}">${addressChecklist.address_confirmed ? '\u2713 Yes' : '\u2717 No'}</td></tr>` : ''}
+        ${addressChecklist.document_type ? `<tr><td>Document Type</td><td>${esc(formatValue(addressChecklist.document_type))}</td></tr>` : ''}
+        ${addressChecklist.document_dated_within_3_months !== undefined ? `<tr><td>Document Recent</td><td style="color:${addressChecklist.document_dated_within_3_months ? 'var(--pass-text)' : 'var(--fail-text)'}">${addressChecklist.document_dated_within_3_months ? '\u2713 Within 3 months' : '\u2717 Older than 3 months'}</td></tr>` : ''}
+      </table>
+
+      ${addressSection?.assessor_notes ? `<div style="font-size:11px;color:var(--pg-muted);margin-top:8px;"><strong>Assessor Notes:</strong> ${esc(addressSection.assessor_notes)}</div>` : ''}
+      ${addressSection?.condition_text ? `<div class="rr-cond-note">${esc(addressSection.condition_text)}</div>` : ''}
     </div>
 
     ${buildFooter(data, 2, totalPages)}
@@ -1570,24 +1658,31 @@ export function buildReportHtml(data: V2ReportData): string {
   const status = data.reference.status as string
   const isIndividualReport = status === 'INDIVIDUAL_COMPLETE' || status === 'GROUP_ASSESSMENT'
   const isGroup = data.reference.is_group_parent && data.children && data.children.length > 0 && !isIndividualReport
-  let totalPages = 5 // cover, identity+rtr, income, residential+credit+aml, disclaimer
-  if (isGroup) totalPages = 6 // add group summary page
+  const isGuarantor = !!data.reference.is_guarantor
+
+  // Guarantor: cover, identity (no RTR), income, address+credit+aml, disclaimer = 5 pages
+  // Tenant: cover, identity+rtr, income, residential+credit+aml, disclaimer = 5 pages (+1 if group)
+  let totalPages = isGuarantor ? 5 : 5
+  if (isGroup) totalPages = 6
 
   const pages: string[] = []
 
   // Page 1 - Cover/Summary
   pages.push(buildPage1(data, totalPages))
 
-  // Page 2 - Identity + RTR
-  pages.push(buildPage2Identity(data, totalPages))
+  if (isGuarantor) {
+    // Guarantor flow: Identity only (no RTR), Income, Address+Credit+AML
+    pages.push(buildGuarantorPage2Identity(data, totalPages))
+    pages.push(buildPage3Income(data, totalPages))
+    pages.push(buildPage4ResidentialCreditAml(data, totalPages))
+  } else {
+    // Tenant flow: Identity+RTR, Income, Residential+Credit+AML
+    pages.push(buildPage2Identity(data, totalPages))
+    pages.push(buildPage3Income(data, totalPages))
+    pages.push(buildPage4ResidentialCreditAml(data, totalPages))
+  }
 
-  // Page 3 - Income
-  pages.push(buildPage3Income(data, totalPages))
-
-  // Page 4 - Residential + Credit + AML
-  pages.push(buildPage4ResidentialCreditAml(data, totalPages))
-
-  // Page 5 - Group Summary (only for final ACCEPTED group reports, not individual reports)
+  // Group Summary (only for final ACCEPTED group reports, not individual reports)
   if (isGroup) {
     pages.push(buildPage5GroupSummary(data, totalPages))
   }

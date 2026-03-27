@@ -8,6 +8,7 @@
 import express, { Request, Response, Router } from 'express'
 import { supabase } from '../../config/supabase'
 import { encrypt, decrypt, hash } from '../../services/encryption'
+import { logActivity } from '../../services/v2/activityServiceV2'
 
 const router: Router = express.Router()
 
@@ -42,10 +43,11 @@ router.get('/guarantor-form/:token', async (req: Request, res: Response) => {
 
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url')
+      .select('*')
       .eq('id', ref.company_id)
-      .single()
+      .maybeSingle()
 
+    const co = company as any
     return res.json({
       reference: {
         id: guarantor.id,
@@ -55,8 +57,8 @@ router.get('/guarantor-form/:token', async (req: Request, res: Response) => {
         guarantor_email: guarantor.guarantor_email,
         form_completed_at: guarantor.form_completed_at
       },
-      companyName: company?.name || 'PropertyGoose',
-      companyLogo: company?.logo_url || ''
+      companyName: co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'PropertyGoose',
+      companyLogo: co?.logo_url || ''
     })
   } catch (error) {
     console.error('Error fetching guarantor form:', error)
@@ -156,10 +158,11 @@ router.get('/employer-form/:token', async (req: Request, res: Response) => {
 
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url')
+      .select('*')
       .eq('id', ref.company_id)
-      .single()
+      .maybeSingle()
 
+    const empCo = company as any
     const employerName = ref.form_data?.income?.employerName || ''
 
     return res.json({
@@ -169,8 +172,8 @@ router.get('/employer-form/:token', async (req: Request, res: Response) => {
         employer_name: employerName,
         submitted_at: referee.completed_at
       },
-      companyName: company?.name || 'A letting agent',
-      companyLogo: company?.logo_url || ''
+      companyName: empCo?.name || (empCo?.name_encrypted ? decrypt(empCo.name_encrypted) : null) || empCo?.company_name || 'A letting agent',
+      companyLogo: empCo?.logo_url || ''
     })
   } catch (error) {
     console.error('Error fetching employer form:', error)
@@ -216,17 +219,31 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the INCOME section to READY if it's PENDING
-    await supabase
+    // Update the INCOME section to READY if it's PENDING (with evidence_status merge)
+    const { data: empIncSection } = await supabase
       .from('reference_sections_v2')
-      .update({
-        queue_status: 'READY',
-        referee_submitted_at: new Date().toISOString(),
-        queue_entered_at: new Date().toISOString()
-      })
+      .select('id, section_data')
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'INCOME')
       .eq('queue_status', 'PENDING')
+      .maybeSingle()
+
+    if (empIncSection) {
+      const now = new Date().toISOString()
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          queue_status: 'READY',
+          referee_submitted_at: now,
+          queue_entered_at: now,
+          section_data: {
+            ...(empIncSection.section_data || {}),
+            evidence_status: 'REFEREE_RECEIVED'
+          },
+          updated_at: now
+        })
+        .eq('id', empIncSection.id)
+    }
 
     // Resolve any chase items for this referee
     await supabase
@@ -238,6 +255,14 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
       .eq('reference_id', referee.reference_id)
       .eq('referee_type', 'EMPLOYER')
       .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
+
+    await logActivity({
+      referenceId: referee.reference_id,
+      action: 'EMPLOYER_REFERENCE_RECEIVED',
+      performedBy: 'referee',
+      performedByType: 'referee',
+      notes: `Employer reference submitted by ${req.body.refereeName || 'employer'}`
+    })
 
     return res.json({ success: true })
   } catch (error) {
@@ -278,18 +303,19 @@ router.get('/landlord-form/:token', async (req: Request, res: Response) => {
 
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url')
+      .select('*')
       .eq('id', ref.company_id)
-      .single()
+      .maybeSingle()
 
+    const llCo = company as any
     return res.json({
       reference: {
         id: referee.id,
         tenant_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
         submitted_at: referee.completed_at
       },
-      companyName: company?.name || 'A letting agent',
-      companyLogo: company?.logo_url || ''
+      companyName: llCo?.name || (llCo?.name_encrypted ? decrypt(llCo.name_encrypted) : null) || llCo?.company_name || 'A letting agent',
+      companyLogo: llCo?.logo_url || ''
     })
   } catch (error) {
     console.error('Error fetching landlord form:', error)
@@ -335,17 +361,31 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the RESIDENTIAL section to READY if it's PENDING
-    await supabase
+    // Update the RESIDENTIAL section to READY if it's PENDING (with evidence_status merge)
+    const { data: llResSection } = await supabase
       .from('reference_sections_v2')
-      .update({
-        queue_status: 'READY',
-        referee_submitted_at: new Date().toISOString(),
-        queue_entered_at: new Date().toISOString()
-      })
+      .select('id, section_data')
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'RESIDENTIAL')
       .eq('queue_status', 'PENDING')
+      .maybeSingle()
+
+    if (llResSection) {
+      const now = new Date().toISOString()
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          queue_status: 'READY',
+          referee_submitted_at: now,
+          queue_entered_at: now,
+          section_data: {
+            ...(llResSection.section_data || {}),
+            evidence_status: 'REFEREE_RECEIVED'
+          },
+          updated_at: now
+        })
+        .eq('id', llResSection.id)
+    }
 
     // Resolve any chase items for this referee
     await supabase
@@ -357,6 +397,14 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
       .eq('reference_id', referee.reference_id)
       .eq('referee_type', 'LANDLORD')
       .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
+
+    await logActivity({
+      referenceId: referee.reference_id,
+      action: 'LANDLORD_REFERENCE_RECEIVED',
+      performedBy: 'referee',
+      performedByType: 'referee',
+      notes: `Landlord reference submitted`
+    })
 
     return res.json({ success: true })
   } catch (error) {
@@ -397,18 +445,19 @@ router.get('/accountant-form/:token', async (req: Request, res: Response) => {
 
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url')
+      .select('*')
       .eq('id', ref.company_id)
-      .single()
+      .maybeSingle()
 
+    const acCo = company as any
     return res.json({
       reference: {
         id: referee.id,
         client_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
         submitted_at: referee.completed_at
       },
-      companyName: company?.name || 'A letting agent',
-      companyLogo: company?.logo_url || ''
+      companyName: acCo?.name || (acCo?.name_encrypted ? decrypt(acCo.name_encrypted) : null) || acCo?.company_name || 'A letting agent',
+      companyLogo: acCo?.logo_url || ''
     })
   } catch (error) {
     console.error('Error fetching accountant form:', error)
@@ -454,17 +503,31 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the INCOME section to READY if it's PENDING
-    await supabase
+    // Update the INCOME section to READY if it's PENDING (with evidence_status merge)
+    const { data: accIncSection } = await supabase
       .from('reference_sections_v2')
-      .update({
-        queue_status: 'READY',
-        referee_submitted_at: new Date().toISOString(),
-        queue_entered_at: new Date().toISOString()
-      })
+      .select('id, section_data')
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'INCOME')
       .eq('queue_status', 'PENDING')
+      .maybeSingle()
+
+    if (accIncSection) {
+      const now = new Date().toISOString()
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          queue_status: 'READY',
+          referee_submitted_at: now,
+          queue_entered_at: now,
+          section_data: {
+            ...(accIncSection.section_data || {}),
+            evidence_status: 'REFEREE_RECEIVED'
+          },
+          updated_at: now
+        })
+        .eq('id', accIncSection.id)
+    }
 
     // Resolve any chase items for this referee
     await supabase
@@ -476,6 +539,14 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
       .eq('reference_id', referee.reference_id)
       .eq('referee_type', 'ACCOUNTANT')
       .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
+
+    await logActivity({
+      referenceId: referee.reference_id,
+      action: 'ACCOUNTANT_REFERENCE_RECEIVED',
+      performedBy: 'referee',
+      performedByType: 'referee',
+      notes: `Accountant reference submitted`
+    })
 
     return res.json({ success: true })
   } catch (error) {
