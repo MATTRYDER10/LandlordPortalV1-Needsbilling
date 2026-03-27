@@ -467,7 +467,7 @@
               @click="showInviteModal = true"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
             >
-              Invite User
+              Invite New User to PropertyGoose
             </button>
           </div>
 
@@ -800,6 +800,19 @@
           </div>
 
           <div>
+            <label for="invite-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Initial Password</label>
+            <input
+              id="invite-password"
+              v-model="inviteData.password"
+              type="password"
+              required
+              minlength="6"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+              placeholder="Min 6 characters"
+            />
+          </div>
+
+          <div>
             <label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Role</label>
             <select
               id="invite-role"
@@ -1061,6 +1074,7 @@ const showResetBrandingModal = ref(false)
 const showInviteModal = ref(false)
 const inviteData = ref({
   email: '',
+  password: '',
   role: 'member'
 })
 
@@ -1447,6 +1461,7 @@ const handleInvite = async () => {
       },
       body: JSON.stringify({
         email: inviteData.value.email,
+        password: inviteData.value.password,
         role: inviteData.value.role
       })
     })

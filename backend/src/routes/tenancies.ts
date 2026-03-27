@@ -3702,6 +3702,25 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       }
     }
 
+    // Fetch guarantors from tenancy_guarantors
+    const { data: guarantorRecords } = await supabase
+      .from('tenancy_guarantors')
+      .select('*')
+      .eq('tenancy_id', tenancy.id)
+      .eq('status', 'active')
+
+    const guarantors = (guarantorRecords || []).map((g: any) => ({
+      name: `${decrypt(g.first_name_encrypted) || ''} ${decrypt(g.last_name_encrypted) || ''}`.trim(),
+      email: decrypt(g.email_encrypted) || '',
+      phone: decrypt(g.phone_encrypted) || '',
+      address: [
+        decrypt(g.address_line1_encrypted),
+        decrypt(g.city_encrypted),
+        decrypt(g.postcode_encrypted)
+      ].filter(Boolean).join(', '),
+      relationship_to_tenant: g.relationship_to_tenant
+    }))
+
     // Create agreement data
     const agreementData = {
       company_id: companyId,
@@ -3711,7 +3730,7 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       property_address: propertyAddress,
       landlords: landlords,
       tenants: tenants,
-      guarantors: [], // TODO: Add guarantor support
+      guarantors: guarantors,
       deposit_amount: tenancy.deposit_amount || 0,
       rent_amount: tenancy.monthly_rent,
       tenancy_start_date: tenancy.start_date,
