@@ -3776,6 +3776,25 @@ const updateTenancyField = async (field: string, value: any) => {
       deposit_scheme: result.tenancy?.deposit_scheme
     })
 
+    // When start date changes, auto-update end date to start + 12 months - 1 day
+    if (field === 'startDate' && value) {
+      const start = new Date(value)
+      const end = new Date(start)
+      end.setFullYear(end.getFullYear() + 1)
+      end.setDate(end.getDate() - 1)
+      const endDateStr = end.toISOString().split('T')[0]
+
+      await authFetch(
+        `${API_URL}/api/tenancies/records/${tenancy.value.id}`,
+        {
+          method: 'PUT',
+          token,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endDate: endDateStr, fixedTermEndDate: endDateStr })
+        }
+      )
+    }
+
     toast.success('Updated successfully')
     await loadFullTenancyData()
     emit('updated')
