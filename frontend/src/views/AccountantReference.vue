@@ -428,7 +428,7 @@ import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { defaultBranding } from '../config/colors'
 import { AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const loading = ref(true)

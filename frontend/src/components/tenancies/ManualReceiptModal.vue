@@ -38,10 +38,22 @@
               <div class="space-y-3">
                 <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase">Payment Details</h4>
 
-                <!-- Amount Requested -->
+                <!-- Amount Requested (Editable) -->
                 <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-slate-700">
-                  <span class="text-sm text-gray-600 dark:text-slate-400">Amount Requested</span>
-                  <span class="font-medium text-gray-900 dark:text-white">&pound;{{ amountRequested.toLocaleString('en-GB', { minimumFractionDigits: 2 }) }}</span>
+                  <div class="flex items-center gap-1">
+                    <span class="text-sm text-gray-600 dark:text-slate-400">Amount Requested</span>
+                    <Edit2 class="w-3 h-3 text-gray-400" />
+                  </div>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400">&pound;</span>
+                    <input
+                      v-model.number="amountRequested"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="w-32 pl-7 pr-3 py-2 text-right border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
 
                 <!-- Amount Received (Editable) -->
@@ -130,8 +142,9 @@
 import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
-import { Loader2, CheckCircle } from 'lucide-vue-next'
+import { Loader2, CheckCircle, Edit2 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   show: boolean
@@ -174,10 +187,10 @@ const loadData = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    // Get payment request data from backend
-    const response = await fetch(
+    // Get payment request data from backend (with branch isolation)
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}/payment-request`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -225,16 +238,17 @@ const confirmReceipt = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}/confirm-initial-monies`,
       {
         method: 'POST',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           amountReceived: amountReceived.value,
+          amountRequested: amountRequested.value,
           notes: notes.value,
           manualReceipt: true
         })

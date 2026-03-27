@@ -180,8 +180,8 @@
                     </div>
                     <div v-if="offer.deposit_replacement_requested" class="mt-2">
                       <span
-                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300">
-                        Deposit replacement service applied for
+                        class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                        <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
                       </span>
                     </div>
                     <div class="mt-2 text-sm text-gray-500 dark:text-slate-400">
@@ -236,7 +236,7 @@ import {
 } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const router = useRouter()
 const authStore = useAuthStore()

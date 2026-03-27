@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Deposit is Protected - PropertyGoose</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <div style="display: inline-block; text-align: center;">
+                                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto;">
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">Your Deposit is Protected</h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Dear {{ TenantName }},
+                            </p>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                We are pleased to confirm that your tenancy deposit has been registered and protected with <strong>{{ SchemeName }}</strong>.
+                            </p>
+
+                            <!-- Success Banner -->
+                            <div style="margin: 0 0 24px; padding: 20px; background-color: #dcfce7; border-left: 4px solid #22c55e; border-radius: 4px;">
+                                <p style="margin: 0; font-size: 16px; line-height: 24px; color: #166534;">
+                                    <strong>Deposit Protected Successfully</strong>
+                                </p>
+                            </div>
+
+                            <!-- Details Table -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 24px;">
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Deposit Assurance Number (DAN)</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827; font-weight: bold; font-size: 18px;">
+                                        {{ DAN }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Deposit Amount</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ DepositAmount }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Protection Scheme</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ SchemeName }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Date Protected</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ ProtectionDate }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb;">
+                                        <strong style="color: #374151;">Property</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; color: #111827;">
+                                        {{ PropertyAddress }}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Your deposit protection certificate is attached to this email for your records. Please keep this safe as you may need it at the end of your tenancy.
+                            </p>
+
+                            <!-- Important Info Box -->
+                            <div style="margin: 0 0 24px; padding: 20px; background-color: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #1e40af;">Important Information</p>
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #1e40af;">
+                                    Your DAN (Deposit Assurance Number) is your unique reference for this deposit. You can use this to look up your deposit protection at any time on the TDS website.
+                                </p>
+                            </div>
+
+                            <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280;">
+                                If you have any questions about your deposit, please contact {{ CompanyName }}.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; font-size: 12px; line-height: 18px; color: #9ca3af; text-align: center;">
+                                This is an automated message from PropertyGoose on behalf of {{ CompanyName }}.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

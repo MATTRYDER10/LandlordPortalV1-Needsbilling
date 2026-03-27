@@ -695,11 +695,45 @@ router.get('/records/active', authenticateToken, async (req: AuthRequest, res) =
       propertyId: propertyId as string,
       search: search as string
     }, {
-      limit: limit ? parseInt(limit as string) : 50,
+      limit: limit ? parseInt(limit as string) : 500,
       offset: offset ? parseInt(offset as string) : 0
     })
 
-    res.json(result)
+    // Enrich with UniHome data from linked offers via references
+    const refIds = [...new Set(result.tenancies.map(t => t.primary_reference_id).filter(Boolean))]
+    const offerUnihomesMap = new Map<string, { offer_unihomes: boolean; unihomes_interested: boolean }>()
+    if (refIds.length > 0) {
+      const { data: refs } = await supabase
+        .from('tenant_references_v2')
+        .select('id, offer_id')
+        .in('id', refIds)
+        .not('offer_id', 'is', null)
+      const offerIds = [...new Set((refs || []).map(r => r.offer_id).filter(Boolean))]
+      if (offerIds.length > 0) {
+        const { data: offers } = await supabase
+          .from('tenant_offers')
+          .select('id, offer_unihomes, unihomes_interested')
+          .in('id', offerIds)
+        const offerMap = new Map((offers || []).map(o => [o.id, o]))
+        for (const ref of (refs || [])) {
+          if (ref.offer_id && offerMap.has(ref.offer_id)) {
+            const offer = offerMap.get(ref.offer_id)!
+            offerUnihomesMap.set(ref.id, { offer_unihomes: offer.offer_unihomes, unihomes_interested: offer.unihomes_interested })
+          }
+        }
+      }
+    }
+
+    const enrichedTenancies = result.tenancies.map(t => {
+      const uniData = t.primary_reference_id ? offerUnihomesMap.get(t.primary_reference_id) : null
+      return {
+        ...t,
+        offer_unihomes: uniData?.offer_unihomes || false,
+        unihomes_interested: uniData?.unihomes_interested || false
+      }
+    })
+
+    res.json({ tenancies: enrichedTenancies, total: result.total })
   } catch (error: any) {
     console.error('Error in GET /api/tenancies/active:', error)
     res.status(500).json({ error: error.message })
@@ -727,7 +761,41 @@ router.get('/records/archived', authenticateToken, async (req: AuthRequest, res)
       offset: offset ? parseInt(offset as string) : 0
     })
 
-    res.json(result)
+    // Enrich with UniHome data from linked offers via references
+    const refIds = [...new Set(result.tenancies.map(t => t.primary_reference_id).filter(Boolean))]
+    const offerUnihomesMap = new Map<string, { offer_unihomes: boolean; unihomes_interested: boolean }>()
+    if (refIds.length > 0) {
+      const { data: refs } = await supabase
+        .from('tenant_references_v2')
+        .select('id, offer_id')
+        .in('id', refIds)
+        .not('offer_id', 'is', null)
+      const offerIds = [...new Set((refs || []).map(r => r.offer_id).filter(Boolean))]
+      if (offerIds.length > 0) {
+        const { data: offers } = await supabase
+          .from('tenant_offers')
+          .select('id, offer_unihomes, unihomes_interested')
+          .in('id', offerIds)
+        const offerMap = new Map((offers || []).map(o => [o.id, o]))
+        for (const ref of (refs || [])) {
+          if (ref.offer_id && offerMap.has(ref.offer_id)) {
+            const offer = offerMap.get(ref.offer_id)!
+            offerUnihomesMap.set(ref.id, { offer_unihomes: offer.offer_unihomes, unihomes_interested: offer.unihomes_interested })
+          }
+        }
+      }
+    }
+
+    const enrichedTenancies = result.tenancies.map(t => {
+      const uniData = t.primary_reference_id ? offerUnihomesMap.get(t.primary_reference_id) : null
+      return {
+        ...t,
+        offer_unihomes: uniData?.offer_unihomes || false,
+        unihomes_interested: uniData?.unihomes_interested || false
+      }
+    })
+
+    res.json({ tenancies: enrichedTenancies, total: result.total })
   } catch (error: any) {
     console.error('Error in GET /api/tenancies/records/archived:', error)
     res.status(500).json({ error: error.message })
@@ -764,9 +832,29 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
       return res.status(500).json({ error: 'Failed to fetch calendar data' })
     }
 
+    // Deduplicate: one entry per tenancy ID (shouldn't duplicate, but safety check)
+    // Also deduplicate per property - keep active over pending, then most recent
+    const seenProperties = new Map<string, any>()
+    const deduped = (tenancies || []).filter(t => {
+      if (!t.property_id) return true
+      const existing = seenProperties.get(t.property_id)
+      if (!existing) {
+        seenProperties.set(t.property_id, t)
+        return true
+      }
+      // Prefer active over pending
+      if (t.status === 'active' && existing.status === 'pending') {
+        seenProperties.set(t.property_id, t)
+        // Remove the old one by marking — we'll filter after
+        ;(existing as any)._skip = true
+        return true
+      }
+      return false
+    }).filter(t => !(t as any)._skip)
+
     // Fetch property addresses and tenants separately to avoid join issues
-    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
-    const tenancyIds = (tenancies || []).map(t => t.id)
+    const propertyIds = [...new Set(deduped.map(t => t.property_id).filter(Boolean))]
+    const tenancyIds = deduped.map(t => t.id)
 
     let propertyMap = new Map<string, any>()
     if (propertyIds.length > 0) {
@@ -800,7 +888,7 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
     }
 
     // For each tenancy with an agreement_id, check if the agreement is signed
-    const agreementIds = (tenancies || [])
+    const agreementIds = deduped
       .map(t => t.agreement_id)
       .filter((id): id is string => !!id)
 
@@ -818,7 +906,7 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
       }
     }
 
-    const entries = (tenancies || []).map(tenancy => {
+    const entries = deduped.map(tenancy => {
       let propertyAddress = ''
       let propertyCity = ''
       let propertyPostcode = ''
@@ -947,7 +1035,29 @@ router.get('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Tenancy not found' })
     }
 
-    res.json({ tenancy })
+    // Enrich with UniHome data from linked offer via reference
+    let offer_unihomes = false
+    let unihomes_interested = false
+    if (tenancy.primary_reference_id) {
+      const { data: ref } = await supabase
+        .from('tenant_references_v2')
+        .select('offer_id')
+        .eq('id', tenancy.primary_reference_id)
+        .maybeSingle()
+      if (ref?.offer_id) {
+        const { data: offer } = await supabase
+          .from('tenant_offers')
+          .select('offer_unihomes, unihomes_interested')
+          .eq('id', ref.offer_id)
+          .maybeSingle()
+        if (offer) {
+          offer_unihomes = offer.offer_unihomes || false
+          unihomes_interested = offer.unihomes_interested || false
+        }
+      }
+    }
+
+    res.json({ tenancy: { ...tenancy, offer_unihomes, unihomes_interested } })
   } catch (error: any) {
     console.error('Error in GET /api/tenancies/records/:id:', error)
     res.status(500).json({ error: error.message })
@@ -1207,6 +1317,126 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
       console.error('Failed to create tenancy started notification:', notifError)
     }
 
+    // Auto-push tenancy summary + documents to Apex27 on activation
+    try {
+      const { getCompanyApex27Config, pushDocument, apex27Fetch } = await import('../services/apex27Service')
+      const { generateTenancySummary } = await import('../services/tenancySummaryService')
+      const { normalizePostcode, normalizeAddressLine } = await import('../services/propertyMatchingService')
+      const { decrypt } = await import('../services/encryption')
+
+      const apex27Config = await getCompanyApex27Config(companyId)
+      if (apex27Config) {
+        // Resolve listing ID with fuzzy fallback
+        let listingId: string | null = null
+        if (tenancy.property_id) {
+          // Direct lookup
+          const { data: prop } = await supabase
+            .from('properties')
+            .select('apex27_listing_id, postcode, address_line1_encrypted')
+            .eq('id', tenancy.property_id)
+            .single()
+
+          listingId = prop?.apex27_listing_id || null
+
+          // Fuzzy fallback: search Apex27 by postcode
+          if (!listingId && prop?.postcode) {
+            const searchResult = await apex27Fetch<any[]>(apex27Config.apiKey, '/listings', {
+              transactionType: 'rent', postalCode: prop.postcode, pageSize: 25
+            })
+            if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
+              const addr = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
+              if (searchResult.data.length === 1) {
+                listingId = String(searchResult.data[0].id)
+              } else if (addr) {
+                const normAddr = normalizeAddressLine(addr)
+                for (const l of searchResult.data) {
+                  if (l.address1 && normalizeAddressLine(l.address1) === normAddr) {
+                    listingId = String(l.id)
+                    break
+                  }
+                }
+              }
+              if (!listingId) listingId = String(searchResult.data[0].id)
+            }
+          }
+        }
+
+        if (listingId) {
+          console.log(`[Apex27] Auto-pushing tenancy docs on activation to listing ${listingId}`)
+
+          // 1. Push tenancy summary
+          const summary = await generateTenancySummary(req.params.id, companyId)
+          if (summary.success && summary.html) {
+            const fileName = `tenancy-summaries/${companyId}/${req.params.id}-${Date.now()}.html`
+            const { error: uploadErr } = await supabase.storage
+              .from('documents')
+              .upload(fileName, Buffer.from(summary.html), { contentType: 'text/html', upsert: true })
+
+            if (!uploadErr) {
+              const { data: signedData } = await supabase.storage
+                .from('documents')
+                .createSignedUrl(fileName, 3600)
+
+              if (signedData?.signedUrl) {
+                await pushDocument(apex27Config.apiKey, {
+                  listingId, name: summary.title || 'Tenancy Summary', url: signedData.signedUrl
+                })
+                console.log('[Apex27] Tenancy summary pushed on activation')
+              }
+            }
+          }
+
+          // 2. Push signed tenancy agreement
+          if (tenancy.agreement_id) {
+            const { data: agreement } = await supabase
+              .from('agreements')
+              .select('id, signed_pdf_url, pdf_url')
+              .eq('id', tenancy.agreement_id)
+              .single()
+
+            const agreementUrl = agreement?.signed_pdf_url || agreement?.pdf_url
+            if (agreementUrl) {
+              await pushDocument(apex27Config.apiKey, {
+                listingId, name: 'Tenancy Agreement (Signed)', url: agreementUrl
+              })
+              console.log('[Apex27] Signed tenancy agreement pushed on activation')
+            }
+          }
+
+          // 3. Push all property documents linked to this tenancy (notices, legal docs, etc.)
+          const { data: propDocs } = await supabase
+            .from('property_documents')
+            .select('id, file_name, file_path')
+            .eq('property_id', tenancy.property_id)
+            .eq('source_type', 'tenancy')
+            .eq('source_id', req.params.id)
+
+          let docsPushed = 0
+          for (const doc of propDocs || []) {
+            try {
+              const { data: signedData } = await supabase.storage
+                .from('property-documents')
+                .createSignedUrl(doc.file_path, 3600)
+
+              if (signedData?.signedUrl) {
+                await pushDocument(apex27Config.apiKey, {
+                  listingId, name: doc.file_name, url: signedData.signedUrl
+                })
+                docsPushed++
+              }
+            } catch (docErr) {
+              console.error(`[Apex27] Failed to push doc ${doc.id}:`, docErr)
+            }
+          }
+
+          console.log(`[Apex27] Auto-push complete: summary + agreement + ${docsPushed} documents`)
+        }
+      }
+    } catch (apex27Error) {
+      console.error('[Apex27] Auto-push on activation failed (non-blocking):', apex27Error)
+      // Non-blocking — don't fail the activation
+    }
+
     res.json({ tenancy })
   } catch (error: any) {
     console.error('Error in POST /api/tenancies/records/:id/activate:', error)
@@ -1333,7 +1563,7 @@ router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: 
       displayCompanyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : null
     }
     if (!displayCompanyName) {
-      displayCompanyName = 'Your letting agent'
+      displayCompanyName = 'PropertyGoose'
     }
 
     const branding = {
@@ -2243,7 +2473,18 @@ router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthR
       ? new Date(tenancy.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
       : 'TBC'
 
-    // Send email to all tenants
+    // Get agent's email for CC (proof of service)
+    let agentEmail: string | null = null
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single()
+      agentEmail = profile?.email || null
+    }
+
+    // Send email to all tenants, CC the agent
     await sendMoveInPack(
       activeTenants.map(t => ({ email: t.email!, name: `${t.first_name} ${t.last_name}`.trim() })),
       propertyAddress,
@@ -2255,7 +2496,8 @@ router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthR
       documents,
       { name: companyName, email: companyEmail, phone: companyPhone },
       companyName,
-      company?.logo_url
+      company?.logo_url,
+      agentEmail
     )
 
     // Update tenancy to mark compliance pack as sent
@@ -2631,6 +2873,17 @@ router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequ
       `
     }
 
+    // Get agent's email for CC (proof of service)
+    let agentEmail: string | null = null
+    if (userId) {
+      const { data: agentProfile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single()
+      agentEmail = agentProfile?.email || null
+    }
+
     // Send enhanced move-in pack email
     await sendEnhancedMoveInPack(
       activeTenants.map(t => ({ email: t.email!, name: `${t.first_name} ${t.last_name}`.trim() })),
@@ -2646,7 +2899,8 @@ router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequ
       company?.logo_url,
       managementInfoHtml,
       rentPaymentHtml,
-      additionalInfoHtml
+      additionalInfoHtml,
+      agentEmail
     )
 
     // Update tenancy to mark compliance pack as sent
@@ -4568,6 +4822,174 @@ router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUplo
 })
 
 /**
+ * POST /api/tenancies/records/bulk-email
+ * Send a custom email to all active tenants across multiple tenancies
+ * Each tenant receives their own personalised email (no shared details)
+ */
+router.post('/records/bulk-email', authenticateToken, emailAttachmentUpload.array('attachments', 5), async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const userId = req.user?.id
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const { tenancyIds, subject, message, templateKey } = req.body
+    const attachments = req.files as Express.Multer.File[] || []
+
+    let parsedTenancyIds: string[]
+    if (typeof tenancyIds === 'string') {
+      try {
+        parsedTenancyIds = JSON.parse(tenancyIds)
+      } catch {
+        return res.status(400).json({ error: 'Invalid tenancy IDs format' })
+      }
+    } else {
+      parsedTenancyIds = tenancyIds || []
+    }
+
+    if (!parsedTenancyIds || parsedTenancyIds.length === 0) {
+      return res.status(400).json({ error: 'At least one tenancy must be selected' })
+    }
+
+    if (!subject || !message) {
+      return res.status(400).json({ error: 'Subject and message are required' })
+    }
+
+    // Get all tenancies with property details (verify company ownership)
+    const { data: tenancies, error: tenanciesError } = await supabase
+      .from('tenancies')
+      .select(`
+        id,
+        company_id,
+        properties (
+          id,
+          address_line1_encrypted,
+          city_encrypted,
+          postcode
+        )
+      `)
+      .in('id', parsedTenancyIds)
+      .eq('company_id', companyId)
+
+    if (tenanciesError || !tenancies || tenancies.length === 0) {
+      return res.status(404).json({ error: 'No valid tenancies found' })
+    }
+
+    // Get all active tenants across selected tenancies
+    const { data: allTenants, error: tenantsError } = await supabase
+      .from('tenancy_tenants')
+      .select('id, tenancy_id, tenant_name_encrypted, tenant_email_encrypted')
+      .in('tenancy_id', tenancies.map(t => t.id))
+      .eq('status', 'active')
+
+    if (tenantsError) {
+      return res.status(500).json({ error: 'Failed to fetch tenants' })
+    }
+
+    // Get company/agent details
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, email_encrypted, logo_url, primary_color, reference_notification_email')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = decrypt(company?.name_encrypted) || 'Property Management'
+    const companyEmail = company?.reference_notification_email || decrypt(company?.email_encrypted) || null
+
+    const { data: agent } = await supabase
+      .from('users')
+      .select('first_name, last_name, email')
+      .eq('id', userId)
+      .single()
+
+    const agentName = agent ? `${agent.first_name || ''} ${agent.last_name || ''}`.trim() || companyName : companyName
+    const agentEmail = agent?.email || companyEmail
+
+    // Build tenancy-to-property map
+    const tenancyPropertyMap = new Map<string, string>()
+    for (const t of tenancies) {
+      const property = t.properties as { address_line1_encrypted?: string; city_encrypted?: string; postcode?: string } | null
+      const addr = property
+        ? `${decrypt(property.address_line1_encrypted ?? null) || ''}, ${decrypt(property.city_encrypted ?? null) || ''} ${property.postcode || ''}`.trim()
+        : 'Property'
+      tenancyPropertyMap.set(t.id, addr)
+    }
+
+    // Send individual emails to each tenant (BCC style - each gets their own)
+    let sentCount = 0
+    const errors: string[] = []
+
+    for (const tenant of allTenants || []) {
+      const tenantEmail = decrypt(tenant.tenant_email_encrypted)
+      const tenantName = decrypt(tenant.tenant_name_encrypted) || 'Tenant'
+      const propertyAddress = tenancyPropertyMap.get(tenant.tenancy_id) || 'Property'
+
+      if (!tenantEmail) {
+        errors.push(`${tenantName}: No email address`)
+        continue
+      }
+
+      const personalizedSubject = subject
+        .replace(/\{\{\s*tenant_name\s*\}\}/g, tenantName)
+        .replace(/\{\{\s*property_address\s*\}\}/g, propertyAddress)
+        .replace(/\{\{\s*agent_name\s*\}\}/g, agentName)
+        .replace(/\{\{\s*company_name\s*\}\}/g, companyName)
+
+      const personalizedMessage = message
+        .replace(/\{\{\s*tenant_name\s*\}\}/g, tenantName)
+        .replace(/\{\{\s*property_address\s*\}\}/g, propertyAddress)
+        .replace(/\{\{\s*agent_name\s*\}\}/g, agentName)
+        .replace(/\{\{\s*company_name\s*\}\}/g, companyName)
+
+      try {
+        await emailService.sendCustomTenantEmail({
+          to: tenantEmail,
+          subject: personalizedSubject,
+          message: personalizedMessage,
+          replyTo: agentEmail,
+          attachments: attachments.map(f => ({
+            filename: f.originalname,
+            content: f.buffer
+          })),
+          branding: {
+            logo_url: company?.logo_url,
+            primary_color: company?.primary_color,
+            company_name: companyName
+          }
+        })
+        sentCount++
+      } catch (emailError: any) {
+        console.error(`[bulk-email] Failed to send to ${tenantEmail}:`, emailError)
+        errors.push(`${tenantName}: ${emailError.message}`)
+      }
+    }
+
+    // Log activity on each tenancy
+    for (const tenancyId of tenancies.map(t => t.id)) {
+      await tenancyService.logTenancyActivity(tenancyId, {
+        action: 'EMAIL_SENT',
+        category: 'communication',
+        title: 'Bulk Email Sent',
+        description: `Bulk email "${subject.substring(0, 50)}..." sent across ${tenancies.length} tenancies`,
+        metadata: { templateKey, subject, bulkSend: true, totalRecipients: sentCount },
+        performedBy: userId
+      })
+    }
+
+    res.json({
+      success: true,
+      sentCount,
+      tenancyCount: tenancies.length,
+      errors: errors.length > 0 ? errors : undefined
+    })
+  } catch (error: any) {
+    console.error('Error in POST /api/tenancies/records/bulk-email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/tenancies/records/:id/dismiss-aml-warning
  * Dismiss the landlord AML warning for a tenancy
  */
@@ -5019,10 +5441,10 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     // Build a sensible company name - never use generic "Your Agent"
     if (!companyName && companyEmail) {
       const domain = companyEmail.split('@')[1]?.split('.')[0]
-      companyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : 'Your letting agent'
+      companyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : 'PropertyGoose'
     }
     if (!companyName) {
-      companyName = 'Your letting agent'
+      companyName = 'PropertyGoose'
     }
 
     // Create rent due date change record
@@ -5311,7 +5733,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
 
     // Decrypt company fields
     const company = companyRaw ? {
-      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      name: decrypt(companyRaw.name_encrypted) || 'PropertyGoose',
       logo_url: companyRaw.logo_url,
       email: decrypt(companyRaw.email_encrypted) || undefined,
       phone: decrypt(companyRaw.phone_encrypted) || undefined,
@@ -5499,7 +5921,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
         PaymentConfirmedDate: paymentReceivedDate,
         MonthlyRent: parseFloat(change.monthly_rent).toFixed(2),
         NextRentDueDate: nextRentDueDateStr,
-        CompanyName: company?.name || 'Your letting agent',
+        CompanyName: company?.name || 'PropertyGoose',
         AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
         ContactSection: contactSection
       })
@@ -5695,7 +6117,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
 
     // Decrypt company fields
     const company = companyRaw ? {
-      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      name: decrypt(companyRaw.name_encrypted) || 'PropertyGoose',
       logo_url: companyRaw.logo_url,
       email: decrypt(companyRaw.email_encrypted) || undefined,
       phone: decrypt(companyRaw.phone_encrypted) || undefined,
@@ -5760,7 +6182,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
       BankAccountNumber: company?.bank_account_number || '',
       PaymentReference: `RDC-${change.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
-      CompanyName: company?.name || 'Your letting agent',
+      CompanyName: company?.name || 'PropertyGoose',
       AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
       ContactSection: contactSection
     })
@@ -6139,7 +6561,7 @@ For more information about your rights, visit www.gov.uk/private-renting or cont
 If you have any questions about this notice, please do not hesitate to contact us.
 
 Kind regards,
-${company?.name || 'Your letting agent'}`,
+${company?.name || 'PropertyGoose'}`,
           replyTo: company?.email,
           attachments: [{
             filename: `Section_13_Notice_${propertyAddress.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,

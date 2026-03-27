@@ -125,6 +125,7 @@ import {
   Users,
   ClipboardList,
   UserCog,
+  Plug,
   Menu,
   X
 } from 'lucide-vue-next'
@@ -176,6 +177,11 @@ const navigationItems = [
     name: 'Staff',
     path: '/admin/staff',
     icon: markRaw(UserCog)
+  },
+  {
+    name: 'Integrations',
+    path: '/admin/integrations',
+    icon: markRaw(Plug)
   }
 ]
 

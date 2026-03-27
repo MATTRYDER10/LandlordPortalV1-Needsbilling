@@ -35,6 +35,7 @@ import Properties from '../views/Properties.vue'
 import LandlordVerification from '../views/LandlordVerification.vue'
 import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
+import LandlordDecision from '../views/LandlordDecision.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
 import TenantOfferPaymentConfirmed from '../views/TenantOfferPaymentConfirmed.vue'
 import TenancyPaymentConfirmed from '../views/TenancyPaymentConfirmed.vue'
@@ -126,6 +127,11 @@ const router = createRouter({
       component: SubmitReference
     },
     {
+      path: '/submit-reference-v2/:token',
+      name: 'SubmitReferenceV2',
+      component: () => import('../views/SubmitReferenceV2.vue')
+    },
+    {
       path: '/tenant-offer',
       name: 'TenantOffer',
       component: TenantOffer
@@ -134,6 +140,21 @@ const router = createRouter({
       path: '/tenant-offer/payment-confirmed',
       name: 'TenantOfferPaymentConfirmed',
       component: TenantOfferPaymentConfirmed
+    },
+    {
+      path: '/landlord-decision/:token',
+      name: 'LandlordDecision',
+      component: LandlordDecision
+    },
+    {
+      path: '/mobile-capture/:captureToken',
+      name: 'MobileCapture',
+      component: () => import('../views/MobileCapture.vue')
+    },
+    {
+      path: '/upload/:token',
+      name: 'FileUpload',
+      component: () => import('../views/public/FileUploadPage.vue')
     },
     {
       path: '/tenancy/payment-confirmed/:id',
@@ -173,9 +194,50 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/tenant-offers-v2',
+      name: 'TenantOffersV2',
+      component: () => import('../views/TenantOffersV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/references-v2',
+      name: 'ReferencesV2',
+      component: () => import('../views/ReferencesV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/inventory',
+      name: 'InventoryGoose',
+      component: () => import('../views/InventoryGooseComingSoon.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/v2/employer-reference/:token',
+      name: 'EmployerReferenceV2',
+      component: () => import('../views/RefereeFormV2.vue'),
+      meta: { type: 'employer' }
+    },
+    {
+      path: '/v2/landlord-reference/:token',
+      name: 'LandlordReferenceV2',
+      component: () => import('../views/RefereeFormV2.vue'),
+      meta: { type: 'landlord' }
+    },
+    {
+      path: '/v2/accountant-reference/:token',
+      name: 'AccountantReferenceV2',
+      component: () => import('../views/RefereeFormV2.vue'),
+      meta: { type: 'accountant' }
+    },
+    {
       path: '/guarantor-reference/:token',
       name: 'GuarantorReference',
       component: GuarantorReference
+    },
+    {
+      path: '/guarantor-reference-v2/:token',
+      name: 'GuarantorReferenceV2',
+      component: () => import('../views/GuarantorReferenceV2.vue')
     },
     {
       path: '/tenant-add-guarantor/:token',
@@ -327,7 +389,42 @@ const router = createRouter({
         },
         {
           path: 'integrations',
-          name: 'SettingsIntegrations',
+          redirect: '/settings/tds',
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'tds',
+          name: 'SettingsTDS',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'reposit',
+          name: 'SettingsReposit',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'mydeposits',
+          name: 'SettingsMyDeposits',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'review-links',
+          name: 'SettingsReviewLinks',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'apex27',
+          name: 'SettingsApex27',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'inventorygoose',
+          name: 'SettingsInventoryGoose',
           component: Settings,
           meta: { requiresAuth: true }
         },
@@ -440,6 +537,78 @@ const router = createRouter({
       component: StaffVapiTest,
       meta: { requiresAuth: true }
     },
+    // Staff V2 Routes
+    {
+      path: '/staff/v2',
+      name: 'StaffDashboardV2',
+      component: () => import('../views/staff/v2/DashboardV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/queue/:type',
+      name: 'StaffQueueV2',
+      component: () => import('../views/staff/v2/QueueView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/section/:sectionId',
+      name: 'StaffSectionReviewV2',
+      component: () => import('../views/staff/v2/SectionReview.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/chase',
+      name: 'StaffChaseQueueV2',
+      component: () => import('../views/staff/v2/ChaseQueue.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/final-review',
+      name: 'StaffFinalReviewV2',
+      component: () => import('../views/staff/v2/FinalReviewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/final-review/:referenceId',
+      name: 'StaffFinalReviewDetailV2',
+      component: () => import('../views/staff/v2/FinalReviewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/group-assessment',
+      name: 'GroupAssessmentV2',
+      component: () => import('../views/staff/v2/GroupAssessmentView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/responses',
+      name: 'StaffResponsesQueueV2',
+      component: () => import('../views/staff/v2/ResponsesQueueV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/responses/:sectionId',
+      name: 'StaffResponseReviewV2',
+      component: () => import('../views/staff/v2/ResponseReviewV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/v2/reference/:id',
+      name: 'StaffReferenceDetailV2',
+      component: () => import('../views/staff/v2/StaffReferenceDetailV2.vue'),
+      meta: { requiresAuth: true }
+    },
+    // Public issue response routes (no auth)
+    {
+      path: '/issue-upload/:token',
+      name: 'IssueUpload',
+      component: () => import('../views/public/IssueUpload.vue')
+    },
+    {
+      path: '/issue-response/:token',
+      name: 'IssueResponse',
+      component: () => import('../views/public/IssueResponse.vue')
+    },
     {
       path: '/admin',
       redirect: '/admin/dashboard'
@@ -463,6 +632,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/admin/create-company',
+      name: 'AdminCreateCompany',
+      component: () => import('../views/AdminCreateCompany.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/admin/references',
       name: 'AdminReferences',
       component: () => import('../views/AdminReferences.vue'),
@@ -472,6 +647,12 @@ const router = createRouter({
       path: '/admin/reports',
       name: 'AdminReports',
       component: AdminReports,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/integrations',
+      name: 'AdminIntegrations',
+      component: () => import('../views/AdminIntegrations.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
@@ -519,19 +700,28 @@ router.beforeEach(async (to, _from, next) => {
   ]
   const isPublicPath = publicPaths.some(path => to.path.startsWith(path))
   const isStaffPath = to.path.startsWith('/staff')
-  const isReferenceSubmission = to.path.startsWith('/submit-reference')
-                                 to.path.startsWith('/tenant-offer')
-                                 to.path.startsWith('/guarantor-reference')
-                                 to.path.startsWith('/tenant-add-guarantor')
-                                 to.path.startsWith('/landlord-reference')
-                                 to.path.startsWith('/agent-reference')
-                                 to.path.startsWith('/employer-reference')
-                                 to.path.startsWith('/submit-employer-reference')
-                                 to.path.startsWith('/accountant-reference')
-                                 to.path.startsWith('/sign/')
-                                 to.path.startsWith('/sign-tenant-change/')
-                                 to.path.startsWith('/tenancy/')
-                                 to.path.startsWith('/confirm-rent-change/')
+  const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
+                                 to.path.startsWith('/tenant-offer') ||
+                                 to.path.startsWith('/guarantor-reference') ||
+                                 to.path.startsWith('/guarantor-reference-v2') ||
+                                 to.path.startsWith('/tenant-add-guarantor') ||
+                                 to.path.startsWith('/landlord-reference') ||
+                                 to.path.startsWith('/landlord-decision') ||
+                                 to.path.startsWith('/mobile-capture') ||
+                                 to.path.startsWith('/upload/') ||
+                                 to.path.startsWith('/agent-reference') ||
+                                 to.path.startsWith('/employer-reference') ||
+                                 to.path.startsWith('/submit-employer-reference') ||
+                                 to.path.startsWith('/accountant-reference') ||
+                                 to.path.startsWith('/v2/employer-reference') ||
+                                 to.path.startsWith('/v2/landlord-reference') ||
+                                 to.path.startsWith('/v2/accountant-reference') ||
+                                 to.path.startsWith('/issue-upload/') ||
+                                 to.path.startsWith('/issue-response/') ||
+                                 to.path.startsWith('/sign/') ||
+                                 to.path.startsWith('/sign-tenant-change/') ||
+                                 to.path.startsWith('/tenancy/') ||
+                                 to.path.startsWith('/confirm-rent-change/') ||
                                  to.path.startsWith('/confirm-payment/')
   const skipOnboardingCheck = to.meta.skipOnboardingCheck === true
 

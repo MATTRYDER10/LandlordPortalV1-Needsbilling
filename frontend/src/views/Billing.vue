@@ -316,7 +316,7 @@ import { CreditCard } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatDate as formatUkDate } from '../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const toast = useToast()
 const billingStore = useBillingStore()

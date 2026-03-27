@@ -54,7 +54,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   // Computed: Auto-calculate deposit (5 weeks rent)
   const calculatedDeposit = computed(() => {
     if (formData.value.rentAmount && formData.value.rentAmount > 0) {
-      return Math.round((formData.value.rentAmount * 12 / 52) * 5 * 100) / 100
+      return Math.floor((formData.value.rentAmount * 12 / 52) * 5)
     }
     return 0
   })
@@ -328,7 +328,16 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       formData.value.depositAmount = tenancy.deposit_amount
       depositManuallyEdited.value = true
     }
-    if (tenancy.deposit_scheme) formData.value.depositSchemeType = tenancy.deposit_scheme
+    if (tenancy.deposit_scheme) {
+      // Map generic 'tds' to specific type if TDS registration has scheme type info
+      let depositScheme = tenancy.deposit_scheme
+      if (depositScheme === 'tds' && tenancy.tds_registration_scheme_type) {
+        depositScheme = `tds_${tenancy.tds_registration_scheme_type}`
+      } else if (depositScheme === 'mydeposits' && !depositScheme.includes('_')) {
+        depositScheme = 'mydeposits_custodial'
+      }
+      formData.value.depositSchemeType = depositScheme
+    }
     if (tenancy.rent_due_day) formData.value.rentDueDay = `${tenancy.rent_due_day}${getOrdinalSuffix(tenancy.rent_due_day)}`
     if (tenancy.bills_included) formData.value.billsIncluded = tenancy.bills_included
     if (tenancy.tenancy_type) formData.value.templateType = tenancy.tenancy_type
@@ -401,7 +410,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       // Set primary tenant email
       const lead = tenancy.tenants.find((t: any) => t.is_lead || t.is_lead_tenant) || tenancy.tenants[0]
       if (lead) {
-        formData.value.tenantEmail = lead.email || ''
+        formData.value.tenantEmail = lead.email || lead.tenant_email || ''
       }
     }
 
@@ -410,7 +419,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     if (guarantorsList.length > 0) {
       formData.value.guarantors = guarantorsList.map((g: any) => ({
         name: `${g.first_name || ''} ${g.last_name || ''}`.trim() || g.name || '',
-        email: g.email || '',
+        email: g.email || g.tenant_email || '',
         address: {
           line1: g.current_address_line1 || g.address_line1 || g.address?.line1 || '',
           line2: g.current_address_line2 || g.address_line2 || g.address?.line2 || '',

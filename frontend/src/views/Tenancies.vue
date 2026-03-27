@@ -324,14 +324,64 @@
 
         <!-- Active Section -->
         <div v-else-if="activeSection === 'active'" class="p-6">
-          <div v-if="activeTenancies.length > 0" class="space-y-2.5">
-            <ActiveTenancyRow
-              v-for="tenancy in activeTenancies"
-              :key="tenancy.id"
-              :tenancy="tenancy"
-              @click="openTenancy"
-              @action="handleTenancyAction"
-            />
+          <div v-if="activeTenancies.length > 0">
+            <!-- Select All / Bulk Actions Bar -->
+            <div class="flex items-center justify-between mb-3 px-1">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  :checked="selectedTenancyIds.length === activeTenancies.length && activeTenancies.length > 0"
+                  :indeterminate="selectedTenancyIds.length > 0 && selectedTenancyIds.length < activeTenancies.length"
+                  @change="toggleSelectAll"
+                  class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span class="text-sm text-gray-600 dark:text-slate-400">
+                  {{ selectedTenancyIds.length > 0 ? `${selectedTenancyIds.length} selected` : 'Select all' }}
+                </span>
+              </label>
+              <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0 translate-y-1"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 translate-y-1"
+              >
+                <button
+                  v-if="selectedTenancyIds.length > 0"
+                  @click="openBulkEmail"
+                  class="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Mail class="w-4 h-4" />
+                  Email {{ selectedTenancyIds.length === activeTenancies.length ? 'All' : selectedTenancyIds.length }} {{ selectedTenancyIds.length === 1 ? 'Tenancy' : 'Tenancies' }}
+                </button>
+              </Transition>
+            </div>
+
+            <div class="space-y-2.5">
+              <div
+                v-for="tenancy in activeTenancies"
+                :key="tenancy.id"
+                class="flex items-start gap-3"
+              >
+                <div class="flex-shrink-0 pt-5">
+                  <input
+                    type="checkbox"
+                    :checked="selectedTenancyIds.includes(tenancy.id)"
+                    @change="toggleTenancySelection(tenancy.id)"
+                    @click.stop
+                    class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                  />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <ActiveTenancyRow
+                    :tenancy="tenancy"
+                    @click="openTenancy"
+                    @action="handleTenancyAction"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <EmptyState v-else variant="active" />
@@ -461,7 +511,7 @@
       @ended="handleEndTenancySuccess"
     />
 
-    <!-- Email Tenants Modal -->
+    <!-- Email Tenants Modal (single tenancy) -->
     <EmailTenantsModal
       :is-open="showEmailTenantsModal"
       :tenancy-id="actionTenancy?.id || ''"
@@ -469,6 +519,16 @@
       :tenants="actionTenancy?.tenants?.filter((t: any) => t.status === 'active') || []"
       @close="showEmailTenantsModal = false; actionTenancy = null"
       @success="handleEmailSuccess"
+    />
+
+    <!-- Bulk Email Modal (multi-tenancy) -->
+    <BulkEmailTenantsModal
+      :is-open="showBulkEmailModal"
+      :tenancy-ids="selectedTenancyIds"
+      :tenancy-count="selectedTenancyIds.length"
+      :tenant-count="bulkTenantCount"
+      @close="showBulkEmailModal = false"
+      @success="handleBulkEmailSuccess"
     />
 
     <!-- Change Tenant Modal -->
@@ -709,10 +769,11 @@ import DraftTenancyRow from '@/components/tenancies/DraftTenancyRow.vue'
 import ActiveTenancyRow from '@/components/tenancies/ActiveTenancyRow.vue'
 import MonthBanner from '@/components/tenancies/MonthBanner.vue'
 import EmptyState from '@/components/tenancies/EmptyState.vue'
-import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle, Building2, Key } from 'lucide-vue-next'
+import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle, Building2, Key, Mail } from 'lucide-vue-next'
+import BulkEmailTenantsModal from '@/components/tenancies/BulkEmailTenantsModal.vue'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()
@@ -806,6 +867,8 @@ const isDeleting = ref(false)
 const showRevertConfirm = ref(false)
 const isReverting = ref(false)
 const showEmailTenantsModal = ref(false)
+const showBulkEmailModal = ref(false)
+const selectedTenancyIds = ref<string[]>([])
 const showChangeTenantModal = ref(false)
 const showRentIncreaseModal = ref(false)
 const showSection8Modal = ref(false)
@@ -1091,7 +1154,39 @@ const handleEndTenancySuccess = () => {
 const handleEmailSuccess = () => {
   showEmailTenantsModal.value = false
   actionTenancy.value = null
-  // Email sent - just close the modal, no need to reload
+}
+
+// Bulk email selection
+const bulkTenantCount = computed(() => {
+  return activeTenancies.value
+    .filter(t => selectedTenancyIds.value.includes(t.id))
+    .reduce((sum, t) => sum + (t.tenants?.filter((tt: any) => tt.status === 'active')?.length || 0), 0)
+})
+
+function toggleSelectAll() {
+  if (selectedTenancyIds.value.length === activeTenancies.value.length) {
+    selectedTenancyIds.value = []
+  } else {
+    selectedTenancyIds.value = activeTenancies.value.map(t => t.id)
+  }
+}
+
+function toggleTenancySelection(id: string) {
+  const idx = selectedTenancyIds.value.indexOf(id)
+  if (idx >= 0) {
+    selectedTenancyIds.value.splice(idx, 1)
+  } else {
+    selectedTenancyIds.value.push(id)
+  }
+}
+
+function openBulkEmail() {
+  showBulkEmailModal.value = true
+}
+
+const handleBulkEmailSuccess = () => {
+  showBulkEmailModal.value = false
+  selectedTenancyIds.value = []
 }
 
 // Handle change tenant success

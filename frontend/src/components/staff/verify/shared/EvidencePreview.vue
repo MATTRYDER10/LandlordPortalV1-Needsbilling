@@ -118,7 +118,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { FileText, Eye, Download, ExternalLink, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 const props = defineProps<{
   url: string

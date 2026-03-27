@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { UserMinus, UserPlus, Plus, Trash2, ChevronRight } from 'lucide-vue-next'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 interface Tenant {
   id: string
@@ -130,6 +131,12 @@ function toggleOutgoing(tenantId: string) {
   }
 }
 
+function ensureGuarantor(tenant: any) {
+  if (tenant.hasGuarantor && !tenant.guarantor) {
+    tenant.guarantor = { firstName: '', lastName: '', email: '', phone: '' }
+  }
+}
+
 function addIncomingTenant() {
   incomingTenants.value.push({
     title: '',
@@ -145,6 +152,26 @@ function addIncomingTenant() {
 function removeIncomingTenant(index: number) {
   if (incomingTenants.value.length > 1) {
     incomingTenants.value.splice(index, 1)
+  }
+}
+
+function ensureAddress(tenant: IncomingTenant) {
+  if (!tenant.currentAddress) {
+    tenant.currentAddress = { line1: '', line2: '', city: '', postcode: '' }
+  }
+  return tenant.currentAddress
+}
+
+function handleIncomingAddressSelected(index: number, data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  const tenant = incomingTenants.value[index]
+  if (tenant) {
+    if (!tenant.currentAddress) {
+      tenant.currentAddress = { line1: '', line2: '', city: '', postcode: '' }
+    }
+    tenant.currentAddress.line1 = data.addressLine1
+    if (data.addressLine2) tenant.currentAddress.line2 = data.addressLine2
+    tenant.currentAddress.city = data.city
+    tenant.currentAddress.postcode = data.postcode
   }
 }
 
@@ -272,24 +299,67 @@ function handleSubmit() {
             </div>
           </div>
 
+          <!-- Current Address -->
+          <div class="space-y-3">
+            <h5 class="font-medium text-gray-900 dark:text-white text-sm">Current Address</h5>
+            <div class="relative overflow-visible">
+              <AddressAutocomplete
+                v-model="ensureAddress(tenant).line1"
+                label="Address Line 1"
+                :id="`incoming-address-${index}`"
+                placeholder="Start typing address..."
+                @addressSelected="(data: any) => handleIncomingAddressSelected(index, data)"
+                :allowManualEntry="true"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 2</label>
+              <input
+                v-model="ensureAddress(tenant).line2"
+                type="text"
+                placeholder="Flat, apartment, etc."
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City</label>
+                <input
+                  v-model="ensureAddress(tenant).city"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Postcode</label>
+                <input
+                  v-model="ensureAddress(tenant).postcode"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+              </div>
+            </div>
+          </div>
+
           <!-- Guarantor Toggle -->
           <label class="flex items-center gap-2 cursor-pointer">
             <input
               v-model="tenant.hasGuarantor"
               type="checkbox"
               class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+              @change="ensureGuarantor(tenant)"
             >
             <span class="text-sm text-gray-700 dark:text-slate-300">This tenant has a guarantor</span>
           </label>
 
           <!-- Guarantor Details -->
-          <div v-if="tenant.hasGuarantor" class="pl-6 border-l-2 border-orange-200 dark:border-orange-800 space-y-4">
+          <div v-if="tenant.hasGuarantor && tenant.guarantor" class="pl-6 border-l-2 border-orange-200 dark:border-orange-800 space-y-4">
             <h5 class="font-medium text-gray-900 dark:text-white text-sm">Guarantor Details</h5>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name</label>
                 <input
-                  v-model="tenant.guarantor!.firstName"
+                  v-model="tenant.guarantor.firstName"
                   type="text"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
@@ -297,7 +367,7 @@ function handleSubmit() {
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Last Name</label>
                 <input
-                  v-model="tenant.guarantor!.lastName"
+                  v-model="tenant.guarantor.lastName"
                   type="text"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
@@ -305,7 +375,7 @@ function handleSubmit() {
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
                 <input
-                  v-model="tenant.guarantor!.email"
+                  v-model="tenant.guarantor.email"
                   type="email"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
@@ -313,7 +383,7 @@ function handleSubmit() {
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone</label>
                 <input
-                  v-model="tenant.guarantor!.phone"
+                  v-model="tenant.guarantor.phone"
                   type="tel"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >

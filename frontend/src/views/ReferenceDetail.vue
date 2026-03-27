@@ -3380,7 +3380,7 @@ import EditEmailResendModal from '../components/EditEmailResendModal.vue'
 import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()

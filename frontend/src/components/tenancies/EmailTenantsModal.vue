@@ -389,7 +389,7 @@ const selectTemplate = (template: EmailTemplate) => {
   const tenantName = firstTenant ? `${firstTenant.first_name} ${firstTenant.last_name}` : 'Tenant'
 
   // Get agent/company info from auth store
-  const agentName = authStore.user?.user_metadata?.full_name || authStore.user?.email?.split('@')[0] || 'Your Agent'
+  const agentName = authStore.user?.user_metadata?.full_name || authStore.user?.email?.split('@')[0] || 'The Team'
   const companyName = authStore.company?.name || 'PropertyGoose'
 
   // Merge all variables

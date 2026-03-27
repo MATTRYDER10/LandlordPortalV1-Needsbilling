@@ -7,6 +7,7 @@
 import express, { Router } from 'express'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
+import { decrypt } from '../services/encryption'
 import * as tenantChangeService from '../services/tenantChangeService'
 
 const router: Router = express.Router()
@@ -111,7 +112,23 @@ router.get('/tenancy/:tenancyId', authenticateToken, async (req: AuthRequest, re
     }
 
     const tenantChange = await tenantChangeService.getActiveTenantChange(req.params.tenancyId)
-    res.json({ tenantChange })
+
+    // Enrich with V2 reference statuses if referencing is in progress
+    let referenceStatuses: any[] = []
+    const refIds = tenantChange?.incoming_tenant_reference_ids
+    if (refIds && refIds.length > 0) {
+      const { data: refs } = await supabase
+        .from('tenant_references_v2')
+        .select('id, status, tenant_first_name_encrypted, tenant_last_name_encrypted')
+        .in('id', refIds)
+      referenceStatuses = (refs || []).map(r => ({
+        id: r.id,
+        status: r.status,
+        tenantName: `${decrypt(r.tenant_first_name_encrypted) || ''} ${decrypt(r.tenant_last_name_encrypted) || ''}`.trim()
+      }))
+    }
+
+    res.json({ tenantChange, referenceStatuses })
   } catch (error: any) {
     console.error('[TenantChange] Get active error:', error)
     res.status(500).json({ error: error.message })

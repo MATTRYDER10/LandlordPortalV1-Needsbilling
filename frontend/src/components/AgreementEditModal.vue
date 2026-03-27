@@ -37,10 +37,12 @@
                   v-model="formData.depositSchemeType"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 >
+                  <option value="tds_custodial">TDS Custodial</option>
+                  <option value="tds_insured">TDS Insured</option>
+                  <option value="mydeposits">mydeposits</option>
                   <option value="dps">DPS</option>
-                  <option value="mydeposits">Mydeposits</option>
-                  <option value="tds">TDS</option>
-                  <option value="reposit">Reposit</option>
+                  <option value="reposit">Reposit (Deposit-Free)</option>
+                  <option value="landlord_held">Landlord Held</option>
                   <option value="no_deposit">No Deposit</option>
                 </select>
               </div>

@@ -90,12 +90,11 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Phone Number</label>
-            <input
+            <PhoneInput
               v-model="formData.guarantor_phone"
-              type="tel"
-              class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
-              placeholder="07XXX XXXXXX"
+              label="Phone Number"
+              select-class="mt-1 px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
+              input-class="w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
             />
             <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Optional - SMS reminders may be sent</p>
           </div>
@@ -132,8 +131,9 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { CheckCircle2, Loader2 } from 'lucide-vue-next'
+import PhoneInput from '@/components/PhoneInput.vue'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
@@ -205,11 +205,11 @@ onMounted(async () => {
     }
 
     if (err.response?.status === 404) {
-      error.value = 'Invalid link. Please contact your letting agent for a new link.'
+      error.value = 'Invalid link. Please contact the agent for a new link.'
     } else if (err.response?.status === 400) {
       error.value = err.response.data?.error || 'A guarantor has already been added for this reference.'
     } else {
-      error.value = 'An error occurred. Please try again or contact your letting agent.'
+      error.value = 'An error occurred. Please try again or contact the agent.'
     }
   } finally {
     loading.value = false
@@ -229,7 +229,7 @@ async function handleSubmit() {
     if (err.response?.status === 400) {
       submitError.value = err.response.data?.error || 'Please check your input and try again.'
     } else if (err.response?.status === 402) {
-      submitError.value = err.response.data?.message || 'Unable to process at this time. Please contact your letting agent.'
+      submitError.value = err.response.data?.message || 'Unable to process at this time. Please contact the agent.'
     } else {
       submitError.value = 'An error occurred. Please try again.'
     }

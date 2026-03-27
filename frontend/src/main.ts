@@ -5,8 +5,9 @@ import 'vue-toastification/dist/index.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'
-// Initialize axios interceptor for admin company override
+// Initialize interceptors for admin company override
 import './lib/axios'
+import './lib/fetchInterceptor'
 
 const app = createApp(App)
 const pinia = createPinia()

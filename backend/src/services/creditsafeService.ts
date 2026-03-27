@@ -7,6 +7,7 @@ interface CreditsafeConfig {
   apiUrl: string
   username: string
   password: string
+  userId: string | null
   enabled: boolean
 }
 
@@ -58,6 +59,7 @@ class CreditsafeService {
       apiUrl: process.env.CREDITSAFE_API_URL || 'https://connect.creditsafe.com/v1',
       username: process.env.CREDITSAFE_USERNAME || '',
       password: process.env.CREDITSAFE_PASSWORD || '',
+      userId: process.env.CREDITSAFE_USER_ID || null,
       enabled: process.env.CREDITSAFE_ENABLED === 'true'
     }
 
@@ -65,6 +67,7 @@ class CreditsafeService {
     console.log('Creditsafe config:', {
       apiUrl: this.config.apiUrl,
       username: this.config.username,
+      userId: this.config.userId,
       passwordLength: this.config.password?.length || 0,
       enabled: this.config.enabled
     })
@@ -115,10 +118,16 @@ class CreditsafeService {
 
       console.log('Authenticating with Creditsafe API...')
 
-      const response = await this.axiosInstance.post('/authenticate', {
+      // Build auth payload - include userId if account has multiple users
+      const authPayload: Record<string, string> = {
         username: this.config.username,
         password: this.config.password
-      })
+      }
+      if (this.config.userId) {
+        authPayload.userId = this.config.userId
+      }
+
+      const response = await this.axiosInstance.post('/authenticate', authPayload)
 
       if (response.data && response.data.token) {
         this.authToken = response.data.token
@@ -155,24 +164,50 @@ class CreditsafeService {
 
     try {
       // Get authentication token
-      const token = await this.authenticate()
+      let token = await this.authenticate()
 
       console.log('Sending Verify request to Creditsafe for:', request.firstName, request.lastName)
 
-      // Call Creditsafe Verify API - Direct Individual Report endpoint
-      const response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
-        params: {
-          firstName: request.firstName,
-          lastName: request.lastName,
-          dateOfBirth: request.dateOfBirth,
-          address: request.address,
-          postCode: request.postcode,
-          reasonForSearch: 'TV' // TV = Tenant Vetting
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`
+      let response
+      try {
+        // Call Creditsafe Verify API - Direct Individual Report endpoint
+        response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+          params: {
+            firstName: request.firstName,
+            lastName: request.lastName,
+            dateOfBirth: request.dateOfBirth,
+            address: request.address,
+            postCode: request.postcode,
+            reasonForSearch: 'TV' // TV = Tenant Vetting
+          },
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } catch (firstError: any) {
+        // If 401, clear cached token and retry once with fresh auth
+        if (firstError.response?.status === 401) {
+          console.log('Creditsafe token expired, re-authenticating...')
+          this.authToken = null
+          this.tokenExpiry = null
+          token = await this.authenticate()
+          response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+            params: {
+              firstName: request.firstName,
+              lastName: request.lastName,
+              dateOfBirth: request.dateOfBirth,
+              address: request.address,
+              postCode: request.postcode,
+              reasonForSearch: 'TV'
+            },
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        } else {
+          throw firstError
         }
-      })
+      }
 
       console.log('Creditsafe verification completed:', response.data.verifyMatch ? 'Match found' : 'No match')
 
@@ -201,26 +236,34 @@ class CreditsafeService {
     postCode: string,
   }): Promise<VerificationResponse> {
     const { firstName, lastName, dateOfBirth, address, postCode } = payload
-    
-    const token = await this.authenticate()
+
+    let token = await this.authenticate()
 
     console.log('Sending Verify request to Creditsafe for:', firstName, lastName)
 
-    //Call Creditsafe Verify API - Direct Individual Report endpoint
-    const response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
-      params: {
-        firstName: firstName,
-        lastName: lastName,
-        dateOfBirth: dateOfBirth,
-        address: address,
-        postCode: postCode,
-        reasonForSearch: 'TV'
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`
+    const params = { firstName, lastName, dateOfBirth, address, postCode, reasonForSearch: 'TV' }
+
+    let response
+    try {
+      response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+        params,
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    } catch (firstError: any) {
+      if (firstError.response?.status === 401) {
+        console.log('Creditsafe token expired in verify(), re-authenticating...')
+        this.authToken = null
+        this.tokenExpiry = null
+        token = await this.authenticate()
+        response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+          params,
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      } else {
+        throw firstError
       }
-    })
-    // Parse and return verification response
+    }
+
     return this.parseVerificationResponse(response.data)
   }
 
@@ -349,7 +392,7 @@ class CreditsafeService {
 
       const { data, error } = await supabase
         .from('creditsafe_verifications')
-        .insert({
+        .upsert({
           reference_id: referenceId,
           verification_request_encrypted: encryptedRequest,
           verification_response_encrypted: encryptedResponse,
@@ -388,6 +431,8 @@ class CreditsafeService {
           error_message: response.errorMessage,
           verified_at: response.status !== 'error' ? new Date().toISOString() : null,
           requested_by: requestedBy || null
+        }, {
+          onConflict: 'reference_id'
         })
         .select('id')
         .single()

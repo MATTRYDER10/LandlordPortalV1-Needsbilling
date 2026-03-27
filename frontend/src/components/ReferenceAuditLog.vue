@@ -39,7 +39,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import { formatDateTime as formatUkDateTime } from '../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const props = defineProps<{
   referenceId: string

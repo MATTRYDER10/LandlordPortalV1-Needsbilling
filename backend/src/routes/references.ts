@@ -401,7 +401,7 @@ const sendLegacyTenantAddGuarantorLink = async (token: string): Promise<boolean>
   const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
   const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
   const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
-  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'Your agent' : 'Your agent'
+  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
   const formLink = `${frontendUrl}/tenant-add-guarantor/${reference.id}`
 
   await sendTenantAddGuarantorRequest(
@@ -1831,8 +1831,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
     }
 
     const companyName = companyUser.companies?.name_encrypted
-      ? (decrypt(companyUser.companies.name_encrypted) || 'Your agent')
-      : 'Your agent'
+      ? (decrypt(companyUser.companies.name_encrypted) || 'PropertyGoose')
+      : 'PropertyGoose'
     const companyPhone = companyUser.companies?.phone_encrypted
       ? (decrypt(companyUser.companies.phone_encrypted) || '')
       : ''
@@ -3440,7 +3440,7 @@ router.post('/submit/:token', async (req: Request, res) => {
 
             const companyName = (companyData?.name_encrypted
               ? decrypt(companyData.name_encrypted)
-              : null) || 'Your agent'
+              : null) || 'PropertyGoose'
             const companyPhone = companyData?.phone_encrypted
               ? (decrypt(companyData.phone_encrypted) || '')
               : ''
@@ -3616,7 +3616,7 @@ router.post('/submit/:token', async (req: Request, res) => {
     }
 
     //Check Creditsafe verification
-    const address = [data.current_address_line1, data.current_address_line2, data.current_city, data.current_postcode, data.current_country].filter((add) => !!((add || '').trim())).join(', ')
+    const address = [data.current_address_line1, data.current_address_line2].filter((add) => !!((add || '').trim())).join(', ')
 
     const creditSfaePayload = {
       firstName: data.first_name,
@@ -6025,8 +6025,8 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const tenantName = `${decrypt(parentReference.tenant_first_name_encrypted)} ${decrypt(parentReference.tenant_last_name_encrypted)}`
     const propertyAddress = decrypt(parentReference.property_address_encrypted) || 'the property'
     const companyName = parentReference.companies?.name_encrypted
-      ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
-      : 'Your agent'
+      ? decrypt(parentReference.companies.name_encrypted) || 'PropertyGoose'
+      : 'PropertyGoose'
     const companyPhone = parentReference.companies?.phone_encrypted
       ? (decrypt(parentReference.companies.phone_encrypted) || '')
       : ''
@@ -6269,7 +6269,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const guarantorName = `${guarantorFirstName} ${guarantorLastName}`.trim()
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
-    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
@@ -6446,7 +6446,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const propertyAddress = parentRef?.property_address_encrypted
       ? decrypt(parentRef.property_address_encrypted) || 'the property'
       : 'the property'
-    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
@@ -6632,8 +6632,8 @@ router.get('/tenant-add-guarantor/:token', async (req, res) => {
       tenantName: `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`,
       propertyAddress: decrypt(reference.property_address_encrypted) || 'the property',
       agentName: company?.name_encrypted
-        ? decrypt(company.name_encrypted) || 'Your agent'
-        : 'Your agent'
+        ? decrypt(company.name_encrypted) || 'PropertyGoose'
+        : 'PropertyGoose'
     })
   } catch (error: any) {
     console.error('Failed to get tenant add guarantor details:', error)
@@ -6758,8 +6758,8 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
     const tenantName = `${decrypt(parentReference.tenant_first_name_encrypted)} ${decrypt(parentReference.tenant_last_name_encrypted)}`
     const propertyAddress = decrypt(parentReference.property_address_encrypted) || 'the property'
     const companyName = parentReference.companies?.name_encrypted
-      ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
-      : 'Your agent'
+      ? decrypt(parentReference.companies.name_encrypted) || 'PropertyGoose'
+      : 'PropertyGoose'
     const companyPhone = parentReference.companies?.phone_encrypted
       ? (decrypt(parentReference.companies.phone_encrypted) || '')
       : ''

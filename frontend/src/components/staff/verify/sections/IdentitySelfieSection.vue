@@ -22,6 +22,16 @@
         Compare the {{ isGuarantor ? "guarantor's" : "tenant's" }} ID document and selfie, and confirm their identity matches the application details.
       </p>
 
+      <!-- Evidence Status Banner (guarantor will-email cases) -->
+      <div v-if="evidenceStatus === 'AWAITING_UPLOAD'" class="evidence-banner evidence-banner-blue">
+        <Clock class="banner-icon" />
+        <span>Waiting for ID document upload (email link sent to {{ isGuarantor ? 'guarantor' : 'tenant' }}).</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'EVIDENCE_RECEIVED'" class="evidence-banner evidence-banner-green">
+        <CheckCircle class="banner-icon" />
+        <span>ID document received.</span>
+      </div>
+
       <!-- Document vs Selfie comparison -->
       <div class="comparison-grid">
         <div class="comparison-item">
@@ -221,10 +231,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
-import { RotateCw, ZoomOut, ZoomIn, X, IdCard, User, FileText, Check, Minus } from 'lucide-vue-next'
+import { RotateCw, ZoomOut, ZoomIn, X, IdCard, User, FileText, Check, Minus, Clock, CheckCircle } from 'lucide-vue-next'
 
 // Image manipulation state
 const idRotation = ref(0)
@@ -300,6 +310,10 @@ const props = defineProps<{
   savingNameCorrection?: boolean
 }>()
 
+const evidenceStatus = computed(() => {
+  return (props.section as any).section_data?.evidence_status || null
+})
+
 const idDocumentIsPdf = ref(false)
 
 const updateIdDocumentType = async (url?: string | null) => {
@@ -372,6 +386,45 @@ watch(() => props.idDocumentUrl, (newUrl) => {
 .section-description {
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+.evidence-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.evidence-banner .banner-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.evidence-banner-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.dark .evidence-banner-blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.evidence-banner-green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.dark .evidence-banner-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .comparison-grid {

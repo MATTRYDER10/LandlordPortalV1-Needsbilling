@@ -2,13 +2,13 @@ import { Router } from 'express'
 import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
-import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail } from '../services/emailService'
+import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail, sendTenantOfferConfirmation } from '../services/emailService'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logOfferAuditAction } from '../services/offerAuditService'
-import { auditOfferSent, auditOfferCompleted } from '../services/propertyAuditService'
+import { auditOfferSent, auditOfferCompleted, auditOfferAccepted, auditOfferRejected } from '../services/propertyAuditService'
 import { BRAND_COLORS } from '../config/colors'
 import { getFrontendUrl } from '../utils/frontendUrl'
 
@@ -97,8 +97,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             .single()
 
         const companyName = company?.name_encrypted
-            ? (decrypt(company.name_encrypted) || 'Your agent')
-            : 'Your agent'
+            ? (decrypt(company.name_encrypted) || 'PropertyGoose')
+            : 'PropertyGoose'
         const companyPhone = company?.phone_encrypted
             ? (decrypt(company.phone_encrypted) || '')
             : ''
@@ -107,14 +107,38 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             : ''
         const companyLogoUrl = company?.logo_url || null
 
-        // Generate offer form link with company ID and pre-filled data
+        // Generate unique form reference
+        const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
+
+        // Generate offer form link with company ID, form_ref, and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
         const billsIncludedQuery = bills_included ? '&bills_included=1' : ''
         const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
         const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
-        const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+        const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&form_ref=${formRef}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+
+        // Store record of sent offer form for tracking (do this first to ensure form_ref exists)
+        try {
+            await supabase
+                .from('sent_offer_forms')
+                .insert({
+                    company_id: companyId,
+                    sent_by: userId,
+                    tenant_email: tenant_email,
+                    property_address_encrypted: encrypt(property_address),
+                    property_city_encrypted: property_city ? encrypt(property_city) : null,
+                    property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
+                    rent_amount: rent_amount || null,
+                    offer_deposit_replacement: !!offer_deposit_replacement,
+                    linked_property_id: linked_property_id || null,
+                    form_ref: formRef
+                })
+        } catch (dbError: any) {
+            console.error('Failed to store sent offer form record:', dbError)
+            // Don't fail the request if DB insert fails
+        }
 
         // Send email to tenant with offer form link
         try {
@@ -131,26 +155,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         } catch (emailError: any) {
             console.error('Failed to send offer form email:', emailError)
             // Don't fail the request if email fails, just log it
-        }
-
-        // Store record of sent offer form for tracking
-        try {
-            await supabase
-                .from('sent_offer_forms')
-                .insert({
-                    company_id: companyId,
-                    sent_by: userId,
-                    tenant_email: tenant_email,
-                    property_address_encrypted: encrypt(property_address),
-                    property_city_encrypted: property_city ? encrypt(property_city) : null,
-                    property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
-                    rent_amount: rent_amount || null,
-                    offer_deposit_replacement: !!offer_deposit_replacement,
-                    linked_property_id: linked_property_id || null
-                })
-        } catch (dbError: any) {
-            console.error('Failed to store sent offer form record:', dbError)
-            // Don't fail the request if DB insert fails
         }
 
         // Log property audit if property is linked
@@ -220,6 +224,11 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
                 tenant_order: tenant.tenant_order,
                 name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
                 address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
+                address_line2: tenant.address_line2_encrypted ? decrypt(tenant.address_line2_encrypted) : '',
+                address_city: tenant.address_city_encrypted ? decrypt(tenant.address_city_encrypted) : '',
+                address_county: tenant.address_county_encrypted ? decrypt(tenant.address_county_encrypted) : '',
+                address_postcode: tenant.address_postcode_encrypted ? decrypt(tenant.address_postcode_encrypted) : '',
+                address_country: tenant.address_country_encrypted ? decrypt(tenant.address_country_encrypted) : '',
                 phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
                 email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
                 annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
@@ -349,6 +358,11 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
             tenant_order: tenant.tenant_order,
             name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
             address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
+            address_line2: tenant.address_line2_encrypted ? decrypt(tenant.address_line2_encrypted) : '',
+            address_city: tenant.address_city_encrypted ? decrypt(tenant.address_city_encrypted) : '',
+            address_county: tenant.address_county_encrypted ? decrypt(tenant.address_county_encrypted) : '',
+            address_postcode: tenant.address_postcode_encrypted ? decrypt(tenant.address_postcode_encrypted) : '',
+            address_country: tenant.address_country_encrypted ? decrypt(tenant.address_country_encrypted) : '',
             phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
             email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
             annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
@@ -378,152 +392,53 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
     }
 })
 
-// Get single offer by ID
-router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const userId = req.user?.id
-        const { id } = req.params
+// =====================================================================
+// PUBLIC ROUTES (no auth required) - MUST be defined BEFORE /:id route
+// =====================================================================
 
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' })
-        }
-
-        // Get company ID with branch isolation support
-        const companyId = await getCompanyIdForRequest(req)
-        if (!companyId) {
-            return res.status(404).json({ error: 'Company not found' })
-        }
-
-        // Get offer with tenants
-        const { data: offer, error } = await supabase
-            .from('tenant_offers')
-            .select(`
-        *,
-        tenant_offer_tenants (
-          id,
-          tenant_order,
-          name_encrypted,
-          address_encrypted,
-          phone_encrypted,
-          email_encrypted,
-          annual_income_encrypted,
-          job_title_encrypted,
-          no_ccj_bankruptcy_iva,
-          signature_encrypted,
-          signature_name_encrypted,
-          signed_at,
-          rent_share,
-          rent_share_percentage
-        )
-      `)
-            .eq('id', id)
-            .eq('company_id', companyId)
-            .single()
-
-        if (error || !offer) {
-            return res.status(404).json({ error: 'Offer not found' })
-        }
-
-        // Decrypt offer data
-        const tenants = (offer.tenant_offer_tenants || []).map((tenant: any) => ({
-            id: tenant.id,
-            tenant_order: tenant.tenant_order,
-            name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
-            address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
-            phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
-            email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
-            annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
-            job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
-            no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
-            signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
-            signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
-            signed_at: tenant.signed_at,
-            rent_share: tenant.rent_share,
-            rent_share_percentage: tenant.rent_share_percentage
-        }))
-
-        const decrypted = {
-            ...offer,
-            property_address: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
-            property_city: offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : '',
-            property_postcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
-            special_conditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : '',
-            declined_reason: offer.declined_reason_encrypted ? decrypt(offer.declined_reason_encrypted) : '',
-            tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order)
-        }
-
-        res.json({ offer: decrypted })
-    } catch (error: any) {
-        console.error('Error fetching offer:', error)
-        res.status(500).json({ error: error.message })
-    }
-})
-
-// Check if tenant has already submitted an offer (public route - no auth required)
+// Check if this specific offer form has already been submitted (public route - no auth required)
 router.get('/check-submission', async (req, res) => {
     try {
-        const { email, company_id } = req.query
+        const { form_ref, email, company_id } = req.query
 
-        if (!email || !company_id) {
-            return res.status(400).json({ error: 'Email and company_id are required' })
-        }
+        // If form_ref provided, check by form_ref (preferred method)
+        if (form_ref) {
+            console.log('[check-submission] Checking form_ref:', form_ref)
 
-        // Get all offers for the company
-        const { data: offers, error: offersError } = await supabase
-            .from('tenant_offers')
-            .select('id, status, created_at')
-            .eq('company_id', company_id as string)
-            .order('created_at', { ascending: false })
+            const { data: sentForm, error } = await supabase
+                .from('sent_offer_forms')
+                .select('id, status, submitted_at, tenant_offer_id')
+                .eq('form_ref', form_ref as string)
+                .single()
 
-        if (offersError) {
-            return res.status(500).json({ error: 'Failed to check offers' })
-        }
+            if (error || !sentForm) {
+                // Form ref not found - this is a new/unknown form
+                console.log('[check-submission] form_ref not found, returning submitted: false')
+                return res.status(200).json({ submitted: false })
+            }
 
-        if (!offers || offers.length === 0) {
+            if (sentForm.status === 'submitted' && sentForm.tenant_offer_id) {
+                console.log('[check-submission] Form already submitted, offer ID:', sentForm.tenant_offer_id)
+                return res.status(200).json({
+                    submitted: true,
+                    status: 'submitted',
+                    created_at: sentForm.submitted_at
+                })
+            }
+
+            console.log('[check-submission] Form not yet submitted')
             return res.status(200).json({ submitted: false })
         }
 
-        // Check if any tenant in any offer has this email
-        const offerIds = offers.map(offer => offer.id)
-        const { data: tenants, error: tenantsError } = await supabase
-            .from('tenant_offer_tenants')
-            .select('id, email_encrypted, tenant_offer_id, tenant_offers:tenant_offer_id(status, created_at)')
-            .in('tenant_offer_id', offerIds)
-
-        if (tenantsError) {
-            return res.status(500).json({ error: 'Failed to check tenants' })
+        // Legacy fallback: check by email (for old links without form_ref)
+        if (!email || !company_id) {
+            return res.status(200).json({ submitted: false })
         }
 
-        // Decrypt and check emails
-        let foundSubmission = null
-        const emailToCheck = (email as string).toLowerCase()
+        console.log('[check-submission] Legacy check - email:', email, 'company:', company_id)
 
-        for (const tenant of tenants || []) {
-            try {
-                if (tenant.email_encrypted) {
-                    const decryptedEmail = decrypt(tenant.email_encrypted)
-                    if (decryptedEmail?.toLowerCase() === emailToCheck) {
-                        foundSubmission = {
-                            status: (tenant.tenant_offers as any)?.status || 'pending',
-                            created_at: (tenant.tenant_offers as any)?.created_at
-                        }
-                        break
-                    }
-                }
-            } catch (err) {
-                // Continue checking other tenants
-                continue
-            }
-        }
-
-        if (foundSubmission) {
-            return res.status(200).json({
-                submitted: true,
-                status: foundSubmission.status,
-                created_at: foundSubmission.created_at
-            })
-        }
-
+        // For legacy links, just return false to allow submission
+        // The actual duplicate prevention happens at submit time
         return res.status(200).json({ submitted: false })
     } catch (error: any) {
         console.error('Error checking submission:', error)
@@ -547,7 +462,11 @@ router.post('/submit', async (req, res) => {
             tenants, // Array of tenant objects
             deposit_replacement_offered,
             deposit_replacement_requested,
-            linked_property_id
+            unihomes_offered,
+            unihomes_interested,
+            linked_property_id,
+            is_v2,
+            form_ref // Unique reference for this offer form
         } = req.body
 
         // Validate required fields
@@ -567,8 +486,11 @@ router.post('/submit', async (req, res) => {
         // Validate each tenant
         for (let i = 0; i < tenants.length; i++) {
             const tenant = tenants[i]
-            if (!tenant.name || !tenant.address || !tenant.phone || !tenant.email || !tenant.annual_income) {
+            if (!tenant.name || !tenant.address || !tenant.phone || !tenant.email) {
                 return res.status(400).json({ error: `Tenant ${i + 1} is missing required fields` })
+            }
+            if (!tenant.is_student && !tenant.annual_income) {
+                return res.status(400).json({ error: `Tenant ${i + 1} must provide yearly income or be marked as a student` })
             }
             if (!tenant.no_ccj_bankruptcy_iva) {
                 return res.status(400).json({ error: `Tenant ${i + 1} must confirm they have no CCJs, Bankruptcies or IVAs` })
@@ -586,7 +508,7 @@ router.post('/submit', async (req, res) => {
         // Verify company exists and get details for email
         const { data: companyData, error: companyError } = await supabase
             .from('companies')
-            .select('id, name_encrypted, email_encrypted, offer_notification_email')
+            .select('id, name_encrypted, email_encrypted, phone_encrypted, offer_notification_email')
             .eq('id', companyId)
             .single()
 
@@ -609,6 +531,8 @@ router.post('/submit', async (req, res) => {
         const depositReplacementOfferedFromQuery = normalizeBoolean(req.query.deposit_replacement_offered)
         const depositReplacementOffered = normalizeBoolean(deposit_replacement_offered) || depositReplacementOfferedFromQuery
         const depositReplacementRequested = depositReplacementOffered && normalizeBoolean(deposit_replacement_requested)
+        const unihomesOfferedBool = normalizeBoolean(unihomes_offered) || normalizeBoolean(req.query.unihomes)
+        const unihomesInterestedBool = unihomesOfferedBool && normalizeBoolean(unihomes_interested)
 
         // Calculate deposit amount: £0 if deposit replacement requested, otherwise 5 weeks rent
         const rentAmount = parseFloat(offered_rent_amount)
@@ -632,7 +556,10 @@ router.post('/submit', async (req, res) => {
                 status: 'pending',
                 deposit_replacement_offered: depositReplacementOffered,
                 deposit_replacement_requested: depositReplacementRequested,
-                linked_property_id: linked_property_id || null
+                unihomes_offered: unihomesOfferedBool,
+                unihomes_interested: unihomesInterestedBool,
+                linked_property_id: linked_property_id || null,
+                is_v2: is_v2 === true
             })
             .select()
             .single()
@@ -647,6 +574,11 @@ router.post('/submit', async (req, res) => {
             tenant_order: index + 1,
             name_encrypted: encrypt(tenant.name),
             address_encrypted: encrypt(tenant.address),
+            address_line2_encrypted: tenant.address_line2 ? encrypt(tenant.address_line2) : null,
+            address_city_encrypted: tenant.address_city ? encrypt(tenant.address_city) : null,
+            address_county_encrypted: tenant.address_county ? encrypt(tenant.address_county) : null,
+            address_postcode_encrypted: tenant.address_postcode ? encrypt(tenant.address_postcode) : null,
+            address_country_encrypted: tenant.address_country ? encrypt(tenant.address_country) : null,
             phone_encrypted: encrypt(tenant.phone),
             email_encrypted: encrypt(tenant.email),
             annual_income_encrypted: encrypt(tenant.annual_income),
@@ -667,27 +599,40 @@ router.post('/submit', async (req, res) => {
             return res.status(400).json({ error: tenantsError.message })
         }
 
-        // Update any matching sent_offer_forms record to mark as submitted
-        // Match by tenant email and company_id where status is still 'sent'
-        const tenantEmails = tenants.map((t: any) => t.email.toLowerCase())
+        // Update sent_offer_forms record to mark as submitted
         try {
-            await supabase
-                .from('sent_offer_forms')
-                .update({
-                    status: 'submitted',
-                    submitted_at: new Date().toISOString(),
-                    tenant_offer_id: offer.id
-                })
-                .eq('company_id', companyId)
-                .eq('status', 'sent')
-                .in('tenant_email', tenantEmails)
+            if (form_ref) {
+                // New method: update by form_ref
+                await supabase
+                    .from('sent_offer_forms')
+                    .update({
+                        status: 'submitted',
+                        submitted_at: new Date().toISOString(),
+                        tenant_offer_id: offer.id
+                    })
+                    .eq('form_ref', form_ref)
+                    .or('status.eq.sent,status.is.null')
+            } else {
+                // Legacy fallback: match by tenant email and company_id
+                const tenantEmails = tenants.map((t: any) => t.email.toLowerCase())
+                await supabase
+                    .from('sent_offer_forms')
+                    .update({
+                        status: 'submitted',
+                        submitted_at: new Date().toISOString(),
+                        tenant_offer_id: offer.id
+                    })
+                    .eq('company_id', companyId)
+                    .or('status.eq.sent,status.is.null')
+                    .in('tenant_email', tenantEmails)
+            }
         } catch (updateError: any) {
             console.error('Failed to update sent_offer_forms record:', updateError)
             // Don't fail - this is non-critical
         }
 
         // Get company details for email notification (already fetched above)
-        const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'PropertyGoose'
+        const companyName = companyData?.name_encrypted ? (decrypt(companyData.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted) : null
         const notificationEmail = companyData?.offer_notification_email || companyEmail
 
@@ -697,23 +642,162 @@ router.post('/submit', async (req, res) => {
                 const tenantNames = tenants.map((t: any) => t.name).join(', ')
                 const propertyAddress = property_address
 
+                // Get company branding for styled email
+                const { data: brandingData } = await supabase
+                    .from('companies')
+                    .select('logo_url, primary_color')
+                    .eq('id', companyId)
+                    .single()
+
+                const primaryColor = brandingData?.primary_color || '#f97316'
+                const logoUrl = brandingData?.logo_url || null
+                const formattedMoveIn = proposed_move_in_date
+                    ? new Date(proposed_move_in_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : 'To be confirmed'
+                const depositText = deposit_amount ? `£${Number(deposit_amount).toLocaleString()}` : 'Standard'
+                const viewUrl = `${frontendUrl}/tenant-offers/${offer.id}`
+
+                const logoHtml = logoUrl
+                    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height: 40px; max-width: 180px;" />`
+                    : `<span style="font-size: 18px; font-weight: 700; color: #ffffff;">${companyName}</span>`
+
+                // Build tenant cards
+                const tenantCardsHtml = tenants.map((t: any, i: number) => `
+                    <tr>
+                        <td style="padding: 4px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 6px;">
+                                <tr>
+                                    <td width="36" style="padding: 10px;">
+                                        <div style="width: 28px; height: 28px; background-color: ${primaryColor}20; color: ${primaryColor}; border-radius: 50%; text-align: center; line-height: 28px; font-size: 12px; font-weight: 600;">${i + 1}</div>
+                                    </td>
+                                    <td style="padding: 10px 10px 10px 0;">
+                                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #111827;">${t.name}</p>
+                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280;">${t.email}${t.phone ? ` &middot; ${t.phone}` : ''}</p>
+                                    </td>
+                                    <td width="90" align="right" style="padding: 10px;">
+                                        ${t.annual_income && t.annual_income !== 'Student'
+                                            ? `<p style="margin: 0; font-size: 13px; font-weight: 700; color: #16a34a;">£${t.annual_income}</p><p style="margin: 0; font-size: 10px; color: #9ca3af;">per year</p>`
+                                            : t.annual_income === 'Student'
+                                                ? `<p style="margin: 0; font-size: 12px; font-weight: 600; color: ${primaryColor};">Student</p>`
+                                                : ''}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                `).join('')
+
                 const emailHtml = `
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <h2>New Tenant Offer Received</h2>
-              <p>A new tenant offer has been submitted for your review.</p>
-              <h3>Offer Details:</h3>
-              <ul>
-                <li><strong>Property:</strong> ${propertyAddress}</li>
-                <li><strong>Tenants:</strong> ${tenantNames}</li>
-                <li><strong>Offered Rent:</strong> £${offered_rent_amount} per month</li>
-                <li><strong>Proposed Move-in Date:</strong> ${proposed_move_in_date}</li>
-                <li><strong>Tenancy Length:</strong> ${proposed_tenancy_length_months} months</li>
-              </ul>
-              <p><a href="${frontendUrl}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
-            </body>
-          </html>
-        `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr><td align="center" style="padding: 24px 16px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 560px;">
+                <!-- Header -->
+                <tr>
+                    <td style="background-color: ${primaryColor}; border-radius: 12px 12px 0 0; padding: 24px 28px; text-align: center;">
+                        ${logoHtml}
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="background-color: #ffffff; padding: 28px;">
+                        <!-- Title -->
+                        <h1 style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; color: #111827;">New Offer Received</h1>
+                        <p style="margin: 0 0 24px 0; font-size: 14px; color: #6b7280;">A tenant has submitted an offer for your review.</p>
+
+                        <!-- Property Card -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${primaryColor}10; border: 1px solid ${primaryColor}30; border-radius: 8px; margin-bottom: 20px;">
+                            <tr>
+                                <td style="padding: 16px;">
+                                    <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">Property</p>
+                                    <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${propertyAddress}</p>
+                                    ${property_city ? `<p style="margin: 2px 0 0 0; font-size: 13px; color: #6b7280;">${property_city}${property_postcode ? ', ' + property_postcode : ''}</p>` : ''}
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Offer Terms Grid -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 20px;">
+                            <tr>
+                                <td width="50%" style="padding: 0 8px 12px 0; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Monthly Rent</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; color: #111827;">£${Number(offered_rent_amount).toLocaleString()}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                                <td width="50%" style="padding: 0 0 12px 8px; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Move-in Date</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${formattedMoveIn}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="50%" style="padding: 0 8px 0 0; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Tenancy Length</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${proposed_tenancy_length_months} months</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                                <td width="50%" style="padding: 0 0 0 8px; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Deposit</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${depositText}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Tenants -->
+                        <p style="margin: 0 0 8px 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Applicants (${tenants.length})</p>
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 24px;">
+                            ${tenantCardsHtml}
+                        </table>
+
+                        ${special_conditions ? `
+                        <!-- Special Conditions -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; margin-bottom: 24px;">
+                            <tr><td style="padding: 14px;">
+                                <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #92400e;">Special Conditions</p>
+                                <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.5;">${special_conditions}</p>
+                            </td></tr>
+                        </table>
+                        ` : ''}
+
+                        <!-- CTA Button -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr><td align="center">
+                                <a href="${viewUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px;">
+                                    Review Offer
+                                </a>
+                            </td></tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+                        <p style="margin: 0; font-size: 11px; color: #9ca3af;">This is an automated notification from PropertyGoose on behalf of ${companyName}.</p>
+                    </td>
+                </tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`
 
                 await sendEmail({
                     to: notificationEmail,
@@ -749,6 +833,50 @@ router.post('/submit', async (req, res) => {
                 console.error('Failed to log property audit:', auditError)
                 // Don't fail - audit logging is non-critical
             }
+        }
+
+        // Send confirmation email to lead tenant
+        try {
+            // Get company branding
+            const { data: companyBranding } = await supabase
+                .from('companies')
+                .select('logo_url, primary_color')
+                .eq('id', companyId)
+                .single()
+
+            const leadTenant = tenants[0]
+            await sendTenantOfferConfirmation({
+                tenantEmail: leadTenant.email,
+                tenantName: leadTenant.name,
+                propertyAddress: property_address,
+                propertyCity: property_city,
+                propertyPostcode: property_postcode,
+                monthlyRent: parseFloat(offered_rent_amount),
+                moveInDate: proposed_move_in_date,
+                tenancyLength: parseInt(proposed_tenancy_length_months),
+                depositAmount: finalDepositAmount,
+                specialConditions: special_conditions,
+                tenants: tenants.map((t: any) => ({
+                    name: t.name,
+                    email: t.email,
+                    phone: t.phone,
+                    address: t.address,
+                    jobTitle: t.job_title,
+                    annualIncome: t.annual_income,
+                    signature: t.signature,
+                    signatureName: t.signature_name,
+                    signedAt: new Date().toISOString()
+                })),
+                companyName,
+                companyPhone: companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || undefined) : undefined,
+                companyEmail: companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || undefined) : undefined,
+                companyLogoUrl: companyBranding?.logo_url,
+                primaryColor: companyBranding?.primary_color || '#f97316',
+                offerId: offer.id
+            })
+        } catch (emailError: any) {
+            console.error('Failed to send offer confirmation email:', emailError)
+            // Don't fail the request - email is non-critical
         }
 
         res.status(201).json({
@@ -822,8 +950,17 @@ router.post('/confirm-payment', async (req, res) => {
 
         // Get company and notification details
         const company = (offer as any).companies
+        const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
         const notificationEmail = company?.offer_notification_email || companyEmail
+
+        // Get company logo
+        const { data: companyBrandingData } = await supabase
+            .from('companies')
+            .select('logo_url')
+            .eq('id', offer.company_id)
+            .single()
+        const companyLogoUrl = companyBrandingData?.logo_url || null
 
         if (notificationEmail) {
             try {
@@ -851,7 +988,9 @@ router.post('/confirm-payment', async (req, res) => {
                     propertyAddress,
                     tenantNames,
                     holdingDepositAmount,
-                    offerLink
+                    offerLink,
+                    companyName,
+                    companyLogoUrl
                 )
             } catch (emailError) {
                 console.error('Failed to send payment confirmation email to agent:', emailError)
@@ -876,11 +1015,102 @@ router.post('/confirm-payment', async (req, res) => {
     }
 })
 
+// =====================================================================
+// AUTHENTICATED ROUTES - /:id must come AFTER specific path routes
+// =====================================================================
+
+// Get single offer by ID
+router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get company ID with branch isolation support
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        // Get offer with tenants
+        const { data: offer, error } = await supabase
+            .from('tenant_offers')
+            .select(`
+        *,
+        tenant_offer_tenants (
+          id,
+          tenant_order,
+          name_encrypted,
+          address_encrypted,
+          phone_encrypted,
+          email_encrypted,
+          annual_income_encrypted,
+          job_title_encrypted,
+          no_ccj_bankruptcy_iva,
+          signature_encrypted,
+          signature_name_encrypted,
+          signed_at,
+          rent_share,
+          rent_share_percentage
+        )
+      `)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (error || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Decrypt offer data
+        const tenants = (offer.tenant_offer_tenants || []).map((tenant: any) => ({
+            id: tenant.id,
+            tenant_order: tenant.tenant_order,
+            name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
+            address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
+            address_line2: tenant.address_line2_encrypted ? decrypt(tenant.address_line2_encrypted) : '',
+            address_city: tenant.address_city_encrypted ? decrypt(tenant.address_city_encrypted) : '',
+            address_county: tenant.address_county_encrypted ? decrypt(tenant.address_county_encrypted) : '',
+            address_postcode: tenant.address_postcode_encrypted ? decrypt(tenant.address_postcode_encrypted) : '',
+            address_country: tenant.address_country_encrypted ? decrypt(tenant.address_country_encrypted) : '',
+            phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
+            email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
+            annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
+            job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
+            no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
+            signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
+            signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
+            signed_at: tenant.signed_at,
+            rent_share: tenant.rent_share,
+            rent_share_percentage: tenant.rent_share_percentage
+        }))
+
+        const decrypted = {
+            ...offer,
+            property_address: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
+            property_city: offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : '',
+            property_postcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
+            special_conditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : '',
+            declined_reason: offer.declined_reason_encrypted ? decrypt(offer.declined_reason_encrypted) : '',
+            tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order)
+        }
+
+        res.json({ offer: decrypted })
+    } catch (error: any) {
+        console.error('Error fetching offer:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Approve offer (sends email with bank details and, if applicable, updated terms)
 router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const userId = req.user?.id
         const { id } = req.params
+        const { accept_with_changes, changes } = req.body
 
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' })
@@ -916,24 +1146,99 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(404).json({ error: 'Offer not found' })
         }
 
-        const wasAcceptedWithChanges = offer.status === 'accepted_with_changes'
+        const wasAcceptedWithChanges = offer.status === 'accepted_with_changes' || accept_with_changes
 
-        if (offer.status !== 'pending' && !wasAcceptedWithChanges) {
+        if (offer.status !== 'pending' && offer.status !== 'accepted_with_changes') {
             return res.status(400).json({ error: 'Offer cannot be approved in its current status' })
+        }
+
+        // Build update object
+        const updateData: Record<string, any> = {
+            status: 'approved',
+            approved_at: new Date().toISOString(),
+            approved_by: userId
+        }
+
+        // Apply changes if provided (Accept with Changes flow)
+        if (accept_with_changes && changes) {
+            if (changes.offered_rent_amount !== undefined && changes.offered_rent_amount !== null) {
+                updateData.offered_rent_amount = changes.offered_rent_amount
+            }
+            if (changes.proposed_move_in_date) {
+                updateData.proposed_move_in_date = changes.proposed_move_in_date
+            }
+            if (changes.proposed_tenancy_length_months !== undefined && changes.proposed_tenancy_length_months !== null) {
+                updateData.proposed_tenancy_length_months = changes.proposed_tenancy_length_months
+            }
+            if (changes.deposit_amount !== undefined && changes.deposit_amount !== null) {
+                updateData.deposit_amount = changes.deposit_amount
+            }
         }
 
         // Update offer status
         const { error: updateError } = await supabase
             .from('tenant_offers')
-            .update({
-                status: 'approved',
-                approved_at: new Date().toISOString(),
-                approved_by: userId
-            })
+            .update(updateData)
             .eq('id', id)
 
         if (updateError) {
             return res.status(400).json({ error: updateError.message })
+        }
+
+        // Update Apex27 listing status to "Let Agreed" if property is linked
+        try {
+            if (offer.linked_property_id) {
+                const { data: property } = await supabase
+                    .from('properties')
+                    .select('apex27_listing_id, company_id')
+                    .eq('id', offer.linked_property_id)
+                    .single()
+
+                if (property?.apex27_listing_id) {
+                    const { data: integration } = await supabase
+                        .from('company_integrations')
+                        .select('apex27_api_key_encrypted')
+                        .eq('company_id', property.company_id)
+                        .single()
+
+                    if (integration?.apex27_api_key_encrypted) {
+                        const apiKey = decrypt(integration.apex27_api_key_encrypted)
+                        if (apiKey) {
+                            // First GET the current listing to preserve required fields
+                            const getResponse = await fetch(`https://api.apex27.co.uk/listings/${property.apex27_listing_id}`, {
+                                headers: { 'X-Api-Key': apiKey }
+                            })
+                            if (getResponse.ok) {
+                                const listing: any = await getResponse.json()
+                                const apex27Response = await fetch(`https://api.apex27.co.uk/listings/${property.apex27_listing_id}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'X-Api-Key': apiKey,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        branchId: listing.branchId,
+                                        transactionType: listing.transactionType || 'rent',
+                                        propertyType: listing.propertyType || 'house',
+                                        bedrooms: listing.bedrooms || 1,
+                                        bathrooms: listing.bathrooms || 1,
+                                        status: 'let_agreed'
+                                    })
+                                })
+                                if (apex27Response.ok) {
+                                    console.log(`[Apex27] Updated listing ${property.apex27_listing_id} to let_agreed`)
+                                } else {
+                                    const errText = await apex27Response.text()
+                                    console.warn(`[Apex27] Failed to update listing status: ${apex27Response.status} - ${errText}`)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (apex27Err) {
+            console.error('[Apex27] Error updating listing status:', apex27Err)
+            // Non-blocking - don't fail the offer approval
         }
 
         // Get company and decrypted details
@@ -946,8 +1251,14 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         const bankAccountNumber = company?.bank_account_number || ''
         const bankSortCode = company?.bank_sort_code || ''
 
+        // Use updated values if changes were applied, otherwise use original offer values
+        const finalRentAmount = (accept_with_changes && changes?.offered_rent_amount) ? changes.offered_rent_amount : offer.offered_rent_amount
+        const finalMoveInDate = (accept_with_changes && changes?.proposed_move_in_date) ? changes.proposed_move_in_date : offer.proposed_move_in_date
+        const finalTenancyLength = (accept_with_changes && changes?.proposed_tenancy_length_months) ? changes.proposed_tenancy_length_months : offer.proposed_tenancy_length_months
+        const finalDepositAmount = (accept_with_changes && changes?.deposit_amount) ? changes.deposit_amount : offer.deposit_amount
+
         // Calculate holding deposit (one week's rent, rounded down to nearest pound)
-        const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
+        const holdingDeposit = Math.floor((finalRentAmount * 12) / 52)
 
         // Decrypt property and terms
         const propertyAddress = offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : ''
@@ -955,9 +1266,11 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         const propertyPostcode = offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : ''
         const specialConditions = offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : ''
 
-        const tenancyLengthMonths = offer.proposed_tenancy_length_months
-        const moveInDate = offer.proposed_move_in_date
-        const depositAmount = offer.deposit_amount
+        const tenancyLengthMonths = finalTenancyLength
+        const moveInDate = finalMoveInDate
+            ? new Date(finalMoveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            : 'To be confirmed'
+        const depositAmount = finalDepositAmount
 
         // Get tenant emails
         const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
@@ -980,7 +1293,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
           </p>
           <ul style="margin: 0 0 12px 18px; padding: 0;">
             <li style="margin-bottom: 4px;"><strong>Property:</strong> ${addressLine}</li>
-            <li style="margin-bottom: 4px;"><strong>Offered Rent:</strong> £${offer.offered_rent_amount} per month</li>
+            <li style="margin-bottom: 4px;"><strong>Offered Rent:</strong> £${finalRentAmount} per month</li>
             <li style="margin-bottom: 4px;"><strong>Proposed Move-in Date:</strong> ${moveInDate}</li>
             <li style="margin-bottom: 4px;"><strong>Tenancy Length:</strong> ${tenancyLengthMonths} months</li>
             ${depositAmount ? `<li style="margin-bottom: 4px;"><strong>Deposit Amount:</strong> £${depositAmount}</li>` : ''}
@@ -1036,6 +1349,17 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             metadata: { recipients: tenantEmails },
             userId
         })
+
+        // Log property audit if property is linked
+        if (offer.linked_property_id) {
+            const leadTenant = (offer.tenant_offer_tenants || [])[0]
+            const tenantName = leadTenant?.name_encrypted ? decrypt(leadTenant.name_encrypted) : 'Tenant'
+            try {
+                await auditOfferAccepted(offer.linked_property_id, companyId, userId, tenantName || 'Tenant', id)
+            } catch (auditError) {
+                console.error('Failed to log property audit:', auditError)
+            }
+        }
 
         res.json({
             success: true,
@@ -1148,6 +1472,17 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
             metadata: { recipients: tenantEmails },
             userId
         })
+
+        // Log property audit if property is linked
+        if (offer.linked_property_id) {
+            const leadTenant = (offer.tenant_offer_tenants || [])[0]
+            const tenantName = leadTenant?.name_encrypted ? decrypt(leadTenant.name_encrypted) : 'Tenant'
+            try {
+                await auditOfferRejected(offer.linked_property_id, companyId, userId, tenantName || 'Tenant', id, reason)
+            } catch (auditError) {
+                console.error('Failed to log property audit:', auditError)
+            }
+        }
 
         res.json({
             success: true,
@@ -1421,6 +1756,78 @@ router.post('/:id/set-rent-shares', authenticateToken, async (req: AuthRequest, 
     }
 })
 
+// Simple endpoint to mark offer as sent to referencing
+router.post('/:id/mark-referencing', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params
+        const { reference_id } = req.body
+
+        const { error } = await supabase
+            .from('tenant_offers')
+            .update({
+                status: 'holding_deposit_received',
+                holding_deposit_received_at: new Date().toISOString()
+            })
+            .eq('id', id)
+
+        if (error) {
+            return res.status(400).json({ error: error.message })
+        }
+
+        res.json({ success: true })
+    } catch (error: any) {
+        console.error('Error marking referencing:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Link a V2 reference to an offer (after V2 referencing conversion)
+router.post('/:id/link-reference', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { reference_id } = req.body
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        // Update offer with reference_id
+        const { data: updatedOffer, error } = await supabase
+            .from('tenant_offers')
+            .update({
+                reference_id: reference_id,
+                holding_deposit_received_at: new Date().toISOString(),
+                status: 'holding_deposit_received'
+            })
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .select('id')
+            .single()
+
+        if (error) {
+            console.error('[link-reference] Update error:', error.message, { offerId: id, companyId, reference_id })
+            return res.status(400).json({ error: error.message })
+        }
+
+        if (!updatedOffer) {
+            console.error('[link-reference] No rows updated - company_id mismatch?', { offerId: id, companyId, reference_id })
+            return res.status(404).json({ error: 'Offer not found or company mismatch' })
+        }
+
+        console.log('[link-reference] Success:', { offerId: id, reference_id })
+        res.json({ success: true, message: 'Offer linked to reference' })
+    } catch (error: any) {
+        console.error('Error linking reference:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Mark holding deposit received and create reference
 router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, checkPaymentMethod, async (req: AuthRequest, res) => {
     try {
@@ -1462,8 +1869,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
         const company = (offerData as any).companies
         const companyName = company?.name_encrypted
-            ? (decrypt(company.name_encrypted) || 'Your agent')
-            : 'Your agent'
+            ? (decrypt(company.name_encrypted) || 'PropertyGoose')
+            : 'PropertyGoose'
         const companyPhone = company?.phone_encrypted
             ? (decrypt(company.phone_encrypted) || '')
             : ''
@@ -1498,7 +1905,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 holding_deposit_received: true,
                 holding_deposit_received_at: new Date().toISOString(),
                 holding_deposit_amount_paid: parsedAmount,
-                status: 'approved'
+                status: 'holding_deposit_received'
             })
             .eq('id', id)
 
@@ -1524,6 +1931,11 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
                 phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
                 address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
+                address_line2: tenant.address_line2_encrypted ? decrypt(tenant.address_line2_encrypted) : '',
+                address_city: tenant.address_city_encrypted ? decrypt(tenant.address_city_encrypted) : '',
+                address_county: tenant.address_county_encrypted ? decrypt(tenant.address_county_encrypted) : '',
+                address_postcode: tenant.address_postcode_encrypted ? decrypt(tenant.address_postcode_encrypted) : '',
+                address_country: tenant.address_country_encrypted ? decrypt(tenant.address_country_encrypted) : '',
                 annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
                 job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
                 rent_share: rentShare.toFixed(2)
@@ -1548,6 +1960,174 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         const emailFailures: { email: string; reason: string }[] = []
         let emailsSent = 0
 
+        // ============================================================
+        // V2 REFERENCE CREATION (when offer is_v2 = true)
+        // ============================================================
+        if (offer.is_v2) {
+            const { createReference } = await import('../services/v2/referenceServiceV2')
+            const { sendTenantReferenceRequest: sendV2TenantEmail } = await import('../services/emailService')
+            const { getV2FrontendUrl } = await import('../utils/frontendUrl')
+            const v2FrontendUrl = getV2FrontendUrl()
+
+            let parentRefId: string | null = null
+
+            // Multi-tenant: create group parent first
+            if (tenants.length > 1) {
+                const parentRef = await createReference({
+                    companyId,
+                    tenantFirstName: tenants[0].first_name,
+                    tenantLastName: tenants[0].last_name,
+                    tenantEmail: tenants[0].email,
+                    tenantPhone: tenants[0].phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenants[0].rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    isGroupParent: true,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                })
+                if (!parentRef) {
+                    return res.status(500).json({ error: 'Failed to create V2 parent reference' })
+                }
+                parentRefId = parentRef.id
+                referenceId = parentRef.id
+            }
+
+            // Create a V2 reference for each tenant
+            for (let i = 0; i < tenants.length; i++) {
+                const tenant = tenants[i]
+                const isParentTenant = tenants.length > 1 && i === 0
+
+                // For multi-tenant, skip creating separate ref for the parent tenant (already created above)
+                // Actually V2 group flow: parent is group container, each tenant gets their own child ref
+                const ref = tenants.length > 1 && !isParentTenant ? await createReference({
+                    companyId,
+                    tenantFirstName: tenant.first_name,
+                    tenantLastName: tenant.last_name,
+                    tenantEmail: tenant.email,
+                    tenantPhone: tenant.phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenant.rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    parentReferenceId: parentRefId || undefined,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                }) : (tenants.length === 1 ? await createReference({
+                    companyId,
+                    tenantFirstName: tenant.first_name,
+                    tenantLastName: tenant.last_name,
+                    tenantEmail: tenant.email,
+                    tenantPhone: tenant.phone,
+                    linkedPropertyId: offer.linked_property_id || undefined,
+                    propertyAddress: propertyAddress || undefined,
+                    propertyCity: propertyCity || undefined,
+                    propertyPostcode: propertyPostcode || undefined,
+                    monthlyRent: offer.offered_rent_amount,
+                    rentShare: parseFloat(tenant.rent_share),
+                    moveInDate: offer.proposed_move_in_date,
+                    termYears: termYears,
+                    termMonths: remainingMonths,
+                    billsIncluded: offer.bills_included || false,
+                    createdBy: userId,
+                    holdingDepositAmount: offer.holding_deposit_amount || undefined,
+                    offerId: id
+                }) : null)
+
+                // For single tenant, set referenceId from the one we just created
+                if (tenants.length === 1 && ref) {
+                    referenceId = ref.id
+                }
+
+                // The ref returned has _formToken for the email link
+                const targetRef = isParentTenant ? null : ref
+                if (!targetRef && !isParentTenant) continue
+
+                // For the parent tenant in multi-flow, we already have the parent ref
+                const refForEmail = isParentTenant ? { id: parentRefId!, _formToken: (await supabase.from('tenant_references_v2').select('form_token_hash').eq('id', parentRefId!).single()).data?.form_token_hash } : targetRef
+
+                const formToken = (targetRef as any)?._formToken || null
+                if (!formToken && !isParentTenant) {
+                    emailFailures.push({ email: tenant.email, reason: 'No form token generated' })
+                    continue
+                }
+
+                createdReferences.push(targetRef || { id: parentRefId })
+
+                // Send V2 tenant reference email
+                const tenantEmail = tenant.email?.trim()
+                if (!tenantEmail) {
+                    emailFailures.push({ email: '', reason: 'Missing tenant email' })
+                    continue
+                }
+
+                const isGuarantor = false
+                const formPath = isGuarantor ? 'guarantor-reference-v2' : 'submit-reference-v2'
+                const formUrl = `${v2FrontendUrl}/${formPath}/${formToken}`
+
+                try {
+                    await sendV2TenantEmail(
+                        tenantEmail,
+                        `${tenant.first_name} ${tenant.last_name}`.trim(),
+                        formUrl,
+                        companyName,
+                        propertyAddress || undefined,
+                        companyPhone || undefined,
+                        companyEmail || undefined,
+                        (targetRef?.id || parentRefId) as string,
+                        companyLogoUrl
+                    )
+                    emailsSent++
+                } catch (emailError: any) {
+                    console.error('Failed to send V2 reference email:', emailError)
+                    emailFailures.push({ email: tenantEmail, reason: emailError.message })
+                }
+            }
+
+            // Deduct credit
+            try {
+                const { deductCredits } = await import('../services/creditService')
+                await deductCredits(companyId, 1, referenceId, 'reference', `V2 Reference for offer ${id}`)
+            } catch (creditError: any) {
+                console.error('Failed to deduct credit:', creditError)
+            }
+
+            // Update offer with reference ID
+            await supabase
+                .from('tenant_offers')
+                .update({ reference_id: referenceId })
+                .eq('id', id)
+
+            return res.json({
+                success: true,
+                message: 'Holding deposit marked as received and V2 references created',
+                reference_id: referenceId,
+                references_created: createdReferences.length,
+                holding_deposit_amount_paid: parsedAmount,
+                emails_sent: emailsSent,
+                email_failures: emailFailures,
+                is_v2: true
+            })
+        }
+
+        // ============================================================
+        // V1 REFERENCE CREATION (legacy flow)
+        // ============================================================
         if (tenants.length > 1) {
             // Multi-tenant flow
             const parentToken = generateToken()

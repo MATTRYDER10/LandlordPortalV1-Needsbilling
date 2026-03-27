@@ -41,148 +41,97 @@
         <p class="mt-2 text-gray-600 dark:text-slate-400">{{ searchQuery ? 'No agreements match your search' : 'No agreements created yet' }}</p>
       </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-          <thead class="bg-gray-50 dark:bg-slate-800">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Property Address
-              </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Tenant(s)
-              </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Template
-              </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Created
-              </th>
-              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
-            <tr v-for="agreement in filteredAgreements" :key="agreement.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
+      <div v-else class="divide-y divide-gray-200 dark:divide-slate-700">
+        <div
+          v-for="agreement in filteredAgreements"
+          :key="agreement.id"
+          class="p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <!-- Left: Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {{ formatPropertyAddress(agreement.property_address) }}
-                </div>
-                <div v-if="agreement.language === 'welsh'" class="text-xs text-gray-500 dark:text-slate-400">Welsh Occupation Contract</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900 dark:text-white">
-                  {{ getTenantNames(agreement.tenants) }}
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-                  {{ formatTemplateType(agreement.template_type) }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="getSigningStatusClass(agreement.signing_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                </h3>
+                <span :class="getSigningStatusClass(agreement.signing_status)" class="px-2 py-0.5 text-xs font-semibold rounded-full">
                   {{ getSigningStatusLabel(agreement.signing_status) }}
                 </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
-                {{ formatDate(agreement.created_at) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="relative actions-menu-container inline-block">
-                  <button
-                    @click.stop="toggleActionsMenu(agreement.id)"
-                    class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                    title="Actions"
-                  >
-                    <MoreVertical class="w-5 h-5" />
-                  </button>
-                  <div
-                    v-if="actionsMenuOpen === agreement.id"
-                    class="absolute right-0 mt-1 w-56 rounded-lg shadow-xl bg-white dark:bg-slate-800 ring-1 ring-black/5 dark:ring-slate-700 z-50 py-1.5"
-                  >
-                    <!-- Download -->
-                    <button
-                      v-if="canDownload(agreement)"
-                      @click.stop="downloadAgreement(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <Download class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
-                      {{ agreement.signed_pdf_url ? 'Download Signed PDF' : 'Download PDF' }}
-                    </button>
+                <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
+                  {{ formatTemplateType(agreement.template_type) }}
+                </span>
+              </div>
+              <p class="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                {{ getTenantNames(agreement.tenants) }}
+              </p>
+              <p class="mt-0.5 text-xs text-gray-400 dark:text-slate-500">
+                Created {{ formatDate(agreement.created_at) }}
+                <span v-if="agreement.language === 'welsh'" class="ml-2">Welsh</span>
+              </p>
+            </div>
 
-                    <!-- Generate PDF (draft without PDF) -->
-                    <button
-                      v-if="canGeneratePdf(agreement)"
-                      @click.stop="generatePdf(agreement); actionsMenuOpen = null"
-                      :disabled="generatingPdf === agreement.id"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-                    >
-                      <FileText class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
-                      {{ generatingPdf === agreement.id ? 'Generating...' : 'Generate PDF' }}
-                    </button>
-
-                    <!-- Preview & Send (draft with PDF) -->
-                    <button
-                      v-if="canPreview(agreement)"
-                      @click.stop="goToPreview(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <Eye class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
-                      Preview & Send
-                    </button>
-
-                    <!-- View Signing Status -->
-                    <button
-                      v-if="canViewSigningStatus(agreement)"
-                      @click.stop="openStatusModal(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <ClipboardCheck class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
-                      View Signing Status
-                    </button>
-
-                    <!-- Send for Signing (draft only) -->
-                    <button
-                      v-if="canSendForSigning(agreement)"
-                      @click.stop="openSigningModal(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <Send class="w-4 h-4 mr-3 text-gray-400 group-hover:text-green-500 transition-colors" />
-                      Send for Signing
-                    </button>
-
-                    <!-- Edit -->
-                    <button
-                      v-if="canEdit(agreement)"
-                      @click.stop="openEditModal(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <Pencil class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
-                      Edit Agreement
-                    </button>
-
-                    <!-- Divider before destructive action -->
-                    <div v-if="canDelete(agreement)" class="border-t border-gray-100 dark:border-slate-700 my-1.5 mx-2"></div>
-
-                    <!-- Delete -->
-                    <button
-                      v-if="canDelete(agreement)"
-                      @click.stop="confirmDelete(agreement); actionsMenuOpen = null"
-                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      <Trash2 class="w-4 h-4 mr-3" />
-                      Delete Agreement
-                    </button>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            <!-- Right: Action buttons -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button
+                v-if="canDownload(agreement)"
+                @click="downloadAgreement(agreement)"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                <Download class="w-3.5 h-3.5" />
+                Download
+              </button>
+              <button
+                v-if="canGeneratePdf(agreement)"
+                @click="generatePdf(agreement)"
+                :disabled="generatingPdf === agreement.id"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 transition-colors disabled:opacity-50"
+              >
+                <FileText class="w-3.5 h-3.5" />
+                {{ generatingPdf === agreement.id ? 'Generating...' : 'Generate PDF' }}
+              </button>
+              <button
+                v-if="canPreview(agreement)"
+                @click="goToPreview(agreement)"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+              >
+                <Eye class="w-3.5 h-3.5" />
+                Preview & Send
+              </button>
+              <button
+                v-if="canSendForSigning(agreement)"
+                @click="openSigningModal(agreement)"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 rounded-lg hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 transition-colors"
+              >
+                <Send class="w-3.5 h-3.5" />
+                Send for Signing
+              </button>
+              <button
+                v-if="canViewSigningStatus(agreement)"
+                @click="openStatusModal(agreement)"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 transition-colors"
+              >
+                <ClipboardCheck class="w-3.5 h-3.5" />
+                Status
+              </button>
+              <button
+                v-if="canEdit(agreement)"
+                @click="openEditModal(agreement)"
+                class="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <Pencil class="w-3.5 h-3.5" />
+              </button>
+              <button
+                v-if="canDelete(agreement)"
+                @click="confirmDelete(agreement)"
+                class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -430,6 +379,7 @@ const searchQuery = ref('')
 
 // Actions dropdown state
 const actionsMenuOpen = ref<string | null>(null)
+const dropdownPosition = ref({ top: 0, right: 0 })
 
 // Modal states
 const showSigningModal = ref(false)
@@ -516,6 +466,22 @@ const getTenantNames = (tenants: any[]): string => {
   if (!tenants || tenants.length === 0) return 'N/A'
   return tenants.map(t => t.name).join(', ')
 }
+
+const getAbbreviatedTenantNames = (tenants: any[]): string => {
+  if (!tenants || tenants.length === 0) return 'N/A'
+  if (tenants.length === 1) {
+    const name = tenants[0].name || ''
+    const parts = name.split(' ')
+    if (parts.length > 1) {
+      return `${parts[0]} ${parts[parts.length - 1][0]}.`
+    }
+    return name
+  }
+  // Multiple tenants: show first name + count
+  const firstName = tenants[0].name?.split(' ')[0] || 'Tenant'
+  return `${firstName} +${tenants.length - 1}`
+}
+
 
 const formatTemplateType = (type: string): string => {
   const labels: Record<string, string> = {
@@ -863,8 +829,20 @@ const formatDate = (value?: string | null, fallback = 'N/A') =>
   )
 
 // Actions dropdown functions
-const toggleActionsMenu = (id: string) => {
-  actionsMenuOpen.value = actionsMenuOpen.value === id ? null : id
+const toggleActionsMenu = (id: string, event?: MouseEvent) => {
+  if (actionsMenuOpen.value === id) {
+    actionsMenuOpen.value = null
+  } else {
+    actionsMenuOpen.value = id
+    if (event) {
+      const button = event.currentTarget as HTMLElement
+      const rect = button.getBoundingClientRect()
+      dropdownPosition.value = {
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      }
+    }
+  }
 }
 
 const handleClickOutside = (event: MouseEvent) => {

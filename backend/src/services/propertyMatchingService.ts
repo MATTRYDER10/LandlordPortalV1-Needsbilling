@@ -52,7 +52,7 @@ export interface MatchOrCreateOptions {
  * Normalize a UK postcode for comparison
  * Removes spaces and converts to uppercase
  */
-function normalizePostcode(postcode: string): string {
+export function normalizePostcode(postcode: string): string {
   return postcode.toUpperCase().replace(/\s/g, '')
 }
 
@@ -60,7 +60,7 @@ function normalizePostcode(postcode: string): string {
  * Normalize an address line for comparison
  * Removes extra spaces, converts to lowercase, removes common words
  */
-function normalizeAddressLine(address: string): string {
+export function normalizeAddressLine(address: string): string {
   return address
     .toLowerCase()
     .trim()

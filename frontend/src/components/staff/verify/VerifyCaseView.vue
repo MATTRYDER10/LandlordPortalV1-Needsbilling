@@ -281,7 +281,7 @@ import VerifySectionStack from './VerifySectionStack.vue'
 import FinalPreviewPanel from './FinalPreviewPanel.vue'
 import TenantSubmittedDataModal from '../TenantSubmittedDataModal.vue'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()
@@ -450,6 +450,7 @@ const referenceData = computed(() => ({
     timeMonths: reference.value.time_at_address_months
   } : undefined,
   previousAddresses: evidenceData.value?.previousAddresses,
+  proofOfAddressUrl: evidenceData.value?.residential?.proofOfAddressUrl || reference.value?.proof_of_address_url,
   // Credit - adverse credit disclosure
   adverseCreditDetails: reference.value?.adverse_credit_details,
   // Credit (from reference_scores or Creditsafe verification)

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Your Document - PropertyGoose</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f3f4f6; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px 40px; text-align: center;">
+                            <img src="https://app.propertygoose.co.uk/PropertyGooseLogoDark.png" alt="PropertyGoose" style="height: 40px; margin-bottom: 10px;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Document Upload Request</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Hi {{ RecipientName }},
+                            </p>
+
+                            <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                <strong>{{ CompanyName }}</strong> needs you to upload the following document for your reference:
+                            </p>
+
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f97316; padding: 16px 20px; margin: 24px 0; border-radius: 4px;">
+                                <p style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0;">
+                                    {{ DocumentName }}
+                                </p>
+                            </div>
+
+                            <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                Click the button below to securely upload your document. This link will expire in {{ ExpiryDays }} days.
+                            </p>
+
+                            <!-- CTA Button -->
+                            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ UploadUrl }}" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                                            Upload Document
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0; text-align: center;">
+                                If the button doesn't work, copy and paste this link into your browser:<br>
+                                <a href="{{ UploadUrl }}" style="color: #f97316; word-break: break-all;">{{ UploadUrl }}</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 24px 40px; border-top: 1px solid #e5e7eb;">
+                            <p style="color: #6b7280; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
+                                This is an automated message from PropertyGoose on behalf of {{ CompanyName }}.<br>
+                                Please do not reply directly to this email.
+                            </p>
+                            <p style="color: #9ca3af; font-size: 11px; margin: 12px 0 0 0; text-align: center;">
+                                &copy; 2024 PropertyGoose. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

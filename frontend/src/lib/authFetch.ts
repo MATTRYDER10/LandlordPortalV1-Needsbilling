@@ -53,6 +53,11 @@ export async function authFetch(
     ...(customHeaders as Record<string, string> || {})
   }
 
+  // Auto-add Content-Type for JSON bodies
+  if (restOptions.body && typeof restOptions.body === 'string' && !mergedHeaders['Content-Type']) {
+    mergedHeaders['Content-Type'] = 'application/json'
+  }
+
   // Debug logging
   const activeBranchId = localStorage.getItem(ACTIVE_BRANCH_KEY)
   console.log('[authFetch]', url.split('/api/')[1]?.split('?')[0], {

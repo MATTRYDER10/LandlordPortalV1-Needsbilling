@@ -40,6 +40,8 @@ export interface CreateTenancyInput {
   notes?: string
   createdBy?: string
   managementType?: 'managed' | 'let_only'
+  holdingDepositAmount?: number
+  holdingDepositReceivedAt?: string
 }
 
 export interface TenancyTenantInput {
@@ -107,7 +109,7 @@ export interface PaginationOptions {
 
 export type TenancyType = 'ast' | 'periodic' | 'company_let' | 'lodger' | 'license'
 export type TenancyStatus = 'pending' | 'active' | 'notice_given' | 'ended' | 'terminated' | 'expired' | 'fallen_through'
-export type DepositScheme = 'dps' | 'mydeposits' | 'tds' | 'reposit' | 'custodial' | 'insured'
+export type DepositScheme = 'dps' | 'dps_custodial' | 'dps_insured' | 'mydeposits' | 'mydeposits_custodial' | 'mydeposits_insured' | 'tds' | 'tds_custodial' | 'tds_insured' | 'reposit' | 'custodial' | 'insured' | 'landlord_held' | 'no_deposit'
 
 export interface AdditionalCharge {
   name: string
@@ -223,7 +225,9 @@ export async function createTenancy(
     breakClauseNoticeDays,
     notes,
     createdBy,
-    managementType
+    managementType,
+    holdingDepositAmount,
+    holdingDepositReceivedAt
   } = input
 
   // Generate reference number (TEN-YYYYMMDD-XXXX format)
@@ -259,6 +263,8 @@ export async function createTenancy(
   if (notes) insertData.notes_encrypted = encrypt(notes)
   if (startDate) insertData.move_in_date = startDate
   if (managementType) insertData.management_type = managementType
+  if (holdingDepositAmount) insertData.holding_deposit_amount = holdingDepositAmount
+  if (holdingDepositReceivedAt) insertData.holding_deposit_received_at = holdingDepositReceivedAt
 
   const { data: tenancy, error } = await supabase
     .from('tenancies')
@@ -375,7 +381,7 @@ export async function createTenancyFromReference(
     endDate,
     fixedTermEndDate: endDate,
     monthlyRent: reference.monthly_rent,
-    depositAmount: agreement?.deposit_amount || Math.round((reference.monthly_rent * 12 / 52) * 5 * 100) / 100, // Default to 5 weeks rent
+    depositAmount: agreement?.deposit_amount || Math.floor((reference.monthly_rent * 12 / 52) * 5), // Default to 5 weeks rent
     billsIncluded: reference.bills_included || false,
     createdBy
   }, [{

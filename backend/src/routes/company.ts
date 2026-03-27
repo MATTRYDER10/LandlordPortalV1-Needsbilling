@@ -239,6 +239,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const branchId = req.headers['x-branch-id'] as string | undefined
 
+    console.log('[GET /api/company] Request headers:', {
+      userId,
+      branchId,
+      'x-branch-id': req.headers['x-branch-id'],
+      allHeaders: Object.keys(req.headers)
+    })
+
     // Build query - filter by branch ID if provided
     let query = supabase
       .from('company_users')

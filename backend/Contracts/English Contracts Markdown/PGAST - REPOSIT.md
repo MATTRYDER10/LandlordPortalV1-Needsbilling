@@ -82,7 +82,7 @@ Where the Landlord has appointed and agent to deal with the letting of their pro
 
 ## **The Premises**
 
-The property which has been agreed to be let including any parts of the exterior forming part of the let (e.g. gardens, paths, fences, outbuildings or boundaries). Where the property is a flat or forms only part of a building the letting includes the use with others of communal access ways, gardens and other similar facilities to which the landlord is entitled under the terms of his/her lease.
+The property which has been agreed to be let including any parts of the exterior forming part of the let (e.g. gardens, paths, fences, outbuildings or boundaries). Where the property is a flat or forms only part of a building, the letting includes the use with others of communal access ways, gardens and other similar facilities to which the landlord is entitled under the terms of his/her lease.
 
 ## **Relevant Persons**
 
@@ -239,7 +239,9 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **8.3.1** To permit the Landlord, or any superior Landlord, or contractors or those authorised by the Landlord, upon giving at least 24 hours’ notice in writing (except in an emergency) to enter the Premises at all reasonable times for the purpose of inspection and repair, to include inspection and repair to any adjoining or neighbouring Premises.
 
-**8.3.2** To permit the Premises to be viewed at all reasonable times upon previous appointment during normal working hours made by any person who is or is acting on behalf of a prospective purchaser or tenant of the Premises who is authorised by the Landlord to view the Premises and to erect “For Sale” or “To Let” boards at their discretion.
+**8.3.2 Occupancy**
+
+Only the named tenants and any permitted occupiers listed in this agreement may reside at the Premises. Guests are welcome but must not stay at the Premises for more than 48 consecutive hours without the prior written consent of the Landlord or their Agent. Any person who remains in occupation beyond this period without consent may be considered an unauthorised occupier, which shall constitute a breach of this agreement. The maximum number of occupants permitted at the Premises shall not exceed the number of tenants and permitted occupiers named in this agreement, unless otherwise agreed in writing by the Landlord.
 
 **8.3.3** To indemnify the Landlord for any loss incurred by the Landlord as a result of the Tenant failing to keep a previously agreed appointment with any third party at the Premises.
 
@@ -258,10 +260,6 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 **8.5.2** Not to take in lodgers or paying guests without the Landlord’s written consent, such consent not to be unreasonably withheld.
 
 **8.5.3** Where such consent is given the Tenant will pay to the Agent or Landlord a fee to amend this Agreement in accordance with the Agent’s published scale of fees.
-
-**8.5.4 Maximum Occupancy**
-
-The maximum number of persons permitted to reside at the Premises shall not exceed the number of Tenants and Permitted Occupiers named in this Agreement. The Tenant shall not allow the Premises to become overcrowded and shall comply with all applicable statutory requirements relating to occupancy levels. Any breach of this clause shall be considered a breach of this Agreement.
 
 **8.6 Illegal / immoral usage**
 

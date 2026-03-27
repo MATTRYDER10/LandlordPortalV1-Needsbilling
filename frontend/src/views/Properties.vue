@@ -326,7 +326,7 @@ import { formatDate as formatUkDate } from '../utils/date'
 import { Search, MoreVertical, Trash2 } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface Property {
   id: string

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, requireMember, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { propertyService, PropertyData, PropertyFilters, ComplianceData } from '../services/propertyService'
 import {
   auditPropertyCreated,
@@ -277,6 +277,38 @@ router.post('/', authenticateToken, requireMember, async (req: AuthRequest, res)
   } catch (error: any) {
     console.error('[Properties] Error creating property:', error)
     res.status(400).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// PROPERTY SEARCH - Must be before /:id to avoid route conflicts
+// ============================================================================
+
+/**
+ * Search properties by address
+ * Used for autocomplete and property selection in forms
+ */
+router.get('/search', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID not found' })
+    }
+
+    const { q, limit = '10' } = req.query
+    const searchTerm = typeof q === 'string' ? q : ''
+    const limitNum = Math.min(parseInt(limit as string) || 10, 50)
+
+    if (!searchTerm || searchTerm.length < 2) {
+      return res.json({ properties: [] })
+    }
+
+    const properties = await searchProperties(companyId, searchTerm, limitNum)
+
+    res.json({ properties })
+  } catch (error: any) {
+    console.error('[Properties Search] Error:', error)
+    res.status(500).json({ error: error.message })
   }
 })
 

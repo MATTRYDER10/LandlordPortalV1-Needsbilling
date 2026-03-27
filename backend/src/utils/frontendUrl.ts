@@ -1,4 +1,5 @@
 const PROD_FRONTEND_URL = 'https://app.propertygoose.co.uk'
+const LOCALHOST_URL = 'http://localhost:5173'
 
 /**
  * Check if a hostname is a local/private address that should never be used in production emails.
@@ -62,4 +63,19 @@ export const getFrontendUrl = (): string => {
   } catch {
     return PROD_FRONTEND_URL
   }
+}
+
+/**
+ * Get frontend URL for V2 features during development.
+ * Uses localhost in development mode, production URL otherwise.
+ * This allows testing V2 features locally without affecting V1.
+ */
+export const getV2FrontendUrl = (): string => {
+  // In production, always use production URL
+  if (process.env.NODE_ENV === 'production') {
+    return PROD_FRONTEND_URL
+  }
+
+  // In development, use FRONTEND_URL if set (e.g. ngrok), otherwise localhost
+  return process.env.FRONTEND_URL || LOCALHOST_URL
 }

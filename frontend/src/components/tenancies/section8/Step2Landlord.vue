@@ -45,13 +45,18 @@
         Landlord Address *
       </label>
       <div class="space-y-3">
-        <input
-          :value="formState.landlordAddress.line1"
-          @input="updateLandlordAddress('line1', ($event.target as HTMLInputElement).value)"
-          type="text"
-          placeholder="Address line 1"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm dark:bg-slate-900 dark:text-white"
-        />
+        <div class="relative overflow-visible">
+          <AddressAutocomplete
+            :modelValue="formState.landlordAddress.line1"
+            @update:modelValue="updateLandlordAddress('line1', $event)"
+            label="Address Line 1"
+            :required="true"
+            id="s8-landlord-address"
+            placeholder="Start typing address..."
+            @addressSelected="handleLandlordAddressSelected"
+            :allowManualEntry="true"
+          />
+        </div>
         <input
           :value="formState.landlordAddress.line2"
           @input="updateLandlordAddress('line2', ($event.target as HTMLInputElement).value)"
@@ -121,13 +126,17 @@
             Agent Address
           </label>
           <div class="space-y-3">
-            <input
-              :value="formState.agentAddress.line1"
-              @input="updateAgentAddress('line1', ($event.target as HTMLInputElement).value)"
-              type="text"
-              placeholder="Address line 1"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm dark:bg-slate-900 dark:text-white"
-            />
+            <div class="relative overflow-visible">
+              <AddressAutocomplete
+                :modelValue="formState.agentAddress.line1"
+                @update:modelValue="updateAgentAddress('line1', $event)"
+                label="Address Line 1"
+                id="s8-agent-address"
+                placeholder="Start typing address..."
+                @addressSelected="handleAgentAddressSelected"
+                :allowManualEntry="true"
+              />
+            </div>
             <input
               :value="formState.agentAddress.line2"
               @input="updateAgentAddress('line2', ($event.target as HTMLInputElement).value)"
@@ -161,6 +170,7 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from 'lucide-vue-next'
 import type { S8FormState, Address } from '@/types/section8'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 interface Props {
   formState: S8FormState
@@ -171,6 +181,30 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   update: [updates: Partial<S8FormState>]
 }>()
+
+function handleLandlordAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  emit('update', {
+    landlordAddress: {
+      ...props.formState.landlordAddress,
+      line1: data.addressLine1,
+      line2: data.addressLine2 || props.formState.landlordAddress.line2,
+      town: data.city,
+      postcode: data.postcode,
+    },
+  })
+}
+
+function handleAgentAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
+  emit('update', {
+    agentAddress: {
+      ...props.formState.agentAddress,
+      line1: data.addressLine1,
+      line2: data.addressLine2 || props.formState.agentAddress.line2,
+      town: data.city,
+      postcode: data.postcode,
+    },
+  })
+}
 
 function updateLandlordName(index: number, value: string) {
   const names = [...props.formState.landlordNames]

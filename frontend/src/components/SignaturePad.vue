@@ -114,16 +114,20 @@ const typedSignature = ref('')
 
 onMounted(() => {
   const canvasHeight = props.compact ? 70 : 200
+  const dpr = window.devicePixelRatio || 1
 
   if (canvas.value) {
-    // Set canvas size
-    canvas.value.width = canvas.value.offsetWidth
-    canvas.value.height = canvasHeight
+    const width = canvas.value.offsetWidth
+    canvas.value.width = width * dpr
+    canvas.value.height = canvasHeight * dpr
+    canvas.value.style.width = width + 'px'
+    canvas.value.style.height = canvasHeight + 'px'
 
     context.value = canvas.value.getContext('2d')
     if (context.value) {
+      context.value.scale(dpr, dpr)
       context.value.strokeStyle = '#000000'
-      context.value.lineWidth = 2
+      context.value.lineWidth = 3
       context.value.lineCap = 'round'
       context.value.lineJoin = 'round'
     }
@@ -133,7 +137,7 @@ onMounted(() => {
       const img = new Image()
       img.onload = () => {
         if (context.value && canvas.value) {
-          context.value.drawImage(img, 0, 0)
+          context.value.drawImage(img, 0, 0, width, canvasHeight)
         }
       }
       img.src = props.modelValue
@@ -220,7 +224,8 @@ const handleTouchMove = (e: TouchEvent) => {
 const clear = () => {
   if (mode.value === 'draw') {
     if (!context.value || !canvas.value) return
-    context.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
+    const dpr = window.devicePixelRatio || 1
+    context.value.clearRect(0, 0, canvas.value.width / dpr, canvas.value.height / dpr)
   } else {
     typedSignature.value = ''
   }

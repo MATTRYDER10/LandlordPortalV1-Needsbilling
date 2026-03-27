@@ -112,7 +112,7 @@ import MyActiveTasksTab from '../components/staff/portal/MyActiveTasksTab.vue'
 import EmailIssuesTab from '../components/staff/portal/EmailIssuesTab.vue'
 import type { VerifyQueueItem, ChaseQueueItem, ActiveTask, QueueStats, EmailIssueItem } from '@/types/staff'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const router = useRouter()
 const authStore = useAuthStore()

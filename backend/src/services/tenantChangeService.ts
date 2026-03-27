@@ -15,9 +15,10 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from './encryption'
 import { logTenancyActivity } from './tenancyService'
 import { loadEmailTemplate, sendEmail, sendTenantReferenceRequest } from './emailService'
-import { getFrontendUrl } from '../utils/frontendUrl'
+import { getFrontendUrl, getV2FrontendUrl } from '../utils/frontendUrl'
 import { pdfGenerationService } from './pdfGenerationService'
 import { v4 as uuidv4 } from 'uuid'
+import { createReference as createV2Reference } from './v2/referenceServiceV2'
 import crypto from 'crypto'
 
 const PROPERTY_DOCS_BUCKET = 'property-documents'
@@ -396,52 +397,47 @@ export async function setReferencingDecision(
       .eq('id', companyId)
       .single()
 
-    const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'Your agent') : 'Your agent'
+    const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
     const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
     const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
     const companyLogoUrl = company?.logo_url
 
-    // Token expires in 60 days
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 60)
-
-    // Create reference for each incoming tenant
+    // Create V2 reference for each incoming tenant
     for (const incomingTenant of tenantChange.incoming_tenants) {
-      const token = generateToken()
-      const tokenHash = hash(token)
+      const reference = await createV2Reference({
+        companyId,
+        tenantFirstName: incomingTenant.firstName,
+        tenantLastName: incomingTenant.lastName,
+        tenantEmail: incomingTenant.email || '',
+        tenantPhone: incomingTenant.phone || undefined,
+        propertyAddress,
+        propertyCity,
+        propertyPostcode,
+        linkedPropertyId: tenancy.property_id || undefined,
+        monthlyRent: tenancy.rent_amount || 0,
+        moveInDate: tenantChange.expected_move_in_date || new Date().toISOString().split('T')[0],
+        createdBy: userId
+      })
 
-      const { data: reference, error: refError } = await supabase
-        .from('tenant_references')
-        .insert({
-          company_id: companyId,
-          created_by: userId,
-          tenant_first_name_encrypted: encrypt(incomingTenant.firstName),
-          tenant_last_name_encrypted: encrypt(incomingTenant.lastName),
-          tenant_email_encrypted: encrypt(incomingTenant.email || ''),
-          tenant_phone_encrypted: encrypt(incomingTenant.phone || ''),
-          property_address_encrypted: encrypt(propertyAddress),
-          property_city_encrypted: encrypt(propertyCity),
-          property_postcode_encrypted: encrypt(propertyPostcode),
-          monthly_rent: tenancy.rent_amount || 0,
-          move_in_date: tenantChange.expected_move_in_date,
-          reference_token_hash: tokenHash,
-          token_expires_at: expiresAt.toISOString(),
-          status: 'pending'
-        })
-        .select()
-        .single()
-
-      if (refError) {
-        console.error('Failed to create reference for incoming tenant:', refError)
+      if (!reference) {
+        console.error('Failed to create V2 reference for incoming tenant:', incomingTenant.firstName)
         continue
       }
 
       referenceIds.push(reference.id)
 
-      // Send reference request email to tenant
+      // Send V2 reference request email to tenant
       const tenantEmail = incomingTenant.email?.trim()
       if (tenantEmail) {
-        const tenantUrl = `${getFrontendUrl()}/submit-reference/${reference.id}`
+        // Get the form token from the reference
+        const formToken = generateToken()
+        const formTokenHash = hash(formToken)
+        await supabase
+          .from('tenant_references_v2')
+          .update({ form_token_hash: formTokenHash })
+          .eq('id', reference.id)
+
+        const tenantUrl = `${getV2FrontendUrl()}/submit-reference-v2/${formToken}`
         try {
           await sendTenantReferenceRequest(
             tenantEmail,
@@ -454,7 +450,7 @@ export async function setReferencingDecision(
             reference.id,
             companyLogoUrl
           )
-          console.log(`[TenantChange] Reference request sent to ${tenantEmail}`)
+          console.log(`[TenantChange] V2 Reference request sent to ${tenantEmail}`)
         } catch (emailError) {
           console.error(`[TenantChange] Failed to send reference email to ${tenantEmail}:`, emailError)
         }

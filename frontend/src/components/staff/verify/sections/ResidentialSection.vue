@@ -22,6 +22,48 @@
         Review the tenant's previous address history and landlord/agent references.
       </p>
 
+      <!-- Evidence Status Banner -->
+      <div v-if="evidenceStatus === 'AWAITING_EVIDENCE'" class="evidence-banner evidence-banner-amber">
+        <AlertTriangle class="banner-icon" />
+        <span>No landlord/agent reference on file. Section cannot be verified until evidence is received.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'AWAITING_REFEREE'" class="evidence-banner evidence-banner-blue">
+        <Clock class="banner-icon" />
+        <span>Awaiting landlord/agent referee form submission.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'AUTO_PASSED'" class="evidence-banner evidence-banner-green">
+        <CheckCircle class="banner-icon" />
+        <span>Auto-passed: Living with family — no residential reference required.</span>
+      </div>
+      <div v-else-if="evidenceStatus === 'REFEREE_RECEIVED'" class="evidence-banner evidence-banner-green">
+        <CheckCircle class="banner-icon" />
+        <span>Landlord/agent reference received.</span>
+      </div>
+
+      <!-- Proof of Address Document -->
+      <div v-if="proofOfAddressUrl" class="proof-of-address-section">
+        <h4 class="subsection-title">Proof of Address</h4>
+        <div class="proof-of-address-card">
+          <div class="proof-of-address-preview">
+            <img
+              v-if="proofOfAddressUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)"
+              :src="proofOfAddressUrl"
+              alt="Proof of Address"
+              class="proof-of-address-image"
+              @click="openProofOfAddress"
+            />
+            <a v-else :href="proofOfAddressUrl" target="_blank" class="proof-of-address-link">
+              <FileText class="doc-icon" />
+              <span>View Proof of Address Document</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div v-else class="proof-of-address-missing">
+        <AlertTriangle class="warning-icon-small" />
+        <span>No proof of address document uploaded</span>
+      </div>
+
       <!-- Confirmation Status Badge -->
       <div v-if="residentialConfirmedAt" class="confirmation-status">
         <CheckCircle class="check-icon" />
@@ -653,7 +695,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { CheckCircle, AlertTriangle, Info, Home, FileText, X } from 'lucide-vue-next'
+import { CheckCircle, AlertTriangle, Info, Home, FileText, X, Clock } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -788,6 +830,8 @@ const props = defineProps<{
   // Current and previous addresses
   currentAddress?: CurrentAddress
   previousAddresses?: PreviousAddress[]
+  // Proof of address
+  proofOfAddressUrl?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -803,6 +847,16 @@ const emit = defineEmits<{
 const showConfirmModal = ref(false)
 const confirmLoading = ref(false)
 const selectedStatus = ref<string>('')
+
+const evidenceStatus = computed(() => {
+  return (props.section as any).section_data?.evidence_status || null
+})
+
+const openProofOfAddress = () => {
+  if (props.proofOfAddressUrl) {
+    window.open(props.proofOfAddressUrl, '_blank')
+  }
+}
 
 const isLivingWithFamily = computed(() => {
   return props.previousAddressType === 'FAMILY'
@@ -838,7 +892,7 @@ const closeConfirmModal = () => {
   document.body.style.overflow = ''
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 const confirmResidential = async () => {
   if (!selectedStatus.value) return
@@ -963,6 +1017,126 @@ const formatGoodTenant = (value?: string) => {
 .section-description {
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+.evidence-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.evidence-banner .banner-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.evidence-banner-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.dark .evidence-banner-amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.evidence-banner-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.dark .evidence-banner-blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.evidence-banner-green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.dark .evidence-banner-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.proof-of-address-section {
+  margin-bottom: 0.5rem;
+}
+
+.proof-of-address-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.dark .proof-of-address-card {
+  border-color: #374151;
+}
+
+.proof-of-address-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.proof-of-address-image:hover {
+  opacity: 0.9;
+}
+
+.proof-of-address-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #f97316;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.proof-of-address-link:hover {
+  text-decoration: underline;
+}
+
+.proof-of-address-link .doc-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.proof-of-address-missing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.dark .proof-of-address-missing {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.proof-of-address-missing .warning-icon-small {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 .confirmation-status {

@@ -39,89 +39,67 @@
             <!-- Form -->
             <form v-else @submit.prevent="handleSubmit" class="space-y-6">
                 <!-- Property Information -->
-                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Information</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2 relative overflow-visible">
-                            <AddressAutocomplete v-model="formData.property_address" label="Property Address"
-                                :required="true" id="property-address" placeholder="Start typing address..."
-                                @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                    <div class="relative overflow-visible">
+                        <AddressAutocomplete v-model="formData.property_address" label="Property Address *"
+                            :required="true" id="property-address" placeholder="Start typing the property address..."
+                            @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
+                        <p v-if="formData.property_city || formData.property_postcode" class="mt-1.5 text-sm text-gray-600 dark:text-slate-400">
+                            {{ [formData.property_city, formData.property_postcode].filter(Boolean).join(', ') }}
+                        </p>
+                    </div>
+                    <input type="hidden" v-model="formData.property_city" />
+                    <input type="hidden" v-model="formData.property_postcode" />
+                </div>
+
+                <!-- Offer Details -->
+                <div class="bg-orange-500 rounded-lg shadow p-5">
+                    <h2 class="text-lg font-semibold text-white mb-3">Offer Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label for="offered-rent" class="block text-xs font-medium text-white/80 mb-1">
+                                Rent (£/month) *
+                            </label>
+                            <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
+                                step="0.01" required min="0" :max="originalOfferRent || undefined"
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
+                            <p v-if="originalOfferRent" class="mt-1 text-xs text-white/70">
+                                Agent's offer: £{{ originalOfferRent }}/month
+                            </p>
                         </div>
                         <div>
-                            <label for="property-city" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                City
+                            <label for="move-in-date" class="block text-xs font-medium text-white/80 mb-1">
+                                Move-in Date *
                             </label>
-                            <input id="property-city" v-model="formData.property_city" type="text" placeholder="City"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                            <input id="move-in-date" v-model="formData.proposed_move_in_date" type="date" required
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
                         </div>
                         <div>
-                            <label for="property-postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Postcode
+                            <label for="tenancy-length" class="block text-xs font-medium text-white/80 mb-1">
+                                Term (months) *
                             </label>
-                            <input id="property-postcode" v-model="formData.property_postcode" type="text"
-                                placeholder="Postcode"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                            <input id="tenancy-length" v-model.number="formData.proposed_tenancy_length_months"
+                                type="number" required min="1" max="12"
+                                class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
+                            <p class="mt-1 text-xs text-white/70">1-12 months</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Offer Details -->
-                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Offer Details</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="offered-rent" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Offered Rent Amount (£ per month) *
-                            </label>
-                            <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
-                                step="0.01" required min="0"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                        </div>
-                        <div>
-                            <label for="move-in-date" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Proposed Move-in Date *
-                            </label>
-                            <input id="move-in-date" v-model="formData.proposed_move_in_date" type="date" required
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                        </div>
-                        <div>
-                            <label for="tenancy-length" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Proposed Tenancy Length (months) *
-                            </label>
-                            <input id="tenancy-length" v-model.number="formData.proposed_tenancy_length_months"
-                                type="number" required min="1" max="12"
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Must be between 1 and 12 months</p>
-                        </div>
-                        <!-- <div>
-                            <label for="deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Deposit Amount (£) (Optional)
-                            </label>
-                            <input id="deposit-amount" v-model.number="formData.deposit_amount" type="number"
-                                step="0.01" min="0"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                        </div> -->
-                        <div class="md:col-span-2">
-                            <label for="special-conditions" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Special Conditions for Landlord to Consider
-                            </label>
-                            <textarea id="special-conditions" v-model="formData.special_conditions" rows="4"
-                                placeholder="Any special conditions or requests..."
-                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"></textarea>
-                        </div>
-                    </div>
+                <!-- Special Conditions -->
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-5">
+                    <label for="special-conditions" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Special Conditions for Landlord to Consider
+                    </label>
+                    <textarea id="special-conditions" v-model="formData.special_conditions" rows="3"
+                        placeholder="Any special conditions or requests..."
+                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white text-sm"></textarea>
                 </div>
 
                 <!-- Tenants -->
                 <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="mb-4">
                         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Tenants</h2>
-                        <button type="button" @click="addTenant"
-                            class="px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"
-                            :style="{ backgroundColor: buttonColor }">
-                            Add Tenant
-                        </button>
                     </div>
 
                     <div v-for="(tenant, index) in formData.tenants" :key="index"
@@ -146,10 +124,12 @@
                             <div class="relative overflow-visible">
                                 <AddressAutocomplete v-model="tenant.address" :label="`Current Address`"
                                     :required="true" :id="`tenant-${index}-address`"
-                                    placeholder="Start typing address..."
+                                    placeholder="Start typing your address..."
                                     @addressSelected="(address) => handleTenantAddressSelected(index, address)"
                                     :allowManualEntry="true" />
-                                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
+                                <p v-if="tenant.address_city || tenant.address_postcode" class="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                                    {{ [tenant.address_city, tenant.address_postcode].filter(Boolean).join(', ') }}
+                                </p>
                             </div>
                             <div>
                                 <PhoneInput v-model="tenant.phone" :label="`Phone Number`" :id="`tenant-${index}-phone`"
@@ -163,55 +143,228 @@
                                 <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
                                     class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
-                            <div>
-                                <label :for="`tenant-${index}-income`"
-                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                    Annual Income (£) *
+
+                            <!-- Student / Guarantor options -->
+                            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label :for="`tenant-${index}-student`"
+                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.is_student
+                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
+                                    <input :id="`tenant-${index}-student`" v-model="tenant.is_student"
+                                        type="checkbox"
+                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
+                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I am a student</span>
                                 </label>
-                                <input :id="`tenant-${index}-income`" v-model="tenant.annual_income" type="text"
-                                    required placeholder="e.g., 30000"
-                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label :for="`tenant-${index}-job-title`"
-                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                    Job Title / Income Source
+
+                                <label :for="`tenant-${index}-guarantor`"
+                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.has_guarantor
+                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
+                                    <input :id="`tenant-${index}-guarantor`" v-model="tenant.has_guarantor"
+                                        type="checkbox"
+                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
+                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I have a guarantor</span>
                                 </label>
-                                <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
-                                    placeholder="e.g., Software Engineer, Self-Employed, etc."
-                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
+
+                            <!-- Income fields (hidden for students) -->
+                            <template v-if="!tenant.is_student">
+                                <div>
+                                    <label :for="`tenant-${index}-income`"
+                                        class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                        Yearly Income (£) *
+                                    </label>
+                                    <input :id="`tenant-${index}-income`" v-model="tenant.annual_income" type="text"
+                                        placeholder="e.g., 30000"
+                                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                </div>
+                                <div>
+                                    <label :for="`tenant-${index}-job-title`"
+                                        class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                        Job Title / Income Source
+                                    </label>
+                                    <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
+                                        placeholder="e.g., Software Engineer, Self-Employed, etc."
+                                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                </div>
+                            </template>
+
+                            <!-- No CCJs Declaration - full width at bottom -->
                             <div class="md:col-span-2">
-                                <div class="flex items-start">
+                                <label :for="`tenant-${index}-no-ccj`"
+                                    class="flex items-center gap-3 w-full p-4 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.no_ccj_bankruptcy_iva
+                                        ? 'bg-orange-500 shadow-md'
+                                        : 'bg-orange-400 hover:bg-orange-500 shadow-sm hover:shadow-md'">
                                     <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
                                         type="checkbox" required
-                                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
-                                    <label :for="`tenant-${index}-no-ccj`" class="ml-2 block text-sm text-gray-700 dark:text-slate-300">
-                                        I confirm that I do not have any CCJs, Bankruptcies or IVAs *
-                                    </label>
+                                        class="h-5 w-5 rounded border-white/50 text-orange-700 focus:ring-white bg-white/20 shrink-0" />
+                                    <div>
+                                        <span class="text-sm font-semibold text-white">I confirm I have no CCJs, Bankruptcies or IVAs *</span>
+                                    </div>
+                                </label>
+                                <button type="button" @click="tenant.showCcjHelp = !tenant.showCcjHelp" class="mt-1.5 text-xs text-gray-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 underline underline-offset-2">
+                                    What does this mean?
+                                </button>
+                                <div v-if="tenant.showCcjHelp" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-400 space-y-1.5">
+                                    <p><strong>CCJ (County Court Judgment)</strong> — A court order that can be registered against you if you fail to repay money you owe. CCJs stay on your credit file for 6 years.</p>
+                                    <p><strong>Bankruptcy</strong> — A legal process where your assets may be used to pay off debts you cannot afford. It severely impacts your ability to rent.</p>
+                                    <p><strong>IVA (Individual Voluntary Arrangement)</strong> — A formal agreement with your creditors to pay back debts over a set period, usually 5-6 years.</p>
+                                    <p class="pt-1 text-gray-500 dark:text-slate-500">If any of these apply to you, please speak to your letting agent before submitting this form.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Add Tenant section at the bottom -->
+                    <div class="mt-4 p-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg text-center">
+                        <p class="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                            Will anyone else aged 18 or over be living at the property? Add them here so we have everyone's details.
+                        </p>
+                        <button type="button" @click="addTenant"
+                            class="px-6 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"
+                            :style="{ backgroundColor: buttonColor }">
+                            + Add Another Tenant
+                        </button>
+                    </div>
                 </div>
 
-            <!-- Deposit Replacement Service -->
-            <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Deposit Replacement Service</h2>
-                <p class="text-sm text-gray-600 dark:text-slate-400">
-                    We offer a deposit replacement service that can reduce upfront costs while providing landlords with
-                    protection comparable to a traditional deposit.
-                </p>
-                <div class="mt-4 flex items-start gap-3">
-                    <input id="deposit-replacement-opt-in" v-model="formData.deposit_replacement_requested" type="checkbox"
-                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
-                    <label for="deposit-replacement-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
-                        I would like to apply for the deposit replacement service.
-                    </label>
+            <!-- Deposit Replacement Service (Reposit) -->
+            <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+                <!-- Reposit Header -->
+                <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center gap-3">
+                        <img src="/reposit-logo.png" alt="Reposit" class="h-7 w-auto" />
+                        <span class="text-sm text-gray-500 dark:text-slate-400">Deposit Alternative</span>
+                    </div>
                 </div>
-                <p class="mt-2 text-xs text-gray-500 dark:text-slate-400">
-                    We will review your request and confirm eligibility with you after receiving your offer.
-                </p>
+
+                <div class="p-6">
+                    <!-- Savings Banner -->
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-5">
+                        <p class="text-emerald-800 dark:text-emerald-300 font-semibold">
+                            Save money on your upfront move-in costs
+                        </p>
+                        <p class="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
+                            Pay around one week's rent instead of a 5-week deposit
+                        </p>
+                    </div>
+
+                    <!-- What is Reposit -->
+                    <div class="mb-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">What is Reposit?</h3>
+                        <ul class="space-y-2 text-sm text-gray-600 dark:text-slate-400">
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>Reposit is a <strong>no deposit</strong> option - pay a small fee instead of a large cash deposit</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>The fee is <strong>non-refundable</strong> but significantly lower than a traditional deposit</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>You remain responsible for any damages or unpaid rent at the end of your tenancy</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>Subject to eligibility - we'll confirm during the referencing process</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Opt-in Checkbox -->
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="deposit-replacement-opt-in"
+                                v-model="formData.deposit_replacement_requested"
+                                type="checkbox"
+                                class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900"
+                            />
+                            <label for="deposit-replacement-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
+                                <span class="font-medium">Yes, I'm interested in using Reposit</span>
+                                <p class="text-gray-500 dark:text-slate-400 mt-1">
+                                    We'll review your eligibility during referencing and confirm the exact fee with you.
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Learn More Link -->
+                    <div class="mt-4 text-center">
+                        <a
+                            href="https://reposit.co.uk/tenants/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            Learn more about Reposit →
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UniHomes All-Inclusive Bills -->
+            <div v-if="unihomesOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+                <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">⚡</span>
+                        <div>
+                            <span class="font-semibold text-gray-900 dark:text-white">UniHomes</span>
+                            <span class="text-sm text-gray-500 dark:text-slate-400 ml-2">All-Inclusive Bills</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-5">
+                        <p class="text-blue-800 dark:text-blue-300 font-semibold">
+                            One simple payment covers all your bills
+                        </p>
+                        <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                            Electric, gas, water, broadband, TV licence — all included at a fixed weekly price per person.
+                        </p>
+                    </div>
+
+                    <!-- Pricing Table -->
+                    <div class="mb-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Pricing (per person per week)</h3>
+                        <div class="grid grid-cols-5 gap-2 text-center text-sm">
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">1</div><div class="text-gray-500">£66</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">2</div><div class="text-gray-500">£38</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">3</div><div class="text-gray-500">£30</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">4</div><div class="text-gray-500">£26</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">5</div><div class="text-gray-500">£24</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">6</div><div class="text-gray-500">£22</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">7</div><div class="text-gray-500">£21</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">8</div><div class="text-gray-500">£20</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">9</div><div class="text-gray-500">£19</div></div>
+                            <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">10</div><div class="text-gray-500">£18</div></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 text-center">Number of people / price per person per week</p>
+                    </div>
+
+                    <!-- Opt-in Checkbox -->
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="unihomes-opt-in"
+                                v-model="formData.unihomes_interested"
+                                type="checkbox"
+                                class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900"
+                            />
+                            <label for="unihomes-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
+                                <span class="font-medium">Yes, I want UniHomes all-inclusive bills</span>
+                                <p class="text-gray-500 dark:text-slate-400 mt-1">
+                                    We'll set up your bills package before your move-in date.
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
                 <!-- Terms and Conditions -->
@@ -318,7 +471,7 @@ import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { CheckCircle2 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const loading = ref(false)
@@ -333,6 +486,9 @@ const companyLogo = ref('')
 const primaryColor = ref(defaultBranding.primaryColor)
 const buttonColor = ref(defaultBranding.buttonColor)
 
+// Store original offer terms from agent (query params)
+const originalOfferRent = ref<number | null>(null)
+
 const formData = ref({
     property_address: '',
     property_city: '',
@@ -346,17 +502,26 @@ const formData = ref({
         {
             name: '',
             address: '',
+            address_line2: '',
+            address_city: '',
+            address_county: '',
+            address_postcode: '',
+            address_country: '',
             phone: '',
             email: '',
             annual_income: '',
             job_title: '',
-            no_ccj_bankruptcy_iva: false
+            is_student: false,
+            has_guarantor: false,
+            no_ccj_bankruptcy_iva: false,
+            showCcjHelp: false
         }
     ],
     signature: '',
     signature_name: '',
     terms_agreed: false,
-    deposit_replacement_requested: false
+    deposit_replacement_requested: false,
+    unihomes_interested: false
 })
 
 const parseBooleanQueryParam = (value: string | string[] | undefined): boolean => {
@@ -374,15 +539,31 @@ const depositReplacementOffered = computed(() =>
     parseBooleanQueryParam(route.query.deposit_replacement_offered as string | string[] | undefined)
 )
 
+const unihomesOffered = computed(() =>
+    parseBooleanQueryParam(route.query.unihomes as string | string[] | undefined)
+)
+
+const isV2Offer = computed(() =>
+    parseBooleanQueryParam(route.query.v2 as string | string[] | undefined)
+)
+
 const addTenant = () => {
     formData.value.tenants.push({
         name: '',
         address: '',
+        address_line2: '',
+        address_city: '',
+        address_county: '',
+        address_postcode: '',
+        address_country: '',
         phone: '',
         email: '',
         annual_income: '',
         job_title: '',
-        no_ccj_bankruptcy_iva: false
+        is_student: false,
+        has_guarantor: false,
+        no_ccj_bankruptcy_iva: false,
+        showCcjHelp: false
     })
 }
 
@@ -401,9 +582,12 @@ const handlePropertyAddressSelected = (addressData: any) => {
 const handleTenantAddressSelected = (index: number, addressData: any) => {
     const tenant = formData.value.tenants[index]
     if (tenant) {
-        tenant.address = addressData.addressLine1
-        // Note: We're only storing the address line 1 for tenant addresses
-        // If you need to store city/postcode for tenants, you'd need to add those fields
+        tenant.address = addressData.addressLine1 || ''
+        tenant.address_line2 = addressData.addressLine2 || ''
+        tenant.address_city = addressData.city || ''
+        tenant.address_county = addressData.county || ''
+        tenant.address_postcode = addressData.postcode || ''
+        tenant.address_country = addressData.country || 'United Kingdom'
     }
 }
 
@@ -418,6 +602,11 @@ const handleSubmit = async () => {
             throw new Error('Please fill in all required fields')
         }
 
+        // Validate rent is not higher than original offer (can only go down)
+        if (originalOfferRent.value && formData.value.offered_rent_amount > originalOfferRent.value) {
+            throw new Error(`Offered rent cannot exceed the original offer of £${originalOfferRent.value}`)
+        }
+
         if (formData.value.proposed_tenancy_length_months < 1 || formData.value.proposed_tenancy_length_months > 12) {
             throw new Error('Tenancy length must be between 1 and 12 months')
         }
@@ -429,8 +618,16 @@ const handleSubmit = async () => {
         // Validate each tenant
         for (let i = 0; i < formData.value.tenants.length; i++) {
             const tenant = formData.value.tenants[i]
-            if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email || !tenant.annual_income) {
-                throw new Error(`Tenant ${i + 1} is missing required fields`)
+            if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email) {
+                const missing = []
+                if (!tenant?.name) missing.push('name')
+                if (!tenant?.address) missing.push('address')
+                if (!tenant?.phone) missing.push('phone')
+                if (!tenant?.email) missing.push('email')
+                throw new Error(`Tenant ${i + 1} is missing: ${missing.join(', ')}`)
+            }
+            if (!tenant.is_student && !tenant.annual_income) {
+                throw new Error(`Tenant ${i + 1}: please provide yearly income or tick "I am a student"`)
             }
             if (!isValidEmail(tenant.email)) {
                 throw new Error(`Please enter a valid email address for tenant ${i + 1}`)
@@ -448,8 +645,9 @@ const handleSubmit = async () => {
             throw new Error('You must agree to the terms and conditions')
         }
 
-        // Get company ID from query parameter
+        // Get company ID and form_ref from query parameters
         const companyId = route.query.company_id as string
+        const formRef = route.query.form_ref as string
         if (!companyId) {
             throw new Error('Company ID is required. Please provide company_id as a query parameter.')
         }
@@ -469,14 +667,20 @@ const handleSubmit = async () => {
                 address: tenant.address,
                 phone: tenant.phone,
                 email: tenant.email,
-                annual_income: tenant.annual_income,
-                job_title: tenant.job_title || null,
+                annual_income: tenant.is_student ? 'Student' : tenant.annual_income,
+                job_title: tenant.is_student ? 'Student' : (tenant.job_title || null),
+                is_student: tenant.is_student || false,
+                has_guarantor: tenant.has_guarantor || false,
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: formData.value.signature,
                 signature_name: formData.value.signature_name
             })),
             deposit_replacement_offered: depositReplacementOffered.value,
-            deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false
+            deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false,
+            unihomes_offered: unihomesOffered.value,
+            unihomes_interested: unihomesOffered.value ? formData.value.unihomes_interested : false,
+            is_v2: isV2Offer.value,
+            form_ref: formRef || undefined
         }
 
         // Submit offer
@@ -495,13 +699,6 @@ const handleSubmit = async () => {
         }
 
         submitted.value = true
-        // Store email in localStorage to check on future visits
-        if (formData.value.tenants.length > 0 && formData.value.tenants[0]?.email) {
-            const companyId = route.query.company_id as string
-            if (companyId) {
-                localStorage.setItem(`tenant_offer_submitted_${companyId}`, formData.value.tenants[0].email)
-            }
-        }
     } catch (error: any) {
         submitError.value = error.message || 'An error occurred while submitting the offer'
     } finally {
@@ -509,62 +706,38 @@ const handleSubmit = async () => {
     }
 }
 
-// Check if tenant has already submitted
+// Check if this specific offer form has already been submitted
 const checkExistingSubmission = async () => {
     try {
-        const companyId = route.query.company_id as string
-        if (!companyId) {
+        const formRef = route.query.form_ref as string
+
+        // Skip check if URL has skip_check=1 (for testing)
+        if (route.query.skip_check === '1') {
+            console.log('[TenantOffer] Skipping submission check (skip_check=1)')
             return
         }
 
-        // Check localStorage first for quick check
-        const storedEmail = localStorage.getItem(`tenant_offer_submitted_${companyId}`)
-        if (storedEmail) {
-            // Verify with backend
-            const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(storedEmail)}&company_id=${companyId}`)
+        // If we have a form_ref, check if this specific form was already submitted
+        if (formRef) {
+            console.log('[TenantOffer] Checking form_ref:', formRef)
+            const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?form_ref=${encodeURIComponent(formRef)}`)
             if (response.ok) {
                 const data = await response.json()
+                console.log('[TenantOffer] Form ref check response:', data)
                 if (data.submitted) {
+                    console.log('[TenantOffer] This form was already submitted')
                     alreadySubmitted.value = true
                     return
                 }
             }
+        } else {
+            console.log('[TenantOffer] No form_ref in URL (legacy link)')
         }
-
-        // Also check if user has entered email in form and check on that
-        // This will be checked when they start filling the form
     } catch (error) {
         console.error('Failed to check existing submission:', error)
         // Don't block the form if check fails
     }
 }
-
-// Watch for email input to check if already submitted
-let emailCheckTimeout: number | null = null
-watch(() => formData.value.tenants[0]?.email, async (newEmail) => {
-    if (emailCheckTimeout) {
-        clearTimeout(emailCheckTimeout)
-    }
-
-    if (newEmail && newEmail.length > 5 && !alreadySubmitted.value) {
-        emailCheckTimeout = setTimeout(async () => {
-            const companyId = route.query.company_id as string
-            if (companyId) {
-                try {
-                    const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(newEmail)}&company_id=${companyId}`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        if (data.submitted) {
-                            alreadySubmitted.value = true
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to check submission:', error)
-                }
-            }
-        }, 1000) as unknown as number
-    }
-})
 
 // Fetch company branding on mount
 onMounted(async () => {
@@ -580,6 +753,7 @@ onMounted(async () => {
         const propertyCity = route.query.property_city as string
         const propertyPostcode = route.query.property_postcode as string
         const rentAmount = route.query.rent_amount as string
+        const moveInDate = route.query.move_in_date as string
 
         if (propertyAddress) {
             formData.value.property_address = decodeURIComponent(propertyAddress)
@@ -594,7 +768,11 @@ onMounted(async () => {
             const rent = parseFloat(rentAmount)
             if (!isNaN(rent)) {
                 formData.value.offered_rent_amount = rent
+                originalOfferRent.value = rent // Store original for validation
             }
+        }
+        if (moveInDate) {
+            formData.value.proposed_move_in_date = decodeURIComponent(moveInDate)
         }
 
         // Check for existing submission first

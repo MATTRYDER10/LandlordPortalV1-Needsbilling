@@ -85,9 +85,13 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'selfie', maxCount: 1 },
     { name: 'proof_of_address', maxCount: 1 },
     { name: 'bank_statement', maxCount: 1 },
+    { name: 'bank_statements', maxCount: 3 },
     { name: 'payslips', maxCount: 10 },
     { name: 'pension_statement', maxCount: 1 },
-    { name: 'landlord_rental_bank_statement', maxCount: 1 }
+    { name: 'landlord_rental_bank_statement', maxCount: 1 },
+    { name: 'tax_return', maxCount: 1 },
+    { name: 'proof_of_funds', maxCount: 1 },
+    { name: 'proof_of_additional_income', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -212,6 +216,64 @@ router.post('/upload/:token', (req, res, next) => {
       }
     }
 
+    if (files.tax_return && files.tax_return[0]) {
+      const file = files.tax_return[0]
+      const filename = `${guarantorRef.id}_tax_return_${Date.now()}.${file.mimetype.split('/')[1]}`
+      const { error: uploadError } = await supabase.storage
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
+        })
+      if (!uploadError) {
+        uploadedPaths.tax_return = `guarantor-documents/${guarantorRef.id}/${filename}`
+      }
+    }
+
+    if (files.proof_of_funds && files.proof_of_funds[0]) {
+      const file = files.proof_of_funds[0]
+      const filename = `${guarantorRef.id}_proof_of_funds_${Date.now()}.${file.mimetype.split('/')[1]}`
+      const { error: uploadError } = await supabase.storage
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
+        })
+      if (!uploadError) {
+        uploadedPaths.proof_of_funds = `guarantor-documents/${guarantorRef.id}/${filename}`
+      }
+    }
+
+    if (files.proof_of_additional_income && files.proof_of_additional_income[0]) {
+      const file = files.proof_of_additional_income[0]
+      const filename = `${guarantorRef.id}_proof_of_additional_income_${Date.now()}.${file.mimetype.split('/')[1]}`
+      const { error: uploadError } = await supabase.storage
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
+        })
+      if (!uploadError) {
+        uploadedPaths.proof_of_additional_income = `guarantor-documents/${guarantorRef.id}/${filename}`
+      }
+    }
+
+    // Handle bank_statements (multiple files for guarantors)
+    if (files.bank_statements && files.bank_statements.length > 0) {
+      const bankStatementPaths = []
+      for (const [index, file] of files.bank_statements.entries()) {
+        const filename = `${guarantorRef.id}_bank_statement_${index}_${Date.now()}.${file.mimetype.split('/')[1]}`
+        const { error: uploadError } = await supabase.storage
+          .from('reference-documents')
+          .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+            contentType: file.mimetype
+          })
+        if (!uploadError) {
+          bankStatementPaths.push(`guarantor-documents/${guarantorRef.id}/${filename}`)
+        }
+      }
+      if (bankStatementPaths.length > 0) {
+        uploadedPaths.bank_statements = bankStatementPaths
+      }
+    }
+
     res.json(uploadedPaths)
   } catch (error: any) {
     console.error('Guarantor file upload error:', error)
@@ -314,6 +376,8 @@ router.post('/submit/:token', async (req: Request, res) => {
       nature_of_business_encrypted: encrypt(data.nature_of_business || ''),
       years_trading: data.years_trading || null,
       annual_turnover_encrypted: encrypt(data.annual_turnover ? String(data.annual_turnover) : ''),
+      tax_return_path: data.tax_return_path || null,
+      tax_return_will_email: data.tax_return_will_email || false,
 
       // If Retired (legacy field - kept for backwards compatibility)
       pension_amount_encrypted: encrypt(data.pension_amount ? String(data.pension_amount) : ''),
@@ -324,20 +388,26 @@ router.post('/submit/:token', async (req: Request, res) => {
       pension_monthly_amount_encrypted: encrypt(data.pension_monthly_amount ? String(data.pension_monthly_amount) : ''),
       pension_provider_encrypted: encrypt(data.pension_provider || ''),
       pension_statement_path: data.pension_statement_path || null,
+      pension_statement_will_email: data.pension_statement_will_email || false,
 
       // Landlord/Rental Income (new fields)
       income_landlord_rental: data.income_landlord_rental || false,
       landlord_rental_monthly_amount_encrypted: encrypt(data.landlord_rental_monthly_amount ? String(data.landlord_rental_monthly_amount) : ''),
       landlord_rental_bank_statement_path: data.landlord_rental_bank_statement_path || null,
+      landlord_rental_bank_statement_will_email: data.landlord_rental_bank_statement_will_email || false,
 
       // Additional Income
       other_income_source_encrypted: encrypt(data.other_income_source || ''),
       other_income_amount_encrypted: encrypt(data.other_income_amount ? String(data.other_income_amount) : ''),
+      proof_of_additional_income_path: data.proof_of_additional_income_path || null,
+      proof_of_additional_income_will_email: data.proof_of_additional_income_will_email || false,
 
       // Savings & Assets
       savings_amount_encrypted: encrypt(data.savings_amount ? String(data.savings_amount) : ''),
       property_value_encrypted: encrypt(data.property_value ? String(data.property_value) : ''),
       other_assets_encrypted: encrypt(data.other_assets || ''),
+      proof_of_funds_path: data.proof_of_funds_path || null,
+      proof_of_funds_will_email: data.proof_of_funds_will_email || false,
 
       // Financial Obligations
       monthly_mortgage_rent_encrypted: encrypt(data.monthly_mortgage_rent ? String(data.monthly_mortgage_rent) : ''),
@@ -350,6 +420,7 @@ router.post('/submit/:token', async (req: Request, res) => {
 
       // Bank Details
       bank_statement_path: data.bank_statement_path || null,
+      bank_statement_will_email: data.bank_statement_will_email || false,
 
       // Previous Guarantor Experience
       previously_acted_as_guarantor: data.previously_acted_as_guarantor || false,

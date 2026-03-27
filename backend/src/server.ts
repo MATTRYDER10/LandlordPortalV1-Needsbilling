@@ -43,6 +43,22 @@ import legalRoutes from './routes/legal'
 import tdsSettingsRoutes from './routes/tds-settings'
 import tdsRoutes from './routes/tds'
 import tenantChangeRoutes from './routes/tenant-change'
+import repositSettingsRoutes from './routes/reposit-settings'
+import repositRoutes from './routes/reposit'
+import reviewLinksRoutes from './routes/review-links'
+import mydepositsSettingsRoutes from './routes/mydeposits-settings'
+import mydepositsRoutes from './routes/mydeposits'
+import supportRoutes from './routes/support'
+import apex27SettingsRoutes from './routes/apex27-settings'
+import apex27SyncRoutes from './routes/apex27-sync'
+import igSettingsRoutes from './routes/ig-settings'
+import igRoutes from './routes/ig'
+import igWebhooksRoutes from './routes/ig-webhooks'
+
+// V2 Reference System Routes
+import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, uploadLinkRouter as v2UploadLinkRouter, groupAssessmentRouter as v2GroupAssessmentRouter } from './routes/v2'
+import { startChaseSchedulerV2 } from './services/v2'
+import { startDepositCertificateScheduler } from './services/depositCertificateScheduler'
 
 dotenv.config()
 
@@ -100,6 +116,8 @@ const allowedOrigins = [
   'http://localhost:5180', // Local development (alternate port)
   'http://192.168.1.81:5173', // Local network access
   'http://192.168.1.81:5174', // Local network access (alternate port)
+  'http://192.168.1.190:5173', // Local network access
+  'http://192.168.1.190:5174', // Local network access (alternate port)
   'https://app.propertygoose.co.uk', // Production
   process.env.FRONTEND_URL // Production (Railway)
 ].filter(Boolean) // Remove undefined values
@@ -110,7 +128,7 @@ app.use(cors({
     if (!origin) return callback(null, true)
 
     // Allow ngrok tunnels for testing
-    if (origin.endsWith('.ngrok-free.dev') || origin.endsWith('.ngrok.io') || origin.endsWith('.loca.lt')) {
+    if (origin.endsWith('.ngrok-free.dev') || origin.endsWith('.ngrok.io') || origin.endsWith('.ngrok.app') || origin.endsWith('.ngrok-free.app') || origin.endsWith('.loca.lt')) {
       return callback(null, true)
     }
 
@@ -144,11 +162,22 @@ app.use('/api/webhooks/resend', express.json({
   }
 }))
 
+// Reposit webhook sends JSON data
+app.use('/api/webhooks/reposit', express.json())
+
+// IG webhooks need raw body for HMAC signature verification + JSON parsing
+app.use('/api/integrations/ig', express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf.toString('utf8')
+  }
+}))
+
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
 
-// Middleware
-app.use(express.json())
+// Middleware - 50mb limit to support 25MB file uploads (base64 encoded)
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -193,17 +222,52 @@ app.use('/api/legal', legalRoutes)
 app.use('/api/settings/tds', tdsSettingsRoutes)
 app.use('/api/tds', tdsRoutes)
 app.use('/api/tenant-change', tenantChangeRoutes)
+app.use('/api/settings/reposit', repositSettingsRoutes)
+app.use('/api/reposit', repositRoutes)
+app.use('/api/review-links', reviewLinksRoutes)
+app.use('/api/settings/mydeposits', mydepositsSettingsRoutes)
+app.use('/api/mydeposits', mydepositsRoutes)
+app.use('/api/support', supportRoutes)
+app.use('/api/settings/apex27', apex27SettingsRoutes)
+app.use('/api/apex27', apex27SyncRoutes)
+app.use('/api/settings/ig', igSettingsRoutes)
+app.use('/api/ig', igRoutes)
+app.use('/api/integrations/ig', igWebhooksRoutes)
+
+// V2 Reference System Routes (new section-based verification)
+app.use('/api/v2/references', v2ReferencesRouter)
+app.use('/api/v2/staff/sections', v2SectionsRouter)
+app.use('/api/v2/staff/chase', v2ChaseRouter)
+app.use('/api/v2/staff/final-review', v2FinalReviewRouter)
+// Frontend-compatible route aliases (without /staff/ prefix)
+app.use('/api/v2/sections', v2SectionsRouter)
+app.use('/api/v2/chase', v2ChaseRouter)
+app.use('/api/v2/final-review', v2FinalReviewRouter)
+app.use('/api/v2/tenant-form', v2TenantFormRouter)
+app.use('/api/v2/guarantor-form', v2GuarantorFormRouter)
+app.use('/api/v2', v2RefereeFormsRouter)
+app.use('/api/v2/reports', v2ReportsRouter)
+app.use('/api/v2/admin', v2AdminRouter)
+app.use('/api/v2/verify', v2VerifyRouter)
+app.use('/api/v2/offers', v2OffersRouter)
+app.use('/api/v2/mobile-capture', v2MobileCaptureRouter)
+app.use('/api/v2/upload-link', v2UploadLinkRouter)
+app.use('/api/v2/group-assessment', v2GroupAssessmentRouter)
+app.use('/api/v2/staff/group-assessment', v2GroupAssessmentRouter)
 
 // Start server - listen on all interfaces for local network access
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT} (accessible on local network)`)
 
-  // Start background schedulers for work queue management
-  startSchedulers()
-
-  // Start property compliance scheduler
-  startComplianceScheduler()
-
-  // Start rent increase scheduler
-  startRentIncreaseScheduler()
+  // Only run schedulers in production — prevents duplicate emails from dev servers
+  if (process.env.NODE_ENV === 'production') {
+    startSchedulers()
+    startComplianceScheduler()
+    startRentIncreaseScheduler()
+    startChaseSchedulerV2()
+    startDepositCertificateScheduler()
+    console.log('[Scheduler] All background schedulers started (production)')
+  } else {
+    console.log('[Scheduler] Skipping background schedulers (non-production)')
+  }
 })

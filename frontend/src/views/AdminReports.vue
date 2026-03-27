@@ -479,7 +479,7 @@ import { Chart, registerables } from 'chart.js'
 import { colors } from '../config/colors'
 import { ChevronDown } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 Chart.register(...registerables)
 

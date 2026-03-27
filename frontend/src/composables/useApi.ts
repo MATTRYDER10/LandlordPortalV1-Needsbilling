@@ -4,7 +4,7 @@ import { useAdminCompanyStore } from '@/stores/adminCompany'
 // In dev mode, determine the correct API URL based on the access method
 const getApiUrl = () => {
   if (!import.meta.env.DEV) {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    return import.meta.env.VITE_API_URL ?? ''
   }
 
   const hostname = window.location.hostname
@@ -12,7 +12,7 @@ const getApiUrl = () => {
   // If accessed via ngrok or other tunnels, use localhost for API
   // (ngrok only tunnels the frontend, backend is still on localhost)
   if (hostname.includes('ngrok') || hostname.includes('loca.lt') || hostname.includes('.dev')) {
-    return 'http://localhost:3001'
+    return import.meta.env.VITE_API_URL ?? ''
   }
 
   // For local network access (e.g., 192.168.1.81), use the same IP

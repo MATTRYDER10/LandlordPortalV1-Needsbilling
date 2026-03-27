@@ -1,22 +1,43 @@
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Tenancy Deposit Scheme (TDS)</h3>
-      <p class="mt-1 text-sm text-gray-600 dark:text-slate-400">
-        Connect your TDS account to register deposits directly from tenancy records.
-      </p>
+    <!-- TDS Branded Header -->
+    <div class="rounded-lg border-2 border-[#3DDBB3] bg-gradient-to-br from-[#3DDBB3]/5 to-[#1E3A8A]/10 dark:from-[#3DDBB3]/10 dark:to-[#1E3A8A]/20 overflow-hidden">
+      <div class="px-6 py-4 bg-white dark:bg-slate-800 border-b border-[#3DDBB3]/30 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#3DDBB3]">
+            <div class="w-3 h-3 rounded-full bg-[#1E3A8A]"></div>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-[#1E3A8A] dark:text-white">TDS</h3>
+            <p class="text-xs text-gray-500 dark:text-slate-400">Tenancy Deposit Scheme</p>
+          </div>
+        </div>
+        <a
+          href="https://www.tenancydepositscheme.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-[#1E3A8A] hover:text-[#3DDBB3] dark:text-slate-300 dark:hover:text-[#3DDBB3] transition-colors flex items-center gap-1"
+        >
+          Learn more
+          <ExternalLink class="w-3 h-3" />
+        </a>
+      </div>
+      <div class="p-4">
+        <p class="text-sm text-gray-600 dark:text-slate-400">
+          Connect your TDS account to register deposits directly from tenancy records.
+        </p>
+      </div>
     </div>
 
     <!-- Scheme Tabs -->
-    <div class="border-b border-gray-200 dark:border-slate-700">
+    <div class="border-b border-[#3DDBB3]/30 dark:border-[#3DDBB3]/20">
       <nav class="-mb-px flex space-x-8">
         <button
           @click="activeScheme = 'custodial'"
           :class="[
             activeScheme === 'custodial'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300 dark:hover:border-slate-600',
+              ? 'border-[#3DDBB3] text-[#1E3A8A] dark:text-[#3DDBB3]'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-[#3DDBB3] hover:border-[#3DDBB3]/50',
             'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2'
           ]"
         >
@@ -25,15 +46,15 @@
           <span
             v-if="custodialStatus?.configured"
             class="ml-1 flex h-2 w-2 rounded-full"
-            :class="custodialStatus.lastTestStatus === 'success' ? 'bg-green-500' : 'bg-amber-500'"
+            :class="custodialStatus.lastTestStatus === 'success' ? 'bg-[#3DDBB3]' : 'bg-amber-500'"
           ></span>
         </button>
         <button
           @click="activeScheme = 'insured'"
           :class="[
             activeScheme === 'insured'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300 dark:hover:border-slate-600',
+              ? 'border-[#3DDBB3] text-[#1E3A8A] dark:text-[#3DDBB3]'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-[#3DDBB3] hover:border-[#3DDBB3]/50',
             'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2'
           ]"
         >
@@ -42,7 +63,7 @@
           <span
             v-if="insuredStatus?.configured && insuredStatus?.authorized"
             class="ml-1 flex h-2 w-2 rounded-full"
-            :class="insuredStatus.lastTestStatus === 'success' ? 'bg-green-500' : 'bg-amber-500'"
+            :class="insuredStatus.lastTestStatus === 'success' ? 'bg-[#3DDBB3]' : 'bg-amber-500'"
           ></span>
         </button>
       </nav>
@@ -50,23 +71,28 @@
 
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
-      <Loader2 class="w-8 h-8 animate-spin text-primary" />
+      <Loader2 class="w-8 h-8 animate-spin text-[#3DDBB3]" />
     </div>
 
     <!-- TDS Custodial Panel -->
-    <div v-else-if="activeScheme === 'custodial'" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+    <div v-else-if="activeScheme === 'custodial'" class="bg-white dark:bg-slate-800 rounded-lg border border-[#3DDBB3]/30 shadow p-6">
       <div class="flex items-start justify-between mb-6">
-        <div>
-          <h4 class="text-md font-semibold text-gray-900 dark:text-white">TDS Custodial</h4>
-          <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            The Custodial scheme holds the deposit in a secure TDS account.
-          </p>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-8 h-8 rounded-full bg-[#3DDBB3]/20">
+            <Shield class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+          </div>
+          <div>
+            <h4 class="text-md font-semibold text-[#1E3A8A] dark:text-white">TDS Custodial</h4>
+            <p class="text-sm text-gray-500 dark:text-slate-400">
+              The Custodial scheme holds the deposit in a secure TDS account.
+            </p>
+          </div>
         </div>
         <div v-if="custodialStatus?.configured" class="flex items-center gap-2">
           <span
             class="px-2 py-1 rounded-full text-xs font-medium"
             :class="custodialStatus.lastTestStatus === 'success'
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
+              ? 'bg-[#3DDBB3]/20 text-[#1E3A8A] dark:bg-[#3DDBB3]/30 dark:text-[#3DDBB3]'
               : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400'"
           >
             {{ custodialStatus.lastTestStatus === 'success' ? 'Connected' : 'Needs Testing' }}
@@ -216,26 +242,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Environment</label>
-          <div class="flex gap-4">
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="custodialForm.environment"
-                value="sandbox"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Sandbox (Testing)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="custodialForm.environment"
-                value="live"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Live (Production)</span>
-            </label>
+          <input type="hidden" v-model="custodialForm.environment" />
+          <div class="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+            <span class="text-sm font-medium text-green-700 dark:text-green-400">Live (Production)</span>
           </div>
         </div>
 
@@ -287,19 +296,24 @@
     </div>
 
     <!-- TDS Insured Panel -->
-    <div v-else-if="activeScheme === 'insured'" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+    <div v-else-if="activeScheme === 'insured'" class="bg-white dark:bg-slate-800 rounded-lg border border-[#3DDBB3]/30 shadow p-6">
       <div class="flex items-start justify-between mb-6">
-        <div>
-          <h4 class="text-md font-semibold text-gray-900 dark:text-white">TDS Insured</h4>
-          <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            The Insured scheme allows you to hold the deposit while TDS provides insurance protection.
-          </p>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-8 h-8 rounded-full bg-[#3DDBB3]/20">
+            <ShieldCheck class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+          </div>
+          <div>
+            <h4 class="text-md font-semibold text-[#1E3A8A] dark:text-white">TDS Insured</h4>
+            <p class="text-sm text-gray-500 dark:text-slate-400">
+              The Insured scheme allows you to hold the deposit while TDS provides insurance protection.
+            </p>
+          </div>
         </div>
         <div v-if="insuredStatus?.configured && insuredStatus?.authorized" class="flex items-center gap-2">
           <span
             class="px-2 py-1 rounded-full text-xs font-medium"
             :class="insuredStatus.lastTestStatus === 'success'
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
+              ? 'bg-[#3DDBB3]/20 text-[#1E3A8A] dark:bg-[#3DDBB3]/30 dark:text-[#3DDBB3]'
               : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400'"
           >
             {{ insuredStatus.lastTestStatus === 'success' ? 'Connected' : 'Needs Testing' }}
@@ -351,73 +365,8 @@
           </div>
         </div>
 
-        <div>
-          <label for="insured-client-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client ID</label>
-          <input
-            id="insured-client-id"
-            v-model="insuredForm.clientId"
-            name="tds-insured-clientid"
-            type="text"
-            :required="!insuredStatus?.configured"
-            autocomplete="off"
-            data-lpignore="true"
-            data-1p-ignore
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-            :placeholder="insuredStatus?.clientId || 'Enter your OAuth2 Client ID'"
-          />
-        </div>
-
-        <div>
-          <label for="insured-client-secret" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Client Secret</label>
-          <div class="mt-1 relative">
-            <input
-              id="insured-client-secret"
-              v-model="insuredForm.clientSecret"
-              name="tds-insured-secret"
-              :type="showInsuredSecret ? 'text' : 'password'"
-              :required="!insuredStatus?.configured"
-              autocomplete="off"
-              data-lpignore="true"
-              data-1p-ignore
-              class="block w-full px-3 py-2 pr-20 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              placeholder="Enter your OAuth2 Client Secret"
-            />
-            <button
-              type="button"
-              @click="showInsuredSecret = !showInsuredSecret"
-              class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-            >
-              <Eye v-if="!showInsuredSecret" class="w-4 h-4" />
-              <EyeOff v-else class="w-4 h-4" />
-            </button>
-          </div>
-          <p v-if="insuredStatus?.configured && !insuredForm.clientSecret" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
-            Leave blank to keep existing secret
-          </p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Environment</label>
-          <div class="flex gap-4">
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="insuredForm.environment"
-                value="sandbox"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Sandbox (Testing)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                type="radio"
-                v-model="insuredForm.environment"
-                value="live"
-                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
-              />
-              <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Live (Production)</span>
-            </label>
-          </div>
+        <div class="px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+          <span class="text-sm font-medium text-green-700 dark:text-green-400">Live (Production)</span>
         </div>
 
         <div v-if="insuredError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
@@ -500,29 +449,29 @@
     </div>
 
     <!-- Connected Schemes Summary -->
-    <div v-if="!loading && (custodialStatus?.configured || (insuredStatus?.configured && insuredStatus?.authorized))" class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
-      <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Connected Schemes</h4>
+    <div v-if="!loading && (custodialStatus?.configured || (insuredStatus?.configured && insuredStatus?.authorized))" class="bg-[#3DDBB3]/10 dark:bg-[#3DDBB3]/5 rounded-lg border border-[#3DDBB3]/30 p-4">
+      <h4 class="text-sm font-medium text-[#1E3A8A] dark:text-[#3DDBB3] mb-3">Connected Schemes</h4>
       <div class="flex gap-4">
         <div
           v-if="custodialStatus?.configured"
-          class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 rounded-md shadow-sm"
+          class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-[#3DDBB3]/30 rounded-md shadow-sm"
         >
-          <Shield class="w-4 h-4 text-primary" />
-          <span class="text-sm font-medium dark:text-white">TDS Custodial</span>
+          <Shield class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+          <span class="text-sm font-medium text-[#1E3A8A] dark:text-white">TDS Custodial</span>
           <span
             class="w-2 h-2 rounded-full"
-            :class="custodialStatus.lastTestStatus === 'success' ? 'bg-green-500' : 'bg-amber-500'"
+            :class="custodialStatus.lastTestStatus === 'success' ? 'bg-[#3DDBB3]' : 'bg-amber-500'"
           ></span>
         </div>
         <div
           v-if="insuredStatus?.configured && insuredStatus?.authorized"
-          class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 rounded-md shadow-sm"
+          class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-[#3DDBB3]/30 rounded-md shadow-sm"
         >
-          <ShieldCheck class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span class="text-sm font-medium dark:text-white">TDS Insured</span>
+          <ShieldCheck class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+          <span class="text-sm font-medium text-[#1E3A8A] dark:text-white">TDS Insured</span>
           <span
             class="w-2 h-2 rounded-full"
-            :class="insuredStatus.lastTestStatus === 'success' ? 'bg-green-500' : 'bg-amber-500'"
+            :class="insuredStatus.lastTestStatus === 'success' ? 'bg-[#3DDBB3]' : 'bg-amber-500'"
           ></span>
         </div>
       </div>
@@ -544,7 +493,7 @@ import {
   AlertTriangle
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -655,7 +604,7 @@ const fetchTDSSettings = async () => {
       if (data.custodial?.configured) {
         custodialForm.value.memberId = data.custodial.memberId || ''
         custodialForm.value.branchId = data.custodial.branchId || '0'
-        custodialForm.value.environment = data.custodial.environment || 'sandbox'
+        custodialForm.value.environment = 'live'
         console.log('[TDS Settings] Form values set:', custodialForm.value)
       }
 
@@ -665,7 +614,7 @@ const fetchTDSSettings = async () => {
         insuredForm.value.memberId = data.insured.memberId || ''
         insuredForm.value.branchId = data.insured.branchId || ''
         insuredForm.value.clientId = data.insured.clientId || ''
-        insuredForm.value.environment = data.insured.environment || 'sandbox'
+        insuredForm.value.environment = 'live'
       }
     }
   } catch (error) {
@@ -688,13 +637,25 @@ const handleOAuthCallback = async () => {
       const token = authStore.session?.access_token
       if (!token) throw new Error('Not authenticated')
 
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      // Add branch header for multi-branch support
+      const activeBranchId = localStorage.getItem('activeBranchId')
+      if (activeBranchId) {
+        headers['X-Branch-Id'] = activeBranchId
+      }
+
       const response = await fetch(`${API_URL}/api/settings/tds/insured/callback`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ code, state })
+        headers,
+        body: JSON.stringify({
+          code,
+          state,
+          redirect_uri: `${window.location.origin}/settings/tds`
+        })
       })
 
       if (response.ok) {
@@ -703,7 +664,7 @@ const handleOAuthCallback = async () => {
         await fetchTDSSettings()
 
         // Clear URL params
-        window.history.replaceState({}, document.title, '/settings/integrations')
+        window.history.replaceState({}, document.title, '/settings/tds')
       } else {
         const data = await response.json()
         insuredError.value = data.error || 'Authorization failed'
@@ -896,12 +857,20 @@ const saveInsuredCredentials = async () => {
       payload.clientSecret = insuredForm.value.clientSecret
     }
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Add branch header for multi-branch support
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/settings/tds/insured`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(payload)
     })
 
@@ -928,12 +897,24 @@ const authorizeInsured = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const redirectUri = `${window.location.origin}/settings/integrations`
+    // Use ngrok URL for local testing, production URL otherwise
+    const redirectUri = import.meta.env.VITE_TDS_REDIRECT_URI
+      || (import.meta.env.PROD
+        ? `${window.location.origin}/settings/tds`
+        : 'https://propertygoosedev.ngrok.app/settings/tds')
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`
+    }
+
+    // Add branch header for multi-branch support
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
 
     const response = await fetch(`${API_URL}/api/settings/tds/insured/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers
     })
 
     if (response.ok) {
@@ -960,12 +941,20 @@ const testInsuredConnection = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Add branch header for multi-branch support
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/settings/tds/insured/test`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     })
 
     const data = await response.json()
@@ -993,11 +982,19 @@ const removeInsuredIntegration = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`
+    }
+
+    // Add branch header for multi-branch support
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/settings/tds/insured`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers
     })
 
     if (response.ok) {

@@ -75,12 +75,21 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-500 dark:text-slate-400">Status</p>
-                  <span
-                    class="inline-block mt-1 px-3 py-1 text-sm font-semibold rounded-full"
-                    :class="statusClass"
-                  >
-                    {{ statusLabel }}
-                  </span>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span
+                      class="inline-block px-3 py-1 text-sm font-semibold rounded-full"
+                      :class="statusClass"
+                    >
+                      {{ statusLabel }}
+                    </span>
+                    <span
+                      v-if="tenancy?.offer_unihomes"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                    >
+                      <Zap class="w-3.5 h-3.5" />
+                      UniHomes{{ tenancy?.unihomes_interested ? ' (Interested)' : '' }}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <!-- Pending tenancy actions -->
@@ -227,6 +236,14 @@
                           Email All Tenants
                         </button>
 
+                        <button
+                          @click="handleDrawerAction('send-review-link')"
+                          class="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3"
+                        >
+                          <Star class="w-4 h-4 text-amber-500" />
+                          Send Review Request
+                        </button>
+
                         <div class="border-t border-gray-100 dark:border-slate-700 my-1" />
 
                         <button
@@ -255,6 +272,7 @@
               v-if="activeTenantChange && tenancy?.status === 'active'"
               :tenant-change="activeTenantChange"
               :tenants="tenants"
+              :reference-statuses="tenantChangeRefStatuses"
               @continue="showTenantChangeModal = true"
             />
 
@@ -464,6 +482,21 @@
                     No tenant email
                   </span>
                 </div>
+
+                <!-- Send Review Request -->
+                <div class="flex flex-col">
+                  <button
+                    @click="showReviewLinkModal = true"
+                    :disabled="!hasTenantsWithEmail"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Star class="w-4 h-4 text-amber-500" />
+                    Send Review Request
+                  </button>
+                  <span v-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
+                    No tenant email
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -505,18 +538,18 @@
                   </span>
                 </div>
 
-                <!-- Send Landlord Pack -->
+                <!-- Send Review Request -->
                 <div class="flex flex-col">
                   <button
-                    @click="showLandlordPackModal = true"
-                    :disabled="!allLandlords?.length"
-                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    @click="showReviewLinkModal = true"
+                    :disabled="!hasTenantsWithEmail"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Send class="w-4 h-4 text-emerald-600" />
-                    Send Landlord Pack
+                    <Star class="w-4 h-4 text-amber-500" />
+                    Send Review Request
                   </button>
-                  <span v-if="!allLandlords?.length" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
-                    No landlord linked
+                  <span v-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
+                    No tenant email
                   </span>
                 </div>
 
@@ -561,18 +594,179 @@
                     &pound;{{ pendingRentIncrease.newRent?.toLocaleString() }} from {{ formatDate(pendingRentIncrease.effectiveDate) }}
                   </p>
                 </div>
+
+                <!-- Reposit Section (Deposit Replacement) - Only shows when deposit replacement was offered/requested -->
+                <div v-if="showRepositSection" class="mt-3">
+                  <div class="rounded-lg border-2 border-cyan-500 dark:border-cyan-400 bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-slate-800 dark:to-slate-900 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-3 py-2 bg-white dark:bg-slate-900 border-b border-cyan-500/30 dark:border-cyan-400/30 flex items-center justify-between">
+                      <a
+                        href="https://reposit.co.uk/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex items-center gap-2"
+                      >
+                        <img
+                          src="/reposit-logo.png"
+                          alt="Reposit"
+                          class="h-5 w-auto"
+                        />
+                      </a>
+                      <a
+                        href="https://reposit.co.uk/tenants/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-[10px] text-gray-500 hover:text-cyan-600 dark:text-slate-400 dark:hover:text-cyan-400 transition-colors flex items-center gap-1"
+                      >
+                        Learn more
+                        <ExternalLink class="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-3">
+                      <!-- Reposit Active/Registered -->
+                      <div v-if="repositRegistration" class="space-y-3">
+                        <!-- Status Badge -->
+                        <div class="flex items-center justify-between">
+                          <div
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                            :class="{
+                              'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400': repositLiveStatus?.isActive,
+                              'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 dark:border dark:border-amber-500/50': !repositLiveStatus?.isActive && !repositLiveStatus?.isDeactivated && !repositLiveStatus?.isClosed,
+                              'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400': repositLiveStatus?.isDeactivated || repositLiveStatus?.isClosed
+                            }"
+                          >
+                            <CheckCircle v-if="repositLiveStatus?.isActive" class="w-3 h-3" />
+                            <Clock v-else-if="!repositLiveStatus?.isDeactivated && !repositLiveStatus?.isClosed" class="w-3 h-3" />
+                            <XCircle v-else class="w-3 h-3" />
+                            {{ repositLiveStatus?.statusLabel || 'Loading...' }}
+                          </div>
+                          <button
+                            @click="refreshRepositStatus"
+                            class="p-1 text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-slate-700 rounded transition-colors"
+                            title="Refresh status"
+                          >
+                            <RefreshCw class="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <!-- Info Grid -->
+                        <div class="grid grid-cols-2 gap-2 text-[10px]">
+                          <div>
+                            <p class="text-gray-500 dark:text-slate-500">Reposit ID</p>
+                            <p class="font-mono text-cyan-700 dark:text-cyan-400 truncate text-[9px]" :title="repositRegistration.repositId">
+                              {{ repositRegistration.repositId }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-gray-500 dark:text-slate-500">Total Fee</p>
+                            <p class="font-semibold text-primary dark:text-primary">
+                              &pound;{{ (repositRegistration.totalFee || repositPricing?.totalFee)?.toFixed(2) || 'N/A' }}
+                            </p>
+                          </div>
+                        </div>
+
+                        <!-- Tenant Progress Section -->
+                        <div v-if="repositLiveStatus?.tenants?.length" class="pt-2 border-t border-cyan-500/20 dark:border-cyan-400/20">
+                          <p class="text-[10px] text-gray-500 dark:text-slate-500 mb-2">Tenant Progress</p>
+                          <div class="space-y-1.5">
+                            <div
+                              v-for="tenant in repositLiveStatus.tenants"
+                              :key="tenant.email"
+                              class="flex items-center justify-between text-[10px]"
+                            >
+                              <span class="text-gray-700 dark:text-slate-300 truncate max-w-[140px]" :title="tenant.email">
+                                {{ tenant.email }}
+                              </span>
+                              <span
+                                class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase bg-amber-100 text-amber-700 dark:bg-amber-500 dark:text-white"
+                              >
+                                {{ tenant.status === 'completed' ? 'Paid' : tenant.status === 'active' ? 'Active' : tenant.status }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Active Success State -->
+                        <div v-if="repositLiveStatus?.isActive" class="flex items-center gap-1.5 p-1.5 bg-emerald-50 dark:bg-emerald-900/30 rounded text-[10px]">
+                          <Shield class="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <p class="text-emerald-700 dark:text-emerald-300">Protection active</p>
+                        </div>
+                      </div>
+
+                      <!-- Reposit Available but Not Created -->
+                      <div v-else-if="hasRepositIntegration" class="space-y-2">
+                        <!-- Pricing Info -->
+                        <div v-if="repositPricing" class="flex items-center justify-between p-2 bg-white/80 dark:bg-slate-900/50 rounded text-xs">
+                          <div>
+                            <p class="text-[10px] text-gray-500 dark:text-slate-500">Tenant Fee</p>
+                            <p class="font-bold text-teal-700 dark:text-teal-400">
+                              &pound;{{ repositPricing.perTenantFee?.toFixed(2) }}
+                              <span class="text-[10px] font-normal text-gray-500 dark:text-slate-500">/ tenant</span>
+                            </p>
+                          </div>
+                          <div class="text-right">
+                            <p class="text-[10px] text-gray-500 dark:text-slate-500">Total</p>
+                            <p class="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                              &pound;{{ repositPricing.totalFee?.toFixed(2) }}
+                              <span class="text-[10px] font-normal text-gray-500 dark:text-slate-500">for {{ repositPricing.headcount }}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <!-- Create Button -->
+                        <button
+                          @click="showCreateRepositModal = true"
+                          :disabled="creatingReposit"
+                          class="w-full px-3 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 dark:from-cyan-600 dark:to-cyan-700 dark:hover:from-cyan-500 dark:hover:to-cyan-600 rounded flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <Loader2 v-if="creatingReposit" class="w-3.5 h-3.5 animate-spin" />
+                          <Sparkles v-else class="w-3.5 h-3.5" />
+                          {{ creatingReposit ? 'Creating...' : 'Create Reposit' }}
+                        </button>
+
+                        <button
+                          @click="checkRepositEligibility"
+                          :disabled="checkingEligibility"
+                          class="w-full text-[10px] text-cyan-600 hover:text-cyan-800 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors"
+                        >
+                          {{ checkingEligibility ? 'Checking...' : 'Check eligibility' }}
+                        </button>
+                      </div>
+
+                      <!-- No Reposit Integration -->
+                      <div v-else class="space-y-2">
+                        <p class="text-[10px] text-gray-600 dark:text-slate-400">
+                          Deposit replacement selected. Connect your Reposit account to proceed.
+                        </p>
+                        <router-link
+                          to="/settings/reposit"
+                          class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-white bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500 rounded transition-colors"
+                        >
+                          <Settings class="w-3 h-3" />
+                          Connect in Settings
+                        </router-link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div
                 class="rounded-lg p-4"
-                :class="depositProtected || tdsRegistration
-                  ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-600'
-                  : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700'"
+                :class="repositRegistration?.repositId
+                  ? 'bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-slate-800 dark:to-slate-900 border-2 border-cyan-500 dark:border-cyan-400'
+                  : tdsRegistration
+                    ? 'bg-gradient-to-br from-[#3DDBB3]/10 to-[#1E3A8A]/5 dark:from-[#3DDBB3]/15 dark:to-[#1E3A8A]/10 border-2 border-[#3DDBB3] dark:border-[#3DDBB3]/70'
+                    : depositProtected
+                      ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-600'
+                      : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700'"
               >
                 <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">Deposit</p>
                 <EditableField
                   :model-value="tenancy?.deposit_amount || 0"
                   type="number"
-                  :can-edit="isDraftTenancy"
+                  :can-edit="isDraftTenancy && !repositRegistration?.repositId"
                   :min="0"
                   :step="0.01"
                   display-class="mt-1 text-xl font-semibold"
@@ -580,121 +774,376 @@
                   @save="(v) => updateTenancyField('depositAmount', v)"
                 >
                   <template #display>
-                    <span class="mt-1 text-xl font-semibold" :class="depositProtected || tdsRegistration ? 'text-green-600' : 'text-amber-600'">
+                    <span class="mt-1 text-xl font-semibold" :class="repositRegistration?.repositId ? 'text-cyan-600 dark:text-cyan-400' : tdsRegistration ? 'text-[#1E3A8A] dark:text-[#3DDBB3]' : depositProtected ? 'text-green-600' : 'text-amber-600'">
                       {{ depositDisplay }}
                     </span>
                   </template>
                 </EditableField>
+                <!-- Reposit deposit replacement note -->
+                <p v-if="repositRegistration?.repositId || isRepositScheme" class="mt-1 text-[10px] text-cyan-600 dark:text-cyan-400">
+                  Replaced by Reposit
+                </p>
 
-                <!-- TDS Registered State -->
-                <div v-if="tdsRegistration" class="mt-2 space-y-1">
+                <!-- TDS Failed State -->
+                <div v-if="tdsRegistration && tdsRegistration.status === 'failed'" class="mt-2 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <XCircle class="w-4 h-4 text-red-500" />
+                    <p class="text-xs font-medium text-red-600 dark:text-red-400">
+                      Registration Failed
+                    </p>
+                  </div>
+                  <p class="text-xs text-red-500 dark:text-red-400">
+                    {{ tdsRegistration.error || 'TDS registration failed. Please try again.' }}
+                  </p>
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div v-if="tdsRegistration.batchId">
+                      <p class="text-gray-500 dark:text-slate-500">Batch ID</p>
+                      <p class="font-mono text-gray-700 dark:text-slate-300">{{ tdsRegistration.batchId }}</p>
+                    </div>
+                    <div v-if="tdsRegistration.schemeType">
+                      <p class="text-gray-500 dark:text-slate-500">Scheme</p>
+                      <p class="text-gray-700 dark:text-slate-300">{{ tdsRegistration.schemeType === 'insured' ? 'Insured' : 'Custodial' }}</p>
+                    </div>
+                  </div>
+                  <button
+                    @click="retryTDSRegistration"
+                    class="w-full px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw class="w-4 h-4" />
+                    Retry Registration
+                  </button>
+                </div>
+
+                <!-- TDS Pending State (has registration but no DAN yet, not failed) -->
+                <div v-else-if="tdsRegistration && !tdsRegistration.dan && tdsRegistration.status !== 'failed'" class="mt-2 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <Loader2 v-if="tdsProcessing" class="w-4 h-4 text-[#3DDBB3] animate-spin" />
+                    <Clock v-else class="w-4 h-4 text-amber-500" />
+                    <p class="text-xs font-medium" :class="tdsProcessing ? 'text-[#1E3A8A] dark:text-[#3DDBB3]' : 'text-amber-600 dark:text-amber-400'">
+                      {{ tdsProcessing ? 'Registering with TDS...' : 'Registration Pending' }}
+                    </p>
+                  </div>
                   <p class="text-xs text-gray-500 dark:text-slate-400">
-                    Scheme: TDS {{ tdsRegistration.schemeType === 'insured' ? 'Insured' : 'Custodial' }}
+                    {{ tdsProcessing ? 'TDS is processing your deposit registration.' : 'TDS registration is being processed.' }}
                   </p>
-                  <p class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                    <CheckCircle class="w-3 h-3" />
-                    Registered with TDS
-                  </p>
-                  <p class="text-xs text-gray-600 dark:text-slate-400">DAN: {{ tdsRegistration.dan }}</p>
-                  <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(tdsRegistration.registeredAt) }} by {{ tdsRegistration.registeredByName }}</p>
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div v-if="tdsRegistration.batchId">
+                      <p class="text-gray-500 dark:text-slate-500">Batch ID</p>
+                      <p class="font-mono text-gray-700 dark:text-slate-300">{{ tdsRegistration.batchId }}</p>
+                    </div>
+                    <div v-if="tdsRegistration.schemeType">
+                      <p class="text-gray-500 dark:text-slate-500">Scheme</p>
+                      <p class="text-gray-700 dark:text-slate-300">{{ tdsRegistration.schemeType === 'insured' ? 'Insured' : 'Custodial' }}</p>
+                    </div>
+                  </div>
+                  <!-- Resume polling button if not already polling -->
+                  <button
+                    v-if="!tdsProcessing && tdsRegistration.batchId"
+                    @click="startTDSPolling(tdsRegistration.batchId, tdsRegistration.schemeType || 'custodial')"
+                    class="text-xs text-[#1E3A8A] hover:text-[#3DDBB3] dark:text-[#3DDBB3] flex items-center gap-1"
+                  >
+                    <RefreshCw class="w-3 h-3" />
+                    Check Status
+                  </button>
+                </div>
+
+                <!-- TDS Registered State - Branded -->
+                <div v-else-if="tdsRegistration && tdsRegistration.dan" class="mt-3 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-center w-6 h-6 rounded-full bg-[#3DDBB3]">
+                      <div class="w-2 h-2 rounded-full bg-[#1E3A8A]"></div>
+                    </div>
+                    <span class="text-sm font-bold text-[#1E3A8A] dark:text-white">TDS</span>
+                    <span class="text-xs text-gray-500 dark:text-slate-400">{{ tdsRegistration.schemeType === 'insured' ? 'Insured' : 'Custodial' }}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-[#3DDBB3]">
+                    <CheckCircle class="w-3.5 h-3.5" />
+                    <span class="text-xs font-medium">Deposit Protected</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-gray-500 dark:text-slate-500">DAN</p>
+                      <p class="font-mono text-[#1E3A8A] dark:text-[#3DDBB3]">{{ tdsRegistration.dan }}</p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500 dark:text-slate-500">Registered</p>
+                      <p class="text-gray-700 dark:text-slate-300">{{ formatDate(tdsRegistration.registeredAt) }}</p>
+                    </div>
+                  </div>
                   <button
                     @click="downloadTDSDPC"
                     :disabled="downloadingDPC"
-                    class="mt-1 text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1"
+                    class="mt-1 text-xs font-medium text-[#1E3A8A] hover:text-[#3DDBB3] dark:text-[#3DDBB3] dark:hover:text-white flex items-center gap-1 transition-colors"
                   >
                     <Download class="w-3 h-3" />
-                    {{ downloadingDPC ? 'Downloading...' : 'Download DPC Certificate' }}
+                    {{ downloadingDPC ? 'Downloading...' : 'Download Certificate' }}
                   </button>
                 </div>
 
-                <!-- TDS Linked but Not Registered -->
-                <div v-else-if="hasTDSIntegration && tenancy?.deposit_amount && !depositProtected" class="mt-2 space-y-1">
-                  <!-- Show connected scheme info -->
-                  <p class="text-xs text-gray-500 dark:text-slate-400">
-                    <span v-if="hasTDSCustodial && hasTDSInsured">TDS Custodial & Insured connected</span>
-                    <span v-else-if="hasTDSCustodial">TDS Custodial connected</span>
-                    <span v-else-if="hasTDSInsured">TDS Insured connected</span>
-                  </p>
-                  <p class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" />
-                    Not yet registered
-                  </p>
+                <!-- TDS Section (only show when deposit_scheme is 'tds' and integration is configured or still loading) -->
+                <div v-else-if="showTDSIntegration && tenancy?.deposit_amount && !depositProtected && !isRepositRegistered" class="mt-3 space-y-2">
+                  <!-- TDS Header -->
+                  <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-center w-6 h-6 rounded-full bg-[#3DDBB3]">
+                      <div class="w-2 h-2 rounded-full bg-[#1E3A8A]"></div>
+                    </div>
+                    <span class="text-sm font-bold text-[#1E3A8A] dark:text-white">TDS</span>
+                    <span class="text-xs text-gray-500 dark:text-slate-400">
+                      <span v-if="tdsSchemePreference === 'insured'">Insured</span>
+                      <span v-else-if="tdsSchemePreference === 'custodial'">Custodial</span>
+                      <span v-else-if="hasTDSCustodial && hasTDSInsured">Custodial & Insured</span>
+                      <span v-else-if="hasTDSCustodial">Custodial</span>
+                      <span v-else-if="hasTDSInsured">Insured</span>
+                    </span>
+                  </div>
 
-                  <!-- Single scheme: Direct button -->
-                  <button
-                    v-if="hasTDSCustodial && !hasTDSInsured"
-                    @click="selectedTDSScheme = 'custodial'; showRegisterWithTDSModal = true"
-                    class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center justify-center gap-2"
-                  >
-                    <Shield class="w-4 h-4" />
-                    Register with TDS Custodial
-                  </button>
+                  <!-- Loading state: config hasn't loaded yet -->
+                  <div v-if="tdsConfigStatus === null && isTDSScheme" class="flex items-center gap-2">
+                    <Loader2 class="w-3 h-3 text-[#3DDBB3] animate-spin" />
+                    <p class="text-xs text-gray-500 dark:text-slate-400">Checking TDS connection...</p>
+                  </div>
 
-                  <button
-                    v-else-if="hasTDSInsured && !hasTDSCustodial"
-                    @click="selectedTDSScheme = 'insured'; showRegisterWithTDSModal = true"
-                    class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck class="w-4 h-4" />
-                    Register with TDS Insured
-                  </button>
-
-                  <!-- Both schemes: Dropdown -->
-                  <div v-else-if="hasTDSCustodial && hasTDSInsured" class="relative mt-2">
+                  <!-- Not connected state: config loaded but no schemes connected -->
+                  <div v-else-if="tdsConfigStatus !== null && !hasTDSIntegration && isTDSScheme" class="space-y-2">
+                    <p class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle class="w-3 h-3" />
+                      TDS not connected
+                    </p>
+                    <router-link
+                      to="/settings/tds"
+                      class="mt-2 w-full px-3 py-2 text-sm font-medium text-[#1E3A8A] border border-[#3DDBB3] hover:bg-[#3DDBB3]/10 dark:text-[#3DDBB3] dark:hover:bg-[#3DDBB3]/20 rounded-md flex items-center justify-center gap-2"
+                    >
+                      <Settings class="w-4 h-4" />
+                      Link TDS in Settings
+                    </router-link>
                     <button
-                      @click="showTDSSchemeMenu = !showTDSSchemeMenu"
-                      class="w-full px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center justify-center gap-2"
+                      @click="showProtectDepositModal = true"
+                      class="block mt-2 text-xs text-gray-500 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-[#3DDBB3]"
                     >
-                      Register with TDS
-                      <ChevronDown class="w-4 h-4" />
+                      Mark as manually protected
                     </button>
-                    <div
-                      v-if="showTDSSchemeMenu"
-                      class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg z-10"
+                  </div>
+
+                  <!-- Connected state: show registration options -->
+                  <template v-else-if="hasTDSIntegration">
+                    <p class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle class="w-3 h-3" />
+                      Not yet registered
+                    </p>
+
+                    <!-- Scheme-specific or auto-detect button -->
+                    <button
+                      v-if="tdsSchemePreference === 'custodial' || (hasTDSCustodial && !hasTDSInsured && !tdsSchemePreference)"
+                      @click="openTDSRegistrationModal('custodial')"
+                      class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
                     >
+                      <Shield class="w-4 h-4" />
+                      Register with TDS Custodial
+                    </button>
+
+                    <button
+                      v-else-if="tdsSchemePreference === 'insured' || (hasTDSInsured && !hasTDSCustodial && !tdsSchemePreference)"
+                      @click="openTDSRegistrationModal('insured')"
+                      class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
+                    >
+                      <ShieldCheck class="w-4 h-4" />
+                      Register with TDS Insured
+                    </button>
+
+                    <!-- Both schemes configured and no preference: Dropdown -->
+                    <div v-else-if="hasTDSCustodial && hasTDSInsured && !tdsSchemePreference" class="relative mt-2">
                       <button
-                        @click="selectedTDSScheme = 'custodial'; showRegisterWithTDSModal = true; showTDSSchemeMenu = false"
-                        class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"
+                        @click="showTDSSchemeMenu = !showTDSSchemeMenu"
+                        class="w-full px-3 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-md flex items-center justify-center gap-2"
                       >
-                        <Shield class="w-4 h-4 text-primary" />
-                        TDS Custodial
+                        Register with TDS
+                        <ChevronDown class="w-4 h-4" />
                       </button>
-                      <button
-                        @click="selectedTDSScheme = 'insured'; showRegisterWithTDSModal = true; showTDSSchemeMenu = false"
-                        class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t dark:border-slate-700"
+                      <div
+                        v-if="showTDSSchemeMenu"
+                        class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-[#3DDBB3]/30 rounded-md shadow-lg z-10"
                       >
-                        <ShieldCheck class="w-4 h-4 text-blue-600" />
-                        TDS Insured
+                        <button
+                          @click="openTDSRegistrationModal('custodial'); showTDSSchemeMenu = false"
+                          class="w-full px-3 py-2 text-left text-sm text-[#1E3A8A] dark:text-slate-300 hover:bg-[#3DDBB3]/10 flex items-center gap-2"
+                        >
+                          <Shield class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+                          TDS Custodial
+                        </button>
+                        <button
+                          @click="openTDSRegistrationModal('insured'); showTDSSchemeMenu = false"
+                          class="w-full px-3 py-2 text-left text-sm text-[#1E3A8A] dark:text-slate-300 hover:bg-[#3DDBB3]/10 flex items-center gap-2 border-t border-[#3DDBB3]/30"
+                        >
+                          <ShieldCheck class="w-4 h-4 text-[#1E3A8A] dark:text-[#3DDBB3]" />
+                          TDS Insured
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      @click="showProtectDepositModal = true"
+                      class="block mt-2 text-xs text-gray-500 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-[#3DDBB3]"
+                    >
+                      Mark as manually protected
+                    </button>
+                  </template>
+                </div>
+
+                <!-- mydeposits Section (only show when deposit_scheme is 'mydeposits' and integration is configured) -->
+                <div v-if="showMyDepositsIntegration && !isTDSRegistered && !isRepositRegistered && !mydepositsRegistration && tenancy?.deposit_amount && !depositProtected" class="mt-4">
+                  <div class="rounded-lg border-2 border-[#00A3E0] bg-gradient-to-br from-[#00A3E0]/5 to-[#003366]/5 dark:from-[#00A3E0]/10 dark:to-[#003366]/10 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-b border-[#00A3E0]/30 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center w-7 h-7 rounded-full bg-[#00A3E0]">
+                          <Shield class="w-4 h-4 text-white" />
+                        </div>
+                        <span class="text-sm font-bold text-[#003366] dark:text-white">mydeposits</span>
+                        <span class="text-xs text-gray-500 dark:text-slate-400">Custodial</span>
+                      </div>
+                      <a
+                        href="https://www.mydeposits.co.uk/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-[#003366] hover:text-[#00A3E0] dark:text-slate-300 dark:hover:text-[#00A3E0] transition-colors flex items-center gap-1"
+                      >
+                        Learn more
+                        <ExternalLink class="w-3 h-3" />
+                      </a>
+                    </div>
+                    <!-- Content -->
+                    <div class="p-4">
+                      <p class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-3">
+                        <AlertCircle class="w-3 h-3" />
+                        Not yet registered
+                      </p>
+                      <button
+                        @click="openMyDepositsRegistrationModal"
+                        class="w-full px-3 py-2 text-sm font-medium text-white bg-[#003366] hover:bg-[#003366]/90 rounded-md flex items-center justify-center gap-2"
+                      >
+                        <Shield class="w-4 h-4" />
+                        Register with mydeposits
                       </button>
                     </div>
                   </div>
-
-                  <button
-                    @click="showProtectDepositModal = true"
-                    class="block mt-2 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
-                  >
-                    Mark as manually protected
-                  </button>
                 </div>
 
-                <!-- No TDS Integration -->
-                <div v-else-if="tenancy?.deposit_amount && !depositProtected" class="mt-2">
+                <!-- mydeposits Registered State -->
+                <div v-else-if="mydepositsRegistration && mydepositsRegistration.depositId" class="mt-4">
+                  <div class="rounded-lg border-2 border-[#00A3E0] bg-gradient-to-br from-[#00A3E0]/10 to-[#003366]/5 dark:from-[#00A3E0]/15 dark:to-[#003366]/10 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-b border-[#00A3E0]/30 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center w-7 h-7 rounded-full bg-[#00A3E0]">
+                          <Shield class="w-4 h-4 text-white" />
+                        </div>
+                        <span class="text-sm font-bold text-[#003366] dark:text-white">mydeposits</span>
+                        <span class="text-xs text-gray-500 dark:text-slate-400">Custodial</span>
+                      </div>
+                    </div>
+                    <!-- Content -->
+                    <div class="p-4 space-y-3">
+                      <div class="flex items-center gap-1.5 text-[#00A3E0]">
+                        <CheckCircle class="w-3.5 h-3.5" />
+                        <span class="text-xs font-medium">Deposit Protected</span>
+                      </div>
+                      <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p class="text-gray-500 dark:text-slate-500">Deposit ID</p>
+                          <p class="font-mono text-[#003366] dark:text-[#00A3E0]">{{ mydepositsRegistration.depositId }}</p>
+                        </div>
+                        <div>
+                          <p class="text-gray-500 dark:text-slate-500">Registered</p>
+                          <p class="text-gray-700 dark:text-slate-300">{{ formatDate(mydepositsRegistration.registeredAt) }}</p>
+                        </div>
+                      </div>
+                      <button
+                        @click="downloadMyDepositsCertificate"
+                        :disabled="downloadingMyDepositsCertificate"
+                        class="mt-1 text-xs font-medium text-[#003366] hover:text-[#00A3E0] dark:text-[#00A3E0] dark:hover:text-white flex items-center gap-1 transition-colors"
+                      >
+                        <Download class="w-3 h-3" />
+                        {{ downloadingMyDepositsCertificate ? 'Downloading...' : 'Download Certificate' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- mydeposits Pending State -->
+                <div v-else-if="mydepositsRegistration && mydepositsRegistration.status === 'pending'" class="mt-4">
+                  <div class="rounded-lg border-2 border-[#00A3E0] bg-gradient-to-br from-[#00A3E0]/5 to-[#003366]/5 dark:from-[#00A3E0]/10 dark:to-[#003366]/10 overflow-hidden">
+                    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-b border-[#00A3E0]/30 flex items-center gap-2">
+                      <div class="flex items-center justify-center w-7 h-7 rounded-full bg-[#00A3E0]">
+                        <Shield class="w-4 h-4 text-white" />
+                      </div>
+                      <span class="text-sm font-bold text-[#003366] dark:text-white">mydeposits</span>
+                    </div>
+                    <div class="p-4">
+                      <div class="flex items-center gap-2 mb-2">
+                        <Loader2 class="w-4 h-4 text-[#00A3E0] animate-spin" />
+                        <p class="text-xs font-medium text-[#003366] dark:text-[#00A3E0]">Registration Pending</p>
+                      </div>
+                      <p class="text-xs text-gray-500 dark:text-slate-400">
+                        mydeposits is processing your deposit registration.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- mydeposits Failed State -->
+                <div v-else-if="mydepositsRegistration && mydepositsRegistration.status === 'failed'" class="mt-4">
+                  <div class="rounded-lg border-2 border-red-300 bg-red-50 dark:bg-red-900/20 overflow-hidden">
+                    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
+                      <div class="flex items-center justify-center w-7 h-7 rounded-full bg-red-500">
+                        <XCircle class="w-4 h-4 text-white" />
+                      </div>
+                      <span class="text-sm font-bold text-red-600 dark:text-red-400">mydeposits</span>
+                    </div>
+                    <div class="p-4">
+                      <p class="text-xs text-red-600 dark:text-red-400 mb-2">
+                        {{ mydepositsRegistration.error || 'Registration failed. Please try again.' }}
+                      </p>
+                      <button
+                        @click="openMyDepositsRegistrationModal"
+                        class="w-full px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw class="w-4 h-4" />
+                        Retry Registration
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Fallback when no linked integration matches this tenancy's deposit scheme -->
+                <div v-if="!showTDSIntegration && !showMyDepositsIntegration && !tdsRegistration && !mydepositsRegistration && tenancy?.deposit_amount && !depositProtected" class="mt-2">
                   <button
                     @click="showProtectDepositModal = true"
                     class="text-xs font-medium text-primary hover:text-primary/80"
                   >
                     Mark as protected
                   </button>
+                  <!-- Show scheme-specific link message -->
                   <router-link
-                    to="/settings/integrations"
-                    class="block mt-1 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+                    v-if="isTDSScheme && !hasTDSIntegration"
+                    to="/settings/tds"
+                    class="block mt-1 text-xs text-[#1E3A8A] dark:text-[#3DDBB3] hover:text-[#3DDBB3] dark:hover:text-white transition-colors"
                   >
                     Link TDS account in Settings
                   </router-link>
+                  <router-link
+                    v-else-if="isMyDepositsScheme && !hasMyDepositsIntegration"
+                    to="/settings"
+                    class="block mt-1 text-xs text-[#1E3A8A] dark:text-[#3DDBB3] hover:text-[#3DDBB3] dark:hover:text-white transition-colors"
+                  >
+                    Link MyDeposits account in Settings
+                  </router-link>
+                  <p v-else-if="!showRepositSection" class="mt-1 text-xs text-gray-500 dark:text-slate-400 italic">
+                    Alternative deposit scheme selected — please register manually
+                  </p>
                 </div>
 
                 <!-- Protected (non-TDS) -->
-                <p v-else-if="depositProtected && !tdsRegistration" class="text-xs text-green-600 mt-1">
+                <p v-if="depositProtected && !tdsRegistration" class="text-xs text-green-600 mt-1">
                   Protected {{ formatDate(tenancy?.deposit_protected_at) }}
                 </p>
               </div>
@@ -1330,7 +1779,7 @@
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div v-if="propertyDetails.property_type">
                       <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Type</p>
-                      <p class="font-medium text-gray-900 dark:text-white capitalize">{{ propertyDetails.property_type?.replace('_', ' ') }}</p>
+                      <p class="font-medium text-gray-900 dark:text-white">{{ propertyDetails.property_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) }}</p>
                     </div>
                     <div v-if="propertyDetails.number_of_bedrooms">
                       <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Bedrooms</p>
@@ -1490,15 +1939,27 @@
                       </p>
                     </div>
                   </div>
-                  <button
-                    @click="deleteDocument(doc.id)"
-                    :disabled="deletingDocumentId === doc.id"
-                    class="p-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400"
-                    title="Remove document"
-                  >
-                    <Trash2 v-if="deletingDocumentId !== doc.id" class="w-4 h-4" />
-                    <Loader2 v-else class="w-4 h-4 animate-spin" />
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="apex27Connected"
+                      @click="pushDocToApex27(doc.id, 'property_document')"
+                      :disabled="pushingDocId === doc.id"
+                      class="p-1 text-gray-400 dark:text-slate-500 hover:text-[#6B21A8] dark:hover:text-[#9333EA]"
+                      title="Push to Apex27"
+                    >
+                      <Loader2 v-if="pushingDocId === doc.id" class="w-4 h-4 animate-spin" />
+                      <Upload v-else class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click="deleteDocument(doc.id)"
+                      :disabled="deletingDocumentId === doc.id"
+                      class="p-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400"
+                      title="Remove document"
+                    >
+                      <Trash2 v-if="deletingDocumentId !== doc.id" class="w-4 h-4" />
+                      <Loader2 v-else class="w-4 h-4 animate-spin" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1567,6 +2028,22 @@
               </div>
             </div>
 
+            <!-- Apex27 Actions -->
+            <div v-if="apex27Connected" class="mt-4">
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-3">Apex27</h3>
+              <div class="flex gap-2">
+                <button
+                  @click="pushTenancySummary"
+                  :disabled="pushingSummary"
+                  class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#6B21A8] bg-white dark:bg-slate-800 border border-[#6B21A8] hover:bg-[#6B21A8]/5 rounded-md disabled:opacity-50"
+                >
+                  <Loader2 v-if="pushingSummary" class="w-4 h-4 animate-spin" />
+                  <Upload v-else class="w-4 h-4" />
+                  Push Tenancy Summary
+                </button>
+              </div>
+            </div>
+
             <!-- Empty state -->
             <div v-if="complianceDocuments.length === 0 && tenancyDocuments.length === 0" class="text-center py-8 text-gray-500 dark:text-slate-400">
               <FileText class="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-slate-600" />
@@ -1582,6 +2059,160 @@
               </router-link>
             </div>
           </div>
+
+          <!-- Inspections Tab -->
+          <div v-if="activeTab === 'inspections'" class="space-y-6">
+            <!-- Book Inspection Button -->
+            <div v-if="tenancy?.status === 'pending' || tenancy?.status === 'active'" class="flex justify-end">
+              <button
+                @click="showBookInspectionModal = true"
+                class="px-4 py-2 text-sm font-medium text-white bg-[#10B981] hover:bg-[#059669] rounded-md flex items-center gap-2"
+              >
+                <Plus class="w-4 h-4" />
+                Book Inspection
+              </button>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loadingInspections" class="flex items-center justify-center py-12">
+              <Loader2 class="w-8 h-8 animate-spin text-[#10B981]" />
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="igAppointments.length === 0" class="text-center py-12">
+              <ClipboardCheck class="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
+              <p class="text-sm text-gray-500 dark:text-slate-400">No inspections booked yet.</p>
+              <p v-if="tenancy?.status === 'pending' || tenancy?.status === 'active'" class="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                Book an inventory, check out, or mid-term inspection via InventoryGoose.
+              </p>
+            </div>
+
+            <!-- Inspection Cards -->
+            <div v-else class="space-y-3">
+              <div
+                v-for="appt in igAppointments"
+                :key="appt.id"
+                class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-[#10B981]/20">
+                      <ClipboardCheck class="w-4 h-4 text-[#10B981]" />
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ igTypeLabels[appt.type] || appt.type }}</span>
+                        <span
+                          class="px-2 py-0.5 rounded-full text-xs font-medium"
+                          :class="igStatusColors[appt.status] || 'bg-gray-100 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300'"
+                        >
+                          {{ igStatusLabels[appt.status] || appt.status }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                        {{ formatInspectionDate(appt.scheduled_date) }} at {{ appt.scheduled_time }}
+                        <span v-if="appt.assessor_name"> &middot; {{ appt.assessor_name }}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-3 flex items-center gap-2 flex-wrap">
+                  <a
+                    v-if="appt.report_url"
+                    :href="appt.report_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="px-3 py-1 text-xs font-medium text-[#10B981] border border-[#10B981]/30 rounded-md hover:bg-[#10B981]/10 flex items-center gap-1"
+                  >
+                    <ExternalLink class="w-3 h-3" />
+                    View Report
+                  </a>
+                  <button
+                    v-if="(appt.status === 'signed' || appt.status === 'finalised') && appt.ig_report_id"
+                    @click="downloadInspectionReport(appt.ig_report_id)"
+                    class="px-3 py-1 text-xs font-medium text-[#10B981] border border-[#10B981]/30 rounded-md hover:bg-[#10B981]/10 flex items-center gap-1"
+                  >
+                    <Download class="w-3 h-3" />
+                    Download PDF
+                  </button>
+                  <button
+                    v-if="appt.status === 'scheduled'"
+                    @click="openEditInspection(appt)"
+                    class="px-3 py-1 text-xs font-medium text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-1"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    v-if="appt.status === 'scheduled'"
+                    @click="openCancelInspection(appt)"
+                    class="px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <!-- Signatories (when signed) -->
+                <div v-if="appt.signatories && appt.signatories.length > 0" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Signatories</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="(sig, idx) in appt.signatories"
+                      :key="idx"
+                      class="px-2 py-0.5 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full"
+                    >
+                      {{ sig.name }} ({{ sig.role }})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cancel Inspection Confirmation Modal -->
+          <Teleport to="body">
+            <div v-if="showCancelInspectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCancelInspectionModal = false">
+              <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Cancel Inspection</h3>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
+                  Are you sure you want to cancel this inspection? The assessor will be notified automatically.
+                </p>
+                <div class="flex justify-end gap-3">
+                  <button
+                    @click="showCancelInspectionModal = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
+                  >
+                    Keep Inspection
+                  </button>
+                  <button
+                    @click="confirmCancelInspection"
+                    :disabled="cancellingInspection"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
+                  >
+                    <Loader2 v-if="cancellingInspection" class="w-4 h-4 animate-spin" />
+                    Cancel Inspection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
+
+          <!-- Book Inspection Modal -->
+          <BookInspectionModal
+            v-if="tenancy"
+            v-model:open="showBookInspectionModal"
+            :tenancy-id="tenancy.id"
+            @booked="fetchInspections"
+          />
+
+          <!-- Edit Inspection Modal -->
+          <EditInspectionModal
+            v-if="selectedInspection"
+            v-model:open="showEditInspectionModal"
+            :appointment="selectedInspection"
+            @updated="fetchInspections"
+          />
 
           <!-- Rent Tab -->
           <div v-if="activeTab === 'rent'" class="space-y-6">
@@ -2045,6 +2676,17 @@
       @pending="handleTDSPending"
     />
 
+    <!-- Register Deposit with mydeposits Modal -->
+    <RegisterDepositWithMyDepositsModal
+      :show="showRegisterWithMyDepositsModal"
+      :tenancy="fullTenancyData || tenancy"
+      :scheme-type="selectedMyDepositsScheme"
+      :landlords="allLandlords"
+      :property="propertyDetails"
+      @update:show="showRegisterWithMyDepositsModal = $event"
+      @registered="handleMyDepositsRegistered"
+    />
+
     <!-- Section 48 Notice Generator Modal -->
     <Section48GeneratorModal
       :show="showSection48Modal"
@@ -2073,7 +2715,7 @@
     <!-- Agreement Generation Modal -->
     <TenancyAgreementModal
       :show="showAgreementModal"
-      :tenancy="fullTenancyData || tenancy"
+      :tenancy="tenancyForAgreement"
       :landlords="allLandlords"
       :special-clauses="propertySpecialClauses"
       :tenant-addresses="tenantAddressMap"
@@ -2282,10 +2924,90 @@
     @close="showMoveOutModal = false"
     @sent="handleMoveOutNoticeSent"
   />
+
+  <!-- Create Reposit Modal -->
+  <CreateRepositModal
+    :show="showCreateRepositModal"
+    :tenancy-id="tenancy?.id || ''"
+    :pricing="repositPricing"
+    :eligibility="repositEligibility"
+    @close="showCreateRepositModal = false"
+    @created="handleRepositCreated"
+  />
+
+  <!-- Send Review Link Modal -->
+  <div v-if="showReviewLinkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-[60] flex items-center justify-center">
+    <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md mx-4 p-6 w-full">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Star class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Send Review Request</h3>
+        </div>
+        <button @click="showReviewLinkModal = false" class="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400">
+          <X class="h-6 w-6" />
+        </button>
+      </div>
+
+      <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+        Send a review request email to the tenants at {{ tenancy?.property?.address_line1 }}.
+      </p>
+
+      <div class="space-y-3 mb-4">
+        <div
+          v-for="tenant in tenantsWithEmail"
+          :key="tenant.id"
+          class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
+        >
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tenant.first_name }} {{ tenant.last_name }}</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400">{{ tenant.email }}</p>
+          </div>
+          <CheckCircle class="w-5 h-5 text-green-500" />
+        </div>
+      </div>
+
+      <!-- Note from Agent -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          Personal Note (optional)
+        </label>
+        <textarea
+          v-model="reviewNote"
+          rows="3"
+          placeholder="Add a personal message to the tenant, e.g. 'Hi, it's been great having you as a tenant! - Sarah'"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+        ></textarea>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">This will be included in the email sent to the tenant.</p>
+      </div>
+
+      <div v-if="tenantsWithEmail.length === 0" class="text-center py-4 text-sm text-gray-500 dark:text-slate-400">
+        No tenants with email addresses found.
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button
+          @click="showReviewLinkModal = false"
+          class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+        >
+          Cancel
+        </button>
+        <button
+          @click="sendReviewRequest"
+          :disabled="sendingReviewLink || tenantsWithEmail.length === 0"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <Loader2 v-if="sendingReviewLink" class="w-4 h-4 animate-spin" />
+          {{ sendingReviewLink ? 'Sending...' : 'Send Review Request' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -2293,7 +3015,8 @@ import {
   UserCircle, MapPin, AlertCircle, Shield, ShieldCheck, Wallet,
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
-  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX, AlertTriangle
+  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
+  Sparkles, Star, RefreshCw, AlertTriangle, Zap
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2310,10 +3033,14 @@ import ChangeRentDueDateModal from './ChangeRentDueDateModal.vue'
 import RequestMoveInTimeModal from './RequestMoveInTimeModal.vue'
 import ReceiptRentDueDateChangeModal from './ReceiptRentDueDateChangeModal.vue'
 import RegisterDepositWithTDSModal from './RegisterDepositWithTDSModal.vue'
+import RegisterDepositWithMyDepositsModal from './RegisterDepositWithMyDepositsModal.vue'
 import Section48GeneratorModal from './Section48GeneratorModal.vue'
 import TenantChangeModal from './TenantChangeModal.vue'
 import TenantChangeStatusTracker from './TenantChangeStatusTracker.vue'
 import MoveOutNoticeModal from './MoveOutNoticeModal.vue'
+import CreateRepositModal from './CreateRepositModal.vue'
+import BookInspectionModal from './BookInspectionModal.vue'
+import EditInspectionModal from './EditInspectionModal.vue'
 import { API_URL } from '@/lib/apiUrl'
 import { authFetch } from '@/lib/authFetch'
 
@@ -2331,12 +3058,17 @@ const emit = defineEmits<{
 const toast = useToast()
 const authStore = useAuthStore()
 // State
-const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'rent' | 'activity'>('overview')
+const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'activity'>('overview')
 const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
 const showProtectDepositModal = ref(false)
 const showRegisterWithTDSModal = ref(false)
+
+// Debug: Watch TDS modal state
+watch(showRegisterWithTDSModal, (newVal) => {
+  console.log('[TenancyDetailDrawer] showRegisterWithTDSModal changed to:', newVal)
+})
 const showSection48Modal = ref(false)
 const showMoveInPackModal = ref(false)
 const showLandlordPackModal = ref(false)
@@ -2362,7 +3094,146 @@ const cancellingRentDueDateChange = ref<string | null>(null)
 // Tenant Change state
 const showTenantChangeModal = ref(false)
 const activeTenantChange = ref<any>(null)
+const tenantChangeRefStatuses = ref<any[]>([])
 const loadingTenantChange = ref(false)
+
+// Review Link state
+const showReviewLinkModal = ref(false)
+const sendingReviewLink = ref(false)
+const reviewNote = ref('')
+
+// InventoryGoose Inspection state
+const showBookInspectionModal = ref(false)
+const showEditInspectionModal = ref(false)
+const showCancelInspectionModal = ref(false)
+const igAppointments = ref<any[]>([])
+const loadingInspections = ref(false)
+const cancellingInspection = ref(false)
+const selectedInspection = ref<any>(null)
+
+const igStatusColors: Record<string, string> = {
+  scheduled: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+  in_progress: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
+  ai_running: 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300',
+  ai_complete: 'bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300',
+  edit: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
+  finalised: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
+  signed: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
+  cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
+}
+
+const igStatusLabels: Record<string, string> = {
+  scheduled: 'Scheduled',
+  in_progress: 'In Progress',
+  ai_running: 'AI Processing',
+  ai_complete: 'AI Complete',
+  edit: 'Editing',
+  finalised: 'Finalised',
+  signed: 'Signed',
+  cancelled: 'Cancelled'
+}
+
+const igTypeLabels: Record<string, string> = {
+  inventory: 'Inventory',
+  checkout: 'Check Out',
+  mid_term: 'Mid-Term'
+}
+
+function formatInspectionDate(dateStr: string): string {
+  if (!dateStr) return ''
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+async function fetchInspections() {
+  if (!props.tenancy?.id) return
+  loadingInspections.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/appointments/${props.tenancy.id}`, {
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      const data = await response.json()
+      igAppointments.value = data.appointments || []
+    }
+  } catch (err) {
+    console.error('[Inspections] Error fetching:', err)
+  } finally {
+    loadingInspections.value = false
+  }
+}
+
+function openEditInspection(appointment: any) {
+  selectedInspection.value = appointment
+  showEditInspectionModal.value = true
+}
+
+function openCancelInspection(appointment: any) {
+  selectedInspection.value = appointment
+  showCancelInspectionModal.value = true
+}
+
+async function confirmCancelInspection() {
+  if (!selectedInspection.value) return
+  cancellingInspection.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/appointments/${selectedInspection.value.id}`, {
+      method: 'DELETE',
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      showCancelInspectionModal.value = false
+      selectedInspection.value = null
+      await fetchInspections()
+    }
+  } catch (err) {
+    console.error('[Inspections] Error cancelling:', err)
+  } finally {
+    cancellingInspection.value = false
+  }
+}
+
+async function downloadInspectionReport(reportId: string) {
+  try {
+    const response = await authFetch(`${API_URL}/api/ig/reports/${reportId}/pdf`, {
+      token: authStore.token || undefined
+    })
+    if (response.ok) {
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-report-${reportId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+  } catch (err) {
+    console.error('[Inspections] Error downloading report:', err)
+  }
+}
+
+// Reposit state
+const showCreateRepositModal = ref(false)
+const repositRegistration = ref<any>(null)
+const repositPricing = ref<{
+  totalFee: number
+  perTenantFee: number
+  monthlyRent: number
+  headcount: number
+} | null>(null)
+const repositEligibility = ref<{
+  allEligible: boolean
+  notes?: string
+  tenants?: any[]
+} | null>(null)
+const repositConfigStatus = ref<{ configured: boolean } | null>(null)
+const creatingReposit = ref(false)
+const checkingEligibility = ref(false)
 
 // Rent increase notices state
 const rentIncreaseNotices = ref<any[]>([])
@@ -2374,12 +3245,11 @@ interface TDSConfigStatus {
   insured: { configured: boolean; authorized: boolean; environment: string | null }
 }
 const tdsConfigStatus = ref<TDSConfigStatus | null>(null)
-// TDS integration temporarily disabled for production launch
+// TDS integration - checks if either scheme is configured
 const hasTDSIntegration = computed(() => {
-  return false // TODO: Re-enable when TDS integration is ready
-  // if (!tdsConfigStatus.value) return false
-  // return tdsConfigStatus.value.custodial.configured ||
-  //   (tdsConfigStatus.value.insured.configured && tdsConfigStatus.value.insured.authorized)
+  if (!tdsConfigStatus.value) return false
+  return tdsConfigStatus.value.custodial.configured ||
+    (tdsConfigStatus.value.insured.configured && tdsConfigStatus.value.insured.authorized)
 })
 const hasTDSCustodial = computed(() => tdsConfigStatus.value?.custodial.configured || false)
 const hasTDSInsured = computed(() =>
@@ -2389,6 +3259,116 @@ const tdsRegistration = ref<any>(null)
 const downloadingDPC = ref(false)
 const showTDSSchemeMenu = ref(false)
 const selectedTDSScheme = ref<'custodial' | 'insured'>('custodial')
+const tdsProcessing = ref(false)
+const tdsPollingStartTime = ref<number | null>(null)
+let tdsPollingTimer: ReturnType<typeof setTimeout> | null = null
+
+// mydeposits Integration state
+interface MyDepositsConfigStatus {
+  configured: boolean
+  authorized: boolean
+  schemeType: 'custodial'
+  environment: string | null
+}
+const mydepositsConfigStatus = ref<MyDepositsConfigStatus | null>(null)
+const mydepositsRegistration = ref<any>(null)
+const showRegisterWithMyDepositsModal = ref(false)
+const selectedMyDepositsScheme = ref<'custodial'>('custodial')
+const downloadingMyDepositsCertificate = ref(false)
+
+// mydeposits computed properties
+const hasMyDepositsIntegration = computed(() => {
+  return mydepositsConfigStatus.value?.configured && mydepositsConfigStatus.value?.authorized
+})
+
+// Note: mydeposits registration status is checked directly in showMyDepositsIntegration
+
+// Reposit computed properties
+const hasRepositIntegration = computed(() => repositConfigStatus.value?.configured || false)
+const isRepositScheme = computed(() => {
+  const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
+  return s === 'reposit' || s.includes('reposit')
+})
+
+const isTDSScheme = computed(() => {
+  const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
+  return s === 'tds' || s.startsWith('tds') || s.includes('tds')
+})
+
+// Specific TDS scheme type from tenancy
+const tdsSchemePreference = computed(() => {
+  const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
+  if (s === 'tds_insured' || s === 'tds insured') return 'insured'
+  if (s === 'tds_custodial' || s === 'tds custodial') return 'custodial'
+  return null // generic 'tds' — show whatever is configured
+})
+
+const isMyDepositsScheme = computed(() => {
+  const s = ((fullTenancyData.value || props.tenancy)?.deposit_scheme || '').toLowerCase()
+  return s === 'mydeposits' || s.includes('mydeposit')
+})
+// Check if TDS is fully registered (has a DAN)
+const isTDSRegistered = computed(() => {
+  return !!(tdsRegistration.value?.dan)
+})
+
+// Check if Reposit is fully registered/active
+const isRepositRegistered = computed(() => {
+  return !!(repositRegistration.value?.repositId)
+})
+
+const showRepositSection = computed(() => {
+  // Only show Reposit section when:
+  // 1. Reposit is already registered for this tenancy, OR
+  // 2. Deposit scheme is set to 'reposit', OR
+  // 3. Deposit replacement was offered/requested in the offer
+
+  // Always show if already registered
+  if (repositRegistration.value) return true
+
+  // Show if deposit scheme is 'reposit'
+  if (isRepositScheme.value) return true
+
+  // Check if deposit replacement was part of the offer
+  const offer = props.tenancy?.offer
+  if (offer?.deposit_replacement_offered || offer?.deposit_replacement_requested) return true
+
+  // Also check primary reference offer
+  const primaryRef = props.tenancy?.primary_reference
+  if (primaryRef?.offer?.deposit_replacement_requested) return true
+
+  return false
+})
+
+// Tenancy data enriched with TDS registration info for agreement modal
+const tenancyForAgreement = computed(() => {
+  const base = fullTenancyData.value || props.tenancy
+  if (!base) return base
+  // Add TDS registration scheme type so agreement form can use the specific deposit scheme
+  return {
+    ...base,
+    tds_registration_scheme_type: tdsRegistration.value?.schemeType || null
+  }
+})
+
+// Show TDS section whenever deposit_scheme is TDS-based or already registered
+// Handles loading, connected, and not-connected states inside the section template
+const showTDSIntegration = computed(() => {
+  // Show if already registered with TDS
+  if (tdsRegistration.value) return true
+  // Show for any TDS scheme - we handle loading/connected/not-connected states in the template
+  if (isTDSScheme.value) return true
+  return false
+})
+
+// Show myDeposits section only when deposit_scheme is 'mydeposits' and integration is configured
+const showMyDepositsIntegration = computed(() => {
+  // Show if already registered with mydeposits
+  if (mydepositsRegistration.value?.depositId) return true
+  // Show if deposit scheme is mydeposits-based and integration is configured
+  if (isMyDepositsScheme.value && hasMyDepositsIntegration.value) return true
+  return false
+})
 
 // Notes and Activity state
 const tenancyNotes = ref<any[]>([])
@@ -2435,6 +3415,11 @@ const documentTag = ref('other')
 const uploadingDocument = ref(false)
 const tenancyDocuments = ref<any[]>([])
 const deletingDocumentId = ref<string | null>(null)
+
+// Apex27 document push
+const apex27Connected = ref(false)
+const pushingDocId = ref<string | null>(null)
+const pushingSummary = ref(false)
 
 // Pre-tenancy action loading states
 const confirmingMonies = ref(false)
@@ -2525,14 +3510,30 @@ watch(() => props.open, async (isOpen) => {
     // Reset document upload state
     selectedDocument.value = null
     documentTag.value = 'other'
+    // Reset IG inspections state
+    igAppointments.value = []
     // Reset rent due date changes state
     rentDueDateChanges.value = []
     selectedRentDueDateChange.value = null
-    // Reset TDS state
-    tdsRegistration.value = null
+    // Reset TDS state - but PRESERVE if we're actively processing
+    if (!tdsProcessing.value) {
+      stopTDSPolling()
+      tdsRegistration.value = null
+    }
     tdsConfigStatus.value = null
     showTDSSchemeMenu.value = false
     showReceiptRentDueDateChangeModal.value = false
+    // Reset mydeposits state
+    mydepositsRegistration.value = null
+    mydepositsConfigStatus.value = null
+    showRegisterWithMyDepositsModal.value = false
+    // Reset Reposit state
+    repositRegistration.value = null
+    repositLiveStatus.value = null
+    repositConfigStatus.value = null
+    repositPricing.value = null
+    repositEligibility.value = null
+    showCreateRepositModal.value = false
     // Reset tenant change state
     activeTenantChange.value = null
     showTenantChangeModal.value = false
@@ -2550,8 +3551,24 @@ watch(() => props.open, async (isOpen) => {
       loadRentIncreaseNotices(),
       loadTDSConfigStatus(),
       loadTDSRegistration(),
-      loadActiveTenantChange()
+      loadMyDepositsConfigStatus(),
+      loadMyDepositsRegistration(),
+      loadActiveTenantChange(),
+      loadRepositConfigStatus(),
+      loadRepositRegistration()
     ])
+
+    // Load Reposit pricing if integration is configured
+    if ((repositConfigStatus.value as { configured: boolean } | null)?.configured) {
+      loadRepositPricing()
+    }
+  }
+})
+
+// Lazy-load inspections when tab is selected
+watch(activeTab, (tab) => {
+  if (tab === 'inspections' && igAppointments.value.length === 0) {
+    fetchInspections()
   }
 })
 
@@ -2562,6 +3579,7 @@ const tabs = [
   { key: 'landlord' as const, label: 'Landlord' },
   { key: 'property' as const, label: 'Property' },
   { key: 'documents' as const, label: 'Documents' },
+  { key: 'inspections' as const, label: 'Inspections' },
   { key: 'rent' as const, label: 'Tenancy Changes' },
   { key: 'activity' as const, label: 'Activity' }
 ]
@@ -2641,9 +3659,34 @@ const managementTypeLabel = computed(() => {
   return labels[value] || 'Not set'
 })
 
+function formatTDSError(rawError: string): string {
+  if (!rawError) return 'TDS registration failed. Please try again.'
+  const lower = rawError.toLowerCase()
+  if (lower.includes('same as the email') || lower.includes('duplicate') || lower.includes('already exists'))
+    return 'Email address must be unique for each contact. Please check tenant and landlord emails are different.'
+  if (lower.includes('postcode') || lower.includes('post code'))
+    return 'Invalid postcode provided. Please check the property and tenant postcodes.'
+  if (lower.includes('phone') || lower.includes('mobile'))
+    return 'Invalid phone number. Please check all contact numbers are valid UK numbers.'
+  if (lower.includes('deposit') && lower.includes('amount'))
+    return 'Invalid deposit amount. Please check the deposit value is correct.'
+  if (lower.includes('tenancy') && lower.includes('date'))
+    return 'Invalid tenancy dates. Please check the start and end dates.'
+  if (lower.includes('authentication') || lower.includes('unauthorized') || lower.includes('401'))
+    return 'TDS authentication failed. Please check your TDS credentials in Settings.'
+  if (lower.includes('timeout') || lower.includes('timed out'))
+    return 'TDS service timed out. Please try again in a few minutes.'
+  // Fallback — strip JSON and technical details
+  const cleaned = rawError.replace(/\{[^}]*\}/g, '').replace(/\s+/g, ' ').trim()
+  return cleaned.length > 100 ? cleaned.substring(0, 100) + '...' : cleaned
+}
+
 const depositProtected = computed(() => !!tenancy.value?.deposit_protected_at)
 
 const depositDisplay = computed(() => {
+  // If Reposit is registered or selected, deposit is replaced (show £0)
+  if (repositRegistration.value?.repositId) return '£0'
+  if (isRepositScheme.value) return '£0'
   if (!tenancy.value?.deposit_amount) return 'None'
   return `£${tenancy.value.deposit_amount.toLocaleString()}`
 })
@@ -2667,7 +3710,11 @@ const depositSchemeOptions = [
   { value: 'dps', label: 'DPS' },
   { value: 'mydeposits', label: 'mydeposits' },
   { value: 'tds', label: 'TDS' },
-  { value: 'landlord_held', label: 'Landlord Held' }
+  { value: 'tds_custodial', label: 'TDS Custodial' },
+  { value: 'tds_insured', label: 'TDS Insured' },
+  { value: 'reposit', label: 'Reposit' },
+  { value: 'landlord_held', label: 'Landlord Held' },
+  { value: 'no_deposit', label: 'No Deposit' }
 ]
 
 // Management type options for dropdown
@@ -2742,6 +3789,11 @@ const updateTenancyField = async (field: string, value: any) => {
 const hasTenantsWithEmail = computed(() => {
   const tenantsList = tenants.value || []
   return tenantsList.some((t: any) => t.email && t.status === 'active')
+})
+
+const tenantsWithEmail = computed(() => {
+  const tenantsList = tenants.value || []
+  return tenantsList.filter((t: any) => t.email && t.status === 'active')
 })
 
 const leadTenant = computed(() => {
@@ -2967,10 +4019,377 @@ const loadTDSRegistration = async () => {
     if (response.ok) {
       const data = await response.json()
       tdsRegistration.value = data.registration
+
+      // If there's a pending registration, start polling
+      if (data.registration && data.registration.status === 'pending' && data.registration.batchId && !data.registration.dan) {
+        startTDSPolling(data.registration.batchId, data.registration.schemeType || 'custodial')
+      }
     }
   } catch (error) {
     console.error('[TenancyDrawer] Error loading TDS registration:', error)
   }
+}
+
+// Stop any existing TDS polling
+const stopTDSPolling = () => {
+  if (tdsPollingTimer) {
+    clearTimeout(tdsPollingTimer)
+    tdsPollingTimer = null
+  }
+  tdsProcessing.value = false
+  tdsPollingStartTime.value = null
+}
+
+// Start polling for TDS registration completion
+const startTDSPolling = async (batchId: string, schemeType: 'custodial' | 'insured' = 'custodial') => {
+  // Don't start if already processing
+  if (tdsProcessing.value) return
+
+  const MAX_POLLING_TIME = 15 * 60 * 1000 // 15 minutes
+  const POLL_INTERVAL = 30 * 1000 // 30 seconds
+
+  tdsProcessing.value = true
+  tdsPollingStartTime.value = Date.now()
+
+  console.log('[TenancyDrawer] Starting TDS polling for batchId:', batchId)
+
+  const pollOnce = async (): Promise<boolean> => {
+    try {
+      const token = authStore.session?.access_token
+      if (!token) return false
+
+      const statusEndpoint = schemeType === 'insured'
+        ? `${API_URL}/api/tds/insured/deposit-status/${batchId}?tenancyId=${props.tenancy?.id}`
+        : `${API_URL}/api/tds/custodial/deposit-status/${batchId}?tenancyId=${props.tenancy?.id}`
+
+      const response = await authFetch(statusEndpoint, { token })
+
+      if (!response.ok) return false
+
+      const data = await response.json()
+
+      if (data.success && data.dan) {
+        // Success! Update registration and stop polling
+        console.log('[TenancyDrawer] TDS registration complete, DAN:', data.dan)
+        await loadTDSRegistration()
+        await loadFullTenancyData()
+        stopTDSPolling()
+        toast.success('Deposit registered with TDS successfully!')
+        emit('updated')
+        return true
+      }
+
+      if (data.status === 'failed') {
+        console.error('[TenancyDrawer] TDS registration failed:', data.error)
+        stopTDSPolling()
+        const friendlyError = formatTDSError(data.error)
+        tdsRegistration.value = {
+          ...tdsRegistration.value,
+          status: 'failed',
+          error: friendlyError
+        }
+        toast.error(friendlyError)
+        return true // Stop polling
+      }
+
+      return false // Continue polling
+    } catch (error) {
+      console.error('[TenancyDrawer] TDS polling error:', error)
+      return false // Continue polling despite error
+    }
+  }
+
+  const scheduleNextPoll = () => {
+    // Check if we've exceeded max polling time
+    const elapsedTime = Date.now() - (tdsPollingStartTime.value || 0)
+    if (elapsedTime >= MAX_POLLING_TIME) {
+      console.log('[TenancyDrawer] TDS polling timeout reached (15 minutes)')
+      stopTDSPolling()
+      toast.warning('TDS is taking longer than expected. Please check the TDS portal for status.')
+      return
+    }
+
+    tdsPollingTimer = setTimeout(async () => {
+      const completed = await pollOnce()
+      if (!completed && tdsProcessing.value) {
+        scheduleNextPoll()
+      }
+    }, POLL_INTERVAL)
+  }
+
+  // Do first poll immediately
+  const completed = await pollOnce()
+  if (!completed && tdsProcessing.value) {
+    scheduleNextPoll()
+  }
+}
+
+// Load Reposit config status
+const loadRepositConfigStatus = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/config-status`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      console.log('[TenancyDrawer] Reposit config status:', data)
+      repositConfigStatus.value = { configured: data.configured || false }
+    } else {
+      console.log('[TenancyDrawer] Reposit config status failed:', response.status)
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit config status:', error)
+  }
+}
+
+// Load mydeposits integration status
+const loadMyDepositsConfigStatus = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/mydeposits/config-status`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      mydepositsConfigStatus.value = {
+        configured: data.configured || false,
+        authorized: data.authorized || false,
+        schemeType: data.schemeType || 'custodial',
+        environment: data.environment || null
+      }
+      // Set the selected scheme based on config
+      if (data.schemeType) {
+        selectedMyDepositsScheme.value = data.schemeType
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading mydeposits config status:', error)
+  }
+}
+
+// Load mydeposits registration for this tenancy
+const loadMyDepositsRegistration = async () => {
+  if (!props.tenancy?.id) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/mydeposits/registration/${props.tenancy.id}`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      mydepositsRegistration.value = data.registration
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading mydeposits registration:', error)
+  }
+}
+
+// Download mydeposits certificate
+const downloadMyDepositsCertificate = async () => {
+  if (!mydepositsRegistration.value?.depositId) return
+
+  downloadingMyDepositsCertificate.value = true
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(
+      `${API_URL}/api/mydeposits/certificate/${props.tenancy?.id}`,
+      { token }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to download certificate')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `mydeposits-certificate-${mydepositsRegistration.value.depositId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+
+    toast.success('Certificate downloaded')
+  } catch (error: any) {
+    console.error('Error downloading mydeposits certificate:', error)
+    toast.error(error.message || 'Failed to download certificate')
+  } finally {
+    downloadingMyDepositsCertificate.value = false
+  }
+}
+
+// Open mydeposits registration modal
+const openMyDepositsRegistrationModal = () => {
+  console.log('[TenancyDetailDrawer] openMyDepositsRegistrationModal called')
+  showRegisterWithMyDepositsModal.value = true
+}
+
+// Handle mydeposits registration completed
+const handleMyDepositsRegistered = async (depositId: string) => {
+  console.log('[TenancyDetailDrawer] mydeposits registration complete, depositId:', depositId)
+  await loadMyDepositsRegistration()
+  emit('updated')
+}
+
+// Load Reposit registration for this tenancy
+const loadRepositRegistration = async () => {
+  if (!props.tenancy?.id) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/${props.tenancy.id}`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositRegistration.value = data.registration
+
+      // If we have a registration, poll for live status
+      if (data.registration?.repositId) {
+        await pollRepositStatus(data.registration.repositId)
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit registration:', error)
+  }
+}
+
+// Poll Reposit API for live status
+const repositLiveStatus = ref<{
+  overallStatus: string
+  statusLabel: string
+  tenants: Array<{
+    email: string
+    firstName?: string
+    lastName?: string
+    status: string
+    progressUrl?: string
+  }>
+  isActive: boolean
+  isClosed: boolean
+  isDeactivated: boolean
+} | null>(null)
+
+const pollRepositStatus = async (repositId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/${repositId}/status`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositLiveStatus.value = {
+        overallStatus: data.overallStatus,
+        statusLabel: data.statusLabel,
+        tenants: data.tenants || [],
+        isActive: data.isActive,
+        isClosed: data.isClosed,
+        isDeactivated: data.isDeactivated
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error polling Reposit status:', error)
+  }
+}
+
+// Refresh Reposit status (can be called manually)
+const refreshRepositStatus = async () => {
+  if (repositRegistration.value?.repositId) {
+    await pollRepositStatus(repositRegistration.value.repositId)
+  }
+}
+
+// Load Reposit pricing for this tenancy
+const loadRepositPricing = async () => {
+  if (!props.tenancy?.id || !hasRepositIntegration.value) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/pricing`,
+      {
+        token,
+        method: 'POST',
+        body: JSON.stringify({ tenancyId: props.tenancy.id })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositPricing.value = data.pricing
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit pricing:', error)
+  }
+}
+
+// Check Reposit eligibility for tenants
+const checkRepositEligibility = async () => {
+  if (!props.tenancy?.id) return
+
+  checkingEligibility.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/eligibility-check`,
+      {
+        token,
+        method: 'POST',
+        body: JSON.stringify({ tenancyId: props.tenancy.id })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositEligibility.value = {
+        allEligible: data.allEligible,
+        notes: data.allEligible ? undefined : 'Some tenants may need guarantors',
+        tenants: data.tenants
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error checking Reposit eligibility:', error)
+  } finally {
+    checkingEligibility.value = false
+  }
+}
+
+// Handle Reposit created from modal
+const handleRepositCreated = async (_repositId: string) => {
+  toast.success('Reposit created successfully')
+  showCreateRepositModal.value = false
+  await loadRepositRegistration()
+  emit('updated')
 }
 
 // Download TDS certificate (DPC for Custodial, Certificate for Insured)
@@ -2983,21 +4402,24 @@ const downloadTDSDPC = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    // Use unified certificate endpoint that auto-detects scheme
+    // Use the correct scheme-specific endpoint
+    const schemeType = tdsRegistration.value.schemeType || 'custodial'
     const response = await authFetch(
-      `${API_URL}/api/tds/certificate/${tdsRegistration.value.dan}`,
+      `${API_URL}/api/tds/${schemeType}/certificate/${tdsRegistration.value.dan}`,
       { token }
     )
 
     if (!response.ok) {
-      throw new Error('Failed to download certificate')
+      if (response.status === 400) {
+        throw new Error('Certificate not yet available from TDS. This can take a few minutes after registration. Please try again shortly.')
+      }
+      throw new Error('Failed to download certificate. Please try again.')
     }
 
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const schemeType = tdsRegistration.value.schemeType || 'custodial'
     a.download = `${schemeType === 'insured' ? 'Certificate' : 'DPC'}-${tdsRegistration.value.dan}.pdf`
     document.body.appendChild(a)
     a.click()
@@ -3013,6 +4435,22 @@ const downloadTDSDPC = async () => {
   }
 }
 
+// Open TDS registration modal
+const openTDSRegistrationModal = (scheme: 'custodial' | 'insured') => {
+  console.log('[TenancyDetailDrawer] openTDSRegistrationModal called with scheme:', scheme)
+  selectedTDSScheme.value = scheme
+  showRegisterWithTDSModal.value = true
+  console.log('[TenancyDetailDrawer] showRegisterWithTDSModal is now:', showRegisterWithTDSModal.value)
+}
+
+// Retry TDS registration after failure
+const retryTDSRegistration = () => {
+  // Clear the failed registration and open modal to try again
+  const schemeType = tdsRegistration.value?.schemeType || 'custodial'
+  tdsRegistration.value = null
+  openTDSRegistrationModal(schemeType as 'custodial' | 'insured')
+}
+
 // Handle TDS registration completed
 const handleTDSRegistered = async (_dan: string) => {
   showRegisterWithTDSModal.value = false
@@ -3021,10 +4459,31 @@ const handleTDSRegistered = async (_dan: string) => {
   emit('updated')
 }
 
-const handleTDSPending = async (_batchId: string) => {
-  showRegisterWithTDSModal.value = false
-  // Reload to show pending status
-  await loadTDSRegistration()
+const handleTDSPending = async (batchId: string) => {
+  console.log('[TenancyDrawer] handleTDSPending called with batchId:', batchId)
+
+  // IMMEDIATELY set tdsRegistration to pending state so UI updates
+  tdsRegistration.value = {
+    batchId: batchId,
+    schemeType: selectedTDSScheme.value,
+    status: 'pending',
+    dan: null,
+    registeredAt: null
+  }
+
+  console.log('[TenancyDrawer] tdsRegistration set to:', JSON.stringify(tdsRegistration.value))
+
+  // Update the tenancy's deposit_scheme to the specific TDS type (tds_custodial or tds_insured)
+  const specificScheme = `tds_${selectedTDSScheme.value}`
+  const currentScheme = (fullTenancyData.value || tenancy.value)?.deposit_scheme
+  if (currentScheme === 'tds' || !currentScheme?.startsWith('tds_')) {
+    await updateTenancyField('depositScheme', specificScheme)
+  }
+
+  // Start polling
+  if (!tdsProcessing.value && batchId) {
+    startTDSPolling(batchId, selectedTDSScheme.value)
+  }
   emit('updated')
 }
 
@@ -3104,6 +4563,9 @@ const loadAdditionalData = async () => {
 
       // Load tenancy-specific documents
       await loadTenancyDocuments()
+
+      // Check Apex27 connection status for document push buttons
+      loadApex27Status()
     }
 
     // Load special clauses from agreement if there's an agreement_id
@@ -3132,7 +4594,28 @@ const loadAdditionalData = async () => {
       specialClauses.value = []
     }
 
-    // Load guarantors and tenant addresses from reference data
+    // Populate tenant addresses immediately from tenancy data (no extra API call)
+    const tenants = fullTenancyData.value?.tenants || []
+    if (tenants.length > 0) {
+      const addressMap = new Map<string, any>()
+      for (const t of tenants) {
+        const name = `${t.first_name || ''} ${t.last_name || ''}`.trim()
+        if (name && (t.residential_address_line1 || t.residential_city || t.residential_postcode)) {
+          addressMap.set(name.toLowerCase(), {
+            line1: t.residential_address_line1 || '',
+            line2: t.residential_address_line2 || '',
+            city: t.residential_city || '',
+            postcode: t.residential_postcode || ''
+          })
+        }
+      }
+      if (addressMap.size > 0) {
+        tenantAddressMap.value = addressMap
+        console.log('[TenancyDrawer] Loaded tenant addresses from tenancy data (instant):', addressMap.size)
+      }
+    }
+
+    // Load guarantors and fallback addresses from reference data
     const referenceId = fullTenancyData.value?.primary_reference_id || props.tenancy?.primary_reference_id
     console.log('[TenancyDrawer] Looking for reference ID:', referenceId, 'from fullTenancyData:', fullTenancyData.value?.primary_reference_id, 'or props:', props.tenancy?.primary_reference_id)
     if (referenceId) {
@@ -3177,8 +4660,15 @@ const loadAdditionalData = async () => {
             })
           }
 
-          tenantAddressMap.value = addressMap
-          console.log('[TenancyDrawer] Loaded tenant addresses from reference:', addressMap.size)
+          // Merge with existing addresses (don't overwrite instant-loaded data)
+          const existing = tenantAddressMap.value
+          for (const [key, val] of addressMap) {
+            if (!existing.has(key)) {
+              existing.set(key, val)
+            }
+          }
+          tenantAddressMap.value = new Map(existing)
+          console.log('[TenancyDrawer] Merged tenant addresses from reference, total:', tenantAddressMap.value.size)
 
           // Guarantors can come from multiple places:
           // 1. guarantorReferences array (new system - for standalone references)
@@ -3312,9 +4802,16 @@ const loadAdditionalData = async () => {
         }
       }
 
-      tenantAddressMap.value = addressMap
+      // Merge with existing addresses
+      const existing = tenantAddressMap.value
+      for (const [key, val] of addressMap) {
+        if (!existing.has(key)) {
+          existing.set(key, val)
+        }
+      }
+      tenantAddressMap.value = new Map(existing)
       guarantors.value = allGuarantors
-      console.log('[TenancyDrawer] Loaded tenant addresses from individual refs:', addressMap.size)
+      console.log('[TenancyDrawer] Merged tenant addresses from individual refs, total:', tenantAddressMap.value.size)
     }
   } catch (error) {
     console.error('Error loading additional data:', error)
@@ -3575,6 +5072,9 @@ const handleDrawerAction = (action: string) => {
     case 'email-tenants':
       emit('action', 'email-tenants', tenancy.value)
       break
+    case 'send-review-link':
+      showReviewLinkModal.value = true
+      break
     case 'revert-to-draft':
       emit('action', 'revert-to-draft', tenancy.value)
       break
@@ -3667,9 +5167,11 @@ const loadActiveTenantChange = async () => {
     if (response.ok) {
       const data = await response.json()
       activeTenantChange.value = data.tenantChange || null
+      tenantChangeRefStatuses.value = data.referenceStatuses || []
     } else if (response.status === 404) {
       // No active tenant change - this is normal
       activeTenantChange.value = null
+      tenantChangeRefStatuses.value = []
     }
   } catch (error) {
     console.error('Error loading active tenant change:', error)
@@ -4028,10 +5530,6 @@ const deleteDocument = async (documentId: string) => {
       `${API_URL}/api/properties/${tenancy.value.property_id}/documents/${documentId}`,
       {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-,
         token
       }
     )
@@ -4049,6 +5547,76 @@ const deleteDocument = async (documentId: string) => {
     toast.error(err.message || 'Failed to delete document')
   } finally {
     deletingDocumentId.value = null
+  }
+}
+
+const pushDocToApex27 = async (docId: string, sourceType: string) => {
+  pushingDocId.value = docId
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(
+      `${API_URL}/api/apex27/documents/push`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceType, sourceId: docId }),
+        token
+      } as any
+    )
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to push document')
+    }
+
+    toast.success('Document pushed to Apex27')
+  } catch (err: any) {
+    console.error('[TenancyDrawer] Error pushing to Apex27:', err)
+    toast.error(err.message || 'Failed to push to Apex27')
+  } finally {
+    pushingDocId.value = null
+  }
+}
+
+const pushTenancySummary = async () => {
+  const tenancyId = fullTenancyData.value?.id || props.tenancy?.id
+  if (!tenancyId) return
+
+  pushingSummary.value = true
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(
+      `${API_URL}/api/apex27/tenancy-summary/${tenancyId}/push`,
+      {
+        method: 'POST',
+        token
+      } as any
+    )
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to push summary')
+    }
+
+    toast.success('Tenancy summary pushed to Apex27')
+  } catch (err: any) {
+    console.error('[TenancyDrawer] Error pushing summary to Apex27:', err)
+    toast.error(err.message || 'Failed to push summary')
+  } finally {
+    pushingSummary.value = false
+  }
+}
+
+const loadApex27Status = async () => {
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/settings/apex27`, { token } as any)
+    if (response.ok) {
+      const data = await response.json()
+      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+    }
+  } catch {
+    // Silently fail - just don't show the button
   }
 }
 
@@ -4898,4 +6466,61 @@ const handleInitialMoniesSent = async () => {
   await loadFullTenancyData()
   emit('updated')
 }
+
+// Send review request to tenants
+const sendReviewRequest = async () => {
+  const tenancyId = tenancy.value?.id
+  if (!tenancyId) return
+
+  const emails = tenantsWithEmail.value.map((t: any) => t.email)
+  if (emails.length === 0) {
+    toast.error('No tenants with email addresses')
+    return
+  }
+
+  sendingReviewLink.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Not authenticated')
+      return
+    }
+
+    const response = await authFetch(`${API_URL}/api/review-links/send`, {
+      method: 'POST',
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tenancy_id: tenancyId,
+        tenant_emails: emails,
+        agent_note: reviewNote.value || undefined
+      })
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to send review request')
+    }
+
+    const result = await response.json()
+    toast.success(`Review request sent to ${result.sent_count} tenant(s)`)
+    showReviewLinkModal.value = false
+    reviewNote.value = ''
+
+    // Reload activity
+    loadTenancyActivity()
+  } catch (error: any) {
+    console.error('Error sending review request:', error)
+    toast.error(error.message || 'Failed to send review request')
+  } finally {
+    sendingReviewLink.value = false
+  }
+}
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  stopTDSPolling()
+})
 </script>

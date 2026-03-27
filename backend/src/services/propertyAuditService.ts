@@ -23,6 +23,8 @@ export type PropertyAuditAction =
   | 'CSV_IMPORTED'
   | 'OFFER_SENT'
   | 'OFFER_COMPLETED'
+  | 'OFFER_ACCEPTED'
+  | 'OFFER_REJECTED'
   | 'REFERENCE_STARTED'
   | 'REFERENCE_COMPLETED'
   | 'AGREEMENT_SENT'
@@ -343,6 +345,47 @@ export async function auditOfferCompleted(
     description: `Offer form completed by ${tenantName}`,
     metadata: { tenant_name: tenantName, offer_id: offerId },
     userId: null
+  })
+}
+
+/**
+ * Helper to log offer accepted
+ */
+export async function auditOfferAccepted(
+  propertyId: string,
+  companyId: string,
+  userId: string,
+  tenantName: string,
+  offerId: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'OFFER_ACCEPTED',
+    description: `Offer accepted for ${tenantName}`,
+    metadata: { tenant_name: tenantName, offer_id: offerId },
+    userId
+  })
+}
+
+/**
+ * Helper to log offer rejected
+ */
+export async function auditOfferRejected(
+  propertyId: string,
+  companyId: string,
+  userId: string,
+  tenantName: string,
+  offerId: string,
+  reason?: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'OFFER_REJECTED',
+    description: `Offer rejected for ${tenantName}${reason ? `: ${reason}` : ''}`,
+    metadata: { tenant_name: tenantName, offer_id: offerId, reason },
+    userId
   })
 }
 

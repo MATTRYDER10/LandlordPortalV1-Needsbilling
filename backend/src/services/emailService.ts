@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { supabase } from '../config/supabase';
 import { encrypt } from './encryption';
-import { getFrontendUrl } from '../utils/frontendUrl';
+import { getFrontendUrl, getV2FrontendUrl } from '../utils/frontendUrl';
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY || '');
@@ -243,7 +243,7 @@ function buildContactFooter(details?: ContactDetails): string {
 
   return `
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:#374151;">
-      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">Need help? Contact your agent:</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">Need help? Contact us:</div>
       ${contactLines.join('')}
     </div>
   `;
@@ -523,7 +523,8 @@ export async function sendTenantReferenceRequest(
   companyPhone?: string,
   companyEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -534,6 +535,7 @@ export async function sendTenantReferenceRequest(
     PropertyAddress: capitalizeWords(propertyAddress || ''),
     ContactInfo: contactInfo,
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -573,7 +575,8 @@ export async function sendEmployerReferenceRequest(
   agentPhone?: string | null,
   agentEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('employer-reference-request', {
     EmployerName: employerName,
@@ -583,6 +586,7 @@ export async function sendEmployerReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -622,7 +626,8 @@ export async function sendLandlordReferenceRequest(
   agentPhone?: string | null,
   agentEmail?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('landlord-reference-request', {
     LandlordName: landlordName,
@@ -632,6 +637,7 @@ export async function sendLandlordReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -670,7 +676,8 @@ export async function sendAccountantReferenceRequest(
   agentCompanyName?: string | null,
   agentPhone?: string | null,
   agentEmail?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('accountant-reference-request', {
     AccountantName: accountantName,
@@ -680,6 +687,7 @@ export async function sendAccountantReferenceRequest(
     AgentCompanyName: agentCompanyName || '',
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -719,7 +727,8 @@ export async function sendAgentReferenceRequest(
   agentPhone?: string | null,
   agentEmailContact?: string | null,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  primaryColor?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('agent-reference-request', {
     AgentName: agentName,
@@ -729,6 +738,7 @@ export async function sendAgentReferenceRequest(
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmailContact || '',
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    PrimaryColor: primaryColor || '#F48024',
   });
 
   try {
@@ -1269,7 +1279,7 @@ export async function sendOfferAcceptedEmail(
   extraDetailsHtml?: string,
   agentLogoUrl?: string | null
 ): Promise<void> {
-  const frontendBaseUrl = getFrontendUrl()
+  const frontendBaseUrl = getV2FrontendUrl()
   const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {
@@ -1332,19 +1342,29 @@ export async function sendPaymentConfirmedToAgentEmail(
   propertyAddress: string,
   tenantNames: string,
   holdingDepositAmount: string,
-  offerLink: string
+  offerLink: string,
+  companyName?: string,
+  companyLogoUrl?: string | null
 ): Promise<void> {
   const confirmedAt = new Date().toLocaleString('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short'
   })
 
+  const resolvedCompanyName = companyName || 'PropertyGoose'
+  const logoHtml = companyLogoUrl
+    ? `<img src="${companyLogoUrl}" alt="${resolvedCompanyName}" style="height: 48px; width: auto;">`
+    : `<span style="font-size: 20px; font-weight: 700; color: #ffffff;">${resolvedCompanyName}</span>`
+
   const html = loadEmailTemplate('tenant-payment-confirmed', {
     PropertyAddress: propertyAddress,
     TenantNames: tenantNames,
     HoldingDepositAmount: holdingDepositAmount,
     ConfirmedAt: confirmedAt,
-    OfferLink: offerLink
+    OfferLink: offerLink,
+    CompanyName: resolvedCompanyName,
+    AgentLogoUrl: companyLogoUrl || '',
+    AgentLogoHtml: logoHtml
   })
 
   await sendEmail({
@@ -1352,6 +1372,154 @@ export async function sendPaymentConfirmedToAgentEmail(
     subject: 'Tenant Confirmed Holding Deposit Payment',
     html
   })
+}
+
+/**
+ * Send offer confirmation email to tenant after submission
+ */
+export async function sendTenantOfferConfirmation(params: {
+  tenantEmail: string
+  tenantName: string
+  propertyAddress: string
+  propertyCity?: string
+  propertyPostcode?: string
+  monthlyRent: number
+  moveInDate: string
+  tenancyLength: number
+  depositAmount: number
+  specialConditions?: string
+  tenants: Array<{
+    name: string
+    email: string
+    phone?: string
+    address?: string
+    jobTitle?: string
+    annualIncome?: string
+    signature?: string
+    signatureName?: string
+    signedAt?: string
+  }>
+  companyName: string
+  companyPhone?: string
+  companyEmail?: string
+  companyLogoUrl?: string | null
+  primaryColor?: string
+  offerId: string
+}): Promise<void> {
+  const {
+    tenantEmail,
+    tenantName,
+    propertyAddress,
+    propertyCity,
+    propertyPostcode,
+    monthlyRent,
+    moveInDate,
+    tenancyLength,
+    depositAmount,
+    specialConditions,
+    tenants,
+    companyName,
+    companyPhone,
+    companyEmail,
+    companyLogoUrl,
+    primaryColor = '#f97316',
+    offerId
+  } = params
+
+  // Build company logo HTML
+  const logoHtml = companyLogoUrl
+    ? `<img src="${companyLogoUrl}" alt="${companyName}" style="max-height: 50px; max-width: 200px; margin-bottom: 16px;" />`
+    : `<p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 16px 0;">${companyName}</p>`
+
+  // Build applicants list HTML
+  const applicantsHtml = tenants.map((t, i) => `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
+      <tr>
+        <td style="padding: 12px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td width="30" valign="top">
+                <div style="width: 24px; height: 24px; background-color: ${primaryColor}20; color: ${primaryColor}; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">${i + 1}</div>
+              </td>
+              <td valign="top">
+                <p style="color: #111827; font-size: 14px; font-weight: 600; margin: 0;">${t.name}</p>
+                ${t.jobTitle ? `<p style="color: ${primaryColor}; font-size: 12px; margin: 2px 0 0 0;">${t.jobTitle}</p>` : ''}
+                <p style="color: #6b7280; font-size: 12px; margin: 4px 0 0 0;">${t.email}</p>
+                ${t.phone ? `<p style="color: #6b7280; font-size: 12px; margin: 2px 0 0 0;">${t.phone}</p>` : ''}
+              </td>
+              <td width="100" align="right" valign="top">
+                ${t.annualIncome ? `<p style="color: #16a34a; font-size: 14px; font-weight: 700; margin: 0;">£${t.annualIncome}</p><p style="color: #6b7280; font-size: 10px; margin: 0;">per year</p>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `).join('')
+
+  // Build signature HTML - only lead tenant (first) signs for everyone
+  const leadTenant = tenants.find(t => t.signature || t.signatureName) || tenants[0]
+  const signaturesHtml = leadTenant ? `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 12px;">
+      <tr>
+        <td style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px;">
+          <p style="font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 22px; color: #1f2937; margin: 0;">${leadTenant.signatureName || leadTenant.name}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top: 4px;">
+          <p style="color: #374151; font-size: 12px; margin: 0;"><strong>${leadTenant.signatureName || leadTenant.name}</strong> (Lead Tenant)</p>
+          ${leadTenant.signedAt ? `<p style="color: #9ca3af; font-size: 10px; margin: 0;">${new Date(leadTenant.signedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
+        </td>
+      </tr>
+    </table>
+  ` : ''
+
+  // Build special conditions section
+  const specialConditionsSection = specialConditions ? `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 16px;">
+          <h2 style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Special Conditions</h2>
+          <p style="color: #92400e; font-size: 13px; line-height: 1.6; margin: 0;">${specialConditions}</p>
+        </td>
+      </tr>
+    </table>
+  ` : ''
+
+  // Format move-in date
+  const formattedMoveInDate = moveInDate
+    ? new Date(moveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'To be confirmed'
+
+  const html = loadEmailTemplate('tenant-offer-confirmation', {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    PropertyCity: propertyCity ? `${propertyCity}` : '',
+    PropertyPostcode: propertyPostcode ? `, ${propertyPostcode}` : '',
+    MonthlyRent: `£${monthlyRent.toLocaleString()}`,
+    MoveInDate: formattedMoveInDate,
+    TenancyLength: `${tenancyLength} months`,
+    DepositAmount: `£${depositAmount.toLocaleString()}`,
+    SpecialConditionsSection: specialConditionsSection,
+    ApplicantsList: applicantsHtml,
+    SignaturesList: signaturesHtml,
+    CompanyName: companyName,
+    CompanyPhone: companyPhone ? `Tel: ${companyPhone}` : '',
+    CompanyEmail: companyEmail ? ` | ${companyEmail}` : '',
+    CompanyLogo: logoHtml,
+    PrimaryColor: primaryColor,
+    SecondaryColor: '#ea580c',
+    OfferReference: offerId.slice(0, 8).toUpperCase()
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: `Offer Confirmation - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[EmailService] Sent offer confirmation to ${tenantEmail}`)
 }
 
 /**
@@ -2010,7 +2178,8 @@ export async function sendMoveInPack(
   documents: ComplianceDocument[],
   contactDetails: { name: string; email: string; phone: string },
   companyName: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  ccEmail?: string | null
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2069,6 +2238,7 @@ export async function sendMoveInPack(
 
     await sendEmail({
       to: tenant.email,
+      cc: ccEmail || undefined,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
       html,
       attachments: attachments.length > 0 ? attachments : undefined,
@@ -2079,7 +2249,7 @@ export async function sendMoveInPack(
       }
     })
 
-    console.log(`[sendMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
+    console.log(`[sendMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
   }
 }
 
@@ -2100,7 +2270,8 @@ export async function sendEnhancedMoveInPack(
   agentLogoUrl: string | null | undefined,
   managementInfoHtml: string,
   rentPaymentHtml: string,
-  additionalInfoHtml: string
+  additionalInfoHtml: string,
+  ccEmail?: string | null
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2168,6 +2339,7 @@ export async function sendEnhancedMoveInPack(
 
     await sendEmail({
       to: tenant.email,
+      cc: ccEmail || undefined,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
       html,
       attachments: attachments.length > 0 ? attachments : undefined,
@@ -2178,7 +2350,7 @@ export async function sendEnhancedMoveInPack(
       }
     })
 
-    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
+    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
   }
 }
 
@@ -2735,4 +2907,252 @@ export async function sendMoveOutConfirmation(
   })
 
   console.log(`[sendMoveOutConfirmation] Move out confirmation sent to ${tenantEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send reference summary to landlord
+ */
+export async function sendLandlordReferenceSummary(
+  landlordEmail: string,
+  landlordName: string,
+  propertyAddress: string,
+  monthlyRent: number,
+  moveInDate: string,
+  tenants: Array<{
+    firstName: string
+    jobTitle?: string
+    annualIncome?: number
+    rentShare?: number
+  }>,
+  decision: string,
+  companyName: string,
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Build tenant summary rows (first name only, job info, salary - NO contact details)
+  const tenantRows = tenants.map(tenant => {
+    const salaryText = tenant.annualIncome ? `£${tenant.annualIncome.toLocaleString()}/year` : 'Not provided'
+    const jobText = tenant.jobTitle || 'Not provided'
+    const rentShareText = tenant.rentShare ? `£${tenant.rentShare}/month` : ''
+
+    return `
+      <div style="margin: 0 0 16px; padding: 16px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <p style="margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #111827;">${capitalizeWords(tenant.firstName)}</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #6b7280; width: 100px;">Job Title:</td>
+            <td style="padding: 4px 0; font-size: 14px; color: #111827;">${jobText}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #6b7280; width: 100px;">Annual Income:</td>
+            <td style="padding: 4px 0; font-size: 14px; color: #111827;">${salaryText}</td>
+          </tr>
+          ${rentShareText ? `
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #6b7280; width: 100px;">Rent Share:</td>
+            <td style="padding: 4px 0; font-size: 14px; color: #111827;">${rentShareText}</td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
+    `
+  }).join('')
+
+  // Determine decision styling
+  let decisionBgColor = '#f3f4f6'
+  let decisionTextColor = '#374151'
+
+  if (decision.includes('ACCEPTED')) {
+    decisionBgColor = '#dcfce7'
+    decisionTextColor = '#166534'
+  } else if (decision === 'REJECTED') {
+    decisionBgColor = '#fee2e2'
+    decisionTextColor = '#991b1b'
+  } else if (decision === 'IN_REVIEW' || decision === 'READY_FOR_REVIEW') {
+    decisionBgColor = '#e0e7ff'
+    decisionTextColor = '#3730a3'
+  }
+
+  const formattedDecision = decision
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+
+  const formattedMoveInDate = moveInDate
+    ? new Date(moveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'To be confirmed'
+
+  const html = loadEmailTemplate('landlord-reference-summary', {
+    LandlordName: capitalizeWords(landlordName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    MonthlyRent: monthlyRent.toFixed(2),
+    MoveInDate: formattedMoveInDate,
+    TenantSummaryRows: tenantRows,
+    Decision: formattedDecision,
+    DecisionBgColor: decisionBgColor,
+    DecisionTextColor: decisionTextColor,
+    CompanyName: companyName,
+    AgentLogoUrl: agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+  })
+
+  await sendEmail({
+    to: landlordEmail,
+    subject: `Tenant Reference Summary - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[sendLandlordReferenceSummary] Reference summary sent to landlord ${landlordEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send offer summary to landlord
+ */
+export async function sendLandlordOfferSummary(
+  landlordEmail: string,
+  landlordName: string,
+  propertyAddress: string,
+  offers: Array<{
+    monthlyRent: number
+    moveInDate?: string
+    tenancyLengthMonths?: number | null
+    depositAmount?: number | null
+    depositReplacementRequested?: boolean
+    billsIncluded?: boolean
+    specialConditions?: string | null
+    status: string
+    tenants: Array<{
+      firstName: string
+      jobTitle?: string
+      annualIncome?: number
+      rentShare?: number
+      isStudent?: boolean
+      hasGuarantor?: boolean
+    }>
+  }>,
+  companyName: string,
+  agentLogoUrl?: string | null,
+  decisionToken?: string | null
+): Promise<void> {
+  // Use V2 frontend URL for landlord decision links (localhost in dev, production in prod)
+  const frontendUrl = getV2FrontendUrl()
+  const offerCount = offers.length === 1 ? 'an offer' : `${offers.length} offers`
+
+  // Build offer sections
+  const offerSections = offers.map((offer, index) => {
+    const formattedMoveInDate = offer.moveInDate
+      ? new Date(offer.moveInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'To be confirmed'
+
+    const formattedStatus = offer.status
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+
+    // Build tenant rows for this offer (first name only, job info, salary - NO contact details)
+    const tenantRows = offer.tenants.map(tenant => {
+      const salaryText = tenant.annualIncome ? `£${tenant.annualIncome.toLocaleString()}/year` : 'Not provided'
+      const jobText = tenant.jobTitle || 'Not provided'
+      const rentShareText = tenant.rentShare ? `£${tenant.rentShare}/month` : ''
+
+      const studentBadge = tenant.isStudent ? '<span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;background-color:#dbeafe;color:#1d4ed8;border-radius:9999px;margin-left:8px;">Student</span>' : ''
+      const guarantorBadge = tenant.hasGuarantor ? '<span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;background-color:#fef3c7;color:#92400e;border-radius:9999px;margin-left:4px;">Has Guarantor</span>' : ''
+
+      return `
+        <div style="margin: 0 0 12px; padding: 12px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb;">
+          <p style="margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #111827;">${capitalizeWords(tenant.firstName)}${studentBadge}${guarantorBadge}</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="padding: 2px 0; font-size: 13px; color: #6b7280; width: 100px;">Job Title:</td>
+              <td style="padding: 2px 0; font-size: 13px; color: #111827;">${jobText}</td>
+            </tr>
+            <tr>
+              <td style="padding: 2px 0; font-size: 13px; color: #6b7280; width: 100px;">Annual Income:</td>
+              <td style="padding: 2px 0; font-size: 13px; color: #111827;">${salaryText}</td>
+            </tr>
+            ${rentShareText ? `
+            <tr>
+              <td style="padding: 2px 0; font-size: 13px; color: #6b7280; width: 100px;">Rent Share:</td>
+              <td style="padding: 2px 0; font-size: 13px; color: #111827;">${rentShareText}</td>
+            </tr>
+            ` : ''}
+          </table>
+        </div>
+      `
+    }).join('')
+
+    return `
+      <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #f97316;">
+        <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #111827;">
+          ${offers.length > 1 ? `Offer ${index + 1}` : 'Offer Details'}
+          <span style="margin-left: 12px; padding: 4px 10px; font-size: 12px; font-weight: 500; background-color: #e0e7ff; color: #3730a3; border-radius: 9999px;">${formattedStatus}</span>
+        </h3>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 16px;">
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151; width: 160px;"><strong>Monthly Rent:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">£${offer.monthlyRent.toFixed(2)}${offer.billsIncluded ? ' <span style="color: #6b7280; font-size: 12px;">(bills included)</span>' : ''}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Proposed Move-in:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">${formattedMoveInDate}</td>
+          </tr>
+          ${offer.tenancyLengthMonths ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Tenancy Length:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">${offer.tenancyLengthMonths} months</td>
+          </tr>` : ''}
+          ${offer.depositAmount ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Deposit:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">£${offer.depositAmount.toLocaleString()}</td>
+          </tr>` : ''}
+          ${offer.depositReplacementRequested ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Deposit Type:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">
+              <span style="display: inline-block; padding: 2px 8px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 600;">Reposit Selected</span>
+              <br><span style="font-size: 12px; color: #6b7280;">Deposit replacement scheme — tenants pay ~1 week's rent instead of a full deposit. Full protection included. <a href="https://www.reposit.co.uk/landlords" style="color: #f97316;">Learn more</a></span>
+            </td>
+          </tr>` : ''}
+        </table>
+        ${offer.specialConditions ? `<div style="margin: 0 0 16px; padding: 10px 12px; background-color: #fffbeb; border-radius: 6px; border: 1px solid #fde68a;">
+          <p style="margin: 0; font-size: 13px; font-weight: 600; color: #92400e;">Special Conditions:</p>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #92400e;">${offer.specialConditions}</p>
+        </div>` : ''}
+        <h4 style="margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Applicants</h4>
+        ${tenantRows}
+      </div>
+    `
+  }).join('')
+
+  // Build decision buttons section if token provided
+  const decisionUrl = decisionToken ? `${frontendUrl}/landlord-decision/${decisionToken}` : ''
+  const decisionButtons = decisionToken ? `
+    <div style="margin: 32px 0; padding: 24px; background-color: #fef3c7; border-radius: 8px; text-align: center;">
+      <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #92400e;">What would you like to do with this offer?</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td style="text-align: center;">
+            <a href="${decisionUrl}" style="display: inline-block; padding: 14px 32px; background-color: #f97316; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; border-radius: 8px; margin: 0 8px;">Review &amp; Respond</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin: 16px 0 0; font-size: 13px; color: #92400e;">Click the button above to approve or decline this offer</p>
+    </div>
+  ` : ''
+
+  const html = loadEmailTemplate('landlord-offer-summary', {
+    LandlordName: capitalizeWords(landlordName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    OfferCount: offerCount,
+    OfferSections: offerSections,
+    DecisionButtons: decisionButtons,
+    CompanyName: companyName,
+    AgentLogoUrl: agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+  })
+
+  await sendEmail({
+    to: landlordEmail,
+    subject: `Tenant Offer Summary - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[sendLandlordOfferSummary] Offer summary sent to landlord ${landlordEmail} for ${propertyAddress}`)
 }

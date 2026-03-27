@@ -6,7 +6,7 @@ import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import { Bell, Building, Check, Clock, AlertTriangle, X, ChevronRight } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const router = useRouter()
 const authStore = useAuthStore()

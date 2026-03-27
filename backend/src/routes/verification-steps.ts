@@ -854,8 +854,8 @@ router.post(
               : 'the property';
             const companyData = reference.companies as { name_encrypted?: string; reference_notification_email?: string; logo_url?: string } | null;
             const companyName = companyData?.name_encrypted
-              ? decrypt(companyData.name_encrypted) || 'Your agent'
-              : 'Your agent';
+              ? decrypt(companyData.name_encrypted) || 'PropertyGoose'
+              : 'PropertyGoose';
             const agentEmail = companyData?.reference_notification_email;
             const agentLogoUrl = companyData?.logo_url || null;
             const dashboardUrl = `${frontendUrl}/references`;

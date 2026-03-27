@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Users, Clock, CheckCircle, ChevronRight } from 'lucide-vue-next'
+import { Users, Clock, CheckCircle, ChevronRight, FileSearch } from 'lucide-vue-next'
 
 interface TenantChange {
   id: string
@@ -11,13 +11,22 @@ interface TenantChange {
   fee_received_at: string | null
   addendum_fully_signed_at: string | null
   completed_at: string | null
+  incoming_tenant_reference_ids?: string[]
+}
+
+interface ReferenceStatus {
+  id: string
+  status: string
+  tenantName: string
 }
 
 const props = withDefaults(defineProps<{
   tenantChange: TenantChange
   tenants?: { id: string; first_name: string; last_name: string }[]
+  referenceStatuses?: ReferenceStatus[]
 }>(), {
-  tenants: () => []
+  tenants: () => [],
+  referenceStatuses: () => []
 })
 
 const emit = defineEmits<{
@@ -66,6 +75,35 @@ const statusColor = computed(() => {
 const progressPercentage = computed(() => {
   return Math.round((props.tenantChange.stage / 7) * 100)
 })
+
+function formatRefStatus(status: string): string {
+  const labels: Record<string, string> = {
+    'SENT': 'Sent',
+    'COLLECTING_EVIDENCE': 'Collecting',
+    'IN_REVIEW': 'In Review',
+    'READY_FOR_REVIEW': 'Ready for Review',
+    'INDIVIDUAL_COMPLETE': 'Complete',
+    'ACCEPTED': 'Accepted',
+    'ACCEPTED_WITH_GUARANTOR': 'Accepted (Guarantor)',
+    'ACCEPTED_ON_CONDITION': 'Conditional',
+    'REJECTED': 'Rejected',
+    'ACTION_REQUIRED': 'Action Required'
+  }
+  return labels[status] || status
+}
+
+function getRefStatusClass(status: string): string {
+  if (['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'INDIVIDUAL_COMPLETE'].includes(status)) {
+    return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400'
+  }
+  if (status === 'REJECTED') {
+    return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+  }
+  if (['IN_REVIEW', 'READY_FOR_REVIEW'].includes(status)) {
+    return 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400'
+  }
+  return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400'
+}
 </script>
 
 <template>
@@ -106,6 +144,24 @@ const progressPercentage = computed(() => {
       <div class="flex items-start gap-2">
         <span class="text-orange-600 dark:text-orange-400 font-medium">In:</span>
         <span class="text-orange-800 dark:text-orange-200">{{ incomingNames || 'None added' }}</span>
+      </div>
+
+      <!-- Incoming Tenant Reference Statuses -->
+      <div v-if="referenceStatuses.length > 0" class="mt-1 space-y-1">
+        <div
+          v-for="ref in referenceStatuses"
+          :key="ref.id"
+          class="flex items-center gap-2"
+        >
+          <FileSearch class="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
+          <span class="text-orange-800 dark:text-orange-200">{{ ref.tenantName }}</span>
+          <span
+            class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
+            :class="getRefStatusClass(ref.status)"
+          >
+            {{ formatRefStatus(ref.status) }}
+          </span>
+        </div>
       </div>
     </div>
 

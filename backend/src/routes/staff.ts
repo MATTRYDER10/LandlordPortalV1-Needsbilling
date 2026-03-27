@@ -867,8 +867,8 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
             ? decrypt(reference.property_address_encrypted) || 'the property'
             : 'the property'
           const companyName = reference.companies?.name_encrypted
-            ? decrypt(reference.companies.name_encrypted) || 'Your agent'
-            : 'Your agent'
+            ? decrypt(reference.companies.name_encrypted) || 'PropertyGoose'
+            : 'PropertyGoose'
           const agentEmail = reference.companies?.reference_notification_email
           const agentLogoUrl = reference.companies?.logo_url || null
           const dashboardUrl = `${frontendUrl}/references`
