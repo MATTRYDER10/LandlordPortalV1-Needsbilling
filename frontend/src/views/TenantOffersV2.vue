@@ -440,14 +440,14 @@
                           type="button"
                           class="w-full px-3 py-2 text-left hover:bg-primary/5 border-b border-gray-100 dark:border-slate-700 last:border-0"
                         >
-                          <p class="font-medium text-gray-900 dark:text-white text-sm">{{ prop.address_line1 }}</p>
-                          <p class="text-xs text-gray-500">{{ prop.city }}, {{ prop.postcode }}</p>
+                          <p class="font-medium text-gray-900 dark:text-white text-sm">{{ [prop.address_line1, prop.address_line2].filter(Boolean).join(', ') }}</p>
+                          <p class="text-xs text-gray-500">{{ [prop.city, prop.postcode].filter(Boolean).join(', ') }}</p>
                         </button>
                       </div>
 
                       <!-- No Results -->
                       <div
-                        v-if="showPropertyDropdown && propertySearchQuery.length >= 2 && propertySearchResults.length === 0 && !searchingProperties"
+                        v-if="showPropertyDropdown && propertySearchQuery.length >= 1 && propertySearchResults.length === 0 && !searchingProperties"
                         class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
                       >
                         <p class="text-gray-500 dark:text-slate-400 text-xs mb-2">No properties found</p>
@@ -1652,7 +1652,7 @@ async function searchPropertiesDebounced(query: string) {
     clearTimeout(searchDebounceTimer)
   }
 
-  if (!query || query.length < 2) {
+  if (!query || query.length < 1) {
     propertySearchResults.value = []
     showPropertyDropdown.value = false
     return
@@ -1660,7 +1660,7 @@ async function searchPropertiesDebounced(query: string) {
 
   searchDebounceTimer = setTimeout(async () => {
     await searchProperties(query)
-  }, 300)
+  }, 150)
 }
 
 async function searchProperties(query: string) {
