@@ -13,7 +13,8 @@ const authStore = useAuthStore()
 const adminCompanyStore = useAdminCompanyStore()
 
 // Force hard refresh on new deployments
-const APP_VERSION = __APP_VERSION__
+declare const __APP_VERSION__: string
+const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1'
 const STORED_VERSION_KEY = 'pg_app_version'
 const storedVersion = localStorage.getItem(STORED_VERSION_KEY)
 if (storedVersion && storedVersion !== APP_VERSION) {
