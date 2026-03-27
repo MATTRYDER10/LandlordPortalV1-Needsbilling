@@ -190,7 +190,7 @@ advance on the 00st day of each month during the Term. The first such payment to
 
 7. ## **Deposit**
 
-   1. The sum of £0,000.00 shall be paid by \[enter name and address of deposit payer\] (‘The Relevant Person’) to the Landlord/Agent upon the signing of this Agreement by way of a security Deposit (‘the Deposit’).
+   1. The sum of £0,000.00 shall be paid by \[DEPOSIT\_PAYER\_NAME\_AND\_ADDRESS\] (‘The Relevant Person’) to the Landlord/Agent upon the signing of this Agreement by way of a security Deposit (‘the Deposit’).
 
    2. Upon the Tenant vacating the Premises and after deduction of all agreed or authorised deductions, the balance of the Deposit shall be refunded to the person or persons outlined at clause 7.1 above.
 

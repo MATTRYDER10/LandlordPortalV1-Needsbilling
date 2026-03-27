@@ -137,6 +137,53 @@
             </div>
           </div>
         </div>
+
+        <!-- Not Found Explainer -->
+        <div v-if="hasNotFoundFlag" class="not-found-explainer">
+          <Info class="info-icon" />
+          <div class="explainer-content">
+            <p class="explainer-title">Why "Not Found"?</p>
+            <p class="explainer-text">
+              This person has no credit file with CreditSafe. This is common for:
+            </p>
+            <ul class="explainer-list">
+              <li>Young adults (under 25) with limited credit history</li>
+              <li>Recent arrivals to the UK</li>
+              <li>People who recently moved and haven't updated electoral roll</li>
+              <li>Those who opted out of the open electoral register</li>
+            </ul>
+            <p class="explainer-note">
+              <strong>This is not a red flag</strong> — verify identity through other documents (passport, driving licence) and consider income/employment evidence.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CreditSafe Verification Details -->
+      <div v-if="creditsafeVerification" class="verification-details">
+        <h4 class="subsection-title">Verification Details</h4>
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Check Performed</span>
+            <span class="detail-value">{{ formatDateTime(creditsafeVerification.verified_at || creditsafeVerification.created_at) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">CreditSafe Status</span>
+            <span :class="['detail-value', 'status-badge', creditsafeVerification.verification_status]">
+              {{ formatStatus(creditsafeVerification.verification_status) }}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Risk Level</span>
+            <span :class="['detail-value', 'risk-badge', creditsafeVerification.risk_level]">
+              {{ creditsafeVerification.risk_level || 'N/A' }}
+            </span>
+          </div>
+          <div v-if="creditsafeVerification.creditsafe_transaction_id" class="detail-item full-width">
+            <span class="detail-label">Transaction ID</span>
+            <span class="detail-value mono">{{ creditsafeVerification.creditsafe_transaction_id }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Address History Match -->
@@ -164,7 +211,8 @@
 </template>
 
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle, AlertCircle, Check, FileText } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle, AlertCircle, Check, FileText, Info } from 'lucide-vue-next'
+import { computed } from 'vue'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 
@@ -186,7 +234,7 @@ interface CreditFlag {
   description?: string
 }
 
-defineProps<{
+const props = defineProps<{
   section: VerificationSection
   isGuarantor: boolean
   tasScore?: number
@@ -202,6 +250,11 @@ defineProps<{
   loading?: boolean
   actionReasonCodes?: ActionReasonCode[]
 }>()
+
+// Check if any credit flag is "Not Found"
+const hasNotFoundFlag = computed(() => {
+  return props.creditFlags?.some(f => f.type === 'Not Found') || false
+})
 
 defineEmits<{
   (e: 'pass', sectionId: string): void
@@ -235,6 +288,28 @@ const formatCurrency = (amount?: number) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
+}
+
+const formatDateTime = (dateString?: string) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const formatStatus = (status?: string) => {
+  if (!status) return 'Unknown'
+  const statusMap: Record<string, string> = {
+    'passed': 'Passed',
+    'failed': 'Failed',
+    'refer': 'Refer (Manual Review)',
+    'error': 'Error'
+  }
+  return statusMap[status] || status
 }
 </script>
 
@@ -613,5 +688,165 @@ const formatCurrency = (amount?: number) => {
   width: 1.25rem;
   height: 1.25rem;
   color: #059669;
+}
+
+/* Not Found Explainer */
+.not-found-explainer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+}
+
+.not-found-explainer .info-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.explainer-content {
+  flex: 1;
+}
+
+.explainer-title {
+  font-weight: 600;
+  color: #1e40af;
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.explainer-text {
+  color: #1e3a8a;
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.explainer-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  color: #1e3a8a;
+  font-size: 0.8125rem;
+}
+
+.explainer-list li {
+  margin-bottom: 0.25rem;
+}
+
+.explainer-note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: #dbeafe;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  color: #1e40af;
+}
+
+/* Verification Details */
+.verification-details {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .details-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 0.875rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.detail-value.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  width: fit-content;
+}
+
+.status-badge.passed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.refer {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.risk-badge.low {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.risk-badge.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.risk-badge.high {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.risk-badge.very_high {
+  background: #fee2e2;
+  color: #991b1b;
 }
 </style>
