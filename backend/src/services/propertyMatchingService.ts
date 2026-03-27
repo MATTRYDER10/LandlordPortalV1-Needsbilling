@@ -256,7 +256,7 @@ export async function searchProperties(
     .select('id, postcode, address_line1_encrypted, address_line2_encrypted, city_encrypted, full_address_encrypted')
     .eq('company_id', companyId)
     .is('deleted_at', null)
-    .limit(50) // Fetch more to filter after decryption
+    .limit(500) // Fetch all to filter after decryption (addresses are encrypted)
 
   if (isPostcodeLike) {
     query = query.ilike('postcode', `%${normalizedSearch}%`)
