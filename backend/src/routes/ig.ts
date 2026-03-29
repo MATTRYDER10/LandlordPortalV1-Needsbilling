@@ -89,20 +89,27 @@ router.get('/assessors', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.post('/appointments', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    console.log('[IG] POST /appointments - body:', JSON.stringify(req.body))
+
     const companyId = await getUserCompanyId(req)
     if (!companyId) {
+      console.error('[IG] No company found for user:', req.user?.id)
       return res.status(404).json({ error: 'Company not found' })
     }
 
+    console.log('[IG] Company ID:', companyId)
+
     const config = await getCompanyIGConfig(companyId)
     if (!config) {
-      return res.status(400).json({ error: 'InventoryGoose is not configured' })
+      console.error('[IG] No IG config for company:', companyId)
+      return res.status(400).json({ error: 'InventoryGoose is not configured for this company. Please add your API key in Settings > Integrations.' })
     }
 
     const { tenancyId, type, scheduledDate, scheduledTime, assessorId } = req.body
 
     if (!tenancyId || !type || !scheduledDate || !scheduledTime) {
-      return res.status(400).json({ error: 'tenancyId, type, scheduledDate, and scheduledTime are required' })
+      console.error('[IG] Missing required fields:', { tenancyId, type, scheduledDate, scheduledTime })
+      return res.status(400).json({ error: `Missing required fields: ${[!tenancyId && 'tenancyId', !type && 'type', !scheduledDate && 'scheduledDate', !scheduledTime && 'scheduledTime'].filter(Boolean).join(', ')}` })
     }
 
     if (!['inventory', 'checkout', 'mid_term'].includes(type)) {
@@ -118,8 +125,11 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
       .single()
 
     if (tenancyError || !tenancy) {
+      console.error('[IG] Tenancy not found:', tenancyId, tenancyError)
       return res.status(404).json({ error: 'Tenancy not found' })
     }
+
+    console.log('[IG] Tenancy found, property_id:', tenancy.property_id)
 
     // Fetch property details
     let propertyData = {
@@ -152,6 +162,18 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
       }
     }
 
+    // Validate property data before sending to IG
+    if (!propertyData.addressLine1 || !propertyData.postcode) {
+      console.error('[IG] Missing property data for tenancy:', tenancyId, {
+        hasPropertyId: !!tenancy.property_id,
+        addressLine1: propertyData.addressLine1 ? '(set)' : '(empty)',
+        postcode: propertyData.postcode ? '(set)' : '(empty)'
+      })
+      return res.status(400).json({
+        error: 'Property address and postcode are required to book an inspection. Please ensure the property has a full address saved.'
+      })
+    }
+
     // Build webhook URLs
     const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`
     const webhookUrl = `${backendUrl}/api/integrations/ig/webhook`
@@ -169,10 +191,20 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
       property: propertyData
     }
 
+    console.log('[IG] Creating appointment with payload:', JSON.stringify({
+      ...payload,
+      property: {
+        addressLine1: payload.property.addressLine1 ? '(set)' : '(empty)',
+        postcode: payload.property.postcode ? '(set)' : '(empty)',
+        city: payload.property.city ? '(set)' : '(empty)'
+      }
+    }))
+
     const result = await createAppointment(config.apiKey, payload)
 
     if (!result.success || !result.data) {
-      return res.status(400).json({ error: result.error || 'Failed to create appointment' })
+      console.error('[IG] InventoryGoose API rejected appointment:', result.error)
+      return res.status(400).json({ error: result.error || 'Failed to create appointment in InventoryGoose' })
     }
 
     // Store in ig_appointments table

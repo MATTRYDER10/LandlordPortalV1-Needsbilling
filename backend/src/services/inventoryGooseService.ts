@@ -82,6 +82,7 @@ async function igFetch<T = any>(
 
     if (!response.ok) {
       const errorMessage = responseData?.message || `IG API error: ${response.status}`
+      console.error(`[IG] API ${method} ${endpoint} failed:`, response.status, JSON.stringify(responseData))
       return { success: false, error: errorMessage, statusCode: response.status }
     }
 
