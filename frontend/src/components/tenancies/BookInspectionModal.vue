@@ -212,7 +212,7 @@ async function fetchAssessors() {
   loadingAssessors.value = true
   try {
     const response = await authFetch(`${API_URL}/api/ig/assessors`, {
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
     if (response.ok) {
       const data = await response.json()
@@ -231,7 +231,7 @@ async function handleSubmit() {
   try {
     const response = await authFetch(`${API_URL}/api/ig/appointments`, {
       method: 'POST',
-      token: authStore.token || undefined,
+      token: authStore.session?.access_token || undefined,
       body: JSON.stringify({
         tenancyId: props.tenancyId,
         type: form.value.type,
