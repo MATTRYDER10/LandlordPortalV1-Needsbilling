@@ -36,6 +36,8 @@ export interface IGAppointmentPayload {
     bedrooms?: number
     bathrooms?: number
     propertyType?: string
+    tenants?: Array<{ name: string; email: string }>
+    landlords?: Array<{ name: string; email: string }>
   }
 }
 

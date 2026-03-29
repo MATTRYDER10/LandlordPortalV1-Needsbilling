@@ -132,24 +132,38 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
     console.log('[IG] Tenancy found, property_id:', tenancy.property_id)
 
     // Fetch property details
-    let propertyData = {
+    let propertyData: any = {
       addressLine1: '',
       addressLine2: '',
       city: '',
       postcode: '',
       bedrooms: 0,
       bathrooms: 0,
-      propertyType: ''
+      propertyType: '',
+      tenants: [],
+      landlords: []
     }
 
     if (tenancy.property_id) {
       const { data: property } = await supabase
         .from('properties')
-        .select('id, address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode, number_of_bedrooms, number_of_bathrooms, property_type')
+        .select('id, address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode, number_of_bedrooms, number_of_bathrooms, property_type, landlords')
         .eq('id', tenancy.property_id)
         .single()
 
       if (property) {
+        // Decrypt landlord details
+        const landlords: Array<{ name: string; email: string }> = []
+        if (property.landlords && Array.isArray(property.landlords)) {
+          for (const ll of property.landlords) {
+            const name = ll.name || ''
+            const email = ll.email || ''
+            if (name || email) {
+              landlords.push({ name, email })
+            }
+          }
+        }
+
         propertyData = {
           addressLine1: property.address_line1_encrypted ? (decrypt(property.address_line1_encrypted) || '') : '',
           addressLine2: property.address_line2_encrypted ? (decrypt(property.address_line2_encrypted) || '') : '',
@@ -157,9 +171,29 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
           postcode: property.postcode || '',
           bedrooms: property.number_of_bedrooms || 0,
           bathrooms: property.number_of_bathrooms || 0,
-          propertyType: property.property_type || ''
+          propertyType: property.property_type || '',
+          landlords
         }
       }
+    }
+
+    // Fetch tenant details for this tenancy
+    const { data: tenantRows } = await supabase
+      .from('tenancy_tenants')
+      .select('first_name_encrypted, last_name_encrypted, email_encrypted, status')
+      .eq('tenancy_id', tenancyId)
+      .in('status', ['active', 'pending'])
+
+    if (tenantRows && tenantRows.length > 0) {
+      propertyData.tenants = tenantRows
+        .map((t: any) => {
+          const firstName = t.first_name_encrypted ? (decrypt(t.first_name_encrypted) || '') : ''
+          const lastName = t.last_name_encrypted ? (decrypt(t.last_name_encrypted) || '') : ''
+          const email = t.email_encrypted ? (decrypt(t.email_encrypted) || '') : ''
+          const name = [firstName, lastName].filter(Boolean).join(' ')
+          return { name, email }
+        })
+        .filter((t: any) => t.name || t.email)
     }
 
     // Validate property data before sending to IG
