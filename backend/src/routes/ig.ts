@@ -188,7 +188,7 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
     // Fetch tenant details for this tenancy
     const { data: tenantRows, error: tenantError } = await supabase
       .from('tenancy_tenants')
-      .select('first_name_encrypted, last_name_encrypted, email_encrypted, status')
+      .select('tenant_name_encrypted, tenant_email_encrypted, status')
       .eq('tenancy_id', tenancyId)
       .eq('status', 'active')
 
@@ -197,10 +197,8 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
     if (tenantRows && tenantRows.length > 0) {
       propertyData.tenants = tenantRows
         .map((t: any) => {
-          const firstName = t.first_name_encrypted ? (decrypt(t.first_name_encrypted) || '') : ''
-          const lastName = t.last_name_encrypted ? (decrypt(t.last_name_encrypted) || '') : ''
-          const email = t.email_encrypted ? (decrypt(t.email_encrypted) || '') : ''
-          const name = [firstName, lastName].filter(Boolean).join(' ')
+          const name = t.tenant_name_encrypted ? (decrypt(t.tenant_name_encrypted) || '') : ''
+          const email = t.tenant_email_encrypted ? (decrypt(t.tenant_email_encrypted) || '') : ''
           return { name, email }
         })
         .filter((t: any) => t.name || t.email)
