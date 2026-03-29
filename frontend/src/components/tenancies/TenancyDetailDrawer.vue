@@ -3153,7 +3153,7 @@ async function fetchInspections() {
   loadingInspections.value = true
   try {
     const response = await authFetch(`${API_URL}/api/ig/appointments/${props.tenancy.id}`, {
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
     if (response.ok) {
       const data = await response.json()
@@ -3182,7 +3182,7 @@ async function confirmCancelInspection() {
   try {
     const response = await authFetch(`${API_URL}/api/ig/appointments/${selectedInspection.value.id}`, {
       method: 'DELETE',
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
     if (response.ok) {
       showCancelInspectionModal.value = false
@@ -3199,7 +3199,7 @@ async function confirmCancelInspection() {
 async function downloadInspectionReport(reportId: string) {
   try {
     const response = await authFetch(`${API_URL}/api/ig/reports/${reportId}/pdf`, {
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
     if (response.ok) {
       const blob = await response.blob()
