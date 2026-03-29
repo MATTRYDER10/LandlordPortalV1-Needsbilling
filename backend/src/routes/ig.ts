@@ -147,33 +147,41 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
     if (tenancy.property_id) {
       const { data: property } = await supabase
         .from('properties')
-        .select('id, address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode, number_of_bedrooms, number_of_bathrooms, property_type, landlords')
+        .select('id, address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode, number_of_bedrooms, number_of_bathrooms, property_type')
         .eq('id', tenancy.property_id)
         .single()
 
       if (property) {
-        // Decrypt landlord details
-        const landlords: Array<{ name: string; email: string }> = []
-        if (property.landlords && Array.isArray(property.landlords)) {
-          for (const ll of property.landlords) {
-            const name = ll.name || ''
-            const email = ll.email || ''
-            if (name || email) {
-              landlords.push({ name, email })
-            }
-          }
-        }
-
         propertyData = {
+          ...propertyData,
           addressLine1: property.address_line1_encrypted ? (decrypt(property.address_line1_encrypted) || '') : '',
           addressLine2: property.address_line2_encrypted ? (decrypt(property.address_line2_encrypted) || '') : '',
           city: property.city_encrypted ? (decrypt(property.city_encrypted) || '') : '',
           postcode: property.postcode || '',
           bedrooms: property.number_of_bedrooms || 0,
           bathrooms: property.number_of_bathrooms || 0,
-          propertyType: property.property_type || '',
-          landlords
+          propertyType: property.property_type || ''
         }
+      }
+
+      // Fetch landlords via join table
+      const { data: propertyLandlords } = await supabase
+        .from('property_landlords')
+        .select('landlord_id, landlords(first_name_encrypted, last_name_encrypted, email_encrypted)')
+        .eq('property_id', tenancy.property_id)
+
+      if (propertyLandlords && propertyLandlords.length > 0) {
+        propertyData.landlords = propertyLandlords
+          .map((pl: any) => {
+            const ll = pl.landlords
+            if (!ll) return null
+            const firstName = ll.first_name_encrypted ? (decrypt(ll.first_name_encrypted) || '') : ''
+            const lastName = ll.last_name_encrypted ? (decrypt(ll.last_name_encrypted) || '') : ''
+            const email = ll.email_encrypted ? (decrypt(ll.email_encrypted) || '') : ''
+            const name = [firstName, lastName].filter(Boolean).join(' ')
+            return (name || email) ? { name, email } : null
+          })
+          .filter(Boolean)
       }
     }
 
