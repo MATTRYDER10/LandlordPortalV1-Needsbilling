@@ -186,11 +186,13 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
     }
 
     // Fetch tenant details for this tenancy
-    const { data: tenantRows } = await supabase
+    const { data: tenantRows, error: tenantError } = await supabase
       .from('tenancy_tenants')
       .select('first_name_encrypted, last_name_encrypted, email_encrypted, status')
       .eq('tenancy_id', tenancyId)
-      .in('status', ['active', 'pending'])
+      .eq('status', 'active')
+
+    console.log('[IG] Tenant query result:', tenantRows?.length || 0, 'rows, error:', tenantError?.message || 'none')
 
     if (tenantRows && tenantRows.length > 0) {
       propertyData.tenants = tenantRows
@@ -202,6 +204,7 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
           return { name, email }
         })
         .filter((t: any) => t.name || t.email)
+      console.log('[IG] Tenants resolved:', propertyData.tenants.length)
     }
 
     // Validate property data before sending to IG
