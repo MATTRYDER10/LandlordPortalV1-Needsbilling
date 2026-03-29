@@ -236,7 +236,7 @@ function formatDate(dateStr: string): string {
 async function fetchStatus() {
   try {
     const response = await authFetch(`${API_URL}/api/settings/ig`, {
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
     if (response.ok) {
       status.value = await response.json()
@@ -254,7 +254,7 @@ async function handleSaveApiKey() {
   try {
     const response = await authFetch(`${API_URL}/api/settings/ig`, {
       method: 'POST',
-      token: authStore.token || undefined,
+      token: authStore.session?.access_token || undefined,
       body: JSON.stringify({ apiKey: apiKeyInput.value.trim() })
     })
 
@@ -281,7 +281,7 @@ async function handleTestConnection() {
   try {
     const response = await authFetch(`${API_URL}/api/settings/ig/test`, {
       method: 'POST',
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
 
     const data = await response.json()
@@ -304,7 +304,7 @@ async function handleRemoveIntegration() {
   try {
     const response = await authFetch(`${API_URL}/api/settings/ig`, {
       method: 'DELETE',
-      token: authStore.token || undefined
+      token: authStore.session?.access_token || undefined
     })
 
     if (response.ok) {
