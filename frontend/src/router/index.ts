@@ -455,12 +455,6 @@ const router = createRouter({
       ]
     },
     {
-      path: '/rentgoose',
-      name: 'RentGoose',
-      component: () => import('../views/RentGoose.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/help-centre',
       name: 'HelpCentre',
       component: HelpCentre,
