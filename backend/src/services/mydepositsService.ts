@@ -4,8 +4,8 @@ import crypto from 'crypto'
 
 // mydeposits API endpoints
 const MYDEPOSITS_API_ENDPOINTS = {
-  sandbox: 'https://api.sandbox.totalproperty.co.uk/totalproperty',
-  live: 'https://api.totalproperty.co.uk/totalproperty'
+  sandbox: 'https://gtw.sandbox.totalproperty.co.uk/rs/api',
+  live: 'https://gtw.totalproperty.co.uk/rs/api'
 }
 
 // OAuth endpoints
