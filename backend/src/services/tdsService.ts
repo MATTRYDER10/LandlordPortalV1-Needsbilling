@@ -289,6 +289,18 @@ export function mapTenancyToTDSPayload(
   const addressParts = parseAddressLine(property.address_line1 || '')
   console.log('[TDS] Parsed property address:', { input: property.address_line1, result: addressParts })
 
+  // Normalize title to meet TDS 3-100 char requirement (alphanumeric, period, hyphen)
+  function normalizeTDSTitle(title?: string): string {
+    const t = (title || '').trim()
+    const titleMap: Record<string, string> = {
+      'mr': 'Mr.', 'ms': 'Ms.', 'mrs': 'Mrs', 'miss': 'Miss',
+      'dr': 'Dr.', 'prof': 'Prof', 'rev': 'Rev'
+    }
+    const mapped = titleMap[t.toLowerCase()] || t
+    // Must be 3+ chars — pad with period if needed
+    return mapped.length >= 3 ? mapped : 'Mr.'
+  }
+
   // Build people array
   const people: PersonObject[] = []
 
@@ -320,7 +332,7 @@ export function mapTenancyToTDSPayload(
 
     people.push({
       person_classification: isPrimary ? 'Primary Landlord' : 'Joint Landlord',
-      person_title: landlord.title || 'Mr',
+      person_title: normalizeTDSTitle(landlord.title),
       person_firstname: decrypt(landlord.first_name_encrypted) || landlord.first_name || '',
       person_surname: decrypt(landlord.last_name_encrypted) || landlord.last_name || '',
       person_email: decrypt(landlord.email_encrypted) || landlord.email || '',
@@ -361,7 +373,7 @@ export function mapTenancyToTDSPayload(
 
     people.push({
       person_classification: isLead ? 'Lead Tenant' : 'Joint Tenant',
-      person_title: tenant.title || 'Mr',
+      person_title: normalizeTDSTitle(tenant.title),
       person_firstname: tenantFirstName,
       person_surname: tenantLastName,
       person_email: tenantEmail,

@@ -80,7 +80,7 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label for="admin-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Supplier ID *</label>
+              <label for="admin-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key (Supplier ID) *</label>
               <input
                 id="admin-supplier-id"
                 v-model="configForm.supplierId"
@@ -90,8 +90,9 @@
                 data-lpignore="true"
                 data-1p-ignore
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-                placeholder="org_xxxxx"
+                placeholder="rp_live_xxxxx"
               />
+              <p class="mt-1 text-xs text-gray-500">The rp_live_ key from Reposit — identifies the agent/supplier</p>
               <p v-if="companyConfig?.supplierId" class="mt-1 text-xs text-gray-500">Current: {{ companyConfig.supplierId }}</p>
             </div>
 
@@ -109,7 +110,7 @@
           </div>
 
           <div>
-            <label for="admin-referrer-token" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Referrer Token</label>
+            <label for="admin-referrer-token" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Referrer Token (PropertyGoose)</label>
             <div class="mt-1 relative">
               <input
                 id="admin-referrer-token"
@@ -119,7 +120,7 @@
                 data-lpignore="true"
                 data-1p-ignore
                 class="block w-full px-3 py-2 pr-20 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-                :placeholder="companyConfig?.maskedReferrerToken || 'Enter Referrer Token'"
+                :placeholder="companyConfig?.maskedReferrerToken || 'propertygoose_live_xxxxx'"
               />
               <button
                 type="button"
@@ -134,7 +135,7 @@
           </div>
 
           <div>
-            <label for="admin-api-key" class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key</label>
+            <label for="admin-api-key" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account ID (Agent Org)</label>
             <div class="mt-1 relative">
               <input
                 id="admin-api-key"
@@ -144,7 +145,7 @@
                 data-lpignore="true"
                 data-1p-ignore
                 class="block w-full px-3 py-2 pr-20 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-                :placeholder="companyConfig?.maskedApiKey || 'Enter API Key (or agent can enter theirs)'"
+                :placeholder="companyConfig?.maskedApiKey || 'org_xxxxx'"
               />
               <button
                 type="button"
@@ -155,7 +156,7 @@
                 <EyeOff v-else class="w-4 h-4" />
               </button>
             </div>
-            <p class="mt-1 text-xs text-gray-500">Optional — the agent can enter this themselves from their Settings page</p>
+            <p class="mt-1 text-xs text-gray-500">Optional — the org_xxxxx Account ID from Reposit</p>
           </div>
 
           <!-- Actions -->

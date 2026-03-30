@@ -119,8 +119,8 @@ export async function testConnection(config: RepositConfig): Promise<{ success: 
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    // Test using GET /deposits/v1/suppliers/me endpoint
-    const url = `${baseUrl}/deposits/v1/suppliers/me`
+    // Test using GET /deposits/v1/suppliers/<supplierId>/agents endpoint
+    const url = `${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`
 
     console.log('[Reposit] Testing connection with GET request to:', url)
 
@@ -166,7 +166,7 @@ export async function getSupplierInfo(config: RepositConfig): Promise<{ success:
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    const response = await fetch(`${baseUrl}/deposits/v1/suppliers/me`, {
+    const response = await fetch(`${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`, {
       method: 'GET',
       headers: buildHeaders(config)
     })
@@ -190,26 +190,12 @@ export async function getSupplierAgents(config: RepositConfig): Promise<{ succes
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    // First get the supplier to find their ID
-    const supplierUrl = `${baseUrl}/deposits/v1/suppliers/me`
-    const supplierResponse = await fetch(supplierUrl, {
-      method: 'GET',
-      headers: buildHeaders(config)
-    })
-
-    if (!supplierResponse.ok) {
-      return { success: false, error: 'Failed to get supplier info' }
-    }
-
-    const supplier = await supplierResponse.json() as { id?: string }
-    const supplierId = supplier.id || config.supplierId
-
-    if (!supplierId) {
-      return { success: false, error: 'Supplier ID not found' }
+    if (!config.supplierId) {
+      return { success: false, error: 'Supplier ID not configured' }
     }
 
     // Get agents for this supplier
-    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${supplierId}/agents`
+    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`
     console.log('[Reposit] Fetching agents from:', agentsUrl)
 
     const response = await fetch(agentsUrl, {
