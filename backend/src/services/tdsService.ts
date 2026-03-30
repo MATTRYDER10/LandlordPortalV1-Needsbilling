@@ -104,10 +104,21 @@ export async function getCompanyTDSConfig(companyId: string): Promise<TDSConfig 
     return null
   }
 
-  const apiKey = decrypt(data.tds_api_key_encrypted)
+  // Try decrypt first, fall back to using raw value if it looks like a plain API key
+  let apiKey = decrypt(data.tds_api_key_encrypted)
   if (!apiKey) {
-    return null
+    // Maybe it's stored as plaintext
+    const raw = data.tds_api_key_encrypted
+    if (raw && raw.includes('-') && raw.length < 100) {
+      console.log('[TDS] decrypt returned null — using raw value as plaintext API key')
+      apiKey = raw
+    } else {
+      console.error('[TDS] decrypt returned null and raw value does not look like a plaintext key')
+      return null
+    }
   }
+
+  console.log('[TDS getConfig] companyId:', companyId, '| memberId:', data.tds_member_id, '| branchId:', data.tds_branch_id, '| env:', data.tds_environment, '| apiKey first4:', apiKey.substring(0, 4), '| last4:', apiKey.substring(apiKey.length - 4), '| length:', apiKey.length)
 
   return {
     apiKey,
@@ -126,46 +137,30 @@ export async function testConnection(config: TDSConfig): Promise<{ success: bool
   config.memberId = config.memberId.trim()
   config.branchId = config.branchId.trim()
 
-  // Use versioned endpoint - /v1.2/ prefix is required for all TDS API endpoints
+  // Use versioned endpoint - /v1.2/ prefix required for all TDS endpoints
   const baseUrl = TDS_ENDPOINTS[config.environment]
 
   try {
-    // Test by sending a minimal POST to CreateDeposit with just auth fields
-    // If credentials are valid, TDS returns a validation error (missing tenancy data) — NOT a 403
-    // If credentials are invalid, TDS returns 403
-    const url = `${baseUrl}/CreateDeposit`
+    // Test using GET /v1.2/landlord/<member_id>/<branch_id>/<api_key>/
+    // Returns 200 with isSuccess:true and landlord list on valid credentials
+    // Returns 403 on invalid credentials
+    const url = `${baseUrl}/landlord/${config.memberId}/${config.branchId}/${config.apiKey}/`
 
-    const testPayload = {
-      member_id: config.memberId,
-      branch_id: config.branchId,
-      api_key: config.apiKey,
-      region: 'EW',
-      scheme_type: 'Custodial',
-      tenancy: []  // Empty tenancy array - will trigger validation error, not auth error
-    }
-
-    console.log('[TDS] Testing connection with POST to:', url)
+    console.log('[TDS] Testing connection with GET to:', url.replace(config.apiKey, '***'))
     console.log('[TDS] Config:', { memberId: config.memberId, branchId: config.branchId, environment: config.environment })
-    console.log('[TDS] API key length:', config.apiKey.length, '| first 4:', config.apiKey.substring(0, 4), '| last 4:', config.apiKey.substring(config.apiKey.length - 4))
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'User-Agent': 'PropertyGoose/1.0'
-      },
-      body: JSON.stringify(testPayload)
+      }
     })
 
     const responseText = await response.text()
-
-    console.log('[TDS] Response status:', response.status, response.statusText)
-    console.log('[TDS] Response body:', responseText.substring(0, 500))
+    console.log('[TDS] Response status:', response.status)
 
     if (!responseText || responseText.trim() === '') {
-      if (response.ok) {
-        return { success: true, message: 'Connection successful' }
-      }
+      if (response.ok) return { success: true, message: 'Connection successful' }
       return { success: false, message: `TDS API returned empty response (status ${response.status})` }
     }
 
@@ -173,58 +168,26 @@ export async function testConnection(config: TDSConfig): Promise<{ success: bool
     try {
       data = JSON.parse(responseText)
     } catch {
-      console.error('[TDS] API returned non-JSON response:', responseText.substring(0, 200))
       return { success: false, message: `TDS API returned invalid response: ${responseText.substring(0, 100)}` }
     }
 
-    console.log('[TDS] Parsed response:', JSON.stringify(data).substring(0, 500))
-
-    // Per TDS API docs page 13, auth failures return:
-    // { "error": "Invalid authentication key", "success": "false" }
-    // { "success": false, "errors": "Member is not part of a valid scheme" }
-    const successVal = data.success
-    const isSuccess = successVal === true || successVal === 'true'
-    const isFailed = successVal === false || successVal === 'false'
-
-    if (isFailed) {
-      const errorMsg = data.error || data.errors || 'Unknown error'
-      const errorStr = typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)
-
-      // Check if it's an auth error vs a validation error
-      const lowerError = errorStr.toLowerCase()
-      if (lowerError.includes('authentication') || lowerError.includes('invalid authentication') ||
-          lowerError.includes('not part of a valid scheme')) {
-        return { success: false, message: `Authentication failed: ${errorStr}` }
-      }
-
-      // Any other error with success:false but NOT auth-related means credentials worked
-      // but the test payload was rejected for validation reasons (expected)
-      console.log('[TDS] Got validation error (not auth) — credentials are valid!')
-      return { success: true, message: 'Connection successful — credentials verified' }
-    }
-
-    // If success:true, we got a batch_id back (unlikely with empty tenancy, but handle it)
-    if (isSuccess) {
-      return { success: true, message: 'Connection successful' }
-    }
-
-    // HTTP error status codes
+    // 403 = auth failed
     if (response.status === 403) {
-      return { success: false, message: 'Authentication failed: The request could not be authenticated' }
+      const errorMsg = data.errors ?
+        (typeof data.errors === 'string' ? data.errors :
+         Array.isArray(data.errors) ? data.errors.map((e: any) => e.value || e.name).join(', ') :
+         Object.values(data.errors).join(', ')) :
+        'The request could not be authenticated'
+      return { success: false, message: `Authentication failed: ${errorMsg}` }
     }
 
-    if (response.status === 400) {
-      // 400 with "Invalid JSON" means the request reached the server — credentials likely fine
-      const errMsg = data.errors || data.error || ''
-      if (typeof errMsg === 'string' && errMsg.includes('Invalid JSON')) {
-        return { success: false, message: 'TDS API rejected the request format' }
-      }
-      // Other 400 errors after auth passed = credentials valid
-      console.log('[TDS] Got 400 after auth check — credentials are valid!')
-      return { success: true, message: 'Connection successful — credentials verified' }
-    }
-
+    // 200 = credentials valid
     if (response.ok) {
+      if (data.isSuccess === true || data.isSuccess === 'true' ||
+          data.success === true || data.success === 'true' ||
+          data.totalResults !== undefined || data.landlords) {
+        return { success: true, message: 'Connection successful' }
+      }
       return { success: true, message: 'Connection successful' }
     }
 
