@@ -22,12 +22,12 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Multi-branch support
+  // Multi-branch support — activeBranchId is in-memory only, derived from DB on each login
   const branches = ref<Branch[]>([])
-  const activeBranchId = ref<string | null>(localStorage.getItem('activeBranchId'))
+  const activeBranchId = ref<string | null>(null)
   const hasMultipleBranches = computed(() => branches.value.length > 1)
 
-  // Fetch all branches for the user
+  // Fetch all branches for the user from the database
   const fetchBranches = async () => {
     try {
       const token = session.value?.access_token
@@ -44,24 +44,26 @@ export const useAuthStore = defineStore('auth', () => {
         const data = await response.json()
         branches.value = data.branches || []
 
-        // If user has only one branch and no active branch set, auto-select it
+        // If current activeBranchId doesn't match any branch, clear it
+        if (activeBranchId.value && !branches.value.find(b => b.id === activeBranchId.value)) {
+          activeBranchId.value = null
+        }
+
+        // Single branch: auto-select it immediately
         if (branches.value.length === 1 && !activeBranchId.value) {
           setActiveBranch(branches.value[0]!.id)
         }
-
-        // If activeBranchId doesn't match any branch, clear it
-        if (activeBranchId.value && !branches.value.find(b => b.id === activeBranchId.value)) {
-          clearActiveBranch()
-        }
+        // Multiple branches with no selection: leave null — router guard will redirect to branch selector
       }
     } catch (err) {
       console.error('Failed to fetch branches:', err)
     }
   }
 
-  // Set the active branch
+  // Set the active branch (called from BranchSelector or auto-select)
   const setActiveBranch = (branchId: string) => {
     activeBranchId.value = branchId
+    // Mirror to localStorage for components that read it directly via fetch headers
     localStorage.setItem('activeBranchId', branchId)
 
     // Update the company ref with the active branch details
@@ -92,7 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
         'Content-Type': 'application/json'
       }
 
-      // Include active branch ID if set
+      // Include active branch ID if set (from in-memory state, not localStorage)
       if (activeBranchId.value) {
         headers['X-Branch-Id'] = activeBranchId.value
       }
@@ -271,6 +273,7 @@ export const useAuthStore = defineStore('auth', () => {
           isAdmin.value = false
           branches.value = []
           activeBranchId.value = null
+          localStorage.removeItem('activeBranchId')
         }
       })
     } catch (err: any) {

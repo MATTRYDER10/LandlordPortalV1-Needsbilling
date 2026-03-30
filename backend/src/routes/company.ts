@@ -62,7 +62,7 @@ router.post('/add-branch-user', authenticateToken, async (req: AuthRequest, res)
       query = query.eq('company_id', branchId)
     }
 
-    const { data: currentUserCompanies } = await query.limit(1)
+    const { data: currentUserCompanies } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (!currentUserCompanies || currentUserCompanies.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -197,7 +197,7 @@ router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
       query = query.eq('company_id', branchId)
     }
 
-    const { data: companyUsers, error: companyUserError } = await query.limit(1)
+    const { data: companyUsers, error: companyUserError } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (companyUserError || !companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -256,7 +256,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       query = query.eq('company_id', branchId)
     }
 
-    const { data: companyUsers, error: companyUserError } = await query.limit(1)
+    const { data: companyUsers, error: companyUserError } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (companyUserError || !companyUsers || companyUsers.length === 0) {
       console.error('Company lookup error for user', userId, ':', companyUserError)
@@ -352,7 +352,7 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
       query = query.eq('company_id', branchId)
     }
 
-    const { data: companyUsers } = await query.limit(1)
+    const { data: companyUsers } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -411,7 +411,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const branchId = req.headers['x-branch-id'] as string | undefined
-    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email, management_info } = req.body
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email, management_info, is_vat_registered, vat_number } = req.body
 
     // Debug logging
     console.log('Company update request body:', { name, address, city, postcode, phone, email, website, bank_account_name, bank_account_number, bank_sort_code })
@@ -426,7 +426,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       query = query.eq('company_id', branchId)
     }
 
-    const { data: companyUsers } = await query.limit(1)
+    const { data: companyUsers } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -468,6 +468,8 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     if (bank_account_number !== undefined) updateData.bank_account_number = bank_account_number || null
     if (bank_sort_code !== undefined) updateData.bank_sort_code = bank_sort_code || null
     if (management_info !== undefined) updateData.management_info = management_info || null
+    if (is_vat_registered !== undefined) updateData.is_vat_registered = is_vat_registered
+    if (vat_number !== undefined) updateData.vat_number = vat_number || null
 
     console.log('Updating company with fields:', Object.keys(updateData))
 
@@ -552,7 +554,7 @@ router.get('/members', authenticateToken, async (req: AuthRequest, res) => {
       query = query.eq('company_id', branchId)
     }
 
-    const { data: companyUsers } = await query.limit(1)
+    const { data: companyUsers } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -619,7 +621,7 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
       query = query.eq('company_id', branchId)
     }
 
-    const { data: currentUserCompanies } = await query.limit(1)
+    const { data: currentUserCompanies } = await query.order('created_at', { ascending: true }).limit(1)
 
     if (!currentUserCompanies || currentUserCompanies.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
