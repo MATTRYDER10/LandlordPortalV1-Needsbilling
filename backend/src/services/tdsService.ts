@@ -105,7 +105,7 @@ export async function getCompanyTDSConfig(companyId: string): Promise<TDSConfig 
   }
 
   // Try decrypt first, fall back to using raw value if it looks like a plain API key
-  let apiKey = decrypt(data.tds_api_key_encrypted)
+  let apiKey: string = decrypt(data.tds_api_key_encrypted) || ''
   if (!apiKey) {
     // Maybe it's stored as plaintext
     const raw = data.tds_api_key_encrypted
