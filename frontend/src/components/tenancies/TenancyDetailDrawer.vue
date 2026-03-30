@@ -3662,7 +3662,7 @@ const managementTypeLabel = computed(() => {
 function formatTDSError(rawError: string): string {
   if (!rawError) return 'TDS registration failed. Please try again.'
   const lower = rawError.toLowerCase()
-  if (lower.includes('same as the email') || lower.includes('duplicate') || lower.includes('already exists'))
+  if (lower.includes('same as the email') || lower.includes('duplicate') || lower.includes('already exists') || lower.includes('already in use'))
     return 'Email address must be unique for each contact. Please check tenant and landlord emails are different.'
   if (lower.includes('postcode') || lower.includes('post code'))
     return 'Invalid postcode provided. Please check the property and tenant postcodes.'

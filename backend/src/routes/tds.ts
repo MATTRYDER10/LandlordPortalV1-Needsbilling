@@ -601,9 +601,10 @@ router.get('/custodial/deposit-status/:batchId', authenticateToken, async (req: 
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Poll TDS multiple times per request (40 attempts, 5 seconds apart = ~3.5 minutes max)
+    // Poll TDS a few times per request (5 attempts, 3 seconds apart = ~15s max)
+    // Frontend retries every 30s, so keep this short to avoid Railway timeout
     console.log('[TDS Custodial] Starting polling for batchId:', batchId)
-    const statusResult = await pollDepositStatus(companyId, batchId, 40, 5000)
+    const statusResult = await pollDepositStatus(companyId, batchId, 5, 3000)
 
     console.log('[TDS Custodial] pollDepositStatus result:', JSON.stringify(statusResult))
 
@@ -1020,6 +1021,41 @@ router.get('/registration/:tenancyId', authenticateToken, async (req: AuthReques
       return res.json({ registration: null })
     }
 
+    // Auto-resolve stale pending registrations (>10 min old) by checking TDS
+    if (registration.status === 'pending' && registration.batch_id && registration.created_at) {
+      const ageMs = Date.now() - new Date(registration.created_at).getTime()
+      if (ageMs > 10 * 60 * 1000) {
+        console.log(`[TDS Registration] Stale pending registration (${Math.round(ageMs / 60000)}min), checking TDS...`)
+        try {
+          const statusResult = await pollDepositStatus(companyId, registration.batch_id, 1, 0)
+          if (statusResult.success && statusResult.dan) {
+            // TDS completed — update our record
+            await supabase.from('tds_registrations').update({
+              dan: statusResult.dan,
+              status: 'registered',
+              raw_response: statusResult.rawResponse,
+              updated_at: new Date().toISOString()
+            }).eq('id', registration.id)
+            registration.dan = statusResult.dan
+            registration.status = 'registered'
+            console.log(`[TDS Registration] Stale record resolved — DAN: ${statusResult.dan}`)
+          } else if (statusResult.status === 'failed') {
+            // TDS failed — mark as failed so user can retry
+            await supabase.from('tds_registrations').update({
+              status: 'failed',
+              error_message: statusResult.error || 'Registration failed on TDS',
+              updated_at: new Date().toISOString()
+            }).eq('id', registration.id)
+            registration.status = 'failed'
+            registration.error_message = statusResult.error || 'Registration failed on TDS'
+            console.log(`[TDS Registration] Stale record marked failed: ${statusResult.error}`)
+          }
+        } catch (pollErr) {
+          console.error('[TDS Registration] Error checking stale registration:', pollErr)
+        }
+      }
+    }
+
     let registeredByName = 'Unknown'
     if (registration.registered_by) {
       const { data: userData } = await supabase.auth.admin.getUserById(registration.registered_by)
@@ -1178,8 +1214,8 @@ router.get('/deposit-status/:batchId', authenticateToken, async (req: AuthReques
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Poll TDS multiple times per request (40 attempts, 5 seconds apart = ~3.5 minutes max)
-    const statusResult = await pollDepositStatus(companyId, batchId, 40, 5000)
+    // Poll TDS a few times per request (5 attempts, 3 seconds apart = ~15s max)
+    const statusResult = await pollDepositStatus(companyId, batchId, 5, 3000)
 
     if (statusResult.success && statusResult.dan) {
       if (tenancyId) {

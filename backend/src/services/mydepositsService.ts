@@ -347,7 +347,7 @@ export async function testConnection(
   }
 
   try {
-    const testUrl = `${baseUrl}/${API_VERSION}/deposits`
+    const testUrl = `${baseUrl}/${API_VERSION}/properties?take=1&pageSize=1`
     console.log(`[mydeposits] Test: GET ${testUrl}`)
     const response = await fetch(testUrl, {
       method: 'GET',

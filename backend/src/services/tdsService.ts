@@ -370,6 +370,28 @@ export function mapTenancyToTDSPayload(
     })
   })
 
+  // Deduplicate emails — TDS requires unique emails across all people in a tenancy
+  const usedEmails = new Set<string>()
+  for (const person of people) {
+    if (!person.person_email) continue
+    const emailLower = person.person_email.toLowerCase().trim()
+    if (usedEmails.has(emailLower)) {
+      // Duplicate email — if person has a mobile, drop the email; otherwise add +N suffix
+      if (person.person_mobile) {
+        console.log(`[TDS] Removing duplicate email for ${person.person_classification} (has mobile)`)
+        delete person.person_email
+      } else {
+        const suffix = `+tds${usedEmails.size}@`
+        const uniqueEmail = person.person_email.replace('@', suffix)
+        console.log(`[TDS] Adding suffix to duplicate email for ${person.person_classification}`)
+        person.person_email = uniqueEmail
+        usedEmails.add(uniqueEmail.toLowerCase())
+      }
+    } else {
+      usedEmails.add(emailLower)
+    }
+  }
+
   // Build payload - validate furnished status
   const validFurnishedStatuses = ['furnished', 'part furnished', 'unfurnished'] as const
   const normalizedFurnishedStatus = validFurnishedStatuses.includes(furnishedStatus as any)
@@ -415,7 +437,7 @@ export function mapTenancyToTDSPayload(
   }
 
   const payload: TenancyPayload = {
-    user_tenancy_reference: tenancy.id,
+    user_tenancy_reference: `${tenancy.id.substring(0, 8)}-${Date.now()}`,
     property_paon: propertyPaon,
     property_street: propertyStreet,
     property_town: propertyTown,
