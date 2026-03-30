@@ -781,9 +781,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Multi-branch check: If user has multiple branches but none selected, redirect to selector
-  // Skip this check for public/auth pages and the branch selector itself
   const isBranchSelector = to.path === '/select-branch'
-  const isPublicPath = ['/login', '/signup', '/forgot-password', '/reset-password', '/accept-invite'].some(p => to.path.startsWith(p))
   if (isAuthenticated && !authStore.isStaff && !isBranchSelector && !isPublicPath) {
     // If branches are loaded and user has multiple but no active one selected
     if (authStore.hasMultipleBranches && !authStore.activeBranchId) {
