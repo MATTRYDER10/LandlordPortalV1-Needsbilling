@@ -520,7 +520,7 @@ const custodialForm = ref({
   memberId: '',
   branchId: '0',
   apiKey: '',
-  environment: 'sandbox'
+  environment: 'live'
 })
 const showCustodialApiKey = ref(false)
 const custodialSaving = ref(false)
@@ -743,7 +743,7 @@ const cancelCustodialEdit = () => {
   if (custodialStatus.value) {
     custodialForm.value.memberId = custodialStatus.value.memberId || ''
     custodialForm.value.branchId = custodialStatus.value.branchId || '0'
-    custodialForm.value.environment = custodialStatus.value.environment || 'sandbox'
+    custodialForm.value.environment = custodialStatus.value.environment || 'live'
   }
   custodialForm.value.apiKey = ''
 }
@@ -819,7 +819,7 @@ const removeCustodialIntegration = async () => {
         memberId: '',
         branchId: '0',
         apiKey: '',
-        environment: 'sandbox'
+        environment: 'live'
       }
       custodialSuccess.value = 'Integration removed successfully'
     } else {

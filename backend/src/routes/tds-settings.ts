@@ -130,7 +130,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         configured: custodialConfigured,
         memberId: integration?.tds_member_id || null,
         branchId: integration?.tds_branch_id || null,
-        environment: integration?.tds_environment || 'sandbox',
+        environment: integration?.tds_environment || 'live',
         maskedApiKey: custodialMaskedApiKey,
         connectedAt: integration?.tds_connected_at || null,
         lastTestedAt: integration?.tds_last_tested_at || null,
@@ -143,7 +143,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         clientId: integration?.tds_insured_client_id || null,
         memberId: integration?.tds_insured_member_id || null,
         branchId: integration?.tds_insured_branch_id || null,
-        environment: integration?.tds_insured_environment || 'sandbox',
+        environment: integration?.tds_insured_environment || 'live',
         connectedAt: integration?.tds_insured_connected_at || null,
         lastTestedAt: integration?.tds_insured_last_tested_at || null,
         lastTestStatus: integration?.tds_insured_last_test_status || null
@@ -152,7 +152,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       configured: custodialConfigured,
       memberId: integration?.tds_member_id || null,
       branchId: integration?.tds_branch_id || null,
-      environment: integration?.tds_environment || 'sandbox',
+      environment: integration?.tds_environment || 'live',
       maskedApiKey: custodialMaskedApiKey,
       connectedAt: integration?.tds_connected_at || null,
       lastTestedAt: integration?.tds_last_tested_at || null,
@@ -221,7 +221,7 @@ router.post('/custodial', authenticateToken, async (req: AuthRequest, res) => {
       memberId: memberId.trim(),
       branchId: (branchId || '0').trim(),
       apiKey: finalApiKey,
-      environment: environment || 'sandbox'
+      environment: environment || 'live'
     })
 
     if (!result.success) {
@@ -601,7 +601,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       memberId: memberId.trim(),
       branchId: (branchId || '0').trim(),
       apiKey: finalApiKey,
-      environment: environment || 'sandbox'
+      environment: environment || 'live'
     })
 
     if (!result.success) {
