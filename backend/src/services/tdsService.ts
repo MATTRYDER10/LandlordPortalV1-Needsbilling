@@ -104,18 +104,10 @@ export async function getCompanyTDSConfig(companyId: string): Promise<TDSConfig 
     return null
   }
 
-  // Try decrypt first, fall back to using raw value if it looks like a plain API key
-  let apiKey: string = decrypt(data.tds_api_key_encrypted) || ''
+  // Read API key as plaintext — encryption was corrupting the key on prod
+  const apiKey: string = data.tds_api_key_encrypted
   if (!apiKey) {
-    // Maybe it's stored as plaintext
-    const raw = data.tds_api_key_encrypted
-    if (raw && raw.includes('-') && raw.length < 100) {
-      console.log('[TDS] decrypt returned null — using raw value as plaintext API key')
-      apiKey = raw
-    } else {
-      console.error('[TDS] decrypt returned null and raw value does not look like a plaintext key')
-      return null
-    }
+    return null
   }
 
   console.log('[TDS getConfig] companyId:', companyId, '| memberId:', data.tds_member_id, '| branchId:', data.tds_branch_id, '| env:', data.tds_environment, '| apiKey first4:', apiKey.substring(0, 4), '| last4:', apiKey.substring(apiKey.length - 4), '| length:', apiKey.length)
@@ -787,7 +779,8 @@ export async function saveTDSConfig(
   console.log('[TDS saveTDSConfig] Saving config for companyId:', companyId)
   console.log('[TDS saveTDSConfig] Config:', { memberId: config.memberId, branchId: config.branchId, environment: config.environment, hasApiKey: !!config.apiKey })
 
-  const encryptedApiKey = encrypt(config.apiKey)
+  // Store API key as-is — encryption/decryption has been corrupting the key on prod
+  const encryptedApiKey = config.apiKey
 
   const { data: existing, error: existingError } = await supabase
     .from('company_integrations')
