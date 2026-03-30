@@ -119,15 +119,16 @@ export async function testConnection(config: RepositConfig): Promise<{ success: 
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    // Test using GET /deposits/v1/suppliers/me — returns supplier info if auth is valid
-    const url = `${baseUrl}/deposits/v1/suppliers/me`
+    // Test using POST /deposits/v1/reposits/pricing — works on both sandbox and production
+    const url = `${baseUrl}/deposits/v1/reposits/pricing`
 
-    console.log('[Reposit] Testing connection with GET request to:', url)
+    console.log('[Reposit] Testing connection with POST to:', url)
     console.log('[Reposit] Headers: Reposit-Referrer-Token:', config.referrerToken?.substring(0, 10) + '...', 'Bearer:', config.apiKey?.substring(0, 10) + '...')
 
     const response = await fetch(url, {
-      method: 'GET',
-      headers: buildHeaders(config)
+      method: 'POST',
+      headers: buildHeaders(config),
+      body: JSON.stringify({ ppm: 100000, headcount: 1 })
     })
 
     const responseText = await response.text()
@@ -141,18 +142,10 @@ export async function testConnection(config: RepositConfig): Promise<{ success: 
       return { success: false, message: `API error (${response.status}): ${responseText.substring(0, 100)}` }
     }
 
-    let data: any
-    try {
-      data = JSON.parse(responseText)
-    } catch {
-      return { success: false, message: 'Invalid response from Reposit API' }
-    }
-
-    // Successfully connected - return supplier info
+    // Pricing responded successfully — auth is valid
     return {
       success: true,
-      message: 'Connection successful',
-      supplierInfo: data
+      message: 'Connection successful'
     }
   } catch (err) {
     console.error('[Reposit] Connection test error:', err)
@@ -167,9 +160,11 @@ export async function getSupplierInfo(config: RepositConfig): Promise<{ success:
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    const response = await fetch(`${baseUrl}/deposits/v1/suppliers/me`, {
-      method: 'GET',
-      headers: buildHeaders(config)
+    // Use pricing endpoint as a connectivity check (suppliers/me doesn't exist on production)
+    const response = await fetch(`${baseUrl}/deposits/v1/reposits/pricing`, {
+      method: 'POST',
+      headers: buildHeaders(config),
+      body: JSON.stringify({ ppm: 100000, headcount: 1 })
     })
 
     if (!response.ok) {
@@ -191,25 +186,14 @@ export async function getSupplierAgents(config: RepositConfig): Promise<{ succes
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    // Get supplier ID from /suppliers/me first
-    const supplierResponse = await fetch(`${baseUrl}/deposits/v1/suppliers/me`, {
-      method: 'GET',
-      headers: buildHeaders(config)
-    })
-
-    if (!supplierResponse.ok) {
-      return { success: false, error: `Failed to get supplier info (${supplierResponse.status})` }
-    }
-
-    const supplier = await supplierResponse.json() as { id?: string }
-    const supplierId = supplier.id
-
-    if (!supplierId) {
-      return { success: false, error: 'Supplier ID not found in response' }
+    // Use configured supplier ID to get agents
+    // Note: /suppliers/me doesn't exist on production, so we use the stored supplierId
+    if (!config.supplierId) {
+      return { success: true, agents: [] }
     }
 
     // Get agents for this supplier
-    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${supplierId}/agents`
+    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`
     console.log('[Reposit] Fetching agents from:', agentsUrl)
 
     const response = await fetch(agentsUrl, {

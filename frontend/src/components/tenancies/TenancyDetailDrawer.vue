@@ -2719,7 +2719,7 @@
       :landlords="allLandlords"
       :special-clauses="propertySpecialClauses"
       :tenant-addresses="tenantAddressMap"
-      :guarantors-data="guarantors"
+      :guarantors-data="guarantors.length > 0 ? guarantors : tenancyGuarantors"
       @close="showAgreementModal = false"
       @generated="handleAgreementGenerated"
       @sent="handleAgreementSent"

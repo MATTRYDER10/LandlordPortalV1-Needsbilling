@@ -45,6 +45,7 @@ interface TDSConfig {
 
 interface PersonObject {
   person_classification: 'Lead Tenant' | 'Joint Tenant' | 'Primary Landlord' | 'Joint Landlord' | 'Related Party'
+  person_id?: string  // Existing TDS person ID — links to existing record instead of creating new
   person_title: string
   person_firstname: string
   person_surname: string
@@ -61,6 +62,44 @@ interface PersonObject {
   person_administrative_area?: string
   person_postcode?: string
   person_country?: string
+}
+
+/**
+ * Search TDS for an existing landlord by email
+ * Returns their nonmemberlandlordid if found
+ */
+export async function searchLandlordByEmail(
+  config: TDSConfig,
+  email: string
+): Promise<string | null> {
+  const baseUrl = TDS_ENDPOINTS[config.environment]
+  const url = `${baseUrl}/landlord/${config.memberId}/${config.branchId}/${config.apiKey}/?email=${encodeURIComponent(email)}`
+
+  try {
+    console.log('[TDS] Searching for existing landlord by email:', email.replace(/(.{3}).*@/, '$1***@'))
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'PropertyGoose/1.0' }
+    })
+
+    if (!response.ok) {
+      console.log('[TDS] Landlord search returned:', response.status)
+      return null
+    }
+
+    const data = await response.json() as any
+    if (data.totalResults > 0 && data.landlords?.length > 0) {
+      const landlordId = String(data.landlords[0].nonmemberlandlordid)
+      console.log(`[TDS] Found existing landlord ID: ${landlordId}`)
+      return landlordId
+    }
+
+    console.log('[TDS] No existing landlord found for this email')
+    return null
+  } catch (err) {
+    console.error('[TDS] Landlord search error:', err)
+    return null
+  }
 }
 
 interface TenancyPayload {
@@ -264,11 +303,12 @@ function parseAddressLine(addressLine1: string): { paon: string; street: string 
 /**
  * Map tenancy data to TDS API payload format
  */
-export function mapTenancyToTDSPayload(
+export async function mapTenancyToTDSPayload(
   tenancy: any,
   depositReceivedDate: string,
-  furnishedStatus: string = 'furnished'
-): TenancyPayload {
+  furnishedStatus: string = 'furnished',
+  tdsConfig?: TDSConfig | null
+): Promise<TenancyPayload> {
   console.log('[TDS] mapTenancyToTDSPayload input:', JSON.stringify({
     tenancy_id: tenancy.id,
     tenancy_start_date: tenancy.tenancy_start_date,
@@ -289,25 +329,14 @@ export function mapTenancyToTDSPayload(
   const addressParts = parseAddressLine(property.address_line1 || '')
   console.log('[TDS] Parsed property address:', { input: property.address_line1, result: addressParts })
 
-  // Normalize title to meet TDS 3-100 char requirement (alphanumeric, period, hyphen)
-  function normalizeTDSTitle(title?: string): string {
-    const t = (title || '').trim()
-    const titleMap: Record<string, string> = {
-      'mr': 'Mr.', 'ms': 'Ms.', 'mrs': 'Mrs', 'miss': 'Miss',
-      'dr': 'Dr.', 'prof': 'Prof', 'rev': 'Rev'
-    }
-    const mapped = titleMap[t.toLowerCase()] || t
-    // Must be 3+ chars — pad with period if needed
-    return mapped.length >= 3 ? mapped : 'Mr.'
-  }
-
   // Build people array
   const people: PersonObject[] = []
 
   // Add landlords
   const primaryLandlord = landlords.find((l: any) => l.is_primary) || landlords[0]
 
-  landlords.forEach((landlord: any, index: number) => {
+  for (let index = 0; index < landlords.length; index++) {
+    const landlord = landlords[index]
     // Check is_primary flag directly (for form data) or compare IDs (for database data)
     const isPrimary = landlord.is_primary || (landlord.id && landlord.id === primaryLandlord?.id) || index === 0
     // Check if landlord is a company (has company_name or is_company flag)
@@ -330,12 +359,23 @@ export function mapTenancyToTDSPayload(
       parsed_street: landlordAddressParts.street || 'MISSING'
     })
 
+    // Search TDS for existing landlord by email to get their person_id
+    const landlordEmail = decrypt(landlord.email_encrypted) || landlord.email || ''
+    let existingPersonId: string | undefined
+    if (tdsConfig && landlordEmail) {
+      const tdsLandlordId = await searchLandlordByEmail(tdsConfig, landlordEmail)
+      if (tdsLandlordId) {
+        existingPersonId = tdsLandlordId
+      }
+    }
+
     people.push({
       person_classification: isPrimary ? 'Primary Landlord' : 'Joint Landlord',
-      person_title: normalizeTDSTitle(landlord.title),
+      person_id: existingPersonId,
+      person_title: landlord.title || 'Mr',
       person_firstname: decrypt(landlord.first_name_encrypted) || landlord.first_name || '',
       person_surname: decrypt(landlord.last_name_encrypted) || landlord.last_name || '',
-      person_email: decrypt(landlord.email_encrypted) || landlord.email || '',
+      person_email: landlordEmail,
       person_mobile: decrypt(landlord.phone_encrypted) || landlord.phone || '',
       is_business: isCompany ? 'Y' : 'N',
       business_name: isCompany ? landlord.company_name : undefined,
@@ -348,7 +388,7 @@ export function mapTenancyToTDSPayload(
       person_postcode: decrypt(landlord.postcode_encrypted) || landlord.postcode || '',
       person_country: 'United Kingdom'
     })
-  })
+  }
 
   // Add tenants
   const leadTenant = tenants.find((t: any) => t.is_lead) || tenants[0]
@@ -373,7 +413,7 @@ export function mapTenancyToTDSPayload(
 
     people.push({
       person_classification: isLead ? 'Lead Tenant' : 'Joint Tenant',
-      person_title: normalizeTDSTitle(tenant.title),
+      person_title: tenant.title || 'Mr',
       person_firstname: tenantFirstName,
       person_surname: tenantLastName,
       person_email: tenantEmail,
@@ -382,13 +422,12 @@ export function mapTenancyToTDSPayload(
     })
   })
 
-  // Deduplicate emails — TDS requires unique emails across all people in a tenancy
+  // Deduplicate emails within this payload — TDS requires unique emails per tenancy
   const usedEmails = new Set<string>()
   for (const person of people) {
     if (!person.person_email) continue
     const emailLower = person.person_email.toLowerCase().trim()
     if (usedEmails.has(emailLower)) {
-      // Duplicate email — if person has a mobile, drop the email; otherwise add +N suffix
       if (person.person_mobile) {
         console.log(`[TDS] Removing duplicate email for ${person.person_classification} (has mobile)`)
         delete person.person_email
@@ -497,7 +536,7 @@ export async function createDeposit(
   }
 
   const baseUrl = TDS_ENDPOINTS[config.environment]
-  const tenancyPayload = mapTenancyToTDSPayload(tenancy, depositReceivedDate, furnishedStatus)
+  const tenancyPayload = await mapTenancyToTDSPayload(tenancy, depositReceivedDate, furnishedStatus, config)
 
   const payload: TDSCreateDepositPayload = {
     member_id: config.memberId,
