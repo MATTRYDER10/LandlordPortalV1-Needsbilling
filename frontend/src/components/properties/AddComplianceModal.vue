@@ -315,13 +315,29 @@ watch([() => form.value.issue_date, () => form.value.compliance_type], () => {
   }
 })
 
+// Ensure date is in YYYY-MM-DD format for <input type="date">
+const toDateInputFormat = (dateStr?: string | null): string => {
+  if (!dateStr) return ''
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+  // ISO timestamp — take the date part
+  if (dateStr.includes('T')) return dateStr.split('T')[0]
+  // DD/MM/YYYY
+  const ddmmyyyy = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`
+  // Fallback: try Date parse
+  const d = new Date(dateStr)
+  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
+  return ''
+}
+
 // Load existing record data when editing
 watch(() => props.complianceRecord, (record) => {
   if (record) {
     form.value = {
       compliance_type: record.compliance_type || '',
-      issue_date: record.issue_date || '',
-      expiry_date: record.expiry_date || '',
+      issue_date: toDateInputFormat(record.issue_date),
+      expiry_date: toDateInputFormat(record.expiry_date),
       certificate_number: record.certificate_number || '',
       issuer_name: record.issuer_name || '',
       issuer_company: record.issuer_company || '',
