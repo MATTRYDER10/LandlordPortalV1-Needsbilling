@@ -121,17 +121,25 @@ export async function getCompanyTDSConfig(companyId: string): Promise<TDSConfig 
  * Test TDS API connection with provided credentials
  */
 export async function testConnection(config: TDSConfig): Promise<{ success: boolean; message: string }> {
-  // Use versioned endpoints - testing confirmed /v1.2/ prefix is required for GET endpoints
-  const baseUrl = TDS_ENDPOINTS[config.environment]
+  // Trim whitespace from credentials
+  config.apiKey = config.apiKey.trim()
+  config.memberId = config.memberId.trim()
+  config.branchId = config.branchId.trim()
+
+  // Per TDS API docs: GET endpoints (landlord, CreateDepositStatus, etc.) do NOT use /v1.2/ prefix
+  // Only POST /CreateDeposit uses the version prefix
+  const baseUrl = TDS_BASE_URLS[config.environment]
 
   try {
     // Test using the landlord search endpoint (simplest GET endpoint)
-    // Per testing: GET /v1.2/landlord/<member_id>/<branch_id>/<api_key>/
+    // Per API docs page 19: GET /landlord/<member_id>/<branch_id>/<api_key>/?filter_parameters
     // Returns 200 with isSuccess:true on valid credentials, 403 on invalid
-    const url = `${baseUrl}/landlord/${config.memberId}/${config.branchId}/${config.apiKey}/`
+    const url = `${baseUrl}/landlord/${encodeURIComponent(config.memberId)}/${encodeURIComponent(config.branchId)}/${encodeURIComponent(config.apiKey)}/`
 
     console.log('[TDS] Testing connection with GET request to:', url.replace(config.apiKey, '***API_KEY***'))
     console.log('[TDS] Config:', { memberId: config.memberId, branchId: config.branchId, environment: config.environment })
+    console.log('[TDS] API key length:', config.apiKey.length, '| first 4:', config.apiKey.substring(0, 4), '| last 4:', config.apiKey.substring(config.apiKey.length - 4))
+    console.log('[TDS] API key has whitespace:', config.apiKey !== config.apiKey.trim())
 
     const response = await fetch(url, {
       method: 'GET',
@@ -608,12 +616,12 @@ export async function pollDepositStatus(
     return { success: false, error: 'TDS not configured for this company' }
   }
 
-  // All endpoints need /v1.2 version prefix
-  const baseUrl = TDS_ENDPOINTS[config.environment]
+  // Per TDS API docs: GET endpoints do NOT use /v1.2/ prefix
+  const baseUrl = TDS_BASE_URLS[config.environment]
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      // GET /v1.2/CreateDepositStatus/<member_id>/<branch_id>/<api_key>/<batch_id>
+      // GET /CreateDepositStatus/<member_id>/<branch_id>/<api_key>/<batch_id>
       const url = `${baseUrl}/CreateDepositStatus/${config.memberId}/${config.branchId}/${config.apiKey}/${batchId}`
 
       const response = await fetch(url, {
@@ -723,8 +731,8 @@ export async function getDPCUrl(
     return { success: false, error: 'TDS not configured for this company' }
   }
 
-  // All endpoints need /v1.2 version prefix
-  const baseUrl = TDS_ENDPOINTS[config.environment]
+  // Per TDS API docs: GET endpoints do NOT use /v1.2/ prefix
+  const baseUrl = TDS_BASE_URLS[config.environment]
 
   // The DPC endpoint returns the PDF directly, so we return the URL for direct download
   const url = `${baseUrl}/dpc/${config.memberId}/${config.branchId}/${config.apiKey}/${dan}`
@@ -792,6 +800,11 @@ export async function saveTDSConfig(
   companyId: string,
   config: { memberId: string; branchId: string; apiKey: string; environment: 'sandbox' | 'live' }
 ): Promise<{ success: boolean; error?: string }> {
+  // Trim whitespace from all credentials to prevent auth failures
+  config.apiKey = config.apiKey.trim()
+  config.memberId = config.memberId.trim()
+  config.branchId = config.branchId.trim()
+
   console.log('[TDS saveTDSConfig] Saving config for companyId:', companyId)
   console.log('[TDS saveTDSConfig] Config:', { memberId: config.memberId, branchId: config.branchId, environment: config.environment, hasApiKey: !!config.apiKey })
 
