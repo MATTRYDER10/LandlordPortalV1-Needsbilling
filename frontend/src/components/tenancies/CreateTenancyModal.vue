@@ -105,103 +105,113 @@
 
               <!-- Manual Entry Mode -->
               <div v-if="tenantMode === 'manual'">
-                <!-- List of added people -->
-                <div v-if="manualPeople.length > 0" class="space-y-4 mb-4">
-                  <div
-                    v-for="(person, idx) in manualPeople"
-                    :key="idx"
-                    class="border rounded-lg p-4"
-                    :class="person.type === 'guarantor'
-                      ? 'border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
-                      : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800/50'"
-                  >
-                    <div class="flex items-center justify-between mb-3">
-                      <div class="flex items-center gap-2">
-                        <UserCheck v-if="person.type === 'tenant'" class="w-4 h-4 text-primary" />
-                        <Shield v-else class="w-4 h-4 text-amber-600" />
-                        <span class="text-sm font-medium" :class="person.type === 'guarantor' ? 'text-amber-800 dark:text-amber-300' : 'text-gray-900 dark:text-white'">
-                          {{ person.type === 'guarantor' ? 'Guarantor' : (idx === 0 && manualPeople.filter(p => p.type === 'tenant').indexOf(person) === 0 ? 'Lead Tenant' : 'Tenant') }}
-                        </span>
+                <!-- List of tenants with their guarantors -->
+                <div v-if="manualTenants.length > 0" class="space-y-4 mb-4">
+                  <div v-for="(tenant, tIdx) in manualTenants" :key="'tenant-' + tenant._idx" class="space-y-2">
+                    <!-- Tenant Card -->
+                    <div class="border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800/50 rounded-lg p-4">
+                      <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                          <UserCheck class="w-4 h-4 text-primary" />
+                          <span class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ tIdx === 0 ? 'Lead Tenant' : 'Tenant' }}
+                          </span>
+                        </div>
+                        <button type="button" @click="removeManualPerson(tenant._idx)" class="text-gray-400 hover:text-red-500 transition-colors">
+                          <Trash2 class="w-4 h-4" />
+                        </button>
                       </div>
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">First Name *</label>
+                          <input v-model="tenant.person.firstName" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Last Name *</label>
+                          <input v-model="tenant.person.lastName" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div class="col-span-2">
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
+                          <input v-model="tenant.person.email" type="email" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div class="col-span-2 relative overflow-visible">
+                          <AddressAutocomplete v-model="tenant.person.addressLine1" label="Current Address *" :required="true" :id="'person-address-' + tenant._idx" placeholder="Start typing address..." @addressSelected="(data: any) => handleManualPersonAddress(tenant._idx, data)" :allowManualEntry="true" />
+                        </div>
+                        <div class="col-span-2">
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Address Line 2</label>
+                          <input v-model="tenant.person.addressLine2" type="text" class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">City *</label>
+                          <input v-model="tenant.person.city" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Postcode *</label>
+                          <input v-model="tenant.person.postcode" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Guarantor for this tenant -->
+                    <div v-for="guarantor in getGuarantorsForTenant(tIdx)" :key="'guarantor-' + guarantor._idx" class="ml-6 border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 rounded-lg p-4">
+                      <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                          <Shield class="w-4 h-4 text-amber-600" />
+                          <span class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            Guarantor for {{ tenant.person.firstName || 'Tenant' }} {{ tenant.person.lastName || '' }}
+                          </span>
+                        </div>
+                        <button type="button" @click="removeManualPerson(guarantor._idx)" class="text-gray-400 hover:text-red-500 transition-colors">
+                          <Trash2 class="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">First Name *</label>
+                          <input v-model="guarantor.person.firstName" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Last Name *</label>
+                          <input v-model="guarantor.person.lastName" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div class="col-span-2">
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
+                          <input v-model="guarantor.person.email" type="email" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div class="col-span-2 relative overflow-visible">
+                          <AddressAutocomplete v-model="guarantor.person.addressLine1" label="Current Address *" :required="true" :id="'person-address-' + guarantor._idx" placeholder="Start typing address..." @addressSelected="(data: any) => handleManualPersonAddress(guarantor._idx, data)" :allowManualEntry="true" />
+                        </div>
+                        <div class="col-span-2">
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Address Line 2</label>
+                          <input v-model="guarantor.person.addressLine2" type="text" class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">City *</label>
+                          <input v-model="guarantor.person.city" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Postcode *</label>
+                          <input v-model="guarantor.person.postcode" type="text" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Add Guarantor button per tenant -->
+                    <div v-if="!hasGuarantorForTenant(tIdx)" class="ml-6">
                       <button
                         type="button"
-                        @click="removeManualPerson(idx)"
-                        class="text-gray-400 hover:text-red-500 transition-colors"
+                        @click="addManualGuarantor(tIdx)"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
                       >
-                        <Trash2 class="w-4 h-4" />
+                        <Plus class="w-3 h-3" />
+                        Add Guarantor for {{ tenant.person.firstName || 'this tenant' }}
                       </button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">First Name *</label>
-                        <input
-                          v-model="person.firstName"
-                          type="text"
-                          required
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Last Name *</label>
-                        <input
-                          v-model="person.lastName"
-                          type="text"
-                          required
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div class="col-span-2">
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
-                        <input
-                          v-model="person.email"
-                          type="email"
-                          required
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div class="col-span-2 relative overflow-visible">
-                        <AddressAutocomplete
-                          v-model="person.addressLine1"
-                          label="Current Address *"
-                          :required="true"
-                          :id="'person-address-' + idx"
-                          placeholder="Start typing address..."
-                          @addressSelected="(data: any) => handleManualPersonAddress(idx, data)"
-                          :allowManualEntry="true"
-                        />
-                      </div>
-                      <div class="col-span-2">
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Address Line 2</label>
-                        <input
-                          v-model="person.addressLine2"
-                          type="text"
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">City *</label>
-                        <input
-                          v-model="person.city"
-                          type="text"
-                          required
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Postcode *</label>
-                        <input
-                          v-model="person.postcode"
-                          type="text"
-                          required
-                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Add buttons -->
-                <div class="flex gap-3">
+                <!-- Add Tenant button -->
+                <div>
                   <button
                     type="button"
                     @click="addManualTenant"
@@ -209,14 +219,6 @@
                   >
                     <Plus class="w-4 h-4" />
                     Add Tenant
-                  </button>
-                  <button
-                    type="button"
-                    @click="addManualGuarantor"
-                    class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
-                  >
-                    <Plus class="w-4 h-4" />
-                    Add Guarantor
                   </button>
                 </div>
                 <p v-if="manualPeople.length === 0" class="mt-2 text-xs text-gray-500 dark:text-slate-400">
@@ -540,6 +542,7 @@ interface ManualPerson {
   addressLine2: string
   city: string
   postcode: string
+  guarantorForTenantIndex?: number  // For guarantors: index of the tenant they guarantee
 }
 
 const props = defineProps<{
@@ -588,7 +591,7 @@ const addManualTenant = () => {
   })
 }
 
-const addManualGuarantor = () => {
+const addManualGuarantor = (tenantIndex: number) => {
   manualPeople.value.push({
     type: 'guarantor',
     firstName: '',
@@ -597,12 +600,46 @@ const addManualGuarantor = () => {
     addressLine1: '',
     addressLine2: '',
     city: '',
-    postcode: ''
+    postcode: '',
+    guarantorForTenantIndex: tenantIndex
   })
 }
 
+// Computed: tenants with their original index for stable references
+const manualTenants = computed(() => {
+  return manualPeople.value
+    .map((person, idx) => ({ person, _idx: idx }))
+    .filter(({ person }) => person.type === 'tenant')
+})
+
+// Get guarantors linked to a specific tenant (by tenant's position in the tenants-only list)
+const getGuarantorsForTenant = (tenantIndex: number) => {
+  return manualPeople.value
+    .map((person, idx) => ({ person, _idx: idx }))
+    .filter(({ person }) => person.type === 'guarantor' && person.guarantorForTenantIndex === tenantIndex)
+}
+
+const hasGuarantorForTenant = (tenantIndex: number) => {
+  return manualPeople.value.some(p => p.type === 'guarantor' && p.guarantorForTenantIndex === tenantIndex)
+}
+
 const removeManualPerson = (index: number) => {
-  manualPeople.value.splice(index, 1)
+  const person = manualPeople.value[index]
+  // If removing a tenant, also remove their linked guarantors
+  if (person?.type === 'tenant') {
+    const tenantIndex = manualPeople.value.filter((p, i) => p.type === 'tenant' && i < index).length
+    manualPeople.value = manualPeople.value.filter(p => !(p.type === 'guarantor' && p.guarantorForTenantIndex === tenantIndex))
+    // Adjust guarantorForTenantIndex for guarantors of later tenants
+    manualPeople.value.forEach(p => {
+      if (p.type === 'guarantor' && p.guarantorForTenantIndex !== undefined && p.guarantorForTenantIndex > tenantIndex) {
+        p.guarantorForTenantIndex--
+      }
+    })
+  }
+  // Find the updated index (may have shifted after removing guarantors)
+  const currentIdx = manualPeople.value.indexOf(person)
+  if (currentIdx >= 0) manualPeople.value.splice(currentIdx, 1)
+  else manualPeople.value.splice(index, 1)
 }
 
 const handleManualPersonAddress = (index: number, data: { addressLine1: string; addressLine2?: string; city: string; postcode: string }) => {
@@ -1110,7 +1147,7 @@ const handleSubmit = async () => {
         residentialPostcode: person.postcode || undefined
       }))
 
-      // Add guarantors as separate entries
+      // Add guarantors with tenant linkage
       if (manualGuarantors.length > 0) {
         payload.guarantors = manualGuarantors.map((person) => ({
           firstName: person.firstName,
@@ -1119,7 +1156,8 @@ const handleSubmit = async () => {
           residentialAddressLine1: person.addressLine1 || undefined,
           residentialAddressLine2: person.addressLine2 || undefined,
           residentialCity: person.city || undefined,
-          residentialPostcode: person.postcode || undefined
+          residentialPostcode: person.postcode || undefined,
+          guarantorForTenantIndex: person.guarantorForTenantIndex
         }))
       }
     }

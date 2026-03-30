@@ -1220,9 +1220,23 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
       createdBy: userId
     }, tenants)
 
-    // Add guarantors if provided
+    // Add guarantors if provided, linking to their tenant
     if (guarantors && Array.isArray(guarantors) && guarantors.length > 0) {
+      // Fetch created tenant records to get their IDs
+      const { data: tenantRecords } = await supabase
+        .from('tenancy_tenants')
+        .select('id, tenant_name_encrypted, is_lead_tenant')
+        .eq('tenancy_id', tenancy.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+
       for (const g of guarantors) {
+        // Match guarantor to tenant by index
+        let guaranteesTenantId: string | undefined
+        if (g.guarantorForTenantIndex !== undefined && tenantRecords && tenantRecords[g.guarantorForTenantIndex]) {
+          guaranteesTenantId = tenantRecords[g.guarantorForTenantIndex].id
+        }
+
         await tenancyService.addGuarantorToTenancy(tenancy.id, {
           firstName: g.firstName,
           lastName: g.lastName,
@@ -1230,7 +1244,8 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
           addressLine1: g.residentialAddressLine1,
           addressLine2: g.residentialAddressLine2,
           city: g.residentialCity,
-          postcode: g.residentialPostcode
+          postcode: g.residentialPostcode,
+          guaranteesTenantId
         })
       }
     }
@@ -3725,16 +3740,34 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       .eq('tenancy_id', tenancy.id)
       .eq('status', 'active')
 
-    const guarantors = (guarantorRecords || []).map((g: any) => ({
-      name: `${decrypt(g.first_name_encrypted) || ''} ${decrypt(g.last_name_encrypted) || ''}`.trim(),
-      email: decrypt(g.email_encrypted) || '',
-      phone: decrypt(g.phone_encrypted) || '',
-      address: [
-        decrypt(g.address_line1_encrypted),
-        decrypt(g.city_encrypted),
-        decrypt(g.postcode_encrypted)
-      ].filter(Boolean).join(', '),
-      relationship_to_tenant: g.relationship_to_tenant
+    const resolvedGuarantors = await Promise.all((guarantorRecords || []).map(async (g: any) => {
+      // Find which tenant this guarantor is linked to
+      let guarantorForTenantName: string | undefined
+      if (g.guarantees_tenant_id) {
+        const { data: linkedTenant } = await supabase
+          .from('tenancy_tenants')
+          .select('tenant_name_encrypted')
+          .eq('id', g.guarantees_tenant_id)
+          .single()
+        if (linkedTenant?.tenant_name_encrypted) {
+          guarantorForTenantName = decrypt(linkedTenant.tenant_name_encrypted) || undefined
+        }
+      }
+
+      return {
+        name: `${decrypt(g.first_name_encrypted) || ''} ${decrypt(g.last_name_encrypted) || ''}`.trim(),
+        email: decrypt(g.email_encrypted) || '',
+        phone: decrypt(g.phone_encrypted) || '',
+        address: {
+          line1: decrypt(g.address_line1_encrypted) || '',
+          line2: decrypt(g.address_line2_encrypted) || '',
+          city: decrypt(g.city_encrypted) || '',
+          postcode: decrypt(g.postcode_encrypted) || ''
+        },
+        relationship_to_tenant: g.relationship_to_tenant,
+        guarantorForTenantId: g.guarantees_tenant_id || undefined,
+        guarantorForTenantName
+      }
     }))
 
     // Create agreement data
@@ -3746,7 +3779,7 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       property_address: propertyAddress,
       landlords: landlords,
       tenants: tenants,
-      guarantors: guarantors,
+      guarantors: resolvedGuarantors,
       deposit_amount: tenancy.deposit_amount || 0,
       rent_amount: tenancy.monthly_rent,
       tenancy_start_date: tenancy.start_date,
