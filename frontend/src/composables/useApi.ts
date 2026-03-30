@@ -52,10 +52,9 @@ export function useApi() {
       headers['X-Admin-Company-Id'] = adminCompanyStore.selectedCompanyId
     }
 
-    // Add active branch ID for multi-branch support
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId && !headers['X-Admin-Company-Id']) {
-      headers['X-Branch-Id'] = activeBranchId
+    // Add active branch ID for multi-branch support (from auth store, not localStorage)
+    if (authStore.activeBranchId && !headers['X-Admin-Company-Id']) {
+      headers['X-Branch-Id'] = authStore.activeBranchId
     }
 
     return headers

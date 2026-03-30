@@ -61,11 +61,12 @@ export async function getCompanyIdForRequest(req: AuthRequest): Promise<string |
     // If user doesn't belong to this branch, fall through to default
   }
 
-  // Fall back to user's own company
+  // Fall back to user's own company (ordered by created_at for deterministic results)
   const { data: companyUsers } = await supabase
     .from('company_users')
     .select('company_id')
     .eq('user_id', userId)
+    .order('created_at', { ascending: true })
     .limit(1)
 
   if (companyUsers && companyUsers.length > 0) {
@@ -197,6 +198,7 @@ export const requireAdmin = async (
         .from('company_users')
         .select('role, company_id')
         .eq('user_id', userId)
+        .order('created_at', { ascending: true })
         .limit(1)
 
       if (!companyUsers || companyUsers.length === 0) {
@@ -285,6 +287,7 @@ export const requireMember = async (
         .from('company_users')
         .select('role, company_id')
         .eq('user_id', userId)
+        .order('created_at', { ascending: true })
         .limit(1)
 
       if (!companyUsers || companyUsers.length === 0) {

@@ -435,12 +435,30 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'jmi',
+          name: 'SettingsJMI',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'property-settings',
+          name: 'SettingsPropertySettings',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
           path: 'audit-logs',
           name: 'SettingsAuditLogs',
           component: Settings,
           meta: { requiresAuth: true }
         }
       ]
+    },
+    {
+      path: '/rentgoose',
+      name: 'RentGoose',
+      component: () => import('../views/RentGoose.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/help-centre',
@@ -763,12 +781,12 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Multi-branch check: If user has multiple branches but none selected, redirect to selector
-  // Skip this check for the branch selector page itself and non-agent paths
+  // Skip this check for public/auth pages and the branch selector itself
   const isBranchSelector = to.path === '/select-branch'
-  if (isAgentPath && isAuthenticated && !authStore.isStaff && !isBranchSelector) {
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    // If branches are loaded and user has multiple but no active one
-    if (authStore.hasMultipleBranches && !activeBranchId) {
+  const isPublicPath = ['/login', '/signup', '/forgot-password', '/reset-password', '/accept-invite'].some(p => to.path.startsWith(p))
+  if (isAuthenticated && !authStore.isStaff && !isBranchSelector && !isPublicPath) {
+    // If branches are loaded and user has multiple but no active one selected
+    if (authStore.hasMultipleBranches && !authStore.activeBranchId) {
       next('/select-branch')
       return
     }
