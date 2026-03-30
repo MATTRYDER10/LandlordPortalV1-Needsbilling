@@ -276,17 +276,35 @@ router.post('/custodial/test', authenticateToken, async (req: AuthRequest, res) 
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    const config = await getCompanyTDSConfig(companyId)
+    // Allow passing credentials directly to bypass DB/encryption for debugging
+    const { memberId: directMemberId, branchId: directBranchId, apiKey: directApiKey, environment: directEnv } = req.body || {}
+
+    let config
+    if (directApiKey && directMemberId) {
+      // Direct credentials provided - use them without DB lookup
+      console.log('[TDS Settings] Using DIRECT credentials (bypassing DB)')
+      config = {
+        apiKey: directApiKey.trim(),
+        memberId: directMemberId.trim(),
+        branchId: (directBranchId || '0').trim(),
+        environment: (directEnv || 'live') as 'sandbox' | 'live'
+      }
+    } else {
+      config = await getCompanyTDSConfig(companyId)
+    }
 
     if (!config) {
       return res.status(400).json({ error: 'TDS Custodial is not configured. Please save credentials first.' })
     }
 
+    // Log decrypted key diagnostics to help debug encryption issues
     console.log('[TDS Settings] Testing Custodial connection with config:', {
       memberId: config.memberId,
       branchId: config.branchId,
       environment: config.environment,
-      hasApiKey: !!config.apiKey
+      apiKeyLength: config.apiKey?.length,
+      apiKeyFirst4: config.apiKey?.substring(0, 4),
+      apiKeyLast4: config.apiKey?.substring(config.apiKey.length - 4)
     })
 
     const result = await testConnection(config)
