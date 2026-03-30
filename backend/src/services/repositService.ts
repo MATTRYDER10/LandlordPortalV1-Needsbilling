@@ -119,10 +119,11 @@ export async function testConnection(config: RepositConfig): Promise<{ success: 
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    // Test using GET /deposits/v1/suppliers/<supplierId>/agents endpoint
-    const url = `${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`
+    // Test using GET /deposits/v1/suppliers/me — returns supplier info if auth is valid
+    const url = `${baseUrl}/deposits/v1/suppliers/me`
 
     console.log('[Reposit] Testing connection with GET request to:', url)
+    console.log('[Reposit] Headers: Reposit-Referrer-Token:', config.referrerToken?.substring(0, 10) + '...', 'Bearer:', config.apiKey?.substring(0, 10) + '...')
 
     const response = await fetch(url, {
       method: 'GET',
@@ -166,7 +167,7 @@ export async function getSupplierInfo(config: RepositConfig): Promise<{ success:
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    const response = await fetch(`${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`, {
+    const response = await fetch(`${baseUrl}/deposits/v1/suppliers/me`, {
       method: 'GET',
       headers: buildHeaders(config)
     })
@@ -190,12 +191,25 @@ export async function getSupplierAgents(config: RepositConfig): Promise<{ succes
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
   try {
-    if (!config.supplierId) {
-      return { success: false, error: 'Supplier ID not configured' }
+    // Get supplier ID from /suppliers/me first
+    const supplierResponse = await fetch(`${baseUrl}/deposits/v1/suppliers/me`, {
+      method: 'GET',
+      headers: buildHeaders(config)
+    })
+
+    if (!supplierResponse.ok) {
+      return { success: false, error: `Failed to get supplier info (${supplierResponse.status})` }
+    }
+
+    const supplier = await supplierResponse.json() as { id?: string }
+    const supplierId = supplier.id
+
+    if (!supplierId) {
+      return { success: false, error: 'Supplier ID not found in response' }
     }
 
     // Get agents for this supplier
-    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${config.supplierId}/agents`
+    const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${supplierId}/agents`
     console.log('[Reposit] Fetching agents from:', agentsUrl)
 
     const response = await fetch(agentsUrl, {
