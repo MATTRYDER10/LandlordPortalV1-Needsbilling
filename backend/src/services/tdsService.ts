@@ -126,45 +126,50 @@ export async function testConnection(config: TDSConfig): Promise<{ success: bool
   config.memberId = config.memberId.trim()
   config.branchId = config.branchId.trim()
 
-  // Per TDS API docs: GET endpoints (landlord, CreateDepositStatus, etc.) do NOT use /v1.2/ prefix
-  // Only POST /CreateDeposit uses the version prefix
-  const baseUrl = TDS_BASE_URLS[config.environment]
+  // Use versioned endpoint - /v1.2/ prefix is required for all TDS API endpoints
+  const baseUrl = TDS_ENDPOINTS[config.environment]
 
   try {
-    // Test using the landlord search endpoint (simplest GET endpoint)
-    // Per API docs page 19: GET /landlord/<member_id>/<branch_id>/<api_key>/?filter_parameters
-    // Returns 200 with isSuccess:true on valid credentials, 403 on invalid
-    const url = `${baseUrl}/landlord/${encodeURIComponent(config.memberId)}/${encodeURIComponent(config.branchId)}/${encodeURIComponent(config.apiKey)}/`
+    // Test by sending a minimal POST to CreateDeposit with just auth fields
+    // If credentials are valid, TDS returns a validation error (missing tenancy data) — NOT a 403
+    // If credentials are invalid, TDS returns 403
+    const url = `${baseUrl}/CreateDeposit`
 
-    console.log('[TDS] Testing connection with GET request to:', url.replace(config.apiKey, '***API_KEY***'))
+    const testPayload = {
+      member_id: config.memberId,
+      branch_id: config.branchId,
+      api_key: config.apiKey,
+      region: 'EW',
+      scheme_type: 'Custodial',
+      tenancy: []  // Empty tenancy array - will trigger validation error, not auth error
+    }
+
+    console.log('[TDS] Testing connection with POST to:', url)
     console.log('[TDS] Config:', { memberId: config.memberId, branchId: config.branchId, environment: config.environment })
     console.log('[TDS] API key length:', config.apiKey.length, '| first 4:', config.apiKey.substring(0, 4), '| last 4:', config.apiKey.substring(config.apiKey.length - 4))
-    console.log('[TDS] API key has whitespace:', config.apiKey !== config.apiKey.trim())
 
     const response = await fetch(url, {
-      method: 'GET',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'User-Agent': 'PropertyGoose/1.0'
-      }
+      },
+      body: JSON.stringify(testPayload)
     })
 
-    // Get response text first to handle empty responses
     const responseText = await response.text()
 
     console.log('[TDS] Response status:', response.status, response.statusText)
     console.log('[TDS] Response body:', responseText.substring(0, 500))
 
-    // Check if response is empty
     if (!responseText || responseText.trim() === '') {
       if (response.ok) {
-        // Empty 200 response might still indicate success
-        return { success: true, message: 'Connection successful (empty response)' }
+        return { success: true, message: 'Connection successful' }
       }
       return { success: false, message: `TDS API returned empty response (status ${response.status})` }
     }
 
-    // Try to parse as JSON
-    let data: { success?: boolean | string; result?: string; status?: string; error?: string; errors?: Record<string, string> | Array<{name?: string; value?: string}> }
+    let data: any
     try {
       data = JSON.parse(responseText)
     } catch {
@@ -174,39 +179,52 @@ export async function testConnection(config: TDSConfig): Promise<{ success: bool
 
     console.log('[TDS] Parsed response:', JSON.stringify(data).substring(0, 500))
 
-    // Check for authentication errors (403 response)
+    // Per TDS API docs page 13, auth failures return:
+    // { "error": "Invalid authentication key", "success": "false" }
+    // { "success": false, "errors": "Member is not part of a valid scheme" }
+    const successVal = data.success
+    const isSuccess = successVal === true || successVal === 'true'
+    const isFailed = successVal === false || successVal === 'false'
+
+    if (isFailed) {
+      const errorMsg = data.error || data.errors || 'Unknown error'
+      const errorStr = typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)
+
+      // Check if it's an auth error vs a validation error
+      const lowerError = errorStr.toLowerCase()
+      if (lowerError.includes('authentication') || lowerError.includes('invalid authentication') ||
+          lowerError.includes('not part of a valid scheme')) {
+        return { success: false, message: `Authentication failed: ${errorStr}` }
+      }
+
+      // Any other error with success:false but NOT auth-related means credentials worked
+      // but the test payload was rejected for validation reasons (expected)
+      console.log('[TDS] Got validation error (not auth) — credentials are valid!')
+      return { success: true, message: 'Connection successful — credentials verified' }
+    }
+
+    // If success:true, we got a batch_id back (unlikely with empty tenancy, but handle it)
+    if (isSuccess) {
+      return { success: true, message: 'Connection successful' }
+    }
+
+    // HTTP error status codes
     if (response.status === 403) {
-      const errorMsg = data.errors ?
-        (Array.isArray(data.errors) ? data.errors.map(e => e.value || e.name).join(', ') : Object.values(data.errors).join(', ')) :
-        'The request could not be authenticated'
-      return { success: false, message: `Authentication failed: ${errorMsg}` }
+      return { success: false, message: 'Authentication failed: The request could not be authenticated' }
     }
 
-    // Check for 400 errors (validation/missing params)
     if (response.status === 400) {
-      const errorMsg = data.errors ?
-        (Array.isArray(data.errors) ? data.errors.map(e => e.value || e.name).join(', ') : Object.values(data.errors).join(', ')) :
-        data.error || 'Bad request'
-      return { success: false, message: errorMsg }
+      // 400 with "Invalid JSON" means the request reached the server — credentials likely fine
+      const errMsg = data.errors || data.error || ''
+      if (typeof errMsg === 'string' && errMsg.includes('Invalid JSON')) {
+        return { success: false, message: 'TDS API rejected the request format' }
+      }
+      // Other 400 errors after auth passed = credentials valid
+      console.log('[TDS] Got 400 after auth check — credentials are valid!')
+      return { success: true, message: 'Connection successful — credentials verified' }
     }
 
-    // If we get a proper 200 response, credentials are valid
     if (response.ok) {
-      // Per API docs for landlord endpoint, isSuccess=true indicates valid credentials
-      // The response can also have success=true or success="true"
-      if (data.success === true || data.success === 'true' ||
-          (data as any).isSuccess === true || (data as any).isSuccess === 'true') {
-        return { success: true, message: 'Connection successful' }
-      }
-      // Also accept if we got a proper status response
-      if (data.status) {
-        return { success: true, message: 'Connection successful' }
-      }
-      // Accept if we got a totalResults response (landlord/property search)
-      if ((data as any).totalResults !== undefined || (data as any).landlords || (data as any).properties) {
-        return { success: true, message: 'Connection successful' }
-      }
-      // Fallback - if we got a 200, credentials likely work
       return { success: true, message: 'Connection successful' }
     }
 
@@ -616,12 +634,11 @@ export async function pollDepositStatus(
     return { success: false, error: 'TDS not configured for this company' }
   }
 
-  // Per TDS API docs: GET endpoints do NOT use /v1.2/ prefix
-  const baseUrl = TDS_BASE_URLS[config.environment]
+  const baseUrl = TDS_ENDPOINTS[config.environment]
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      // GET /CreateDepositStatus/<member_id>/<branch_id>/<api_key>/<batch_id>
+      // GET /v1.2/CreateDepositStatus/<member_id>/<branch_id>/<api_key>/<batch_id>
       const url = `${baseUrl}/CreateDepositStatus/${config.memberId}/${config.branchId}/${config.apiKey}/${batchId}`
 
       const response = await fetch(url, {
@@ -731,8 +748,7 @@ export async function getDPCUrl(
     return { success: false, error: 'TDS not configured for this company' }
   }
 
-  // Per TDS API docs: GET endpoints do NOT use /v1.2/ prefix
-  const baseUrl = TDS_BASE_URLS[config.environment]
+  const baseUrl = TDS_ENDPOINTS[config.environment]
 
   // The DPC endpoint returns the PDF directly, so we return the URL for direct download
   const url = `${baseUrl}/dpc/${config.memberId}/${config.branchId}/${config.apiKey}/${dan}`
