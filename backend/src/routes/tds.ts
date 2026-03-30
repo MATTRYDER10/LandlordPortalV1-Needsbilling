@@ -451,15 +451,26 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
           dan: existingRegistration.dan
         })
       }
-      // If pending, return the existing batch_id so frontend can continue polling
+      // If pending, check if it's stale (older than 5 minutes) - allow re-submission if so
       if (existingRegistration.status === 'pending' && existingRegistration.batch_id) {
-        console.log('[TDS] Found pending registration, returning existing batch_id:', existingRegistration.batch_id)
-        return res.json({
-          success: true,
-          batchId: existingRegistration.batch_id,
-          schemeType: 'custodial',
-          message: 'Deposit already submitted. Polling for completion...'
-        })
+        const createdAt = new Date(existingRegistration.created_at).getTime()
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+        if (createdAt > fiveMinutesAgo) {
+          console.log('[TDS] Found recent pending registration, returning existing batch_id:', existingRegistration.batch_id)
+          return res.json({
+            success: true,
+            batchId: existingRegistration.batch_id,
+            schemeType: 'custodial',
+            message: 'Deposit already submitted. Polling for completion...'
+          })
+        }
+        // Stale pending registration - delete it and allow re-submission
+        console.log('[TDS] Found stale pending registration (>5 min old), deleting and re-submitting')
+        await supabase
+          .from('tds_registrations')
+          .delete()
+          .eq('tenancy_id', tenancyId)
+          .eq('status', 'pending')
       }
     }
 
