@@ -1191,7 +1191,8 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
       breakClauseDate,
       breakClauseNoticeDays,
       notes,
-      tenants
+      tenants,
+      guarantors
     } = req.body
 
     // Validate required fields
@@ -1218,6 +1219,21 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
       notes,
       createdBy: userId
     }, tenants)
+
+    // Add guarantors if provided
+    if (guarantors && Array.isArray(guarantors) && guarantors.length > 0) {
+      for (const g of guarantors) {
+        await tenancyService.addGuarantorToTenancy(tenancy.id, {
+          firstName: g.firstName,
+          lastName: g.lastName,
+          email: g.email,
+          addressLine1: g.residentialAddressLine1,
+          addressLine2: g.residentialAddressLine2,
+          city: g.residentialCity,
+          postcode: g.residentialPostcode
+        })
+      }
+    }
 
     res.status(201).json({ tenancy })
   } catch (error: any) {

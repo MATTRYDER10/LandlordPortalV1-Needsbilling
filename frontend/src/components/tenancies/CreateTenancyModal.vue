@@ -21,60 +21,207 @@
         <!-- Content -->
         <div class="flex-1 overflow-y-auto p-6">
           <form @submit.prevent="handleSubmit" class="space-y-6">
-            <!-- Reference Selection (First - drives property matching) -->
+            <!-- Tenant Source Toggle -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                Link to Reference
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Tenant Details
               </label>
-              <div class="relative">
-                <div class="relative">
-                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    v-model="referenceSearch"
-                    type="text"
-                    placeholder="Search by tenant name or address..."
-                    class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    @focus="showReferenceDropdown = true"
-                    @blur="delayedCloseReferenceDropdown"
-                  />
-                </div>
-                <!-- Reference Dropdown -->
-                <div
-                  v-if="showReferenceDropdown && filteredReferences.length > 0"
-                  class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+              <div class="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  @click="switchToManualMode"
+                  class="flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors"
+                  :class="tenantMode === 'manual'
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'"
                 >
-                  <button
-                    type="button"
-                    class="w-full px-3 py-2 text-left text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 border-b border-gray-200 dark:border-slate-700"
-                    @click="clearReference"
+                  Manually enter tenant details
+                </button>
+                <button
+                  type="button"
+                  @click="switchToReferenceMode"
+                  class="flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors"
+                  :class="tenantMode === 'reference'
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'"
+                >
+                  Link to Reference
+                </button>
+              </div>
+
+              <!-- Reference Mode -->
+              <div v-if="tenantMode === 'reference'">
+                <div class="relative">
+                  <div class="relative">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      v-model="referenceSearch"
+                      type="text"
+                      placeholder="Search by tenant name or address..."
+                      class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                      @focus="showReferenceDropdown = true"
+                      @blur="delayedCloseReferenceDropdown"
+                    />
+                  </div>
+                  <!-- Reference Dropdown -->
+                  <div
+                    v-if="showReferenceDropdown && filteredReferences.length > 0"
+                    class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                   >
-                    No linked reference
-                  </button>
-                  <button
-                    v-for="ref in filteredReferences"
-                    :key="ref.id"
-                    type="button"
-                    class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
-                    @click="selectReference(ref)"
-                  >
-                    <span class="font-medium">{{ ref.tenantName }}</span>
-                    <span class="text-gray-500 dark:text-slate-400 ml-2">{{ ref.propertyAddress }}</span>
-                  </button>
+                    <button
+                      type="button"
+                      class="w-full px-3 py-2 text-left text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 border-b border-gray-200 dark:border-slate-700"
+                      @click="clearReference"
+                    >
+                      No linked reference
+                    </button>
+                    <button
+                      v-for="ref in filteredReferences"
+                      :key="ref.id"
+                      type="button"
+                      class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
+                      @click="selectReference(ref)"
+                    >
+                      <span class="font-medium">{{ ref.tenantName }}</span>
+                      <span class="text-gray-500 dark:text-slate-400 ml-2">{{ ref.propertyAddress }}</span>
+                    </button>
+                  </div>
+                </div>
+                <p v-if="selectedReference" class="mt-1 text-xs text-green-600">
+                  Selected: {{ selectedReference.tenantName }} - {{ selectedReference.propertyAddress }}
+                </p>
+                <!-- Show tenants that will be created from reference -->
+                <div v-if="selectedReference?.people?.length > 0" class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                  <p class="font-medium text-green-800 mb-1">Tenants from reference ({{ selectedReference.people.length }}):</p>
+                  <ul class="space-y-0.5 text-green-700">
+                    <li v-for="(person, idx) in selectedReference.people" :key="idx" class="flex items-center gap-2">
+                      <span>{{ person.name }}</span>
+                      <span v-if="person.email" class="text-green-600">· {{ person.email }}</span>
+                      <span v-if="person.isLeadTenant" class="px-1.5 py-0.5 bg-green-200 text-green-800 rounded text-[10px]">Lead</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
-              <p v-if="selectedReference" class="mt-1 text-xs text-green-600">
-                Selected: {{ selectedReference.tenantName }} - {{ selectedReference.propertyAddress }}
-              </p>
-              <!-- Show tenants that will be created from reference -->
-              <div v-if="selectedReference?.people?.length > 0" class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
-                <p class="font-medium text-green-800 mb-1">Tenants from reference ({{ selectedReference.people.length }}):</p>
-                <ul class="space-y-0.5 text-green-700">
-                  <li v-for="(person, idx) in selectedReference.people" :key="idx" class="flex items-center gap-2">
-                    <span>{{ person.name }}</span>
-                    <span v-if="person.email" class="text-green-600">· {{ person.email }}</span>
-                    <span v-if="person.isLeadTenant" class="px-1.5 py-0.5 bg-green-200 text-green-800 rounded text-[10px]">Lead</span>
-                  </li>
-                </ul>
+
+              <!-- Manual Entry Mode -->
+              <div v-if="tenantMode === 'manual'">
+                <!-- List of added people -->
+                <div v-if="manualPeople.length > 0" class="space-y-4 mb-4">
+                  <div
+                    v-for="(person, idx) in manualPeople"
+                    :key="idx"
+                    class="border rounded-lg p-4"
+                    :class="person.type === 'guarantor'
+                      ? 'border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
+                      : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800/50'"
+                  >
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="flex items-center gap-2">
+                        <UserCheck v-if="person.type === 'tenant'" class="w-4 h-4 text-primary" />
+                        <Shield v-else class="w-4 h-4 text-amber-600" />
+                        <span class="text-sm font-medium" :class="person.type === 'guarantor' ? 'text-amber-800 dark:text-amber-300' : 'text-gray-900 dark:text-white'">
+                          {{ person.type === 'guarantor' ? 'Guarantor' : (idx === 0 && manualPeople.filter(p => p.type === 'tenant').indexOf(person) === 0 ? 'Lead Tenant' : 'Tenant') }}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        @click="removeManualPerson(idx)"
+                        class="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">First Name *</label>
+                        <input
+                          v-model="person.firstName"
+                          type="text"
+                          required
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Last Name *</label>
+                        <input
+                          v-model="person.lastName"
+                          type="text"
+                          required
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
+                        <input
+                          v-model="person.email"
+                          type="email"
+                          required
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div class="col-span-2 relative overflow-visible">
+                        <AddressAutocomplete
+                          v-model="person.addressLine1"
+                          label="Current Address *"
+                          :required="true"
+                          :id="'person-address-' + idx"
+                          placeholder="Start typing address..."
+                          @addressSelected="(data: any) => handleManualPersonAddress(idx, data)"
+                          :allowManualEntry="true"
+                        />
+                      </div>
+                      <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Address Line 2</label>
+                        <input
+                          v-model="person.addressLine2"
+                          type="text"
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">City *</label>
+                        <input
+                          v-model="person.city"
+                          type="text"
+                          required
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Postcode *</label>
+                        <input
+                          v-model="person.postcode"
+                          type="text"
+                          required
+                          class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add buttons -->
+                <div class="flex gap-3">
+                  <button
+                    type="button"
+                    @click="addManualTenant"
+                    class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                  >
+                    <Plus class="w-4 h-4" />
+                    Add Tenant
+                  </button>
+                  <button
+                    type="button"
+                    @click="addManualGuarantor"
+                    class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-600 border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
+                  >
+                    <Plus class="w-4 h-4" />
+                    Add Guarantor
+                  </button>
+                </div>
+                <p v-if="manualPeople.length === 0" class="mt-2 text-xs text-gray-500 dark:text-slate-400">
+                  Add at least one tenant to create the tenancy
+                </p>
               </div>
             </div>
 
@@ -308,100 +455,6 @@
               </div>
             </div>
 
-            <!-- Tenant Details (only when no reference linked) -->
-            <div v-if="!form.referenceId" class="border-t border-gray-200 dark:border-slate-700 pt-6">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Lead Tenant Details</h4>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    First Name *
-                  </label>
-                  <input
-                    v-model="form.tenantFirstName"
-                    type="text"
-                    :required="!form.referenceId"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Last Name *
-                  </label>
-                  <input
-                    v-model="form.tenantLastName"
-                    type="text"
-                    :required="!form.referenceId"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Email
-                  </label>
-                  <input
-                    v-model="form.tenantEmail"
-                    type="email"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    v-model="form.tenantPhone"
-                    type="tel"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <!-- Tenant Address -->
-              <div class="mt-4">
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Tenant Current Address *</h4>
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="col-span-2 relative overflow-visible">
-                    <AddressAutocomplete
-                      v-model="form.tenantAddressLine1"
-                      label="Address Line 1"
-                      :required="true"
-                      id="tenant-address"
-                      placeholder="Start typing address..."
-                      @addressSelected="handleTenantAddressSelected"
-                      :allowManualEntry="true"
-                    />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 2</label>
-                    <input
-                      v-model="form.tenantAddressLine2"
-                      type="text"
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City *</label>
-                    <input
-                      v-model="form.tenantCity"
-                      type="text"
-                      required
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Postcode *</label>
-                    <input
-                      v-model="form.tenantPostcode"
-                      type="text"
-                      required
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Deposit Scheme -->
             <div class="border-t border-gray-200 dark:border-slate-700 pt-6">
               <div class="grid grid-cols-2 gap-4">
@@ -474,9 +527,20 @@ import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch } from '@/lib/authFetch'
-import { X, Calendar, Search } from 'lucide-vue-next'
+import { X, Calendar, Search, Plus, Trash2, UserCheck, Shield } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
+
+interface ManualPerson {
+  type: 'tenant' | 'guarantor'
+  firstName: string
+  lastName: string
+  email: string
+  addressLine1: string
+  addressLine2: string
+  city: string
+  postcode: string
+}
 
 const props = defineProps<{
   show: boolean
@@ -507,6 +571,50 @@ const propertyMatchedFromReference = ref(false)
 const propertyCreatedFromReference = ref(false)
 const pendingPropertyData = ref<any>(null)
 
+// Tenant entry mode
+const tenantMode = ref<'reference' | 'manual'>('manual')
+const manualPeople = ref<ManualPerson[]>([])
+
+const addManualTenant = () => {
+  manualPeople.value.push({
+    type: 'tenant',
+    firstName: '',
+    lastName: '',
+    email: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    postcode: ''
+  })
+}
+
+const addManualGuarantor = () => {
+  manualPeople.value.push({
+    type: 'guarantor',
+    firstName: '',
+    lastName: '',
+    email: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    postcode: ''
+  })
+}
+
+const removeManualPerson = (index: number) => {
+  manualPeople.value.splice(index, 1)
+}
+
+const handleManualPersonAddress = (index: number, data: { addressLine1: string; addressLine2?: string; city: string; postcode: string }) => {
+  const person = manualPeople.value[index]
+  if (person) {
+    person.addressLine1 = data.addressLine1
+    if (data.addressLine2) person.addressLine2 = data.addressLine2
+    person.city = data.city
+    person.postcode = data.postcode
+  }
+}
+
 // Form
 const form = ref({
   propertyId: '',
@@ -519,10 +627,7 @@ const form = ref({
   depositAmount: 0,
   rentDueDay: 1,
   tenancyType: 'ast',
-  tenantFirstName: '',
-  tenantLastName: '',
-  tenantEmail: '',
-  tenantPhone: '',
+  depositScheme: '',
   notes: ''
 })
 
@@ -608,31 +713,39 @@ const isValid = computed(() => {
   if (!hasProperty || !form.value.startDate || !form.value.monthlyRent) {
     return false
   }
-  // Need either: reference with tenants, OR manual tenant entry
-  const hasReferenceWithTenants = selectedReference.value?.people?.length > 0
-  const hasManualTenant = form.value.tenantFirstName && form.value.tenantLastName
-  if (!hasReferenceWithTenants && !hasManualTenant) {
-    return false
-  }
   // Deposit scheme is mandatory
   if (!form.value.depositScheme) {
     return false
   }
-  // Tenant address mandatory for manual entry
-  if (!hasReferenceWithTenants && (!form.value.tenantAddressLine1 || !form.value.tenantCity || !form.value.tenantPostcode)) {
-    return false
+
+  if (tenantMode.value === 'reference') {
+    // Need reference with tenants
+    if (!selectedReference.value?.people?.length) return false
+  } else {
+    // Manual mode - need at least one tenant with complete details
+    const tenants = manualPeople.value.filter(p => p.type === 'tenant')
+    if (tenants.length === 0) return false
+    // All people must have required fields
+    for (const person of manualPeople.value) {
+      if (!person.firstName || !person.lastName || !person.email) return false
+      if (!person.addressLine1 || !person.city || !person.postcode) return false
+    }
   }
+
   return true
 })
 
-// Methods
-function handleTenantAddressSelected(data: { addressLine1: string; addressLine2?: string; city: string; postcode: string; country?: string }) {
-  form.value.tenantAddressLine1 = data.addressLine1
-  if (data.addressLine2) form.value.tenantAddressLine2 = data.addressLine2
-  form.value.tenantCity = data.city
-  form.value.tenantPostcode = data.postcode
+const switchToManualMode = () => {
+  tenantMode.value = 'manual'
+  clearReference()
 }
 
+const switchToReferenceMode = () => {
+  tenantMode.value = 'reference'
+  manualPeople.value = []
+}
+
+// Methods
 const ordinal = (n: number): string => {
   // Handle 11th, 12th, 13th specially
   if (n >= 11 && n <= 13) return n + 'th'
@@ -825,13 +938,6 @@ const selectReference = (ref: any) => {
     form.value.depositAmount = ref.depositAmount
   }
 
-  // Clear manual tenant fields - they're not needed when reference is linked
-  // Tenants will come from the reference's people array
-  form.value.tenantFirstName = ''
-  form.value.tenantLastName = ''
-  form.value.tenantEmail = ''
-  form.value.tenantPhone = ''
-
   // Try to fuzzy match property
   propertyMatchedFromReference.value = false
   propertyCreatedFromReference.value = false
@@ -969,15 +1075,13 @@ const handleSubmit = async () => {
       notes: form.value.notes || undefined
     }
 
-    // If reference linked, include it and use its tenants
-    if (form.value.referenceId && selectedReference.value) {
+    if (tenantMode.value === 'reference' && form.value.referenceId && selectedReference.value) {
+      // Reference mode - use tenants from reference
       payload.primaryReferenceId = form.value.referenceId
 
-      // Extract tenants from reference's people array
       const refPeople = selectedReference.value.people || []
       if (refPeople.length > 0) {
         payload.tenants = refPeople.map((person: any) => {
-          // Split name into first/last
           const nameParts = (person.name || '').trim().split(' ')
           const firstName = nameParts[0] || ''
           const lastName = nameParts.slice(1).join(' ') || ''
@@ -990,19 +1094,34 @@ const handleSubmit = async () => {
           }
         })
       }
-    } else if (form.value.tenantFirstName && form.value.tenantLastName) {
-      // Manual entry - no reference linked
-      payload.tenants = [{
-        firstName: form.value.tenantFirstName,
-        lastName: form.value.tenantLastName,
-        email: form.value.tenantEmail || undefined,
-        phone: form.value.tenantPhone || undefined,
-        isLeadTenant: true,
-        residentialAddressLine1: form.value.tenantAddressLine1 || undefined,
-        residentialAddressLine2: form.value.tenantAddressLine2 || undefined,
-        residentialCity: form.value.tenantCity || undefined,
-        residentialPostcode: form.value.tenantPostcode || undefined
-      }]
+    } else if (tenantMode.value === 'manual' && manualPeople.value.length > 0) {
+      // Manual mode - build tenants array from manual entries
+      const manualTenants = manualPeople.value.filter(p => p.type === 'tenant')
+      const manualGuarantors = manualPeople.value.filter(p => p.type === 'guarantor')
+
+      payload.tenants = manualTenants.map((person, idx) => ({
+        firstName: person.firstName,
+        lastName: person.lastName,
+        email: person.email || undefined,
+        isLeadTenant: idx === 0,
+        residentialAddressLine1: person.addressLine1 || undefined,
+        residentialAddressLine2: person.addressLine2 || undefined,
+        residentialCity: person.city || undefined,
+        residentialPostcode: person.postcode || undefined
+      }))
+
+      // Add guarantors as separate entries
+      if (manualGuarantors.length > 0) {
+        payload.guarantors = manualGuarantors.map((person) => ({
+          firstName: person.firstName,
+          lastName: person.lastName,
+          email: person.email || undefined,
+          residentialAddressLine1: person.addressLine1 || undefined,
+          residentialAddressLine2: person.addressLine2 || undefined,
+          residentialCity: person.city || undefined,
+          residentialPostcode: person.postcode || undefined
+        }))
+      }
     }
 
     const response = await authFetch(`${API_URL}/api/tenancies/create`, {
@@ -1043,14 +1162,6 @@ watch(() => props.show, async (isShow) => {
       depositAmount: 0,
       rentDueDay: 1,
       tenancyType: 'ast',
-      tenantFirstName: '',
-      tenantLastName: '',
-      tenantEmail: '',
-      tenantPhone: '',
-      tenantAddressLine1: '',
-      tenantAddressLine2: '',
-      tenantCity: '',
-      tenantPostcode: '',
       depositScheme: '',
       notes: ''
     }
@@ -1066,6 +1177,8 @@ watch(() => props.show, async (isShow) => {
     propertyMatchedFromReference.value = false
     propertyCreatedFromReference.value = false
     pendingPropertyData.value = null
+    tenantMode.value = 'manual'
+    manualPeople.value = []
 
     loading.value = true
     await Promise.all([loadProperties(), loadCompletedReferences()])
