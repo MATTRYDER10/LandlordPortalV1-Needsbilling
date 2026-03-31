@@ -57,6 +57,24 @@
             <input type="password" name="trap-password" style="display:none" tabindex="-1" autocomplete="current-password" />
 
             <div>
+              <label for="reposit-referrer-token" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Referrer Token</label>
+              <div class="mt-1">
+                <input
+                  id="reposit-referrer-token"
+                  v-model="form.referrerToken"
+                  name="reposit-referrer-token"
+                  type="text"
+                  required
+                  autocomplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore
+                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
+                  placeholder="Enter your Referrer Token"
+                />
+              </div>
+            </div>
+
+            <div>
               <label for="reposit-api-key-setup" class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key</label>
               <div class="mt-1 relative">
                 <input
@@ -82,9 +100,27 @@
               </div>
             </div>
 
+            <div>
+              <label for="reposit-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Supplier ID</label>
+              <div class="mt-1">
+                <input
+                  id="reposit-supplier-id"
+                  v-model="form.supplierId"
+                  name="reposit-supplier-id"
+                  type="text"
+                  required
+                  autocomplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore
+                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
+                  placeholder="e.g. sup_abc123 or org_abc123"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
-              :disabled="saving || !form.apiKey"
+              :disabled="saving || !form.apiKey || !form.referrerToken || !form.supplierId"
               class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Connect' }}
@@ -310,7 +346,9 @@ const status = ref<{
 } | null>(null)
 
 const form = ref({
+  referrerToken: '',
   apiKey: '',
+  supplierId: '',
   defaultAgentId: ''
 })
 
@@ -430,15 +468,10 @@ const saveCredentials = async () => {
       defaultAgentId: form.value.defaultAgentId || undefined
     }
 
-    // For new setup, only API key needed — supplier ID and referrer token are set by dev
-    if (form.value.apiKey) {
-      payload.apiKey = form.value.apiKey
-    }
-
-    // If existing config, keep supplier ID; if new, it'll be set by the backend/dev
-    if (status.value?.supplierId) {
-      payload.supplierId = status.value.supplierId
-    }
+    if (form.value.referrerToken) payload.referrerToken = form.value.referrerToken
+    if (form.value.apiKey) payload.apiKey = form.value.apiKey
+    if (form.value.supplierId) payload.supplierId = form.value.supplierId
+    else if (status.value?.supplierId) payload.supplierId = status.value.supplierId
 
     const response = await fetch(`${API_URL}/api/settings/reposit`, {
       method: 'POST',
@@ -450,7 +483,9 @@ const saveCredentials = async () => {
 
     if (response.ok) {
       success.value = 'Settings saved successfully'
+      form.value.referrerToken = ''
       form.value.apiKey = ''
+      form.value.supplierId = ''
       editMode.value = false
       await fetchSettings()
       await fetchAgents()
