@@ -36,6 +36,12 @@ export interface PropertyData {
   council_tax_band?: string
   furnishing_status?: string
   management_type?: 'managed' | 'let_only'
+  service_type_id?: string | null
+  fee_percent?: number
+  fee_type?: string
+  management_fee_type?: string
+  letting_fee_amount?: number
+  letting_fee_type?: string
   bills_included?: boolean
   is_licensed?: boolean
   license_number?: string
@@ -79,6 +85,12 @@ export interface PropertyListItem {
   status: string
   property_type: string | null
   management_type: 'managed' | 'let_only' | null
+  service_type_id: string | null
+  fee_percent: number | null
+  fee_type: string | null
+  management_fee_type: string
+  letting_fee_amount: number | null
+  letting_fee_type: string | null
   bills_included: boolean
   is_licensed: boolean
   landlord_count: number
@@ -96,6 +108,12 @@ export interface PropertyDetail {
   council_tax_band: string | null
   furnishing_status: string | null
   management_type: 'managed' | 'let_only' | null
+  service_type_id: string | null
+  fee_percent: number | null
+  fee_type: string | null
+  management_fee_type: string
+  letting_fee_amount: number | null
+  letting_fee_type: string | null
   bills_included: boolean
   status: string
   status_override: boolean
@@ -431,6 +449,12 @@ class PropertyService {
     if (data.council_tax_band !== undefined) updateData.council_tax_band = data.council_tax_band
     if (data.furnishing_status !== undefined) updateData.furnishing_status = data.furnishing_status
     if (data.management_type !== undefined) updateData.management_type = data.management_type
+    if (data.service_type_id !== undefined) updateData.service_type_id = data.service_type_id
+    if (data.fee_percent !== undefined) updateData.fee_percent = data.fee_percent
+    if (data.fee_type !== undefined) updateData.fee_type = data.fee_type
+    if (data.management_fee_type !== undefined) updateData.management_fee_type = data.management_fee_type
+    if (data.letting_fee_amount !== undefined) updateData.letting_fee_amount = data.letting_fee_amount
+    if (data.letting_fee_type !== undefined) updateData.letting_fee_type = data.letting_fee_type
     if (data.bills_included !== undefined) updateData.bills_included = data.bills_included
     if (data.is_licensed !== undefined) updateData.is_licensed = data.is_licensed
     if (data.license_number !== undefined) updateData.license_number = data.license_number
@@ -929,6 +953,12 @@ class PropertyService {
       status: property.status,
       property_type: property.property_type,
       management_type: property.management_type,
+      service_type_id: property.service_type_id || null,
+      fee_percent: property.fee_percent ? parseFloat(property.fee_percent) : null,
+      fee_type: property.fee_type || null,
+      management_fee_type: property.management_fee_type || 'percentage',
+      letting_fee_amount: property.letting_fee_amount ? parseFloat(property.letting_fee_amount) : null,
+      letting_fee_type: property.letting_fee_type || null,
       bills_included: property.bills_included || false,
       is_licensed: property.is_licensed,
       landlord_count: property.property_landlords?.length || 0,
@@ -994,6 +1024,12 @@ class PropertyService {
       council_tax_band: property.council_tax_band,
       furnishing_status: property.furnishing_status,
       management_type: property.management_type,
+      service_type_id: property.service_type_id || null,
+      fee_percent: property.fee_percent ? parseFloat(property.fee_percent) : null,
+      fee_type: property.fee_type || null,
+      management_fee_type: property.management_fee_type || 'percentage',
+      letting_fee_amount: property.letting_fee_amount ? parseFloat(property.letting_fee_amount) : null,
+      letting_fee_type: property.letting_fee_type || null,
       bills_included: property.bills_included || false,
       status: property.status,
       status_override: property.status_override,

@@ -34,6 +34,7 @@ export default defineConfig({
       '.ngrok-free.app',
       '.ngrok-free.dev',
       '.ngrok.io',
+      '.ngrok.app',
       '.ngrok.app'
     ]
   },

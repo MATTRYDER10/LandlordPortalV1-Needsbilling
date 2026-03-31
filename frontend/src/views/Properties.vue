@@ -9,6 +9,12 @@
             <p class="mt-2 text-gray-600 dark:text-slate-400">Manage all property details and compliance</p>
           </div>
           <div class="flex gap-3">
+            <router-link
+              to="/settings/property-settings"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
+            >
+              Property Settings
+            </router-link>
             <button
               @click="showImportModal = true"
               class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"

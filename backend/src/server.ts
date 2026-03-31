@@ -43,6 +43,8 @@ import legalRoutes from './routes/legal'
 import tdsSettingsRoutes from './routes/tds-settings'
 import tdsRoutes from './routes/tds'
 import tenantChangeRoutes from './routes/tenant-change'
+import serviceTypesRoutes from './routes/service-types'
+import propertyChargesRoutes from './routes/property-charges'
 import repositSettingsRoutes from './routes/reposit-settings'
 import repositRoutes from './routes/reposit'
 import reviewLinksRoutes from './routes/review-links'
@@ -54,11 +56,16 @@ import apex27SyncRoutes from './routes/apex27-sync'
 import igSettingsRoutes from './routes/ig-settings'
 import igRoutes from './routes/ig'
 import igWebhooksRoutes from './routes/ig-webhooks'
+import rentgooseRoutes from './routes/rentgoose'
+import contractorsRoutes from './routes/contractors'
+import jmiSettingsRoutes from './routes/jmi-settings'
+import jmiRoutes from './routes/jmi'
 
 // V2 Reference System Routes
 import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, uploadLinkRouter as v2UploadLinkRouter, groupAssessmentRouter as v2GroupAssessmentRouter } from './routes/v2'
 import { startChaseSchedulerV2 } from './services/v2'
 import { startDepositCertificateScheduler } from './services/depositCertificateScheduler'
+import { startArrearsChaseScheduler } from './services/arrearsChaseScheduler'
 
 dotenv.config()
 
@@ -233,6 +240,12 @@ app.use('/api/apex27', apex27SyncRoutes)
 app.use('/api/settings/ig', igSettingsRoutes)
 app.use('/api/ig', igRoutes)
 app.use('/api/integrations/ig', igWebhooksRoutes)
+app.use('/api/rentgoose', rentgooseRoutes)
+app.use('/api/contractors', contractorsRoutes)
+app.use('/api/service-types', serviceTypesRoutes)
+app.use('/api/property-charges', propertyChargesRoutes)
+app.use('/api/settings/jmi', jmiSettingsRoutes)
+app.use('/api/jmi', jmiRoutes)
 
 // V2 Reference System Routes (new section-based verification)
 app.use('/api/v2/references', v2ReferencesRouter)
@@ -266,6 +279,7 @@ app.listen(PORT, '0.0.0.0', () => {
     startRentIncreaseScheduler()
     startChaseSchedulerV2()
     startDepositCertificateScheduler()
+    startArrearsChaseScheduler()
     console.log('[Scheduler] All background schedulers started (production)')
   } else {
     console.log('[Scheduler] Skipping background schedulers (non-production)')

@@ -470,6 +470,8 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     if (management_info !== undefined) updateData.management_info = management_info || null
     if (is_vat_registered !== undefined) updateData.is_vat_registered = is_vat_registered
     if (vat_number !== undefined) updateData.vat_number = vat_number || null
+    if (is_vat_registered !== undefined) updateData.is_vat_registered = is_vat_registered
+    if (vat_number !== undefined) updateData.vat_number = vat_number || null
 
     console.log('Updating company with fields:', Object.keys(updateData))
 

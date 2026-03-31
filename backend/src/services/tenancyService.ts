@@ -750,6 +750,14 @@ export async function endTenancy(
     metadata: { end_date: endDate, reason }
   })
 
+  // Automatically update RentGoose — cancel future schedule entries and pro-rate final period
+  try {
+    const { handleNotice } = await import('./rentgooseService')
+    await handleNotice(tenancyId, endDate, companyId)
+  } catch (err) {
+    console.error('Failed to update RentGoose schedule after notice:', err)
+  }
+
   return tenancy
 }
 

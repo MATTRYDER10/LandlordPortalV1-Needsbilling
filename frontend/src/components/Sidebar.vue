@@ -491,6 +491,19 @@ const GooseHelp = {
   }
 }
 
+// RentGoose - Pound/money icon
+const GooseRentGoose = {
+  render() {
+    return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
+      h('rect', { x: '2', y: '4', width: '20', height: '16', rx: '2', fill: 'currentColor', opacity: '0.15' }),
+      h('rect', { x: '2', y: '4', width: '20', height: '16', rx: '2' }),
+      h('path', { d: 'M14.5 9.5c-.4-1-1.4-1.5-2.5-1.5-1.7 0-3 1.1-3 2.5s1.3 2.5 3 2.5c1.7 0 3 1.1 3 2.5s-1.3 2.5-3 2.5c-1.1 0-2.1-.5-2.5-1.5' }),
+      h('line', { x1: '12', y1: '6', x2: '12', y2: '8' }),
+      h('line', { x1: '12', y1: '18', x2: '12', y2: '20' })
+    ])
+  }
+}
+
 const showCreateMenu = ref(false)
 const isMobileMenuOpen = ref(false)
 
@@ -522,6 +535,7 @@ const navigation = [
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
+  { name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose },
   { name: 'Standalone Agreements', path: '/agreements/history', icon: GooseDocument },
   { name: 'Settings', path: '/settings', icon: GooseSettings },
   { name: 'Help Centre', path: '/help-centre', icon: GooseHelp }
@@ -531,6 +545,7 @@ const navigation = [
 const betaNavigation = [
   { name: 'Offers V2', path: '/tenant-offers-v2', icon: GooseOffers, isExternal: false, isInventoryGoose: false },
   { name: 'References V2', path: '/references-v2', icon: GooseClipboard, isExternal: false, isInventoryGoose: false },
+  { name: 'RentGoose', path: '/rentgoose', icon: GooseSettings, isExternal: false, isInventoryGoose: false },
   { name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true }
 ]
 

@@ -303,6 +303,32 @@
                   ></textarea>
                   <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">This is only shown for managed tenancies. Let Only tenancies will show landlord contact details instead.</p>
                 </div>
+
+                <!-- VAT Registration -->
+                <div class="border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">VAT Registration</h4>
+                  <div class="flex items-center gap-3 mb-3">
+                    <input
+                      id="vat-registered"
+                      v-model="companyData.isVatRegistered"
+                      type="checkbox"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <label for="vat-registered" class="text-sm font-medium text-gray-700 dark:text-slate-300">Are you VAT registered?</label>
+                  </div>
+                  <div v-if="companyData.isVatRegistered">
+                    <label for="vat-number" class="block text-sm font-medium text-gray-700 dark:text-slate-300">VAT Number</label>
+                    <input
+                      id="vat-number"
+                      v-model="companyData.vatNumber"
+                      type="text"
+                      class="mt-1 block w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="e.g. GB123456789"
+                    />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Displayed on all statements and invoices. Fees will show + VAT.</p>
+                  </div>
+                  <p v-else class="text-sm text-gray-500 dark:text-slate-500">All fees will display as inclusive (no VAT breakdown).</p>
+                </div>
               </div>
 
               <div v-if="companySuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
@@ -774,6 +800,21 @@
           <IGIntegrationSettings />
         </div>
 
+        <!-- Just Move In Tab -->
+        <div v-else-if="activeTab === 'jmi'" class="max-w-3xl">
+          <JMIIntegrationSettings />
+        </div>
+
+        <!-- Property Settings Tab -->
+        <div v-else-if="activeTab === 'property-settings'">
+          <PropertySettings />
+        </div>
+
+        <!-- Property Settings Tab -->
+        <div v-else-if="activeTab === 'property-settings'">
+          <PropertySettings />
+        </div>
+
         <!-- Billing Tab -->
         <div v-else-if="activeTab === 'billing'">
           <Billing />
@@ -956,12 +997,14 @@ import MyDepositsIntegrationSettings from '../components/settings/MyDepositsInte
 import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
 import Apex27IntegrationSettings from '../components/settings/Apex27IntegrationSettings.vue'
 import IGIntegrationSettings from '../components/settings/IGIntegrationSettings.vue'
+import JMIIntegrationSettings from '../components/settings/JMIIntegrationSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
+import PropertySettings from '../components/settings/PropertySettings.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -999,6 +1042,9 @@ const tabs = computed(() => {
     { id: 'review-links', name: 'Review Links' },
     { id: 'apex27', name: 'Apex27 CRM' },
     { id: 'inventorygoose', name: 'InventoryGoose' },
+    { id: 'jmi', name: 'Just Move In' },
+    { id: 'property-settings', name: 'Property Settings' },
+    { id: 'property-settings', name: 'Property Settings' },
     { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }
   ]
@@ -1041,7 +1087,9 @@ const companyData = ref({
   bankAccountName: '',
   bankAccountNumber: '',
   bankSortCode: '',
-  managementInfo: ''
+  managementInfo: '',
+  isVatRegistered: false,
+  vatNumber: ''
 })
 
 const companyLoading = ref(false)
@@ -1237,6 +1285,8 @@ const fetchCompanyData = async () => {
         companyData.value.bankAccountNumber = data.company.bank_account_number || ''
         companyData.value.bankSortCode = data.company.bank_sort_code || ''
         companyData.value.managementInfo = data.company.management_info || ''
+        companyData.value.isVatRegistered = data.company.is_vat_registered || false
+        companyData.value.vatNumber = data.company.vat_number || ''
 
         // Load branding data
         brandingData.value.logo_url = data.company.logo_url || ''
@@ -1402,7 +1452,9 @@ const handleUpdateCompany = async () => {
         bank_account_name: companyData.value.bankAccountName,
         bank_account_number: companyData.value.bankAccountNumber,
         bank_sort_code: companyData.value.bankSortCode,
-        management_info: companyData.value.managementInfo
+        management_info: companyData.value.managementInfo,
+        is_vat_registered: companyData.value.isVatRegistered,
+        vat_number: companyData.value.vatNumber
       })
     })
 
