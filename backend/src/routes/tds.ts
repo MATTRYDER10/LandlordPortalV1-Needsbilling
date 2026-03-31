@@ -621,6 +621,13 @@ router.get('/custodial/deposit-status/:batchId', authenticateToken, async (req: 
           'custodial',
           statusResult.rawResponse
         )
+
+        // Send TDS payment instructions email to agent
+        try {
+          await sendTDSPaymentEmail(tenancyId as string, companyId, statusResult.dan, Number(depositAmount) || 0)
+        } catch (emailErr) {
+          console.error('[TDS] Failed to send payment instructions email (deposit still registered):', emailErr)
+        }
       }
 
       res.json({
@@ -1230,6 +1237,12 @@ router.get('/deposit-status/:batchId', authenticateToken, async (req: AuthReques
           'custodial',
           statusResult.rawResponse
         )
+
+        try {
+          await sendTDSPaymentEmail(tenancyId as string, companyId, statusResult.dan, Number(depositAmount) || 0)
+        } catch (emailErr) {
+          console.error('[TDS] Failed to send payment instructions email:', emailErr)
+        }
       }
 
       res.json({ success: true, status: 'complete', dan: statusResult.dan })
@@ -1281,5 +1294,82 @@ router.get('/dpc/:dan', authenticateToken, async (req: AuthRequest, res) => {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
   }
 })
+
+// ============================================================================
+// TDS PAYMENT INSTRUCTIONS EMAIL
+// ============================================================================
+
+async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: string, depositAmount: number): Promise<void> {
+  // Get company details
+  const { data: company } = await supabase
+    .from('companies')
+    .select('name_encrypted, logo_url, email_encrypted, reference_notification_email')
+    .eq('id', companyId)
+    .single()
+
+  const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
+  const companyLogo = company?.logo_url || ''
+  const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
+  const notificationEmail = company?.reference_notification_email || null
+
+  // Get tenancy + property + tenant details
+  const { data: tenancy } = await supabase
+    .from('tenancies')
+    .select('property_id, tenancy_start_date')
+    .eq('id', tenancyId)
+    .single()
+
+  if (!tenancy) return
+
+  const { data: property } = await supabase
+    .from('properties')
+    .select('address_line1_encrypted, postcode')
+    .eq('id', tenancy.property_id)
+    .single()
+
+  const propertyAddress = property
+    ? `${decrypt(property.address_line1_encrypted) || ''}, ${property.postcode || ''}`
+    : 'Unknown property'
+
+  const { data: tenants } = await supabase
+    .from('tenancy_tenants')
+    .select('tenant_name_encrypted, first_name_encrypted, last_name_encrypted, status')
+    .eq('tenancy_id', tenancyId)
+
+  const activeTenants = (tenants || []).filter(t => !t.status || t.status === 'active')
+  const tenantNames = activeTenants.map(t => {
+    if (t.first_name_encrypted) {
+      return `${decrypt(t.first_name_encrypted) || ''} ${decrypt(t.last_name_encrypted) || ''}`.trim()
+    }
+    return decrypt(t.tenant_name_encrypted) || 'Tenant'
+  }).join(', ') || 'Tenant'
+
+  const startDate = tenancy.tenancy_start_date
+    ? new Date(tenancy.tenancy_start_date).toLocaleDateString('en-GB')
+    : 'N/A'
+
+  const html = loadEmailTemplate('tds-payment-instructions', {
+    CompanyName: companyName,
+    AgentLogoUrl: companyLogo,
+    PropertyAddress: propertyAddress,
+    DepositAmount: depositAmount.toFixed(2),
+    DAN: dan,
+    TenantNames: tenantNames,
+    TenancyStartDate: startDate,
+  })
+
+  const subject = `TDS Deposit Payment Required — ${dan} — ${propertyAddress}`
+
+  // Send to registered company email
+  const recipients: string[] = []
+  if (companyEmail) recipients.push(companyEmail)
+  if (notificationEmail && notificationEmail !== companyEmail) recipients.push(notificationEmail)
+
+  for (const to of recipients) {
+    await sendEmail({ to, subject, html })
+  }
+
+  console.log(`[TDS] Payment instructions email sent for DAN ${dan} to ${recipients.join(', ')}`)
+}
 
 export default router
