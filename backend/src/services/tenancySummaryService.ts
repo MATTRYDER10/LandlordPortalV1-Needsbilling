@@ -22,7 +22,7 @@ export async function generateTenancySummary(tenancyId: string, _companyId?: str
           ),
           compliance_records (id, compliance_type, issue_date, expiry_date, status, certificate_number, issuer_name)
         ),
-        agreements (id, status, sent_at, signed_at, created_at)
+        agreements!agreements_tenancy_id_fkey (id, signing_status, signing_initiated_at, signing_completed_at, created_at)
       `)
       .eq('id', tenancyId)
       .single()
@@ -210,11 +210,12 @@ export async function generateTenancySummary(tenancyId: string, _companyId?: str
 
     // Agreement
     if (agreement) {
+      const agStatus = agreement.signing_status || 'unknown'
       html += `<div class="section"><h2>Tenancy Agreement</h2><table>`
-      html += row('Status', `<span class="status status-${agreement.status === 'fully_signed' || agreement.status === 'executed' ? 'completed' : 'pending'}">${capitalise(agreement.status?.replace(/_/g, ' ') || 'Unknown')}</span>`)
+      html += row('Status', `<span class="status status-${agStatus === 'fully_signed' || agStatus === 'executed' ? 'completed' : 'pending'}">${capitalise(agStatus.replace(/_/g, ' '))}</span>`)
       html += row('Created', formatDateTime(agreement.created_at))
-      if (agreement.sent_at) html += row('Sent to Tenants', formatDateTime(agreement.sent_at))
-      if (agreement.signed_at) html += row('Fully Signed', formatDateTime(agreement.signed_at))
+      if (agreement.signing_initiated_at) html += row('Sent to Tenants', formatDateTime(agreement.signing_initiated_at))
+      if (agreement.signing_completed_at) html += row('Fully Signed', formatDateTime(agreement.signing_completed_at))
       html += `</table></div>`
     }
 
