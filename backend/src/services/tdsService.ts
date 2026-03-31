@@ -360,12 +360,20 @@ export async function mapTenancyToTDSPayload(
     })
 
     // Search TDS for existing landlord by email to get their person_id
-    const landlordEmail = decrypt(landlord.email_encrypted) || landlord.email || ''
+    const landlordEmailOriginal = decrypt(landlord.email_encrypted) || landlord.email || ''
     let existingPersonId: string | undefined
-    if (tdsConfig && landlordEmail) {
-      const tdsLandlordId = await searchLandlordByEmail(tdsConfig, landlordEmail)
+    let landlordEmail = landlordEmailOriginal
+    if (tdsConfig && landlordEmailOriginal) {
+      const tdsLandlordId = await searchLandlordByEmail(tdsConfig, landlordEmailOriginal)
       if (tdsLandlordId) {
         existingPersonId = tdsLandlordId
+      } else {
+        // Landlord not found in TDS — use plus addressing to ensure unique email
+        const [localPart, domain] = landlordEmailOriginal.split('@')
+        if (localPart && domain) {
+          landlordEmail = `${localPart}+tds${Date.now()}@${domain}`
+          console.log('[TDS] Using plus-addressed email for new landlord:', landlordEmail.replace(/(.{3}).*@/, '$1***@'))
+        }
       }
     }
 
@@ -399,8 +407,17 @@ export async function mapTenancyToTDSPayload(
 
     const tenantFirstName = decrypt(tenant.first_name_encrypted) || tenant.first_name || ''
     const tenantLastName = decrypt(tenant.last_name_encrypted) || tenant.last_name || ''
-    const tenantEmail = decrypt(tenant.email_encrypted) || tenant.email || ''
+    const tenantEmailOriginal = decrypt(tenant.email_encrypted) || tenant.email || ''
     const tenantPhone = decrypt(tenant.phone_encrypted) || tenant.phone || ''
+
+    // Apply plus addressing to ensure unique email in TDS
+    let tenantEmail = tenantEmailOriginal
+    if (tenantEmailOriginal) {
+      const [localPart, domain] = tenantEmailOriginal.split('@')
+      if (localPart && domain) {
+        tenantEmail = `${localPart}+tds${Date.now()}${index}@${domain}`
+      }
+    }
 
     console.log('[TDS] Processing tenant:', {
       index,
