@@ -77,13 +77,13 @@
     <!-- Main Signing Interface -->
     <div v-else-if="signingData" class="flex-1 flex flex-col">
       <!-- Document Viewer -->
-      <div class="flex-1 overflow-auto">
-        <iframe
+      <div class="flex-1 overflow-hidden">
+        <PdfViewer
           v-if="pdfUrl"
-          :src="pdfUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH'"
-          class="w-full border-0 bg-white"
+          :src="pdfUrl"
+          class="w-full"
           style="height: calc(100vh - 140px);"
-        ></iframe>
+        />
         <div v-else class="flex items-center justify-center py-16 bg-white dark:bg-slate-900">
           <div class="text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
@@ -198,6 +198,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
+import PdfViewer from '../components/PdfViewer.vue'
 import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
