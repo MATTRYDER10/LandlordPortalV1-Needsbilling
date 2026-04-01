@@ -539,6 +539,19 @@ router.post('/submit', async (req, res) => {
         const calculatedDeposit = Math.floor((rentAmount * 12 / 52) * 5)
         const finalDepositAmount = depositReplacementRequested ? 0 : (deposit_amount ? parseFloat(deposit_amount) : calculatedDeposit)
 
+        // Look up negotiator_id from sent_offer_forms
+        let negotiatorId: string | null = null
+        if (form_ref) {
+          const { data: sentForm } = await supabase
+            .from('sent_offer_forms')
+            .select('negotiator_id')
+            .eq('form_ref', form_ref)
+            .maybeSingle()
+          if (sentForm?.negotiator_id) {
+            negotiatorId = sentForm.negotiator_id
+          }
+        }
+
         // Create offer
         const { data: offer, error: offerError } = await supabase
             .from('tenant_offers')
@@ -559,7 +572,8 @@ router.post('/submit', async (req, res) => {
                 unihomes_offered: unihomesOfferedBool,
                 unihomes_interested: unihomesInterestedBool,
                 linked_property_id: linked_property_id || null,
-                is_v2: is_v2 === true
+                is_v2: is_v2 === true,
+                negotiator_id: negotiatorId
             })
             .select()
             .single()

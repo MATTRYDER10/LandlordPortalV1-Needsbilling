@@ -82,9 +82,14 @@
       <div v-if="section?.form_data && Object.keys(section.form_data).length > 0" class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
         <h3 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-4 uppercase tracking-wider">Tenant Submitted Data</h3>
         <div class="grid grid-cols-2 gap-3">
-          <div v-for="(value, key) in filteredFormData" :key="key" class="text-sm">
+          <div v-for="(value, key) in filteredFormData" :key="key" class="text-sm"
+            :class="{
+              'col-span-2 mt-2 pt-2 border-t border-gray-200 dark:border-slate-700': key === 'totalDeclaredAnnualIncome',
+              'bg-amber-50 dark:bg-amber-900/20 -mx-1 px-1 py-1 rounded': key === 'annualRentalIncome' || key === 'totalDeclaredAnnualIncome'
+            }"
+          >
             <span class="text-gray-500 dark:text-slate-400 block text-xs">{{ formatLabel(key as string) }}</span>
-            <span class="text-gray-900 dark:text-white font-medium">{{ formatDisplayValue(key as string, value) }}</span>
+            <span class="font-medium" :class="key === 'totalDeclaredAnnualIncome' ? 'text-lg text-primary' : 'text-gray-900 dark:text-white'">{{ formatDisplayValue(key as string, value) }}</span>
           </div>
         </div>
       </div>
@@ -312,6 +317,53 @@
           <!-- Raw Creditsafe Transaction -->
           <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
             <p class="text-xs text-gray-400">Transaction ID: {{ section.credit_check.transaction_id || 'N/A' }}</p>
+            <p v-if="section.credit_check.address_type" class="text-xs text-gray-400 mt-1">Address: {{ section.credit_check.address_type === 'previous' ? 'Previous' : 'Current' }}</p>
+          </div>
+
+          <!-- Previous Address Credit Check -->
+          <div v-if="previousAddressCreditCheck" class="border border-indigo-200 dark:border-indigo-800 rounded-xl overflow-hidden">
+            <div class="px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <CreditCard class="w-4 h-4 text-indigo-600" />
+                  <span class="font-semibold text-indigo-800 dark:text-indigo-300 text-sm">Previous Address Credit Check</span>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                  :class="previousAddressCreditCheck.risk_level === 'low' ? 'bg-green-100 text-green-700' : previousAddressCreditCheck.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'"
+                >{{ previousAddressCreditCheck.risk_level || previousAddressCreditCheck.status }}</span>
+              </div>
+              <p v-if="previousAddressCreditCheck.requestData" class="text-xs text-indigo-600 mt-1">
+                {{ previousAddressCreditCheck.requestData.address }}, {{ previousAddressCreditCheck.requestData.postcode }}
+              </p>
+            </div>
+            <div class="p-4 space-y-2">
+              <div class="grid grid-cols-3 gap-3 text-sm">
+                <div class="p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <p class="text-xs text-gray-500">Risk Score</p>
+                  <p class="font-bold text-gray-900 dark:text-white">{{ previousAddressCreditCheck.risk_score }}/100</p>
+                </div>
+                <div class="p-2.5 rounded-lg" :class="previousAddressCreditCheck.responseData?.ccjMatch ? 'bg-red-50' : 'bg-green-50'">
+                  <p class="text-xs text-gray-500">CCJs</p>
+                  <p :class="previousAddressCreditCheck.responseData?.ccjMatch ? 'font-bold text-red-600' : 'font-semibold text-green-600'">
+                    {{ previousAddressCreditCheck.responseData?.ccjMatch ? `${previousAddressCreditCheck.responseData?.countyCourtJudgments?.length || 0} found` : 'Clear' }}
+                  </p>
+                </div>
+                <div class="p-2.5 rounded-lg" :class="previousAddressCreditCheck.responseData?.insolvencyMatch ? 'bg-red-50' : 'bg-green-50'">
+                  <p class="text-xs text-gray-500">Insolvency</p>
+                  <p :class="previousAddressCreditCheck.responseData?.insolvencyMatch ? 'font-bold text-red-600' : 'font-semibold text-green-600'">
+                    {{ previousAddressCreditCheck.responseData?.insolvencyMatch ? 'Found' : 'Clear' }}
+                  </p>
+                </div>
+              </div>
+              <!-- Previous address CCJ details -->
+              <div v-if="previousAddressCreditCheck.responseData?.countyCourtJudgments?.length > 0" class="mt-2">
+                <h4 class="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Previous Address CCJs</h4>
+                <div v-for="(ccj, idx) in previousAddressCreditCheck.responseData.countyCourtJudgments" :key="idx" class="p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
+                  <span class="font-medium">{{ ccj.courtName || 'Unknown' }}</span> — £{{ ccj.amount || '?' }} ({{ ccj.caseStatus || 'Unknown' }})
+                </div>
+              </div>
+              <p class="text-xs text-gray-400">Transaction ID: {{ previousAddressCreditCheck.transaction_id || 'N/A' }} | Checked: {{ formatUKDateTime(previousAddressCreditCheck.created_at) }}</p>
+            </div>
           </div>
 
           <!-- Creditsafe Re-Run Panel -->
@@ -583,6 +635,28 @@ const filteredFormData = computed(() => {
     if (typeof value === 'object' && !Array.isArray(value)) continue
     result[key] = value
   }
+
+  // Add computed annual rental income if monthly rental exists
+  const fd = section.value.form_data
+  if (fd.rentalIncome && !isNaN(parseFloat(fd.rentalIncome))) {
+    const monthlyRental = parseFloat(fd.rentalIncome)
+    result['annualRentalIncome'] = monthlyRental * 12
+  }
+
+  // Add total confirmed income summary for INCOME section
+  if (section.value.section_type === 'INCOME') {
+    const salary = parseFloat(fd.annualSalary || fd.calculatedAnnualIncome || 0) || 0
+    const rentalAnnual = (parseFloat(fd.rentalIncome || 0) || 0) * 12
+    const selfEmployed = parseFloat(fd.selfEmployedAnnualIncome || 0) || 0
+    const benefits = (parseFloat(fd.benefitsMonthlyAmount || 0) || 0) * 12
+    const pension = (parseFloat(fd.pensionMonthlyAmount || 0) || 0) * 12
+    const savings = parseFloat(fd.savingsAmount || 0) || 0
+    const total = salary + rentalAnnual + selfEmployed + benefits + pension + savings
+    if (total > 0) {
+      result['totalDeclaredAnnualIncome'] = total
+    }
+  }
+
   return result
 })
 
@@ -598,7 +672,9 @@ const labelMap: Record<string, string> = {
   payType: 'Pay Type', calculatedAnnualIncome: 'Calculated Annual Income',
   accountantName: 'Accountant', accountantEmail: 'Accountant Email', accountantPhone: 'Accountant Phone',
   benefitsMonthlyAmount: 'Monthly Benefits', savingsAmount: 'Savings', pensionMonthlyAmount: 'Monthly Pension',
-  rentalIncome: 'Monthly Rental Income', rentalProperties: 'Number of Rental Properties',
+  rentalIncome: 'Monthly Rental Income', annualRentalIncome: 'Annual Rental Income (x12)',
+  totalDeclaredAnnualIncome: 'Total Declared Annual Income',
+  rentalProperties: 'Number of Rental Properties',
   currentLivingSituation: 'Living Situation', currentLandlordName: 'Current Landlord',
   currentLandlordEmail: 'Landlord Email', currentLandlordPhone: 'Landlord Phone',
   smoker: 'Smoker', hasPets: 'Has Pets', petDetails: 'Pet Details',
@@ -652,7 +728,7 @@ const valueMap: Record<string, string> = {
 
 const moneyKeys = new Set(['annualSalary', 'selfEmployedAnnualIncome', 'benefitsMonthlyAmount', 'savingsAmount',
   'pensionMonthlyAmount', 'monthlyRent', 'hourlyRate', 'calculatedAnnualIncome', 'annualIncome', 'rentShare',
-  'rentalIncome'])
+  'rentalIncome', 'annualRentalIncome', 'totalDeclaredAnnualIncome'])
 const dateKeys = new Set(['employmentStartDate', 'selfEmployedStartDate', 'dateOfBirth', 'tenancyStartDate',
   'tenancyEndDate', 'moveInDate', 'startDate', 'endDate'])
 
@@ -694,6 +770,11 @@ function formatUKDateTime(dateStr: string): string {
 const creditResponseData = computed(() => {
   if (!section.value?.credit_check?.responseData) return null
   return section.value.credit_check.responseData
+})
+
+const previousAddressCreditCheck = computed(() => {
+  const checks = section.value?.credit_checks || []
+  return checks.find((c: any) => c.address_type === 'previous') || null
 })
 
 const creditRiskLabel = computed(() => {
@@ -959,6 +1040,11 @@ const checklistSteps = computed(() => {
         })
       }
 
+      // Calculate required income for the affordability threshold
+      // Required = multiplier × monthly rent (e.g. 30 × £1,275 = £38,250)
+      const rentShare = section.value.rent_share || section.value.monthly_rent || 0
+      const requiredMultiplier = section.value.is_guarantor ? 32 : 30
+
       incomeSteps.push({
         title: 'Review Income Evidence',
         checklistItems: incomeChecklist,
@@ -968,6 +1054,13 @@ const checklistSteps = computed(() => {
           label: 'Income Evidence',
           filename: evidence.payslips.filename
         } : undefined,
+        affordabilityNote: rentShare > 0 ? {
+          rentShare,
+          requiredMultiplier,
+          requiredAnnualIncome: rentShare * requiredMultiplier,
+          isGuarantor: section.value.is_guarantor,
+          confirmedAnnual: refereeConfirmedAnnual || null
+        } : null,
         inputFields: [
           { name: 'monthly_income', label: 'Monthly Income Evidenced (£)', type: 'text', placeholder: 'e.g. 2900' },
           { name: 'annual_income', label: 'Annual Income (auto: monthly x 12, editable)', type: 'text', placeholder: annualPlaceholder },

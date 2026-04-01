@@ -558,22 +558,58 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
     if (sectionFormData.payslipsUrl) evidence.payslips = { url: sectionFormData.payslipsUrl, filename: 'Payslips' }
     if (sectionFormData.taxReturnUrl) evidence.tax_return = { url: sectionFormData.taxReturnUrl, filename: 'Tax Return' }
 
-    // For RTR sections: also pull the passport from the Identity section if not already present
-    if (section.section_type === 'RTR' && !evidence.rtr_document) {
-      // Check Identity section's form_data for passportDocUrl
-      const { data: identitySection } = await supabase
-        .from('reference_sections_v2')
-        .select('section_data')
+    // For RTR sections: also pull the passport/ID from the Identity section if not already present
+    if (section.section_type === 'RTR') {
+      // Check Identity form_data from the main reference form_data
+      const identityFormData: any = formData.identity || {}
+
+      // Also check Identity section's evidence_v2 records
+      const { data: identityEvidence } = await supabase
+        .from('evidence_v2')
+        .select('id, evidence_type, file_path, file_name, file_type')
         .eq('reference_id', section.reference_id)
         .eq('section_type', 'IDENTITY')
-        .maybeSingle()
 
-      const identityFormData = identitySection?.section_data?.form_data || {}
-      if (identityFormData.passportDocUrl) {
+      for (const ev of (identityEvidence || [])) {
+        const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(ev.file_path)
+        const url = urlData?.publicUrl || ev.file_path
+
+        if (ev.evidence_type === 'id_document' || ev.file_name?.toLowerCase().includes('id')) {
+          if (!evidence.id_document_cross_ref) {
+            evidence.id_document_cross_ref = { url, filename: ev.file_name || 'ID Document (from ID section)' }
+          }
+        }
+        if (ev.evidence_type === 'passport' || ev.file_name?.toLowerCase().includes('passport')) {
+          if (!evidence.passport) {
+            evidence.passport = { url, filename: ev.file_name || 'Passport' }
+          }
+        }
+      }
+
+      // Fall back to form_data URLs
+      if (!evidence.passport && identityFormData.passportDocUrl) {
         evidence.passport = { url: identityFormData.passportDocUrl, filename: 'Passport (from ID)' }
       }
-      if (identityFormData.idDocumentUrl) {
+      if (!evidence.id_document_cross_ref && identityFormData.idDocumentUrl) {
         evidence.id_document_cross_ref = { url: identityFormData.idDocumentUrl, filename: 'ID Document (from ID section)' }
+      }
+
+      // Also check section_data on the Identity section record (legacy path)
+      if (!evidence.passport || !evidence.id_document_cross_ref) {
+        const { data: identitySection } = await supabase
+          .from('reference_sections_v2')
+          .select('section_data')
+          .eq('reference_id', section.reference_id)
+          .eq('section_type', 'IDENTITY')
+          .maybeSingle()
+
+        const sectionIdentityData: any = identitySection?.section_data?.form_data || identitySection?.section_data || {}
+        if (!evidence.passport && sectionIdentityData.passportDocUrl) {
+          evidence.passport = { url: sectionIdentityData.passportDocUrl, filename: 'Passport (from ID)' }
+        }
+        if (!evidence.id_document_cross_ref && sectionIdentityData.idDocumentUrl) {
+          evidence.id_document_cross_ref = { url: sectionIdentityData.idDocumentUrl, filename: 'ID Document (from ID section)' }
+        }
       }
     }
 
@@ -598,27 +634,34 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
       }
     }
 
-    // Get credit check if CREDIT section
+    // Get credit check(s) if CREDIT section
     let creditCheck = null
     let creditRequestData: any = null
+    let allCreditChecks: any[] = []
     let proofOfAddressForCredit: any = null
     if (section.section_type === 'CREDIT') {
-      const { data: credit } = await supabase
+      const { data: credits } = await supabase
         .from('creditsafe_verifications_v2')
         .select('*')
         .eq('reference_id', section.reference_id)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (credit) {
-        let responseData: any = null
-        if (credit.response_data_encrypted) {
-          try { responseData = JSON.parse(decrypt(credit.response_data_encrypted) || '{}') } catch {}
-        }
-        if (credit.request_data_encrypted) {
-          try { creditRequestData = JSON.parse(decrypt(credit.request_data_encrypted) || '{}') } catch {}
-        }
-        creditCheck = { ...credit, responseData, requestData: creditRequestData }
+
+      if (credits && credits.length > 0) {
+        allCreditChecks = credits.map(credit => {
+          let responseData: any = null
+          let requestData: any = null
+          if (credit.response_data_encrypted) {
+            try { responseData = JSON.parse(decrypt(credit.response_data_encrypted) || '{}') } catch {}
+          }
+          if (credit.request_data_encrypted) {
+            try { requestData = JSON.parse(decrypt(credit.request_data_encrypted) || '{}') } catch {}
+          }
+          return { ...credit, responseData, requestData, response_data_encrypted: undefined, request_data_encrypted: undefined }
+        })
+        // Primary = most recent current-address check (or just the first)
+        const currentCheck = allCreditChecks.find(c => c.address_type !== 'previous') || allCreditChecks[0]
+        creditCheck = currentCheck
+        creditRequestData = currentCheck?.requestData || null
       }
 
       // Fetch proof of address from RESIDENTIAL section evidence for cross-reference
@@ -704,6 +747,7 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
       form_data: sectionFormData,
       evidence,
       credit_check: creditCheck,
+      credit_checks: allCreditChecks,
       credit_request_data: creditRequestData,
       proof_of_address_for_credit: proofOfAddressForCredit,
       aml_check: amlCheck,

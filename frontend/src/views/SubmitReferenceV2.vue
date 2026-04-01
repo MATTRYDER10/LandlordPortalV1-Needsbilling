@@ -176,8 +176,8 @@
               v-model="formData.identity.idDocument"
               label="Upload ID Document"
               required
-              accept=".pdf,.jpg,.jpeg,.png"
-              acceptLabel="PDF, JPG, PNG up to 25MB"
+              accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
+              acceptLabel="PDF, JPG, PNG, HEIC, WebP up to 25MB"
               helpText="Please upload a clear photo or scan of your ID document"
               :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
               :token="token"
@@ -453,8 +453,8 @@
                 <FileUpload
                   v-model="formData.rtr.passportDoc"
                   label="Upload Passport"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  acceptLabel="PDF, JPG, PNG up to 25MB"
+                  accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
+                  acceptLabel="PDF, JPG, PNG, HEIC, WebP up to 25MB"
                   helpText="Upload a clear copy of your passport photo page"
                   :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                   :token="token"
@@ -492,7 +492,7 @@
                   v-model="formData.rtr.alternativeDoc"
                   label="Upload Alternative Document"
                   required
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                   :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                   :token="token"
                   section="rtr"
@@ -534,7 +534,7 @@
                 v-if="formData.rtr.supportingDocType"
                 v-model="formData.rtr.supportingDoc"
                 label="Upload Supporting Document"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
                 section="rtr"
@@ -646,18 +646,17 @@
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">HR/Reference Email</label>
-                  <input
+                  <EmailInput
                     v-model="formData.income.employerRefEmail"
-                    type="email"
                     placeholder="HR or manager email"
-                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                    input-class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
 
               <MultiFileUpload
                 label="Upload Payslips (Last 3 Months)"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 helpText="Upload your most recent 3 payslips to verify income — select multiple files"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
@@ -756,10 +755,9 @@
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Email *</label>
-                    <input
+                    <EmailInput
                       v-model="formData.income.accountantEmail"
-                      type="email"
-                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                      input-class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -779,7 +777,7 @@
                   v-model="formData.income.taxReturn"
                   label="Upload Tax Return/SA302"
                   :required="selfEmployedVerifyOption === 'document'"
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                   helpText="Upload your most recent tax return or SA302"
                   :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                   :token="token"
@@ -805,7 +803,7 @@
               <FileUpload
                 v-model="formData.income.benefitsDoc"
                 label="Upload Benefits Statement"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 helpText="Upload a recent benefits award letter or statement"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
@@ -830,7 +828,7 @@
               <MultiFileUpload
                 label="Upload Proof of Savings"
                 required
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 helpText="Upload bank or investment statements showing your savings — select multiple files"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
@@ -867,7 +865,7 @@
                 v-model="formData.income.pensionDoc"
                 label="Upload Pension Statement"
                 required
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
                 section="income"
@@ -902,7 +900,7 @@
               <FileUpload
                 v-model="formData.income.rentalDoc"
                 label="Upload rental income statement or tenancy agreements"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 helpText="Upload bank statements showing rental income or tenancy agreements"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
@@ -1051,7 +1049,7 @@
                 v-model="formData.residential.proofOfAddress"
                 label="Proof of Address"
                 required
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.bmp"
                 helpText="Bank statement, utility bill, or council tax bill (dated within 3 months)"
                 :uploadUrl="`${API_URL}/api/v2/tenant-form/${token}/upload`"
                 :token="token"
@@ -1105,11 +1103,10 @@
                 <div class="grid grid-cols-2 gap-3">
                   <div>
                     <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Email *</label>
-                    <input
+                    <EmailInput
                       v-model="formData.residential.currentLandlordEmail"
-                      type="email"
                       placeholder="Email address"
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                      input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
                     />
                   </div>
                   <div>
@@ -1376,11 +1373,10 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Guarantor Email *</label>
-              <input
+              <EmailInput
                 v-model="formData.guarantor.email"
-                type="email"
                 required
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                input-class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
               />
               <p class="text-xs text-gray-500 mt-1">We'll send them a reference form to complete</p>
             </div>
@@ -1885,6 +1881,7 @@ import SignaturePad from '@/components/forms/SignaturePad.vue'
 import DeviceHandoffGate from '@/components/DeviceHandoffGate.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
+import EmailInput from '@/components/EmailInput.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()

@@ -140,8 +140,8 @@
                                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                     Email Address *
                                 </label>
-                                <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
-                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                <EmailInput :id="`tenant-${index}-email`" v-model="tenant.email" required
+                                    input-class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
 
                             <!-- Student / Guarantor options -->
@@ -466,6 +466,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
+import EmailInput from '../components/EmailInput.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'

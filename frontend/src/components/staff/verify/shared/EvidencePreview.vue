@@ -199,9 +199,7 @@ const isPdf = computed(() => {
 
 const isImage = computed(() => {
   const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
-  return imageExtensions.includes(fileExtension.value)
-    props.fileType?.startsWith('image/')
-    false
+  return imageExtensions.includes(fileExtension.value) || !!props.fileType?.startsWith('image/')
 })
 
 const previewUrl = computed(() => {

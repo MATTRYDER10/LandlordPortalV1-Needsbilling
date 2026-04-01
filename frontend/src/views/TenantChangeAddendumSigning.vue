@@ -81,9 +81,41 @@
           </div>
         </div>
 
-        <!-- Addendum Details -->
+        <!-- Original Tenancy Agreement PDF -->
+        <div v-if="signingData.originalAgreementPdfUrl" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Original Tenancy Agreement</h3>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+            Please review the original tenancy agreement for the property. By signing the addendum below, you confirm you have had sight of this agreement.
+          </p>
+          <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700" style="height: 600px;">
+            <PdfViewer :src="signingData.originalAgreementPdfUrl" />
+          </div>
+        </div>
+
+        <!-- Addendum PDF -->
+        <div v-if="signingData.addendumPdfUrl" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Change of Tenant Addendum</h3>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+            Please review the addendum document below before signing.
+          </p>
+          <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700" style="height: 600px;">
+            <PdfViewer :src="signingData.addendumPdfUrl" />
+          </div>
+        </div>
+
+        <!-- Section A: Original Agreement Acknowledgement -->
         <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Addendum Details</h3>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Section A &mdash; Original Agreement Acknowledgement</h3>
+          <div class="prose dark:prose-invert max-w-none text-sm text-gray-700 dark:text-slate-300">
+            <p>
+              I, <strong>{{ signingData.signerName }}</strong>, confirm that I have had sight of and agree to the original terms of the tenancy agreement for the property at <strong>{{ signingData.propertyAddress }}</strong><span v-if="signingData.tenancyStartDate"> dated <strong>{{ formatDate(signingData.tenancyStartDate) }}</strong></span>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Section B: Addendum Terms -->
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Section B &mdash; Addendum Terms</h3>
           <div class="prose dark:prose-invert max-w-none text-sm text-gray-700 dark:text-slate-300 space-y-4">
             <p>
               This addendum to the tenancy agreement records a change of tenant(s) at the property located at <strong>{{ signingData.propertyAddress }}</strong>.
@@ -96,9 +128,22 @@
               <li>The incoming tenant(s) will become parties to the existing tenancy agreement</li>
               <li>The deposit protection details remain unchanged</li>
               <li>All other terms of the original tenancy agreement remain in full force and effect</li>
+              <li>I, <strong>{{ signingData.signerName }}</strong>, agree to be bound by the terms of this addendum and confirm my agreement to the change of tenant as described herein</li>
+              <li>The incoming tenant(s) accept the property in its current condition as recorded in the most recent inventory and schedule of condition</li>
+              <li>The incoming tenant(s) acknowledge receipt of the prescribed information relating to the tenancy deposit</li>
             </ul>
             <p>
               This is a legally binding addendum that forms part of the original tenancy agreement.
+            </p>
+          </div>
+        </div>
+
+        <!-- Section C: Inventory Condition Agreement -->
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Section C &mdash; Inventory &amp; Condition Agreement</h3>
+          <div class="prose dark:prose-invert max-w-none text-sm text-gray-700 dark:text-slate-300">
+            <p>
+              I accept the current inventory and schedule of condition for the property as an accurate record of the property's state.
             </p>
           </div>
         </div>
@@ -122,8 +167,7 @@
                 class="mt-1 h-4 w-4 text-orange-600 border-gray-300 dark:border-slate-600 rounded focus:ring-orange-500 dark:bg-slate-900"
               />
               <span class="ml-3 text-sm text-gray-600 dark:text-slate-400">
-                I confirm that I have read and understood the change of tenant addendum above. I agree to be bound by its terms.
-                I understand that this electronic signature is legally binding.
+                I, <strong>{{ signingData.signerName }}</strong>, confirm that I have read and understood the change of tenant addendum above, I have had sight of the original tenancy agreement terms, I accept the current inventory and schedule of condition as an accurate record of the property's state, and I agree to be bound by all terms. I understand that this electronic signature is legally binding.
               </span>
             </label>
           </div>
@@ -196,6 +240,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
+import PdfViewer from '../components/PdfViewer.vue'
 import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()

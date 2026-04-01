@@ -575,7 +575,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       Promise.resolve(decryptFormData(result.reference.form_data)),
       getSections(id),
       getGuarantor(id),
-      supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
+      supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).then(r => r.data),
       supabase.from('sanctions_screenings_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
       result.reference.is_group_parent ? getGroupChildren(id) : Promise.resolve(null),
       result.reference.offer_id
@@ -610,7 +610,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       sections,
       children,
       guarantor,
-      creditCheck: creditResult,
+      creditCheck: Array.isArray(creditResult) ? creditResult[0] || null : creditResult,
+      creditChecks: Array.isArray(creditResult) ? creditResult : (creditResult ? [creditResult] : []),
       amlCheck: amlResult
     })
   } catch (error: any) {

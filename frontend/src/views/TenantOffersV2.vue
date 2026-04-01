@@ -161,8 +161,9 @@
         </div>
       </div>
 
-      <!-- Main Content -->
-      <div class="flex-1 overflow-y-auto p-6">
+      <!-- Main Content + Leaderboard -->
+      <div class="flex-1 overflow-y-auto p-6 flex gap-6">
+        <div class="flex-1 min-w-0">
         <!-- Loading -->
         <div v-if="loading" class="space-y-4">
           <div v-for="i in 5" :key="i" class="bg-white dark:bg-slate-900 rounded-xl p-4 animate-pulse">
@@ -291,6 +292,7 @@
                 <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   {{ offer.tenant_first_name }} {{ offer.tenant_last_name }}
                   <span v-if="offer.tenant_email" class="text-gray-400"> • {{ offer.tenant_email }}</span>
+                  <span v-if="offer.negotiator_name" class="text-primary font-medium"> • {{ offer.negotiator_name }}</span>
                 </p>
                 <div class="flex items-center gap-4 mt-2 text-xs text-gray-400">
                   <span v-if="offer.offered_rent_amount || offer.rent_amount" class="flex items-center gap-1">
@@ -338,6 +340,87 @@
                 <Loader2 v-else class="w-3 h-3 animate-spin" />
                 {{ resendingOfferId === offer.id ? 'Sending...' : 'Resend Email' }}
               </button>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <!-- Staff Performance Leaderboard -->
+        <div class="w-80 flex-shrink-0 hidden lg:block">
+          <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-4 sticky top-0">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Staff Performance</h3>
+
+            <!-- Period Toggle -->
+            <div class="flex gap-1 mb-4 bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
+              <button
+                v-for="p in ['daily', 'weekly', 'monthly', 'ytd']"
+                :key="p"
+                @click="statsPeriod = p"
+                class="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors"
+                :class="statsPeriod === p
+                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'"
+              >
+                {{ p === 'ytd' ? 'YTD' : p.charAt(0).toUpperCase() + p.slice(1) }}
+              </button>
+            </div>
+
+            <!-- Top 3 Cards -->
+            <div v-if="negotiatorStats.length > 0" class="space-y-2 mb-4">
+              <div
+                v-for="(stat, idx) in negotiatorStats.slice(0, 3)"
+                :key="stat.id"
+                class="flex items-center gap-3 p-3 rounded-lg"
+                :class="{
+                  'bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800': idx === 0,
+                  'bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700': idx === 1,
+                  'bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800': idx === 2
+                }"
+              >
+                <div
+                  class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                  :class="{
+                    'bg-yellow-400 text-yellow-900': idx === 0,
+                    'bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-200': idx === 1,
+                    'bg-orange-400 text-orange-900': idx === 2
+                  }"
+                >
+                  {{ idx + 1 }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ stat.name }}</p>
+                  <p class="text-xs text-gray-500 dark:text-slate-400">{{ stat.let_agreed }} let agreed</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Full Table -->
+            <div v-if="negotiatorStats.length > 0" class="border-t border-gray-200 dark:border-slate-700 pt-3">
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th class="text-left text-[10px] font-medium text-gray-400 uppercase pb-2">#</th>
+                    <th class="text-left text-[10px] font-medium text-gray-400 uppercase pb-2">Name</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Sent</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Rcvd</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Let</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(stat, idx) in negotiatorStats" :key="stat.id" class="border-t border-gray-100 dark:border-slate-800">
+                    <td class="py-1.5 text-xs text-gray-400">{{ idx + 1 }}</td>
+                    <td class="py-1.5 text-xs text-gray-900 dark:text-white truncate max-w-[100px]">{{ stat.name }}</td>
+                    <td class="py-1.5 text-xs text-gray-500 text-center">{{ stat.offers_sent }}</td>
+                    <td class="py-1.5 text-xs text-gray-500 text-center">{{ stat.offers_received }}</td>
+                    <td class="py-1.5 text-xs text-green-600 font-semibold text-center">{{ stat.let_agreed }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="text-center py-6">
+              <p class="text-xs text-gray-400">No negotiator data yet.</p>
+              <p class="text-xs text-gray-400 mt-1">Add negotiators in Settings.</p>
             </div>
           </div>
         </div>
@@ -397,12 +480,23 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email *</label>
-                  <input
+                  <EmailInput
                     v-model="sendForm.tenant_email"
-                    type="email"
+                    required
+                    input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Deal Owner *</label>
+                  <select
+                    v-model="sendForm.negotiator_id"
                     required
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
+                  >
+                    <option value="" disabled>Select a deal owner...</option>
+                    <option v-for="opt in dealOwnerOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
+                  </select>
                 </div>
 
                 <!-- Property Details -->
@@ -1392,8 +1486,8 @@
                     <input v-model="newTenant.last_name" type="text" placeholder="Last name *"
                       class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                   </div>
-                  <input v-model="newTenant.email" type="email" placeholder="Email address *"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                  <EmailInput v-model="newTenant.email" placeholder="Email address *"
+                    input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                   <input v-model="newTenant.phone" type="tel" placeholder="Phone (optional)"
                     class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                   <div class="flex gap-2">
@@ -1449,6 +1543,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import Sidebar from '@/components/Sidebar.vue'
+import EmailInput from '@/components/EmailInput.vue'
 import {
   Search,
   Send,
@@ -1570,7 +1665,20 @@ const sendForm = ref({
   deposit_amount: null as number | null,
   move_in_date: '',
   offer_deposit_replacement: false,
-  offer_unihomes: false
+  offer_unihomes: false,
+  negotiator_id: '' as string
+})
+
+// Negotiator / leaderboard state
+const negotiators = ref<any[]>([])
+const negotiatorStats = ref<any[]>([])
+const statsPeriod = ref('weekly')
+
+// Deal owner options: if no negotiators, show branch name as default
+const dealOwnerOptions = computed(() => {
+  if (negotiators.value.length > 0) return negotiators.value
+  const branchName = authStore.company?.name || authStore.branches?.find(b => b.id === authStore.activeBranchId)?.name || 'Branch'
+  return [{ id: 'branch', name: branchName }]
 })
 
 // Move-in date calendar
@@ -1803,7 +1911,8 @@ const isFormValid = computed(() => {
          sendForm.value.tenant_email &&
          hasProperty &&
          sendForm.value.rent_amount &&
-         holdingDepositValid
+         holdingDepositValid &&
+         sendForm.value.negotiator_id
 })
 
 function formatStatus(status: string, offer?: any) {
@@ -2273,7 +2382,8 @@ function closeSendModal() {
     deposit_amount: null,
     move_in_date: '',
     offer_deposit_replacement: false,
-    offer_unihomes: false
+    offer_unihomes: false,
+    negotiator_id: ''
   }
   // Reset calendar state
   showMoveInCalendar.value = false
@@ -2305,7 +2415,8 @@ async function sendOffer() {
       deposit_amount: sendForm.value.deposit_amount,
       move_in_date: sendForm.value.move_in_date || null,
       offer_deposit_replacement: sendForm.value.offer_deposit_replacement,
-      offer_unihomes: sendForm.value.offer_unihomes
+      offer_unihomes: sendForm.value.offer_unihomes,
+      negotiator_id: sendForm.value.negotiator_id && sendForm.value.negotiator_id !== 'branch' ? sendForm.value.negotiator_id : null
     }
 
     // Include linked property ID if a property was selected
@@ -2425,6 +2536,48 @@ async function deleteSelectedOffers() {
   }
 }
 
+async function fetchNegotiators() {
+  try {
+    const response = await fetch(`${API_URL}/api/v2/negotiators`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      negotiators.value = data.negotiators || []
+      // Auto-default to branch if no negotiators configured
+      if (negotiators.value.length === 0 && !sendForm.value.negotiator_id) {
+        sendForm.value.negotiator_id = 'branch'
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching negotiators:', error)
+  }
+}
+
+async function fetchNegotiatorStats() {
+  try {
+    const response = await fetch(`${API_URL}/api/v2/negotiators/stats?period=${statsPeriod.value}`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      negotiatorStats.value = data.stats || []
+    }
+  } catch (error) {
+    console.error('Error fetching negotiator stats:', error)
+  }
+}
+
+watch(statsPeriod, () => {
+  fetchNegotiatorStats()
+})
+
 async function fetchOffers() {
   loading.value = true
   try {
@@ -2489,9 +2642,12 @@ async function fetchOffers() {
 
 async function refreshData() {
   await fetchOffers()
+  fetchNegotiatorStats()
 }
 
 onMounted(() => {
   fetchOffers()
+  fetchNegotiators()
+  fetchNegotiatorStats()
 })
 </script>

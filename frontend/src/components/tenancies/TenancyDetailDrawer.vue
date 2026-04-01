@@ -1331,10 +1331,9 @@
                 </div>
                 <div>
                   <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Email</label>
-                  <input
+                  <EmailInput
                     v-model="newTenant.email"
-                    type="email"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-primary focus:border-primary"
+                    input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-primary focus:border-primary"
                     placeholder="john@example.com"
                   />
                 </div>
@@ -1505,10 +1504,9 @@
                   </div>
                   <div>
                     <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Email</label>
-                    <input
+                    <EmailInput
                       v-model="newGuarantor.email"
-                      type="email"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                      input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="jane@example.com"
                     />
                   </div>
@@ -3018,6 +3016,7 @@ import {
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
   Sparkles, Star, RefreshCw, AlertTriangle, Zap
 } from 'lucide-vue-next'
+import EmailInput from '@/components/EmailInput.vue'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
 import InitialMoniesModal from './InitialMoniesModal.vue'
@@ -5632,7 +5631,22 @@ const loadApex27Status = async () => {
     const response = await authFetch(`${API_URL}/api/settings/apex27`, { token } as any)
     if (response.ok) {
       const data = await response.json()
-      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+      const companyConfigured = data.configured && data.lastTestStatus === 'success'
+
+      // Also check if the property has an apex27_listing_id
+      const propertyId = fullTenancyData.value?.property_id || props.tenancy?.property_id
+      if (companyConfigured && propertyId) {
+        const propResponse = await authFetch(`${API_URL}/api/properties/${propertyId}`, { token } as any)
+        if (propResponse.ok) {
+          const propData = await propResponse.json()
+          const property = propData.property || propData
+          apex27Connected.value = !!property.apex27_listing_id
+        } else {
+          apex27Connected.value = false
+        }
+      } else {
+        apex27Connected.value = false
+      }
     }
   } catch {
     // Silently fail - just don't show the button

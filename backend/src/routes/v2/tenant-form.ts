@@ -657,12 +657,16 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     }
 
     // Auto-trigger Credit and AML checks (run in background, don't block response)
+    const previousAddresses = residential.previousAddresses || []
+    const firstPreviousAddr = previousAddresses.length > 0 ? previousAddresses[0] : null
     triggerAutomatedChecks(reference.id, {
       firstName: identity.firstName,
       lastName: identity.lastName,
       dateOfBirth: identity.dateOfBirth,
       address: residential.currentAddress.line1 + (residential.currentAddress.line2 ? ', ' + residential.currentAddress.line2 : ''),
-      postcode: residential.currentAddress.postcode
+      postcode: residential.currentAddress.postcode,
+      previousAddress: firstPreviousAddr ? (firstPreviousAddr.line1 + (firstPreviousAddr.line2 ? ', ' + firstPreviousAddr.line2 : '')) : undefined,
+      previousPostcode: firstPreviousAddr?.postcode || undefined
     }).catch(err => console.error('[V2 TenantForm] Background checks error:', err))
 
     return res.json({
@@ -1012,6 +1016,8 @@ async function triggerAutomatedChecks(
     dateOfBirth: string
     address: string
     postcode: string
+    previousAddress?: string
+    previousPostcode?: string
   }
 ): Promise<void> {
   console.log(`[V2 AutoChecks] Starting automated checks for reference ${referenceId}`)
@@ -1054,7 +1060,8 @@ async function triggerAutomatedChecks(
           risk_level: result.riskLevel,
           risk_score: result.riskScore,
           status: result.status,
-          fraud_indicators: (result as any).fraudIndicators || null
+          fraud_indicators: (result as any).fraudIndicators || null,
+          address_type: 'current'
         })
       } catch (storeErr) {
         console.error('[V2 AutoChecks] Failed to store credit result:', storeErr)
@@ -1084,6 +1091,41 @@ async function triggerAutomatedChecks(
       }
 
       console.log(`[V2 AutoChecks] Credit check completed: ${result.status} (risk: ${result.riskLevel})`)
+
+      // Run second credit check against previous address for 3-year history coverage
+      if (tenantData.previousAddress && tenantData.previousPostcode) {
+        try {
+          console.log(`[V2 AutoChecks] Running previous address credit check for ${tenantData.firstName} ${tenantData.lastName}`)
+          const prevResult = await creditsafeService.verifyIndividual({
+            firstName: tenantData.firstName,
+            lastName: tenantData.lastName,
+            dateOfBirth: tenantData.dateOfBirth,
+            address: tenantData.previousAddress,
+            postcode: tenantData.previousPostcode
+          })
+
+          await supabase.from('creditsafe_verifications_v2').insert({
+            reference_id: referenceId,
+            request_data_encrypted: encrypt(JSON.stringify({
+              ...tenantData,
+              address: tenantData.previousAddress,
+              postcode: tenantData.previousPostcode
+            })),
+            response_data_encrypted: encrypt(JSON.stringify(prevResult)),
+            transaction_id: prevResult.transactionId || null,
+            risk_level: prevResult.riskLevel,
+            risk_score: prevResult.riskScore,
+            status: prevResult.status,
+            fraud_indicators: (prevResult as any).fraudIndicators || null,
+            address_type: 'previous'
+          })
+
+          console.log(`[V2 AutoChecks] Previous address credit check completed: ${prevResult.status}`)
+        } catch (prevErr: any) {
+          console.error('[V2 AutoChecks] Previous address credit check failed:', prevErr.message)
+        }
+      }
+
       return result
     })(),
 

@@ -343,6 +343,12 @@ function goToStep(step: number) {
   }
 }
 
+function goBack() {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
+}
+
 // Reset and fetch when modal opens
 watch(() => props.isOpen, async (isOpen) => {
   if (isOpen) {
@@ -465,15 +471,18 @@ watch(() => props.isOpen, async (isOpen) => {
                 :loading="loading"
                 @update="updateTenantChange"
                 @next="handleStepComplete"
+                @back="goBack"
               />
 
               <Step3FeeAndDate
                 v-else-if="currentStep === 3"
                 :tenantChange="tenantChange!"
                 :monthlyRent="effectiveMonthlyRent"
+                :rentDueDay="effectiveRentDueDay"
                 :loading="loading"
                 @update="updateTenantChange"
                 @next="handleStepComplete"
+                @back="goBack"
                 @close="handleClose"
               />
 
@@ -481,8 +490,10 @@ watch(() => props.isOpen, async (isOpen) => {
                 v-else-if="currentStep === 4"
                 :tenantChange="tenantChange!"
                 :propertyAddress="effectivePropertyAddress"
+                :tenancyStartDate="tenancy?.start_date || null"
                 :loading="loading"
                 @next="handleStepComplete"
+                @back="goBack"
               />
 
               <Step5AwaitingSignatures

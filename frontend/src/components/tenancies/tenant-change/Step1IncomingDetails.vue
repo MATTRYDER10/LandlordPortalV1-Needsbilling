@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { UserMinus, UserPlus, Plus, Trash2, ChevronRight } from 'lucide-vue-next'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
+import EmailInput from '@/components/EmailInput.vue'
 
 interface Tenant {
   id: string
@@ -283,11 +284,10 @@ function handleSubmit() {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
-              <input
+              <EmailInput
                 v-model="tenant.email"
-                type="email"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
+                input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone</label>
@@ -374,11 +374,10 @@ function handleSubmit() {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
-                <input
+                <EmailInput
                   v-model="tenant.guarantor.email"
-                  type="email"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
+                  input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone</label>

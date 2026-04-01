@@ -5,10 +5,13 @@
  */
 
 import express, { Router } from 'express'
+import multer from 'multer'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import * as tenantChangeService from '../services/tenantChangeService'
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } })
 
 const router: Router = express.Router()
 
@@ -538,6 +541,100 @@ router.post('/:id/cancel', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+/**
+ * Get tenancy documents (PDFs) for selecting an original agreement
+ * GET /api/tenant-change/:id/tenancy-documents
+ */
+router.get('/:id/tenancy-documents', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const documents = await tenantChangeService.getTenancyDocuments(req.params.id, companyId)
+    res.json({ documents })
+  } catch (error: any) {
+    console.error('[TenantChange] Get tenancy documents error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Select an existing document as the original agreement
+ * POST /api/tenant-change/:id/select-agreement
+ */
+router.post('/:id/select-agreement', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const { documentId } = req.body
+    if (!documentId) {
+      return res.status(400).json({ error: 'documentId is required' })
+    }
+
+    const result = await tenantChangeService.selectExistingAgreement(req.params.id, companyId, documentId)
+    res.json(result)
+  } catch (error: any) {
+    console.error('[TenantChange] Select agreement error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Check if original agreement exists for this tenant change's tenancy
+ * GET /api/tenant-change/:id/original-agreement
+ */
+router.get('/:id/original-agreement', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const result = await tenantChangeService.checkOriginalAgreement(req.params.id, companyId)
+    res.json(result)
+  } catch (error: any) {
+    console.error('[TenantChange] Check original agreement error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Upload original agreement PDF for this tenant change's tenancy
+ * POST /api/tenant-change/:id/upload-agreement
+ */
+router.post('/:id/upload-agreement', authenticateToken, upload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const file = req.file
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' })
+    }
+
+    const result = await tenantChangeService.uploadOriginalAgreement(
+      req.params.id,
+      companyId,
+      file.buffer,
+      file.originalname,
+      userId
+    )
+
+    res.json(result)
+  } catch (error: any) {
+    console.error('[TenantChange] Upload agreement error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // ============================================================================
 // PUBLIC ROUTES (Payment Confirmation)
 // ============================================================================
@@ -600,7 +697,9 @@ router.get('/sign/:token', async (req, res) => {
       propertyAddress: result.propertyAddress,
       changeoverDate: result.tenantChange.changeover_date,
       incomingTenantCount: result.tenantChange.incoming_tenants?.length || 0,
-      addendumPdfUrl: result.tenantChange.addendum_pdf_url
+      addendumPdfUrl: result.tenantChange.addendum_pdf_url,
+      originalAgreementPdfUrl: result.originalAgreementPdfUrl || null,
+      tenancyStartDate: result.tenancyStartDate || null
     })
   } catch (error: any) {
     console.error('[TenantChange] Get signer info error:', error)

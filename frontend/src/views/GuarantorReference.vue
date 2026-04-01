@@ -1232,11 +1232,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
-                        <input
+                        <EmailInput
                           v-model="formData.employer_ref_email"
-                          type="email"
                           :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
+                          input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': employerEmailError }"
                         />
                         <p v-if="employerEmailError" class="mt-1 text-sm text-red-600">{{ employerEmailError }}</p>
@@ -1324,11 +1323,10 @@
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
-                        <input
+                        <EmailInput
                           v-model="formData.accountant_email"
-                          type="email"
                           :required="formData.income_self_employed"
-                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
+                          input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': accountantEmailError }"
                         />
                         <p v-if="accountantEmailError" class="mt-1 text-sm text-red-600">{{ accountantEmailError }}</p>
@@ -1936,6 +1934,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { CheckCircle, X, Check, FileText } from 'lucide-vue-next'
 import PhoneInput from '../components/PhoneInput.vue'
+import EmailInput from '../components/EmailInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'

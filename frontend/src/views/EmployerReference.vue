@@ -105,12 +105,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="employer-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Your Email Address *</label>
-                <input
+                <EmailInput
                   id="employer-email"
                   v-model="formData.employerEmail"
-                  type="email"
                   required
-                  :class="[
+                  :input-class="[
                     'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white dark:border-slate-600',
                     fieldErrors.employerEmail ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                   ]"
@@ -427,6 +426,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
+import EmailInput from '../components/EmailInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { isValidEmail } from '../utils/validation'
