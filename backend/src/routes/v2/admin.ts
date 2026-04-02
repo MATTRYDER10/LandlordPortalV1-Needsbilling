@@ -9,7 +9,7 @@ import { Router, Response } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../../middleware/staffAuth'
 import { supabase } from '../../config/supabase'
 import { decrypt } from '../../services/encryption'
-import { V2SectionType, V2QueueStatus, V2WorkType } from '../../services/v2/types'
+import { V2SectionType, V2QueueStatus, V2WorkType, TENANT_SECTIONS, GUARANTOR_SECTIONS } from '../../services/v2/types'
 import { editReferenceField } from '../../services/v2/referenceServiceV2'
 import { getActivityForReference } from '../../services/v2/activityServiceV2'
 
@@ -233,7 +233,7 @@ router.get('/queue/:type', authenticateStaff, async (req: StaffAuthRequest, res:
     const { limit: limitStr, offset: offsetStr } = req.query
 
     const sectionType = type.toUpperCase() as V2SectionType
-    const validTypes: V2SectionType[] = ['IDENTITY', 'RTR', 'INCOME', 'RESIDENTIAL', 'CREDIT', 'AML']
+    const validTypes: V2SectionType[] = [...new Set([...TENANT_SECTIONS, ...GUARANTOR_SECTIONS])]
 
     if (!validTypes.includes(sectionType)) {
       return res.status(400).json({ error: 'Invalid queue type' })
