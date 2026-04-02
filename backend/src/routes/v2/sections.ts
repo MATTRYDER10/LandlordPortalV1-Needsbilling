@@ -23,7 +23,7 @@ import { reactivateOrCreateChaseItem } from '../../services/v2/chaseServiceV2'
 import { logActivity } from '../../services/v2/activityServiceV2'
 import { loadEmailTemplate, sendEmail } from '../../services/emailService'
 import { getV2FrontendUrl } from '../../utils/frontendUrl'
-import { V2SectionType, V2SectionDecision, TENANT_SECTIONS } from '../../services/v2/types'
+import { V2SectionType, V2SectionDecision, TENANT_SECTIONS, GUARANTOR_SECTIONS } from '../../services/v2/types'
 
 const router = Router()
 
@@ -243,8 +243,8 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
     const { sectionType, limit } = req.query
 
-    // Validate section type
-    const validTypes: V2SectionType[] = TENANT_SECTIONS
+    // Validate section type (include both tenant and guarantor section types)
+    const validTypes: V2SectionType[] = [...new Set([...TENANT_SECTIONS, ...GUARANTOR_SECTIONS])]
     if (!sectionType || !validTypes.includes(sectionType as V2SectionType)) {
       return res.status(400).json({ error: 'Invalid or missing sectionType' })
     }
