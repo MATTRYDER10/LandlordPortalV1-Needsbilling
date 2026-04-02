@@ -132,7 +132,7 @@
                         </div>
                         <div class="col-span-2">
                           <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
-                          <input v-model="tenant.person.email" type="email" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                          <EmailInput v-model="tenant.person.email" required input-class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
                         </div>
                         <div class="col-span-2 relative overflow-visible">
                           <AddressAutocomplete v-model="tenant.person.addressLine1" label="Current Address *" :required="true" :id="'person-address-' + tenant._idx" placeholder="Start typing address..." @addressSelected="(data: any) => handleManualPersonAddress(tenant._idx, data)" :allowManualEntry="true" />
@@ -176,7 +176,7 @@
                         </div>
                         <div class="col-span-2">
                           <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Email *</label>
-                          <input v-model="guarantor.person.email" type="email" required class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                          <EmailInput v-model="guarantor.person.email" required input-class="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
                         </div>
                         <div class="col-span-2 relative overflow-visible">
                           <AddressAutocomplete v-model="guarantor.person.addressLine1" label="Current Address *" :required="true" :id="'person-address-' + guarantor._idx" placeholder="Start typing address..." @addressSelected="(data: any) => handleManualPersonAddress(guarantor._idx, data)" :allowManualEntry="true" />
@@ -532,6 +532,7 @@ import { authFetch } from '@/lib/authFetch'
 import { X, Calendar, Search, Plus, Trash2, UserCheck, Shield } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
+import EmailInput from '@/components/EmailInput.vue'
 
 interface ManualPerson {
   type: 'tenant' | 'guarantor'

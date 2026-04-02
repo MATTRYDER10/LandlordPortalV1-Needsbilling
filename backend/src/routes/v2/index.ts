@@ -18,6 +18,7 @@ import offersRouter from './offers'
 import mobileCaptureRouter from './mobile-capture'
 import uploadLinkRouter from './upload-link'
 import groupAssessmentRouter from './groupAssessment'
+import negotiatorsRouter from './negotiators'
 
 export {
   referencesRouter,
@@ -33,5 +34,6 @@ export {
   offersRouter,
   mobileCaptureRouter,
   uploadLinkRouter,
-  groupAssessmentRouter
+  groupAssessmentRouter,
+  negotiatorsRouter
 }

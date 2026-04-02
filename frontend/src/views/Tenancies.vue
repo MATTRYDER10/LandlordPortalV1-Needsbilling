@@ -746,6 +746,63 @@
           </div>
         </div>
       </Transition>
+
+      <!-- Revert to Notice Served Confirmation Modal -->
+      <Transition name="modal">
+        <div
+          v-if="showRevertToNoticeServedConfirm"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            @click="cancelRevertToNoticeServed"
+          />
+          <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl">
+            <div class="p-6">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Revert to Notice Served</h3>
+                  <p class="text-sm text-gray-500 dark:text-slate-400">Move tenancy back to notice given status</p>
+                </div>
+              </div>
+
+              <p class="text-gray-600 dark:text-slate-400 mb-4">
+                Are you sure you want to revert the tenancy for
+                <strong class="text-gray-900 dark:text-white">{{ actionTenancy?.property?.address_line1 || 'this property' }}</strong>
+                back to Notice Served status?
+              </p>
+
+              <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg p-3 mb-4">
+                <p class="text-xs text-rose-800 dark:text-rose-300">
+                  <strong>Note:</strong> This will move the tenancy from Archived back to Notice Served (notice_given), allowing it to be managed again before final end of tenancy.
+                </p>
+              </div>
+
+              <div class="flex justify-end gap-3">
+                <button
+                  @click="cancelRevertToNoticeServed"
+                  :disabled="isRevertingToNoticeServed"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="handleRevertToNoticeServed"
+                  :disabled="isRevertingToNoticeServed"
+                  class="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  {{ isRevertingToNoticeServed ? 'Reverting...' : 'Revert to Notice Served' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </Teleport>
   </Sidebar>
 </template>
@@ -866,6 +923,8 @@ const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 const showRevertConfirm = ref(false)
 const isReverting = ref(false)
+const showRevertToNoticeServedConfirm = ref(false)
+const isRevertingToNoticeServed = ref(false)
 const showEmailTenantsModal = ref(false)
 const showBulkEmailModal = ref(false)
 const selectedTenancyIds = ref<string[]>([])
@@ -1125,6 +1184,13 @@ const handleTenancyAction = (action: string, tenancy: any) => {
       }
       showRevertConfirm.value = true
       break
+    case 'revert-to-notice-served':
+      if (tenancy.status !== 'archived') {
+        toast.error('Only archived tenancies can be reverted to Notice Served.')
+        return
+      }
+      showRevertToNoticeServedConfirm.value = true
+      break
     default:
       toast.info(`${action} feature coming soon`)
   }
@@ -1323,6 +1389,49 @@ const handleRevertToDraft = async () => {
 
 const cancelRevert = () => {
   showRevertConfirm.value = false
+  actionTenancy.value = null
+}
+
+// Handle revert to notice served
+const handleRevertToNoticeServed = async () => {
+  if (!actionTenancy.value) return
+
+  isRevertingToNoticeServed.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${actionTenancy.value.id}/revert-to-notice-served`, {
+      method: 'POST',
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to revert tenancy')
+    }
+
+    toast.success('Tenancy reverted to Notice Served.')
+    showRevertToNoticeServedConfirm.value = false
+    actionTenancy.value = null
+    loadTenancies()
+    archivedTenanciesData.value = []
+    if (activeSection.value === 'archived') {
+      loadArchivedTenancies()
+    }
+  } catch (error: any) {
+    console.error('Error reverting tenancy to notice served:', error)
+    toast.error(error.message || 'Failed to revert tenancy')
+  } finally {
+    isRevertingToNoticeServed.value = false
+  }
+}
+
+const cancelRevertToNoticeServed = () => {
+  showRevertToNoticeServedConfirm.value = false
   actionTenancy.value = null
 }
 

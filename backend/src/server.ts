@@ -56,9 +56,10 @@ import igRoutes from './routes/ig'
 import igWebhooksRoutes from './routes/ig-webhooks'
 
 // V2 Reference System Routes
-import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, uploadLinkRouter as v2UploadLinkRouter, groupAssessmentRouter as v2GroupAssessmentRouter } from './routes/v2'
+import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, uploadLinkRouter as v2UploadLinkRouter, groupAssessmentRouter as v2GroupAssessmentRouter, negotiatorsRouter as v2NegotiatorsRouter } from './routes/v2'
 import { startChaseSchedulerV2 } from './services/v2'
 import { startDepositCertificateScheduler } from './services/depositCertificateScheduler'
+import { startWeeklyReportScheduler } from './services/weeklyReportService'
 
 dotenv.config()
 
@@ -250,6 +251,7 @@ app.use('/api/v2/reports', v2ReportsRouter)
 app.use('/api/v2/admin', v2AdminRouter)
 app.use('/api/v2/verify', v2VerifyRouter)
 app.use('/api/v2/offers', v2OffersRouter)
+app.use('/api/v2/negotiators', v2NegotiatorsRouter)
 app.use('/api/v2/mobile-capture', v2MobileCaptureRouter)
 app.use('/api/v2/upload-link', v2UploadLinkRouter)
 app.use('/api/v2/group-assessment', v2GroupAssessmentRouter)
@@ -266,6 +268,7 @@ app.listen(PORT, '0.0.0.0', () => {
     startRentIncreaseScheduler()
     startChaseSchedulerV2()
     startDepositCertificateScheduler()
+    startWeeklyReportScheduler()
     console.log('[Scheduler] All background schedulers started (production)')
   } else {
     console.log('[Scheduler] Skipping background schedulers (non-production)')

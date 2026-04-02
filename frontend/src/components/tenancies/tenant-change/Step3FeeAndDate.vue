@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Calendar, DollarSign, Send, AlertTriangle, ChevronRight, Info, CheckCircle } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { Calendar, DollarSign, Send, AlertTriangle, ChevronRight, ChevronLeft, Info, CheckCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
@@ -30,12 +30,14 @@ interface TenantChange {
 const props = defineProps<{
   tenantChange: TenantChange
   monthlyRent: number
+  rentDueDay: number
   loading: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update', data: any): void
   (e: 'next'): void
+  (e: 'back'): void
   (e: 'close'): void
 }>()
 
@@ -55,6 +57,73 @@ const feePayableBy = ref(props.tenantChange.fee_payable_by)
 const bankName = ref(props.tenantChange.bank_name || '')
 const sortCode = ref(props.tenantChange.sort_code || '')
 const accountNumber = ref(props.tenantChange.account_number || '')
+
+// Pro-rata state
+const proRataOutgoing = ref(props.tenantChange.pro_rata_outgoing || 0)
+const proRataIncoming = ref(props.tenantChange.pro_rata_incoming || 0)
+const isCalculatingProRata = ref(false)
+
+// Ordinal suffix helper
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+// Check if changeover date falls on the rent due day
+const isOnRentDueDay = computed(() => {
+  if (!changeoverDate.value) return false
+  const d = new Date(changeoverDate.value)
+  return d.getDate() === props.rentDueDay
+})
+
+const proRataRequired = computed(() => {
+  return changeoverDate.value && !isOnRentDueDay.value
+})
+
+// Calculate pro-rata when changeover date changes
+async function calculateProRata() {
+  if (!changeoverDate.value || isOnRentDueDay.value) {
+    proRataOutgoing.value = 0
+    proRataIncoming.value = 0
+    return
+  }
+
+  isCalculatingProRata.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(
+      `${API_URL}/api/tenant-change/${props.tenantChange.id}/calculate-pro-rata`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ changeoverDate: changeoverDate.value })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      proRataOutgoing.value = data.proRata.outgoing || 0
+      proRataIncoming.value = data.proRata.incoming || 0
+    }
+  } catch (err) {
+    console.error('Failed to calculate pro-rata:', err)
+  } finally {
+    isCalculatingProRata.value = false
+  }
+}
+
+// Watch changeover date changes to recalculate pro-rata
+let proRataTimeout: ReturnType<typeof setTimeout> | null = null
+watch(changeoverDate, () => {
+  if (proRataTimeout) clearTimeout(proRataTimeout)
+  proRataTimeout = setTimeout(calculateProRata, 500)
+}, { immediate: true })
 
 // Total amount is just the fee (no pro-rata - changeover happens on rent due date)
 const totalAmount = computed(() => {
@@ -96,7 +165,9 @@ async function saveFeeDetails() {
           fee_payable_by: feePayableBy.value,
           bank_name: bankName.value,
           sort_code: sortCode.value,
-          account_number: accountNumber.value
+          account_number: accountNumber.value,
+          pro_rata_outgoing: proRataOutgoing.value,
+          pro_rata_incoming: proRataIncoming.value
         })
       }
     )
@@ -239,6 +310,7 @@ async function handleContinue() {
       >
       <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">
         The date when the outgoing tenant(s) leave and incoming tenant(s) start.
+        Rent is currently due on the <strong>{{ ordinal(rentDueDay) }}</strong> of each month (£{{ monthlyRent.toFixed(2) }}/month).
       </p>
     </div>
 
@@ -314,14 +386,43 @@ async function handleContinue() {
       </div>
     </div>
 
-    <!-- Info about rent due date -->
-    <div v-if="changeoverDate" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+    <!-- Pro-Rata Section -->
+    <div v-if="changeoverDate && proRataRequired" class="p-4 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+      <div class="flex items-start gap-3">
+        <Info class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <p class="font-medium text-amber-700 dark:text-amber-300">Pro-Rata Rent Adjustment</p>
+          <p class="text-sm text-amber-600 dark:text-amber-400 mt-1">
+            The changeover date does not fall on the rent due date ({{ ordinal(rentDueDay) }}). Rent will be pro-rated for the partial period.
+          </p>
+
+          <div v-if="isCalculatingProRata" class="mt-3 text-sm text-amber-600 dark:text-amber-400">
+            Calculating...
+          </div>
+          <div v-else class="mt-3 grid grid-cols-2 gap-3">
+            <div class="p-3 bg-white dark:bg-slate-700 rounded-lg border border-amber-200 dark:border-amber-700">
+              <p class="text-xs uppercase font-medium text-red-600 dark:text-red-400 mb-1">Outgoing Tenant Refund</p>
+              <p class="text-lg font-bold text-gray-900 dark:text-white">£{{ proRataOutgoing.toFixed(2) }}</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Overpaid rent to be refunded</p>
+            </div>
+            <div class="p-3 bg-white dark:bg-slate-700 rounded-lg border border-amber-200 dark:border-amber-700">
+              <p class="text-xs uppercase font-medium text-green-600 dark:text-green-400 mb-1">Incoming Tenant Owes</p>
+              <p class="text-lg font-bold text-gray-900 dark:text-white">£{{ proRataIncoming.toFixed(2) }}</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Partial period rent due</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Pro-Rata Info (on rent due day) -->
+    <div v-else-if="changeoverDate && isOnRentDueDay" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
       <div class="flex items-start gap-3">
         <Info class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
         <div>
-          <p class="font-medium text-blue-700 dark:text-blue-300">No Pro-rata Required</p>
+          <p class="font-medium text-blue-700 dark:text-blue-300">No Pro-Rata Required</p>
           <p class="text-sm text-blue-600 dark:text-blue-400">
-            The changeover should be scheduled for the next rent due date. The incoming tenant's first rent payment will be due on the regular rent due date.
+            The changeover falls on the rent due date ({{ ordinal(rentDueDay) }}). The incoming tenant's first rent payment will be due on the regular rent due date.
           </p>
         </div>
       </div>
@@ -434,15 +535,23 @@ async function handleContinue() {
 
     <!-- Action Buttons -->
     <div class="flex justify-between">
-      <!-- Save & Close (available after invoice sent but not yet received) -->
-      <button
-        v-if="!noFeeRequired && invoiceSent && !feeReceived"
-        @click="emit('close')"
-        class="px-6 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
-      >
-        Save & Close
-      </button>
-      <div v-else></div>
+      <div class="flex gap-2">
+        <button
+          @click="emit('back')"
+          class="px-6 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors"
+        >
+          <ChevronLeft class="w-4 h-4" />
+          Back
+        </button>
+        <!-- Save & Close (available after invoice sent but not yet received) -->
+        <button
+          v-if="!noFeeRequired && invoiceSent && !feeReceived"
+          @click="emit('close')"
+          class="px-6 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          Save & Close
+        </button>
+      </div>
 
       <!-- Continue Button -->
       <button

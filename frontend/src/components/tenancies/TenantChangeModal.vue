@@ -312,6 +312,10 @@ function handleStepComplete(data?: any) {
   if (data) {
     tenantChange.value = { ...tenantChange.value, ...data } as TenantChange
   }
+  // Advance the stage if moving beyond the current stage
+  if (tenantChange.value && currentStep.value >= tenantChange.value.stage) {
+    tenantChange.value = { ...tenantChange.value, stage: currentStep.value + 1 }
+  }
   currentStep.value++
 }
 
@@ -340,6 +344,12 @@ function handleFinalize() {
 function goToStep(step: number) {
   if (tenantChange.value && step <= tenantChange.value.stage) {
     currentStep.value = step
+  }
+}
+
+function goBack() {
+  if (currentStep.value > 1) {
+    currentStep.value--
   }
 }
 
@@ -465,15 +475,18 @@ watch(() => props.isOpen, async (isOpen) => {
                 :loading="loading"
                 @update="updateTenantChange"
                 @next="handleStepComplete"
+                @back="goBack"
               />
 
               <Step3FeeAndDate
                 v-else-if="currentStep === 3"
                 :tenantChange="tenantChange!"
                 :monthlyRent="effectiveMonthlyRent"
+                :rentDueDay="effectiveRentDueDay"
                 :loading="loading"
                 @update="updateTenantChange"
                 @next="handleStepComplete"
+                @back="goBack"
                 @close="handleClose"
               />
 
@@ -481,8 +494,10 @@ watch(() => props.isOpen, async (isOpen) => {
                 v-else-if="currentStep === 4"
                 :tenantChange="tenantChange!"
                 :propertyAddress="effectivePropertyAddress"
+                :tenancyStartDate="tenancy?.start_date || null"
                 :loading="loading"
                 @next="handleStepComplete"
+                @back="goBack"
               />
 
               <Step5AwaitingSignatures

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CheckCircle, XCircle, AlertTriangle, ChevronRight, Info } from 'lucide-vue-next'
+import { CheckCircle, XCircle, AlertTriangle, ChevronRight, ChevronLeft, Info } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
@@ -23,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update', data: any): void
   (e: 'next'): void
+  (e: 'back'): void
 }>()
 
 const authStore = useAuthStore()
@@ -221,8 +222,15 @@ async function handleOverride() {
       </div>
     </div>
 
-    <!-- Submit Button -->
-    <div class="flex justify-end pt-4">
+    <!-- Action Buttons -->
+    <div class="flex justify-between pt-4">
+      <button
+        @click="emit('back')"
+        class="px-6 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors"
+      >
+        <ChevronLeft class="w-4 h-4" />
+        Back
+      </button>
       <button
         @click="handleSubmit"
         :disabled="isSubmitting"

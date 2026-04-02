@@ -989,7 +989,8 @@ router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async 
   try {
     const { referenceId, folder, filename } = req.params
 
-    // Verify the reference exists (staff can access all references)
+    // Verify the reference exists in V1 or V2 tables
+    let isV2 = false
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('id')
@@ -997,18 +998,53 @@ router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async 
       .single()
 
     if (refError || !reference) {
-      return res.status(404).json({ error: 'Reference not found' })
+      // Try V2 table
+      const { data: refV2, error: refV2Error } = await supabase
+        .from('tenant_references_v2')
+        .select('id, company_id')
+        .eq('id', referenceId)
+        .single()
+
+      if (refV2Error || !refV2) {
+        return res.status(404).json({ error: 'Reference not found' })
+      }
+      isV2 = true
     }
 
-    // Construct file path
-    const filePath = `${referenceId}/${folder}/${filename}`
+    // Try V1 bucket first (tenant-documents), then V2 bucket (reference-documents)
+    const v1Path = `${referenceId}/${folder}/${filename}`
+    let data: Blob | null = null
 
-    // Download file from storage
-    const { data, error: downloadError } = await supabase.storage
-      .from('tenant-documents')
-      .download(filePath)
+    if (!isV2) {
+      const result = await supabase.storage.from('tenant-documents').download(v1Path)
+      if (!result.error) data = result.data
+    }
 
-    if (downloadError) {
+    // If V2 or V1 failed, try reference-documents bucket with V2 path patterns
+    if (!data) {
+      // Try direct path match in evidence_v2
+      const { data: evidence } = await supabase
+        .from('evidence_v2')
+        .select('file_path')
+        .eq('reference_id', referenceId)
+        .like('file_path', `%${filename}`)
+        .limit(1)
+        .single()
+
+      if (evidence?.file_path) {
+        const result = await supabase.storage.from('reference-documents').download(evidence.file_path)
+        if (!result.error) data = result.data
+      }
+    }
+
+    // Also try the V2 evidence path format directly
+    if (!data) {
+      const v2Path = `v2-evidence/${referenceId}/${folder}/${filename}`
+      const result = await supabase.storage.from('reference-documents').download(v2Path)
+      if (!result.error) data = result.data
+    }
+
+    if (!data) {
       return res.status(404).json({ error: 'File not found' })
     }
 
