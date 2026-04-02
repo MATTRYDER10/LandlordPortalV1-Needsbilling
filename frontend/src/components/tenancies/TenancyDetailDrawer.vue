@@ -1169,8 +1169,11 @@
                 </EditableField>
               </div>
               <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
-                <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">End Date</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  {{ tenancy?.status === 'notice_given' ? 'Move Out Date' : 'End Date' }}
+                </p>
                 <EditableField
+                  v-if="tenancy?.status !== 'notice_given'"
                   :model-value="endDate"
                   type="date"
                   :can-edit="isDraftTenancy"
@@ -1181,6 +1184,11 @@
                     <span class="mt-1 text-lg font-medium text-gray-900 dark:text-white">{{ endDate ? formatDate(endDate) : 'Periodic' }}</span>
                   </template>
                 </EditableField>
+                <div v-else>
+                  <span class="mt-1 text-lg font-medium text-orange-600 dark:text-orange-400">
+                    {{ tenancy?.actual_end_date ? formatDate(tenancy.actual_end_date) : 'Not set' }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -2208,6 +2216,7 @@
             v-if="tenancy"
             v-model:open="showBookInspectionModal"
             :tenancy-id="tenancy.id"
+            :move-in-date="tenancy?.start_date || tenancy?.tenancy_start_date || ''"
             @booked="fetchInspections"
           />
 
@@ -5640,20 +5649,9 @@ const loadApex27Status = async () => {
       const data = await response.json()
       const companyConfigured = data.configured && data.lastTestStatus === 'success'
 
-      // Also check if the property has an apex27_listing_id
-      const propertyId = fullTenancyData.value?.property_id || props.tenancy?.property_id
-      if (companyConfigured && propertyId) {
-        const propResponse = await authFetch(`${API_URL}/api/properties/${propertyId}`, { token } as any)
-        if (propResponse.ok) {
-          const propData = await propResponse.json()
-          const property = propData.property || propData
-          apex27Connected.value = !!property.apex27_listing_id
-        } else {
-          apex27Connected.value = false
-        }
-      } else {
-        apex27Connected.value = false
-      }
+      // Show Apex27 button if company has valid Apex27 config
+      // Backend has fuzzy matching fallback for properties without apex27_listing_id
+      apex27Connected.value = companyConfigured
     }
   } catch {
     // Silently fail - just don't show the button

@@ -312,6 +312,10 @@ function handleStepComplete(data?: any) {
   if (data) {
     tenantChange.value = { ...tenantChange.value, ...data } as TenantChange
   }
+  // Advance the stage if moving beyond the current stage
+  if (tenantChange.value && currentStep.value >= tenantChange.value.stage) {
+    tenantChange.value = { ...tenantChange.value, stage: currentStep.value + 1 }
+  }
   currentStep.value++
 }
 

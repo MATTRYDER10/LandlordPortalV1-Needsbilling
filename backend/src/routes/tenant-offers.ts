@@ -2374,6 +2374,57 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             })
             .eq('id', id)
 
+        // Update Apex27 listing status to "Let Agreed" if connected
+        try {
+            const { getCompanyApex27Config, updateListingStatus, apex27Fetch } = await import('../services/apex27Service')
+            const config = await getCompanyApex27Config(companyId)
+            if (config?.apiKey) {
+                const propertyId = offer.linked_property_id
+                let listingId: string | null = null
+
+                if (propertyId) {
+                    // Check if property has direct apex27_listing_id
+                    const { data: prop } = await supabase
+                        .from('properties')
+                        .select('apex27_listing_id, postcode, address_line1_encrypted')
+                        .eq('id', propertyId)
+                        .single()
+
+                    if (prop?.apex27_listing_id) {
+                        listingId = prop.apex27_listing_id
+                    } else if (prop?.postcode) {
+                        // Fuzzy match via Apex27 API by postcode + address
+                        const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', {
+                            transactionType: 'rent',
+                            postalCode: prop.postcode,
+                            pageSize: 25
+                        })
+                        if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
+                            const listings = searchResult.data
+                            const address = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
+                            if (listings.length === 1) {
+                                listingId = String(listings[0].id)
+                            } else if (address) {
+                                const normAddr = address.toLowerCase().replace(/[^a-z0-9]/g, '')
+                                const match = listings.find((l: any) =>
+                                    l.address1 && l.address1.toLowerCase().replace(/[^a-z0-9]/g, '') === normAddr
+                                )
+                                listingId = match ? String(match.id) : String(listings[0].id)
+                            } else {
+                                listingId = String(listings[0].id)
+                            }
+                        }
+                    }
+                }
+
+                if (listingId) {
+                    await updateListingStatus(config.apiKey, listingId, 'Let Agreed')
+                }
+            }
+        } catch (apex27Error: any) {
+            console.error('[HoldingDeposit] Apex27 status update failed (non-blocking):', apex27Error.message)
+        }
+
         res.json({
             success: true,
             message: 'Holding deposit marked as received and references created',

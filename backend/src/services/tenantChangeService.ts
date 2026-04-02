@@ -1263,7 +1263,7 @@ async function buildAddendumPdfData(
     remainingTenants,
     landlordName,
     landlordAddress: landlordAddress || undefined,
-    tenancyStartDate: tenancy.start_date || '',
+    tenancyStartDate: tenancy.tenancy_start_date || tenancy.start_date || '',
     monthlyRent: parseFloat(tenancy.rent_amount || 0),
     rentDueDay: tenancy.rent_due_day || 1,
     changeoverDate: tenantChange.changeover_date || '',

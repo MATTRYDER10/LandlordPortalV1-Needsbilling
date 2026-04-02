@@ -74,8 +74,8 @@
           </div>
         </div>
 
-        <!-- Quick Actions Menu (hidden for archived) -->
-        <div v-if="!isArchived" class="flex-shrink-0 flex items-center gap-1.5">
+        <!-- Quick Actions Menu -->
+        <div class="flex-shrink-0 flex items-center gap-1.5">
           <!-- Actions Dropdown -->
           <div class="relative">
             <button
@@ -297,16 +297,25 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
 })
 
-const actions = [
-  { key: 'change-rent-due', label: 'Change Rent Due Date', icon: Calendar, danger: false },
-  { key: 'change-tenant', label: 'Change Tenant', icon: UserMinus, danger: false },
-  { key: 'rent-increase', label: 'Serve Rent Increase Notice', icon: TrendingUp, danger: false },
-  { key: 'section-8', label: 'Serve Section 8 Notice', icon: FileWarning, danger: false },
-  { key: 'end-tenancy', label: 'End Tenancy', icon: XCircle, danger: false },
-  { key: 'email-tenants', label: 'Email All Tenants', icon: Mail, danger: false },
-  { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
-  { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
-]
+const actions = computed(() => {
+  if (props.isArchived) {
+    return [
+      { key: 'revert-to-notice-served', label: 'Revert to Notice Served', icon: RotateCcw, danger: false },
+      { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
+      { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
+    ]
+  }
+  return [
+    { key: 'change-rent-due', label: 'Change Rent Due Date', icon: Calendar, danger: false },
+    { key: 'change-tenant', label: 'Change Tenant', icon: UserMinus, danger: false },
+    { key: 'rent-increase', label: 'Serve Rent Increase Notice', icon: TrendingUp, danger: false },
+    { key: 'section-8', label: 'Serve Section 8 Notice', icon: FileWarning, danger: false },
+    { key: 'end-tenancy', label: 'End Tenancy', icon: XCircle, danger: false },
+    { key: 'email-tenants', label: 'Email All Tenants', icon: Mail, danger: false },
+    { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
+    { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
+  ]
+})
 
 const handleAction = (actionKey: string) => {
   showActions.value = false

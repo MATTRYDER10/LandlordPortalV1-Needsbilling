@@ -237,7 +237,7 @@
                 </div>
                 <div>
                   <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Move-in Calendar</h2>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">Next 12 months • {{ calendarEntries.length }} scheduled move-ins</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">Next 12 months • {{ calendarEntries.filter(e => e.type !== 'move_out').length }} scheduled move-ins</p>
                 </div>
               </div>
               <router-link
@@ -290,7 +290,7 @@
                         ? 'bg-primary/10 text-primary'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
                     >
-                      {{ monthData.entries.length }} move-in{{ monthData.entries.length > 1 ? 's' : '' }}
+                      {{ getMonthEntryLabel(monthData.entries) }}
                     </div>
                   </div>
 
@@ -318,20 +318,26 @@
                           <div
                             class="w-full h-full rounded-md flex flex-col items-center justify-center text-[10px] transition-all"
                             :class="getDayClasses(day, monthData)"
-                            @click="day.entries.length > 0 ? navigateToTenancy(day.entries[0]!.tenancyId) : null"
+                            @click="day.entries.length > 0 ? navigateToTenancy((day.entries.find(e => e.type !== 'move_out') || day.entries[0])!.tenancyId) : null"
                           >
                             <span>{{ day.date }}</span>
                           </div>
-                          <!-- Entry indicator dot -->
+                          <!-- Move-in indicator dot (amber/green) -->
                           <div
-                            v-if="day.entries.length > 0"
+                            v-if="day.entries.some(e => e.type !== 'move_out')"
                             class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                            :class="getEntryDotColor(day.entries)"
+                            :class="getEntryDotColor(day.entries.filter(e => e.type !== 'move_out'))"
                           />
-                          <!-- Compliance expiry indicator -->
+                          <!-- Move-out indicator dot (red) -->
+                          <div
+                            v-if="day.entries.some(e => e.type === 'move_out')"
+                            class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-500"
+                            :class="{ 'ml-1.5': day.entries.some(e => e.type !== 'move_out') }"
+                          />
+                          <!-- Compliance expiry indicator (blue) -->
                           <div
                             v-if="day.fullDate && getComplianceForDay(day.fullDate).length > 0"
-                            class="absolute -top-0.5 right-0 w-1.5 h-1.5 rounded-full bg-red-500 cursor-pointer"
+                            class="absolute -top-0.5 right-0 w-1.5 h-1.5 rounded-full bg-blue-500 cursor-pointer"
                             @click.stop="router.push(`/properties/${getComplianceForDay(day.fullDate!)[0]?.propertyId}`)"
                           />
                           <!-- Compliance expiry tooltip -->
@@ -339,23 +345,26 @@
                             v-if="day.fullDate && getComplianceForDay(day.fullDate).length > 0"
                             class="calendar-tooltip absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none"
                           >
-                            <div class="bg-red-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-lg border border-red-700">
+                            <div class="bg-blue-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-lg border border-blue-700">
                               <div v-for="c in getComplianceForDay(day.fullDate!)" :key="c.id" class="py-0.5">
                                 {{ c.propertyAddress || 'Property' }} - {{ formatComplianceType(c.type) }} expires
                               </div>
                             </div>
                           </div>
-                          <!-- Tooltip on hover showing all tenants moving in -->
+                          <!-- Tooltip on hover showing tenants moving in/out -->
                           <div
                             v-if="day.entries.length > 0"
                             class="calendar-tooltip absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none"
                           >
                             <div class="bg-slate-900 dark:bg-slate-700 text-white text-[10px] rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                              <div v-for="entry in day.entries" :key="entry.tenancyId" class="mb-1.5 last:mb-0">
+                              <div v-for="entry in day.entries.filter(e => e.type !== 'move_out')" :key="entry.tenancyId" class="mb-1.5 last:mb-0">
                                 <p class="font-medium">{{ entry.property.address }}</p>
                                 <p v-for="tenant in entry.tenants" :key="tenant.id" class="text-slate-300 pl-2">
                                   • {{ tenant.name }}
                                 </p>
+                              </div>
+                              <div v-for="entry in day.entries.filter(e => e.type === 'move_out')" :key="'out-' + entry.tenancyId" class="mb-1.5 last:mb-0">
+                                <p class="font-medium text-red-300">Move-out: {{ entry.property.address }}</p>
                               </div>
                             </div>
                             <!-- Tooltip arrow -->
@@ -367,9 +376,9 @@
                   </div>
 
                   <!-- Move-in entries for this month (full list) -->
-                  <div v-if="monthData.entries.length > 0" class="mt-3 space-y-1.5">
+                  <div v-if="monthData.entries.filter(e => e.type !== 'move_out').length > 0" class="mt-3 space-y-1.5">
                     <div
-                      v-for="entry in monthData.entries"
+                      v-for="entry in monthData.entries.filter(e => e.type !== 'move_out')"
                       :key="entry.tenancyId"
                       class="flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
                       :class="entry.allActionsComplete
@@ -446,6 +455,7 @@ interface CalendarEntry {
     name: string
   }>
   allActionsComplete: boolean
+  type?: 'move_in' | 'move_out'
 }
 
 interface ComplianceExpiry {
@@ -612,7 +622,6 @@ const getDayClasses = (day: CalendarDay, monthData: MonthData): string => {
 const getEntryDotColor = (entriesOrEntry: CalendarEntry[] | CalendarEntry): string => {
   const entries = Array.isArray(entriesOrEntry) ? entriesOrEntry : [entriesOrEntry]
   const allComplete = entries.every(e => e.allActionsComplete)
-
   if (allComplete) return 'bg-emerald-500'
   return 'bg-amber-500'
 }
@@ -633,6 +642,15 @@ const monthColors = [
 ]
 
 const getMonthColorClasses = (month: number) => monthColors[month]! || monthColors[0]!
+
+const getMonthEntryLabel = (entries: CalendarEntry[]): string => {
+  const moveInCount = entries.filter(e => e.type !== 'move_out').length
+  const moveOutCount = entries.filter(e => e.type === 'move_out').length
+  const parts: string[] = []
+  if (moveInCount > 0) parts.push(`${moveInCount} move-in${moveInCount > 1 ? 's' : ''}`)
+  if (moveOutCount > 0) parts.push(`${moveOutCount} move-out${moveOutCount > 1 ? 's' : ''}`)
+  return parts.join(', ')
+}
 
 const getShortMonth = (dateStr: string): string => {
   return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short' }).toUpperCase().slice(0, 3)

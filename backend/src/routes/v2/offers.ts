@@ -105,6 +105,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
+    // Generate form_ref before building URL so it can be included in the link
+    const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
+
     // Generate V2 offer form link
     const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
     const unihomesQuery = offer_unihomes ? '&unihomes=1' : ''
@@ -117,8 +120,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     const depositAmountQuery = deposit_amount ? `&deposit_amount=${encodeURIComponent(deposit_amount)}` : ''
     const moveInDateQuery = move_in_date ? `&move_in_date=${encodeURIComponent(move_in_date)}` : ''
     const propertyIdQuery = propertyIdToLink ? `&linked_property_id=${encodeURIComponent(propertyIdToLink)}` : ''
+    const formRefQuery = `&form_ref=${encodeURIComponent(formRef)}`
     // Add v2 flag to the URL so tenant form knows it's V2
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}${formRefQuery}`
 
     // Send email to tenant
     try {
@@ -137,7 +141,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Store record with V2 flag
-    const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
     try {
       const { data: insertedForm, error: insertError } = await supabase
         .from('sent_offer_forms')
@@ -305,7 +308,8 @@ router.post('/resend/:id', authenticateToken, async (req: AuthRequest, res) => {
     const moveInDateQuery = sentForm.move_in_date ? `&move_in_date=${encodeURIComponent(sentForm.move_in_date)}` : ''
     const propertyIdQuery = sentForm.linked_property_id ? `&linked_property_id=${encodeURIComponent(sentForm.linked_property_id)}` : ''
 
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const formRefQuery = sentForm.form_ref ? `&form_ref=${encodeURIComponent(sentForm.form_ref)}` : ''
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}${formRefQuery}`
 
     // Send email to tenant (email only, no new record)
     await sendTenantOfferRequest(

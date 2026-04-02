@@ -75,6 +75,7 @@
               v-model="form.type"
               class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-[#10B981] focus:border-[#10B981] dark:bg-slate-800 dark:text-white text-sm"
             >
+              <option value="" disabled>Select type...</option>
               <option value="inventory">Inventory</option>
               <option value="checkout">Check Out</option>
               <option value="mid_term">Mid-Term Inspection</option>
@@ -137,7 +138,7 @@
             </button>
             <button
               @click="handleSubmit"
-              :disabled="submitting || !form.scheduledDate || !form.scheduledTime"
+              :disabled="submitting || !form.type || !form.scheduledDate || !form.scheduledTime"
               class="px-4 py-2 text-sm font-medium text-white bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
             >
               <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
@@ -160,6 +161,7 @@ import { API_URL } from '@/lib/apiUrl'
 const props = defineProps<{
   open: boolean
   tenancyId: string
+  moveInDate?: string
 }>()
 
 const emit = defineEmits<{
@@ -170,7 +172,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 
 const form = ref({
-  type: 'inventory',
+  type: '',
   scheduledDate: '',
   scheduledTime: '10:00',
   assessorId: ''
@@ -261,9 +263,15 @@ watch(() => props.open, (isOpen) => {
   if (isOpen) {
     successData.value = null
     error.value = ''
+    let defaultDate = ''
+    if (props.moveInDate) {
+      const moveIn = new Date(props.moveInDate + 'T00:00:00')
+      moveIn.setDate(moveIn.getDate() - 1)
+      defaultDate = moveIn.toISOString().split('T')[0]
+    }
     form.value = {
-      type: 'inventory',
-      scheduledDate: '',
+      type: '',
+      scheduledDate: defaultDate,
       scheduledTime: '10:00',
       assessorId: ''
     }
