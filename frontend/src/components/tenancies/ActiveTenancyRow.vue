@@ -158,6 +158,14 @@
           Rent due: {{ rentDueDay }}
         </span>
 
+        <!-- Reposit -->
+        <span
+          v-if="tenancy.deposit_replacement_offered || tenancy.deposit_replacement_requested"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400"
+        >
+          <Sparkles class="w-2.5 h-2.5" />
+          Reposit
+        </span>
         <!-- UniHomes -->
         <span
           v-if="tenancy.offer_unihomes"
@@ -186,7 +194,8 @@ import {
   Shield,
   AlertCircle,
   RotateCcw,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-vue-next'
 
 interface TenancyTenant {

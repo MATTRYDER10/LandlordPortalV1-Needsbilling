@@ -284,6 +284,21 @@
                     <Send class="w-3 h-3" />
                     Sent to Landlord
                   </span>
+                  <!-- Deposit Replacement / UniHomes indicators -->
+                  <span
+                    v-if="offer.offer_deposit_replacement || offer.deposit_replacement_offered || offer.deposit_replacement_requested"
+                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 flex items-center gap-1"
+                  >
+                    <Sparkles class="w-3 h-3" />
+                    Reposit
+                  </span>
+                  <span
+                    v-if="offer.offer_unihomes || offer.unihomes_offered || offer.unihomes_interested"
+                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1"
+                  >
+                    <Zap class="w-3 h-3" />
+                    UniHomes
+                  </span>
                 </div>
                 <!-- Show landlord decline reason -->
                 <p v-if="offer.landlord_decision === 'declined' && offer.landlord_decision_reason" class="text-xs text-red-600 dark:text-red-400 mt-1 italic">
@@ -2227,6 +2242,7 @@ async function sendToReferencing() {
       linkedPropertyId: selectedOffer.value.linked_property_id,
       termMonths: selectedOffer.value.proposed_tenancy_length_months || 12,
       billsIncluded: selectedOffer.value.bills_included || false,
+      depositReplacementOffered: selectedOffer.value.deposit_replacement_requested || selectedOffer.value.offer_deposit_replacement || false,
       tenants,
       holding_deposit_amount: receiptAmount.value || null,
       offer_id: selectedOffer.value.id

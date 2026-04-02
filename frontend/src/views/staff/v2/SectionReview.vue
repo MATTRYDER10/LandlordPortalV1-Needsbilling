@@ -303,24 +303,13 @@
             </div>
           </div>
 
-          <!-- Electoral Roll Details -->
-          <div v-if="creditResponseData?.electoralRolls?.length > 0" class="space-y-2">
-            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Electoral Roll Records</h4>
-            <div v-for="(er, idx) in creditResponseData.electoralRolls" :key="idx" class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-sm">
-              <div class="grid grid-cols-2 gap-2">
-                <div v-if="er.address"><span class="text-gray-500">Address:</span> <span class="font-medium">{{ er.address }}</span></div>
-                <div v-if="er.dateOfRegistration"><span class="text-gray-500">Registered:</span> <span class="font-medium">{{ er.dateOfRegistration }}</span></div>
-              </div>
-            </div>
-          </div>
-
           <!-- Raw Creditsafe Transaction -->
           <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
             <p class="text-xs text-gray-400">Transaction ID: {{ section.credit_check.transaction_id || 'N/A' }}</p>
-            <p v-if="section.credit_check.address_type" class="text-xs text-gray-400 mt-1">Address: {{ section.credit_check.address_type === 'previous' ? 'Previous' : 'Current' }}</p>
+            <p v-if="section.credit_check.requestData" class="text-xs text-gray-400 mt-1">Address: {{ section.credit_check.requestData.address }}, {{ section.credit_check.requestData.postcode }}</p>
           </div>
 
-          <!-- Previous Address Credit Check -->
+          <!-- Previous Address Credit Check (full detail) -->
           <div v-if="previousAddressCreditCheck" class="border border-indigo-200 dark:border-indigo-800 rounded-xl overflow-hidden">
             <div class="px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800">
               <div class="flex items-center justify-between">
@@ -336,33 +325,77 @@
                 {{ previousAddressCreditCheck.requestData.address }}, {{ previousAddressCreditCheck.requestData.postcode }}
               </p>
             </div>
-            <div class="p-4 space-y-2">
-              <div class="grid grid-cols-3 gap-3 text-sm">
-                <div class="p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+            <div class="p-4 space-y-3">
+              <!-- Summary row -->
+              <div class="grid grid-cols-3 gap-3">
+                <div class="p-3 rounded-lg" :class="prevCreditRiskColor.bg">
+                  <p class="text-xs text-gray-500">Risk Level</p>
+                  <p class="font-bold" :class="prevCreditRiskColor.text">{{ prevCreditRiskLabel }}</p>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
                   <p class="text-xs text-gray-500">Risk Score</p>
                   <p class="font-bold text-gray-900 dark:text-white">{{ previousAddressCreditCheck.risk_score }}/100</p>
                 </div>
-                <div class="p-2.5 rounded-lg" :class="previousAddressCreditCheck.responseData?.ccjMatch ? 'bg-red-50' : 'bg-green-50'">
-                  <p class="text-xs text-gray-500">CCJs</p>
-                  <p :class="previousAddressCreditCheck.responseData?.ccjMatch ? 'font-bold text-red-600' : 'font-semibold text-green-600'">
-                    {{ previousAddressCreditCheck.responseData?.ccjMatch ? `${previousAddressCreditCheck.responseData?.countyCourtJudgments?.length || 0} found` : 'Clear' }}
-                  </p>
-                </div>
-                <div class="p-2.5 rounded-lg" :class="previousAddressCreditCheck.responseData?.insolvencyMatch ? 'bg-red-50' : 'bg-green-50'">
-                  <p class="text-xs text-gray-500">Insolvency</p>
-                  <p :class="previousAddressCreditCheck.responseData?.insolvencyMatch ? 'font-bold text-red-600' : 'font-semibold text-green-600'">
-                    {{ previousAddressCreditCheck.responseData?.insolvencyMatch ? 'Found' : 'Clear' }}
-                  </p>
+                <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <p class="text-xs text-gray-500">Status</p>
+                  <p class="font-bold text-gray-900 dark:text-white capitalize">{{ previousAddressCreditCheck.status }}</p>
                 </div>
               </div>
+
+              <!-- Verification results grid -->
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="flex justify-between p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <span class="text-gray-600">Identity Verified</span>
+                  <span :class="previousAddressCreditCheck.responseData?.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">{{ previousAddressCreditCheck.responseData?.verifyMatch ? 'Yes' : 'No' }}</span>
+                </div>
+                <div class="flex justify-between p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <span class="text-gray-600">Electoral Roll</span>
+                  <span :class="(previousAddressCreditCheck.responseData?.flags?.electoralRegisterMatch ?? previousAddressCreditCheck.responseData?.electoralRegisterMatch) ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'">{{ (previousAddressCreditCheck.responseData?.flags?.electoralRegisterMatch ?? previousAddressCreditCheck.responseData?.electoralRegisterMatch) ? 'Found' : 'Not Found' }}</span>
+                </div>
+                <div class="flex justify-between p-2.5 rounded-lg" :class="(previousAddressCreditCheck.responseData?.flags?.ccjMatch ?? previousAddressCreditCheck.responseData?.ccjMatch) ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'">
+                  <span class="text-gray-600">CCJ Check</span>
+                  <span :class="(previousAddressCreditCheck.responseData?.flags?.ccjMatch ?? previousAddressCreditCheck.responseData?.ccjMatch) ? 'text-red-600 font-bold' : 'text-green-600 font-semibold'">{{ (previousAddressCreditCheck.responseData?.flags?.ccjMatch ?? previousAddressCreditCheck.responseData?.ccjMatch) ? `FAIL (${previousAddressCreditCheck.responseData?.countyCourtJudgments?.length || 0} found)` : 'PASS' }}</span>
+                </div>
+                <div class="flex justify-between p-2.5 rounded-lg" :class="(previousAddressCreditCheck.responseData?.flags?.insolvencyMatch ?? previousAddressCreditCheck.responseData?.insolvencyMatch) ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'">
+                  <span class="text-gray-600">Insolvency Check</span>
+                  <span :class="(previousAddressCreditCheck.responseData?.flags?.insolvencyMatch ?? previousAddressCreditCheck.responseData?.insolvencyMatch) ? 'text-red-600 font-bold' : 'text-green-600 font-semibold'">{{ (previousAddressCreditCheck.responseData?.flags?.insolvencyMatch ?? previousAddressCreditCheck.responseData?.insolvencyMatch) ? 'FAIL' : 'PASS' }}</span>
+                </div>
+                <div class="flex justify-between p-2.5 rounded-lg" :class="(previousAddressCreditCheck.responseData?.flags?.deceasedRegisterMatch ?? previousAddressCreditCheck.responseData?.deceasedRegisterMatch) ? 'bg-red-50' : 'bg-green-50'">
+                  <span class="text-gray-600">Deceased Register</span>
+                  <span :class="(previousAddressCreditCheck.responseData?.flags?.deceasedRegisterMatch ?? previousAddressCreditCheck.responseData?.deceasedRegisterMatch) ? 'text-red-600 font-bold' : 'text-green-600 font-semibold'">{{ (previousAddressCreditCheck.responseData?.flags?.deceasedRegisterMatch ?? previousAddressCreditCheck.responseData?.deceasedRegisterMatch) ? 'MATCH' : 'Clear' }}</span>
+                </div>
+                <div class="flex justify-between p-2.5 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                  <span class="text-gray-600">Checked At</span>
+                  <span class="text-gray-900 dark:text-white">{{ formatUKDateTime(previousAddressCreditCheck.created_at) }}</span>
+                </div>
+              </div>
+
               <!-- Previous address CCJ details -->
-              <div v-if="previousAddressCreditCheck.responseData?.countyCourtJudgments?.length > 0" class="mt-2">
-                <h4 class="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Previous Address CCJs</h4>
-                <div v-for="(ccj, idx) in previousAddressCreditCheck.responseData.countyCourtJudgments" :key="idx" class="p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
-                  <span class="font-medium">{{ ccj.courtName || 'Unknown' }}</span> — £{{ ccj.amount || '?' }} ({{ ccj.caseStatus || 'Unknown' }})
+              <div v-if="previousAddressCreditCheck.responseData?.countyCourtJudgments?.length > 0" class="space-y-2">
+                <h4 class="text-xs font-semibold text-red-600 uppercase tracking-wider">CCJ Details</h4>
+                <div v-for="(ccj, idx) in previousAddressCreditCheck.responseData.countyCourtJudgments" :key="idx" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div><span class="text-gray-500">Court:</span> <span class="font-medium">{{ ccj.courtName || 'Unknown' }}</span></div>
+                    <div><span class="text-gray-500">Amount:</span> <span class="font-medium">£{{ ccj.amount || 'Unknown' }}</span></div>
+                    <div><span class="text-gray-500">Date:</span> <span class="font-medium">{{ ccj.dateOfJudgment || ccj.registrationDate || 'Unknown' }}</span></div>
+                    <div><span class="text-gray-500">Status:</span> <span class="font-medium" :class="ccj.caseStatus === 'Satisfied' ? 'text-green-600' : 'text-red-600'">{{ ccj.caseStatus || 'Unknown' }}</span></div>
+                  </div>
                 </div>
               </div>
-              <p class="text-xs text-gray-400">Transaction ID: {{ previousAddressCreditCheck.transaction_id || 'N/A' }} | Checked: {{ formatUKDateTime(previousAddressCreditCheck.created_at) }}</p>
+
+              <!-- Previous address insolvency details -->
+              <div v-if="previousAddressCreditCheck.responseData?.insolvencies?.length > 0" class="space-y-2">
+                <h4 class="text-xs font-semibold text-red-600 uppercase tracking-wider">Insolvency Details</h4>
+                <div v-for="(ins, idx) in previousAddressCreditCheck.responseData.insolvencies" :key="idx" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div><span class="text-gray-500">Type:</span> <span class="font-medium">{{ ins.type || ins.caseType || 'Unknown' }}</span></div>
+                    <div><span class="text-gray-500">Date:</span> <span class="font-medium">{{ ins.date || ins.startDate || 'Unknown' }}</span></div>
+                    <div><span class="text-gray-500">Status:</span> <span class="font-medium">{{ ins.status || 'Unknown' }}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="text-xs text-gray-400">Transaction ID: {{ previousAddressCreditCheck.transaction_id || 'N/A' }}</p>
             </div>
           </div>
 
@@ -775,6 +808,22 @@ const creditResponseData = computed(() => {
 const previousAddressCreditCheck = computed(() => {
   const checks = section.value?.credit_checks || []
   return checks.find((c: any) => c.address_type === 'previous') || null
+})
+
+const prevCreditRiskLabel = computed(() => {
+  const score = previousAddressCreditCheck.value?.risk_score || 0
+  if (score >= 80) return 'Low Risk'
+  if (score >= 60) return 'Medium/Low Risk'
+  if (score >= 40) return 'Medium Risk'
+  return 'High Risk'
+})
+
+const prevCreditRiskColor = computed(() => {
+  const score = previousAddressCreditCheck.value?.risk_score || 0
+  if (score >= 80) return { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-400' }
+  if (score >= 60) return { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-400' }
+  if (score >= 40) return { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-400' }
+  return { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-400' }
 })
 
 const creditRiskLabel = computed(() => {

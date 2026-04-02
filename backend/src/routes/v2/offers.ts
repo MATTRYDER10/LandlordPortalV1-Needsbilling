@@ -151,6 +151,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
           property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
           rent_amount: rent_amount || null,
           offer_deposit_replacement: !!offer_deposit_replacement,
+          offer_unihomes: !!offer_unihomes,
           linked_property_id: propertyIdToLink || null,
           negotiator_id: negotiator_id || null,
           status: 'sent'
@@ -461,6 +462,7 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode: form.property_postcode_encrypted ? decrypt(form.property_postcode_encrypted) : '',
       rent_amount: form.rent_amount,
       offer_deposit_replacement: form.offer_deposit_replacement,
+      offer_unihomes: form.offer_unihomes || false,
       linked_property_id: form.linked_property_id,
       negotiator_id: form.negotiator_id || null,
       negotiator_name: form.negotiator_id ? (negotiatorMap[form.negotiator_id] || null) : null,

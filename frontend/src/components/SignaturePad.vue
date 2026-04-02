@@ -20,7 +20,6 @@
         @mousedown="startDrawing"
         @mousemove="draw"
         @mouseup="stopDrawing"
-        @mouseleave="stopDrawing"
         @touchstart.prevent="handleTouchStart"
         @touchmove.prevent="handleTouchMove"
         @touchend.prevent="stopDrawing"
@@ -90,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -149,6 +148,19 @@ onMounted(() => {
     typeCanvas.value.width = 600
     typeCanvas.value.height = canvasHeight
   }
+
+  // Listen for mouseup on document so strokes end even if mouse leaves canvas
+  document.addEventListener('mouseup', handleDocumentMouseUp)
+})
+
+const handleDocumentMouseUp = () => {
+  if (isDrawing.value) {
+    stopDrawing()
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleDocumentMouseUp)
 })
 
 // Watch mode changes to clear when switching

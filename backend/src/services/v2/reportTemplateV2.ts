@@ -621,7 +621,21 @@ function buildSectionCard(section: V2SectionRow, reference: V2ReferenceRow, data
   const sectionType = section.section_type as V2SectionType
   const name = SECTION_NAMES[sectionType] || section.section_type
   const icon = SECTION_ICONS[sectionType] || ''
-  const decision = section.decision as V2SectionDecision | null
+  let decision = section.decision as V2SectionDecision | null
+
+  // Override INCOME PASS to CONDITIONAL when below affordability threshold
+  if (sectionType === 'INCOME' && decision === 'PASS') {
+    const sectionData = (section.section_data || {}) as Record<string, any>
+    const checklist = sectionData.checklist_results || {}
+    const rentShare = reference.rent_share || reference.monthly_rent || 0
+    const multiplier = reference.is_guarantor ? 32 : 30
+    const totalEffective = checklist.total_effective_income || checklist.annual_income || reference.annual_income || 0
+    const required = multiplier * rentShare
+    if (totalEffective > 0 && totalEffective < required) {
+      decision = 'PASS_WITH_CONDITION' as V2SectionDecision
+    }
+  }
+
   const cardClass = getCardClass(decision)
   const badge = getDecisionBadge(decision)
 

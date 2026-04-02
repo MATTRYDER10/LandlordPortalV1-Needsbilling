@@ -215,6 +215,10 @@
                       <ArrowRightCircle class="w-3 h-3" />
                       Create Tenancy
                     </button>
+                    <span v-if="ref.deposit_replacement_offered || ref.deposit_replacement_requested" class="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 flex items-center gap-1">
+                      <Sparkles class="w-3 h-3" />
+                      Reposit
+                    </span>
                     <span v-if="ref.offer_unihomes" class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 flex items-center gap-1">
                       <Zap class="w-3 h-3" />
                       UniHomes{{ ref.unihomes_interested ? ' (Interested)' : '' }}
@@ -733,6 +737,7 @@ import {
   Building2,
   Loader2,
   Zap,
+  Sparkles,
   ArrowRightCircle
 } from 'lucide-vue-next'
 import ConversionModalV2 from '@/components/references/ConversionModalV2.vue'

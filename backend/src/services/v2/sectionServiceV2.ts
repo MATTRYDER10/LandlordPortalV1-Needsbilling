@@ -253,17 +253,19 @@ export async function updateSectionStatus(
       updateData.assessor_notes = updates.notes
     }
 
+    console.log(`[SectionServiceV2] Updating section ${sectionId}:`, JSON.stringify({ queue_status: updateData.queue_status, hasData: !!updateData.section_data }))
+
     const { error } = await supabase
       .from('reference_sections_v2')
       .update(updateData)
       .eq('id', sectionId)
 
     if (error) {
-      console.error('[SectionServiceV2] Failed to update section status:', error)
+      console.error('[SectionServiceV2] Failed to update section status:', error, 'updateData keys:', Object.keys(updateData))
       return false
     }
 
-    console.log(`[SectionServiceV2] Section ${sectionId} updated`)
+    console.log(`[SectionServiceV2] Section ${sectionId} updated successfully, queue_status=${updateData.queue_status || 'unchanged'}`)
     return true
   } catch (error) {
     console.error('[SectionServiceV2] Error updating section status:', error)

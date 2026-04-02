@@ -345,11 +345,11 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
             })
             console.log('[V2 GuarantorForm] ID uploaded - IDENTITY marked READY')
           } else {
-            // Will email ID — stay PENDING, await upload
+            // Will email ID — keep PENDING, chase system tracks via evidence_status
             await updateSectionStatus(section.id, {
               sectionData: { ...baseSectionData, evidence_status: 'AWAITING_UPLOAD' }
             })
-            console.log('[V2 GuarantorForm] ID will email - IDENTITY awaiting upload')
+            console.log('[V2 GuarantorForm] ID will email - IDENTITY marked WAITING')
           }
         } else if (section.section_type === 'ADDRESS') {
           if (address.proofOfAddressUrl && !address.proofOfAddressWillEmail) {
@@ -360,11 +360,11 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
             })
             console.log('[V2 GuarantorForm] Proof of address uploaded - ADDRESS marked READY')
           } else {
-            // Will email proof of address — stay PENDING, await upload
+            // Will email proof of address — keep PENDING, chase system tracks via evidence_status
             await updateSectionStatus(section.id, {
               sectionData: { ...baseSectionData, evidence_status: 'AWAITING_UPLOAD' }
             })
-            console.log('[V2 GuarantorForm] Proof of address will email - ADDRESS awaiting upload')
+            console.log('[V2 GuarantorForm] Proof of address will email - ADDRESS marked WAITING')
           }
         }
       }
@@ -402,14 +402,14 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     if (guarantorIncSection) {
       const now = new Date().toISOString()
       if (hasGuarantorIncomeReferee) {
-        // Has referee — stay PENDING, wait for referee form
+        // Has referee — keep PENDING, transitions to READY when referee submits
         await updateSectionStatus(guarantorIncSection.id, {
           sectionData: {
             ...(guarantorIncSection.section_data || {}),
             evidence_status: 'AWAITING_REFEREE'
           }
         })
-        console.log('[V2 GuarantorForm] Income referee created - INCOME awaiting referee')
+        console.log('[V2 GuarantorForm] Income referee created - INCOME marked WAITING')
       } else if (hasIncomeDocsUploaded) {
         // Has uploaded income docs — mark READY
         await updateSectionStatus(guarantorIncSection.id, {
@@ -421,16 +421,16 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
         })
         console.log('[V2 GuarantorForm] Income docs uploaded - INCOME marked READY')
       } else if (allIncomeWillEmail) {
-        // All docs will email — stay PENDING, await upload
+        // All docs will email — keep PENDING, chase system tracks via evidence_status
         await updateSectionStatus(guarantorIncSection.id, {
           sectionData: {
             ...(guarantorIncSection.section_data || {}),
             evidence_status: 'AWAITING_UPLOAD'
           }
         })
-        console.log('[V2 GuarantorForm] Income docs will email - INCOME awaiting upload')
+        console.log('[V2 GuarantorForm] Income docs will email - INCOME marked WAITING')
       } else {
-        // No referee, no docs, no will email — await evidence
+        // No referee, no docs, no will email — keep PENDING, needs chase
         await updateSectionStatus(guarantorIncSection.id, {
           sectionData: {
             ...(guarantorIncSection.section_data || {}),
@@ -438,7 +438,7 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
             evidence_missing_reason: 'No referee contact or income documents provided'
           }
         })
-        console.log('[V2 GuarantorForm] No income evidence - INCOME awaiting evidence')
+        console.log('[V2 GuarantorForm] No income evidence - INCOME marked WAITING')
       }
     }
 

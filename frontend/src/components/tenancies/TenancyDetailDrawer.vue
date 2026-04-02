@@ -83,6 +83,13 @@
                       {{ statusLabel }}
                     </span>
                     <span
+                      v-if="tenancy?.deposit_replacement_offered || tenancy?.deposit_replacement_requested"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400"
+                    >
+                      <Sparkles class="w-3.5 h-3.5" />
+                      Reposit
+                    </span>
+                    <span
                       v-if="tenancy?.offer_unihomes"
                       class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                     >
