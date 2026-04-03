@@ -40,11 +40,23 @@ export interface V2ReportData {
       electoralRolls?: Array<{ address?: string; dateOfRegistration?: string }>
       insolvencies?: Array<{ type?: string; caseType?: string; date?: string; startDate?: string; status?: string }>
     } | null
+    requestData?: { address?: string; postcode?: string } | null
     transaction_id?: string
     risk_level?: string
     risk_score?: number
     status?: string
+    address_type?: string
     fraud_indicators?: Record<string, any>
+    created_at: string
+  }
+  previousAddressCreditCheck?: {
+    id: string
+    responseData?: any
+    requestData?: { address?: string; postcode?: string } | null
+    transaction_id?: string
+    risk_level?: string
+    risk_score?: number
+    address_type?: string
     created_at: string
   }
   amlCheck?: {
@@ -609,7 +621,21 @@ function buildSectionCard(section: V2SectionRow, reference: V2ReferenceRow, data
   const sectionType = section.section_type as V2SectionType
   const name = SECTION_NAMES[sectionType] || section.section_type
   const icon = SECTION_ICONS[sectionType] || ''
-  const decision = section.decision as V2SectionDecision | null
+  let decision = section.decision as V2SectionDecision | null
+
+  // Override INCOME PASS to CONDITIONAL when below affordability threshold
+  if (sectionType === 'INCOME' && decision === 'PASS') {
+    const sectionData = (section.section_data || {}) as Record<string, any>
+    const checklist = sectionData.checklist_results || {}
+    const rentShare = reference.rent_share || reference.monthly_rent || 0
+    const multiplier = reference.is_guarantor ? 32 : 30
+    const totalEffective = checklist.total_effective_income || checklist.annual_income || reference.annual_income || 0
+    const required = multiplier * rentShare
+    if (totalEffective > 0 && totalEffective < required) {
+      decision = 'PASS_WITH_CONDITION' as V2SectionDecision
+    }
+  }
+
   const cardClass = getCardClass(decision)
   const badge = getDecisionBadge(decision)
 
@@ -998,11 +1024,17 @@ function buildPage4ResidentialCreditAml(data: V2ReportData, totalPages: number):
         const electoralRolls = rd?.electoralRolls || []
         const tenantDeclaredAdverse = creditChecklist.adverse_credit || creditSectionData.adverse_credit || false
 
-        // Calculate PG Risk Score (same logic as frontend)
-        const ccjCount = ccjs.length || creditSectionData.ccjCount || 0
-        const insolvencyCount = insolvencies.length || creditSectionData.insolvencyCount || 0
+        // Calculate PG Risk Score (consolidated from current + previous address)
+        const prevCheck = data.previousAddressCreditCheck?.responseData
+        const prevFlags = prevCheck?.flags || {}
+        const prevCcjs = prevCheck?.countyCourtJudgments || []
+        const prevInsolvencies = prevCheck?.insolvencies || []
+        const allCcjs = [...ccjs, ...prevCcjs]
+        const allInsolvencies = [...insolvencies, ...prevInsolvencies]
+        const ccjCount = allCcjs.length || creditSectionData.ccjCount || 0
+        const insolvencyCount = allInsolvencies.length || creditSectionData.insolvencyCount || 0
         const totalAdverse = ccjCount + insolvencyCount
-        const hasAnyAdverse = ccjFound || insolvencyFound
+        const hasAnyAdverse = ccjFound || insolvencyFound || prevFlags.ccjMatch || prevFlags.insolvencyMatch
         let pgScore = 100
         if (!electoralOk) pgScore -= 10
         if (!identityOk) pgScore -= 10
@@ -1072,6 +1104,51 @@ function buildPage4ResidentialCreditAml(data: V2ReportData, totalPages: number):
       })()}
 
       ${cc?.transaction_id ? `<div style="font-size:10px;color:var(--pg-muted);margin-top:6px;">Check date: ${formatDate(cc?.created_at || creditSectionData.checkedAt)} \u00B7 Transaction ID: ${esc(cc.transaction_id)}</div>` : (creditSectionData.checkedAt ? `<div style="font-size:10px;color:var(--pg-muted);margin-top:6px;">Check date: ${formatDate(creditSectionData.checkedAt)}</div>` : '')}
+
+      ${(() => {
+        const prev = data.previousAddressCreditCheck
+        if (!prev) return ''
+        const prd = prev.responseData
+        const pflags = prd?.flags || {}
+        const pCcjFound = pflags.ccjMatch ?? false
+        const pInsolvencyFound = pflags.insolvencyMatch ?? false
+        const pElectoralOk = pflags.electoralRegisterMatch ?? true
+        const pCcjs = prd?.countyCourtJudgments || []
+        const pInsolvencies = prd?.insolvencies || []
+        const prevAddr = prev.requestData?.address ? `${esc(prev.requestData.address)}, ${esc(prev.requestData.postcode || '')}` : 'Previous Address'
+
+        let prevHtml = `
+        <div style="margin-top:16px;padding:12px 16px;background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:8px;">
+          <div style="font-size:12px;font-weight:600;color:#4338CA;margin-bottom:8px;">Previous Address Credit Check</div>
+          <div style="font-size:10px;color:#6366F1;margin-bottom:8px;">${prevAddr}</div>
+          <table class="rr-afford-table">
+            <tr><td>Electoral Roll</td><td style="color:${pElectoralOk ? 'var(--pass-text)' : 'var(--cond-text)'}">${pElectoralOk ? '\u2713 Match Found' : '\u26A0 Not on Register'}</td></tr>
+            <tr><td>CCJs</td><td style="color:${pCcjFound ? 'var(--fail-text)' : 'var(--pass-text)'}">${pCcjFound ? `\u2717 ${pCcjs.length} Found` : '\u2713 Clear'}</td></tr>
+            <tr><td>Insolvency</td><td style="color:${pInsolvencyFound ? 'var(--fail-text)' : 'var(--pass-text)'}">${pInsolvencyFound ? '\u2717 Found' : '\u2713 Clear'}</td></tr>
+          </table>`
+
+        if (pCcjs.length > 0) {
+          prevHtml += `<table class="rr-afford-table" style="margin-top:6px;">`
+          prevHtml += `<tr style="background:#FEE2E2;"><td style="font-weight:600;">Court</td><td style="font-weight:600;">Amount</td></tr>`
+          for (const ccj of pCcjs) {
+            prevHtml += `<tr><td>${esc(ccj.courtName || 'Unknown')}</td><td>\u00A3${(ccj.amount || 0).toLocaleString('en-GB')} — ${esc(ccj.caseStatus || 'Unknown')}</td></tr>`
+          }
+          prevHtml += `</table>`
+        }
+
+        if (pInsolvencies.length > 0) {
+          prevHtml += `<table class="rr-afford-table" style="margin-top:6px;">`
+          for (const ins of pInsolvencies) {
+            prevHtml += `<tr><td>${esc(ins.type || ins.caseType || 'Unknown')}</td><td>${esc(ins.status || 'Unknown')}</td></tr>`
+          }
+          prevHtml += `</table>`
+        }
+
+        prevHtml += `<div style="font-size:10px;color:var(--pg-muted);margin-top:6px;">Check date: ${formatDate(prev.created_at)} \u00B7 Transaction ID: ${esc(prev.transaction_id || 'N/A')}</div>`
+        prevHtml += `</div>`
+        return prevHtml
+      })()}
+
       ${creditSection?.assessor_notes ? `<div style="font-size:10px;color:var(--pg-muted);margin-top:8px;"><strong>Assessor Notes:</strong> ${esc(creditSection.assessor_notes)}</div>` : ''}
       ${creditSection?.condition_text ? `<div class="rr-cond-note">${esc(creditSection.condition_text)}</div>` : ''}
     </div>

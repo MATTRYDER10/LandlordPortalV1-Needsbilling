@@ -151,14 +151,28 @@ async function fetchReportData(referenceId: string): Promise<V2ReportData> {
     }
   }
 
-  // Fetch credit check data
-  const { data: creditCheck } = await supabase
+  // Fetch credit check data (all checks — current + previous address)
+  const { data: creditChecks } = await supabase
     .from('creditsafe_verifications_v2')
     .select('*')
     .eq('reference_id', referenceId)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+
+  const decryptCreditCheck = (cc: any) => ({
+    ...cc,
+    responseData: cc.response_data_encrypted
+      ? (() => { try { return JSON.parse(decrypt(cc.response_data_encrypted) || '{}') } catch { return null } })()
+      : null,
+    requestData: cc.request_data_encrypted
+      ? (() => { try { return JSON.parse(decrypt(cc.request_data_encrypted) || '{}') } catch { return null } })()
+      : null,
+    response_data_encrypted: undefined,
+    request_data_encrypted: undefined
+  })
+
+  const allDecryptedChecks = (creditChecks || []).map(decryptCreditCheck)
+  const currentAddressCheck = allDecryptedChecks.find(c => c.address_type !== 'previous') || allDecryptedChecks[0] || null
+  const previousAddressCheck = allDecryptedChecks.find(c => c.address_type === 'previous') || null
 
   // Fetch AML / sanctions screening data
   const { data: amlCheck } = await supabase
@@ -174,12 +188,8 @@ async function fetchReportData(referenceId: string): Promise<V2ReportData> {
     sections: sections || [],
     verbalReferences: verbalRefs || [],
     refereeSubmissions: refereeSubmissions || [],
-    creditCheck: creditCheck ? {
-      ...creditCheck,
-      responseData: creditCheck.response_data_encrypted
-        ? (() => { try { return JSON.parse(decrypt(creditCheck.response_data_encrypted) || '{}') } catch { return null } })()
-        : null
-    } : undefined,
+    creditCheck: currentAddressCheck || undefined,
+    previousAddressCreditCheck: previousAddressCheck || undefined,
     amlCheck: amlCheck || undefined,
     company: {
       name: companyName,

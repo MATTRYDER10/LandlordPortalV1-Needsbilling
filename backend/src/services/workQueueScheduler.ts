@@ -3,6 +3,7 @@ import * as creditService from './creditService';
 import { signatureService } from './signatureService';
 import { processAutoChases } from './autoChaseService';
 import { reconcileVerificationStates } from './verificationStateService';
+import { createNotification } from './notificationService';
 
 /**
  * Work Queue Scheduler Service
@@ -470,6 +471,146 @@ export async function sendSigningReminders() {
 }
 
 /**
+ * Auto-archive tenancies with notice_given status where the actual_end_date has passed
+ */
+export async function archiveExpiredNoticeServed() {
+  try {
+    const now = new Date().toISOString().split('T')[0]
+
+    const { data: expiredTenancies, error: fetchError } = await supabaseAdmin
+      .from('tenancies')
+      .select('id, property_id, company_id, actual_end_date')
+      .eq('status', 'notice_given')
+      .is('deleted_at', null)
+      .not('actual_end_date', 'is', null)
+      .lte('actual_end_date', now)
+
+    if (fetchError) {
+      console.error('Error fetching expired notice_given tenancies:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    if (!expiredTenancies || expiredTenancies.length === 0) {
+      console.log('[Scheduler] No expired notice_given tenancies to archive')
+      return { success: true, archivedCount: 0 }
+    }
+
+    console.log(`[Scheduler] Found ${expiredTenancies.length} expired notice_given tenancies to archive`)
+
+    const { error: updateError } = await supabaseAdmin
+      .from('tenancies')
+      .update({
+        status: 'archived',
+        updated_at: new Date().toISOString()
+      })
+      .in('id', expiredTenancies.map(t => t.id))
+
+    if (updateError) {
+      console.error('Error archiving expired tenancies:', updateError)
+      return { success: false, error: updateError.message }
+    }
+
+    console.log(`[Scheduler] Successfully archived ${expiredTenancies.length} expired notice_given tenancies`)
+    return { success: true, archivedCount: expiredTenancies.length }
+  } catch (error: any) {
+    console.error('[Scheduler] Error in archiveExpiredNoticeServed:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Send move-out notifications for tenancies with actual_end_date = tomorrow
+ */
+export async function sendMoveOutNotifications() {
+  try {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+    const { data: tenancies, error: fetchError } = await supabaseAdmin
+      .from('tenancies')
+      .select('id, company_id, actual_end_date, property_id')
+      .eq('status', 'notice_given')
+      .is('deleted_at', null)
+      .eq('actual_end_date', tomorrowStr)
+
+    if (fetchError) {
+      console.error('[Scheduler] Error fetching move-out tenancies:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    if (!tenancies || tenancies.length === 0) {
+      console.log('[Scheduler] No move-out tenancies found for tomorrow')
+      return { success: true, notificationsSent: 0 }
+    }
+
+    console.log(`[Scheduler] Found ${tenancies.length} tenancies with move-out tomorrow`)
+
+    // Fetch property addresses for message building
+    const propertyIds = tenancies.map(t => t.property_id).filter(Boolean)
+    let propertyAddressMap = new Map<string, string>()
+    if (propertyIds.length > 0) {
+      const { data: properties } = await supabaseAdmin
+        .from('properties')
+        .select('id, address_line1_encrypted, postcode')
+        .in('id', propertyIds)
+      if (properties) {
+        for (const p of properties) {
+          let address = p.postcode || ''
+          try {
+            const { decrypt } = await import('./encryption')
+            address = p.address_line1_encrypted ? (decrypt(p.address_line1_encrypted) || p.postcode || '') : (p.postcode || '')
+          } catch (e) {}
+          propertyAddressMap.set(p.id, address)
+        }
+      }
+    }
+
+    let notificationsSent = 0
+    for (const tenancy of tenancies) {
+      try {
+        // Check if a move-out notification already exists for this tenancy
+        const { data: existing } = await supabaseAdmin
+          .from('notification_queue')
+          .select('id')
+          .eq('resource_id', tenancy.id)
+          .eq('notification_type', 'ACTION_REQUIRED')
+          .ilike('title', '%Move-out tomorrow%')
+          .limit(1)
+
+        if (existing && existing.length > 0) {
+          console.log(`[Scheduler] Move-out notification already exists for tenancy ${tenancy.id}`)
+          continue
+        }
+
+        const propertyAddress = propertyAddressMap.get(tenancy.property_id) || 'unknown property'
+
+        await createNotification({
+          companyId: tenancy.company_id,
+          notificationType: 'ACTION_REQUIRED',
+          resourceType: 'tenancy',
+          resourceId: tenancy.id,
+          title: 'Move-out tomorrow',
+          message: `Tenancy notice expires tomorrow for ${propertyAddress}`,
+          severity: 'WARNING'
+        })
+
+        notificationsSent++
+        console.log(`[Scheduler] Sent move-out notification for tenancy ${tenancy.id}`)
+      } catch (notifError: any) {
+        console.error(`[Scheduler] Error sending move-out notification for tenancy ${tenancy.id}:`, notifError)
+      }
+    }
+
+    console.log(`[Scheduler] Successfully sent ${notificationsSent} move-out notifications`)
+    return { success: true, notificationsSent }
+  } catch (error: any) {
+    console.error('[Scheduler] Error in sendMoveOutNotifications:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
  * Start all background schedulers
  */
 export function startSchedulers() {
@@ -511,6 +652,18 @@ export function startSchedulers() {
     await sendSigningReminders();
   }, SIGNING_REMINDER_CHECK_INTERVAL_MS);
 
+  // Archive expired notice_given tenancies (every 1 hour)
+  setInterval(async () => {
+    console.log('[Scheduler] Running notice_given archive check...');
+    await archiveExpiredNoticeServed();
+  }, EXPIRED_REFERENCE_CHECK_INTERVAL_MS);
+
+  // Move-out notifications (every 1 hour)
+  setInterval(async () => {
+    console.log('[Scheduler] Running move-out notification check...');
+    await sendMoveOutNotifications();
+  }, EXPIRED_REFERENCE_CHECK_INTERVAL_MS);
+
   // Auto-chase (every 30 minutes)
   setInterval(async () => {
     console.log('[Scheduler] Running auto-chase check...');
@@ -532,6 +685,8 @@ export function startSchedulers() {
     await syncMissingVerifyItems();
     await autoDeleteExpiredReferences();
     await sendSigningReminders();
+    await archiveExpiredNoticeServed();
+    await sendMoveOutNotifications();
     await processAutoChases();
     await reconcileVerificationStates();
   }, 5000); // Wait 5 seconds after startup
@@ -551,6 +706,7 @@ export async function runAllScheduledTasks() {
     urgent: await escalateUrgentItems(),
     expiredReferences: await autoDeleteExpiredReferences(),
     signingReminders: await sendSigningReminders(),
+    archiveNoticeGiven: await archiveExpiredNoticeServed(),
     autoChase: await processAutoChases(),
     reconcileVerificationStates: await reconcileVerificationStates()
   };

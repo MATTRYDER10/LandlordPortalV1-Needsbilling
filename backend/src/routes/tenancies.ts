@@ -956,9 +956,101 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
         },
         rentAmount: tenancy.monthly_rent || null,
         tenants: tenantList,
-        allActionsComplete
+        allActionsComplete,
+        type: 'move_in' as const
       }
     })
+
+    // Fetch upcoming move-out entries (notice_given tenancies with actual_end_date in range)
+    let moveOutEntries: any[] = []
+    try {
+      const { data: moveOutTenancies, error: moveOutError } = await supabase
+        .from('tenancies')
+        .select('id, actual_end_date, monthly_rent, property_id')
+        .eq('company_id', companyId)
+        .eq('status', 'notice_given')
+        .is('deleted_at', null)
+        .not('actual_end_date', 'is', null)
+        .gte('actual_end_date', now.toISOString().split('T')[0])
+        .lte('actual_end_date', endDate.toISOString().split('T')[0])
+        .order('actual_end_date', { ascending: true })
+
+      if (moveOutError) {
+        console.error('Move-out calendar query error:', moveOutError)
+      } else if (moveOutTenancies && moveOutTenancies.length > 0) {
+        const moPropertyIds = [...new Set(moveOutTenancies.map(t => t.property_id).filter(Boolean))]
+        let moPropertyMap = new Map<string, any>()
+        if (moPropertyIds.length > 0) {
+          const { data: moProperties } = await supabase
+            .from('properties')
+            .select('id, address_line1_encrypted, city_encrypted, postcode')
+            .in('id', moPropertyIds)
+          if (moProperties) {
+            for (const p of moProperties) moPropertyMap.set(p.id, p)
+          }
+        }
+
+        const moTenancyIds = moveOutTenancies.map(t => t.id)
+        let moTenantMap = new Map<string, any[]>()
+        if (moTenancyIds.length > 0) {
+          const { data: moTenants } = await supabase
+            .from('tenancy_tenants')
+            .select('id, tenancy_id, tenant_name_encrypted, tenant_order, is_lead_tenant, status')
+            .in('tenancy_id', moTenancyIds)
+            .eq('is_active', true)
+          if (moTenants) {
+            for (const t of moTenants) {
+              if (!moTenantMap.has(t.tenancy_id)) moTenantMap.set(t.tenancy_id, [])
+              moTenantMap.get(t.tenancy_id)!.push(t)
+            }
+          }
+        }
+
+        moveOutEntries = moveOutTenancies.map(tenancy => {
+          const prop = moPropertyMap.get(tenancy.property_id)
+          let propertyAddress = ''
+          let propertyCity = ''
+          let propertyPostcode = ''
+          if (prop) {
+            try {
+              propertyAddress = prop.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+              propertyCity = prop.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+              propertyPostcode = prop.postcode || ''
+            } catch (e) {}
+          }
+
+          const tenantList: Array<{ id: string; name: string }> = []
+          for (const tenant of (moTenantMap.get(tenancy.id) || [])) {
+            let tenantName = 'Unknown'
+            try {
+              tenantName = tenant.tenant_name_encrypted ? (decrypt(tenant.tenant_name_encrypted) || 'Unknown') : 'Unknown'
+            } catch (e) {}
+            tenantList.push({ id: tenant.id, name: tenantName })
+          }
+          tenantList.sort((a, b) => {
+            const tenantA = (moTenantMap.get(tenancy.id) || []).find((t: any) => t.id === a.id)
+            const tenantB = (moTenantMap.get(tenancy.id) || []).find((t: any) => t.id === b.id)
+            return (tenantA?.tenant_order || 99) - (tenantB?.tenant_order || 99)
+          })
+
+          return {
+            tenancyId: tenancy.id,
+            moveInDate: tenancy.actual_end_date,
+            property: {
+              address: propertyAddress,
+              city: propertyCity,
+              postcode: propertyPostcode
+            },
+            rentAmount: tenancy.monthly_rent || null,
+            tenants: tenantList,
+            allActionsComplete: false,
+            type: 'move_out' as const
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error fetching move-out entries for calendar:', e)
+    }
 
     // Fetch upcoming compliance expiries for all company properties
     let complianceExpiries: any[] = []
@@ -1010,7 +1102,7 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
     res.json({
       startDate: now.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
-      entries,
+      entries: [...entries, ...moveOutEntries],
       complianceExpiries
     })
   } catch (error: any) {
@@ -1762,6 +1854,68 @@ router.post('/records/:id/revert-to-active', authenticateToken, async (req: Auth
     res.json({ tenancy })
   } catch (error: any) {
     console.error('Error in POST /api/tenancies/records/:id/revert-to-active:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * POST /api/tenancies/records/:id/revert-to-notice-served
+ * Revert an archived tenancy back to notice_given status
+ */
+router.post('/records/:id/revert-to-notice-served', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const userId = req.user?.id
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Fetch current tenancy to verify status
+    const { data: currentTenancy, error: fetchError } = await supabase
+      .from('tenancies')
+      .select('status, actual_end_date')
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (fetchError || !currentTenancy) {
+      return res.status(404).json({ error: 'Tenancy not found' })
+    }
+
+    if (currentTenancy.status !== 'archived') {
+      return res.status(400).json({ error: 'Can only revert archived tenancies to notice served status' })
+    }
+
+    // Update tenancy: set status back to notice_given
+    const { data: tenancy, error } = await supabase
+      .from('tenancies')
+      .update({
+        status: 'notice_given',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error reverting tenancy to notice served:', error)
+      return res.status(500).json({ error: 'Failed to revert tenancy' })
+    }
+
+    // Log activity
+    await tenancyService.logTenancyActivity(req.params.id, {
+      action: 'STATUS_CHANGED',
+      category: 'general',
+      title: 'Tenancy Reverted to Notice Served',
+      description: `Tenancy reverted from archived back to notice given status`,
+      metadata: { previousStatus: 'archived', newStatus: 'notice_given' },
+      performedBy: userId
+    })
+
+    res.json({ tenancy })
+  } catch (error: any) {
+    console.error('Error in POST /api/tenancies/records/:id/revert-to-notice-served:', error)
     res.status(500).json({ error: error.message })
   }
 })

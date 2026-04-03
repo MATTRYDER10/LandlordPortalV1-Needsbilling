@@ -74,8 +74,8 @@
           </div>
         </div>
 
-        <!-- Quick Actions Menu (hidden for archived) -->
-        <div v-if="!isArchived" class="flex-shrink-0 flex items-center gap-1.5">
+        <!-- Quick Actions Menu -->
+        <div class="flex-shrink-0 flex items-center gap-1.5">
           <!-- Actions Dropdown -->
           <div class="relative">
             <button
@@ -158,6 +158,14 @@
           Rent due: {{ rentDueDay }}
         </span>
 
+        <!-- Reposit -->
+        <span
+          v-if="tenancy.deposit_replacement_offered || tenancy.deposit_replacement_requested"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400"
+        >
+          <Sparkles class="w-2.5 h-2.5" />
+          Reposit
+        </span>
         <!-- UniHomes -->
         <span
           v-if="tenancy.offer_unihomes"
@@ -186,7 +194,8 @@ import {
   Shield,
   AlertCircle,
   RotateCcw,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-vue-next'
 
 interface TenancyTenant {
@@ -288,16 +297,25 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
 })
 
-const actions = [
-  { key: 'change-rent-due', label: 'Change Rent Due Date', icon: Calendar, danger: false },
-  { key: 'change-tenant', label: 'Change Tenant', icon: UserMinus, danger: false },
-  { key: 'rent-increase', label: 'Serve Rent Increase Notice', icon: TrendingUp, danger: false },
-  { key: 'section-8', label: 'Serve Section 8 Notice', icon: FileWarning, danger: false },
-  { key: 'end-tenancy', label: 'End Tenancy', icon: XCircle, danger: false },
-  { key: 'email-tenants', label: 'Email All Tenants', icon: Mail, danger: false },
-  { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
-  { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
-]
+const actions = computed(() => {
+  if (props.isArchived) {
+    return [
+      { key: 'revert-to-notice-served', label: 'Revert to Notice Served', icon: RotateCcw, danger: false },
+      { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
+      { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
+    ]
+  }
+  return [
+    { key: 'change-rent-due', label: 'Change Rent Due Date', icon: Calendar, danger: false },
+    { key: 'change-tenant', label: 'Change Tenant', icon: UserMinus, danger: false },
+    { key: 'rent-increase', label: 'Serve Rent Increase Notice', icon: TrendingUp, danger: false },
+    { key: 'section-8', label: 'Serve Section 8 Notice', icon: FileWarning, danger: false },
+    { key: 'end-tenancy', label: 'End Tenancy', icon: XCircle, danger: false },
+    { key: 'email-tenants', label: 'Email All Tenants', icon: Mail, danger: false },
+    { key: 'revert-to-draft', label: 'Revert to Draft', icon: RotateCcw, danger: true },
+    { key: 'delete', label: 'Delete Tenancy', icon: Trash2, danger: true }
+  ]
+})
 
 const handleAction = (actionKey: string) => {
   showActions.value = false

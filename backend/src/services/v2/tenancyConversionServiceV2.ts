@@ -528,13 +528,23 @@ export async function convertV2ReferenceToTenancy(
             .select('id, tenant_name_encrypted')
             .eq('tenancy_id', tenancy.id)
             .eq('is_active', true)
+            .order('tenant_order', { ascending: true })
 
-          // Match by name — the tenant this guarantor is for
+          // Match by name first
           const tenantFullName = `${tenant.firstName} ${tenant.lastName}`.trim().toLowerCase()
-          const matchedTenantRecord = (tenancyTenants || []).find((tt: any) => {
+          let matchedTenantRecord = (tenancyTenants || []).find((tt: any) => {
             const ttName = (decrypt(tt.tenant_name_encrypted) || '').trim().toLowerCase()
             return ttName === tenantFullName
           })
+
+          // Fallback: index-based matching
+          if (!matchedTenantRecord && tenancyTenants && tenancyTenants.length > 0) {
+            const tenantIndex = refData.tenants.indexOf(tenant)
+            if (tenantIndex >= 0 && tenantIndex < tenancyTenants.length) {
+              matchedTenantRecord = tenancyTenants[tenantIndex]
+              console.log(`[V2 Conversion] Guarantor linked via index fallback (index ${tenantIndex}) for ${tenant.firstName} ${tenant.lastName}`)
+            }
+          }
 
           await addGuarantorToTenancy(tenancy.id, {
             guarantorReferenceId: guarantorRef.id,
@@ -555,6 +565,81 @@ export async function convertV2ReferenceToTenancy(
         console.error(`[V2 Conversion] Failed to create guarantor record:`, guarantorError)
         // Non-blocking — continue conversion even if guarantor creation fails
       }
+    }
+
+    // Transfer reference documents to tenancy
+    try {
+      const docsToTransfer: Array<{ file_url: string; file_name: string; tag: string }> = []
+
+      // 1. Reference report PDFs
+      const { data: refsWithReports } = await supabase
+        .from('tenant_references_v2')
+        .select('id, report_pdf_url, tenant_first_name_encrypted, tenant_last_name_encrypted')
+        .in('id', referenceIds)
+        .not('report_pdf_url', 'is', null)
+
+      for (const ref of (refsWithReports || [])) {
+        if (ref.report_pdf_url) {
+          const name = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+          docsToTransfer.push({
+            file_url: ref.report_pdf_url,
+            file_name: `Reference Report - ${name}.pdf`,
+            tag: 'reference'
+          })
+        }
+      }
+
+      // 2. Evidence documents (ID, payslips, proof of address)
+      const { data: evidenceDocs } = await supabase
+        .from('evidence_v2')
+        .select('reference_id, evidence_type, file_url, file_name')
+        .in('reference_id', referenceIds)
+
+      for (const ev of (evidenceDocs || [])) {
+        if (ev.file_url) {
+          const tagMap: Record<string, string> = {
+            id_document: 'identity',
+            selfie: 'identity',
+            payslips: 'income',
+            bank_statements: 'income',
+            tax_return: 'income',
+            proof_of_address: 'address',
+            proofOfAddress: 'address'
+          }
+          docsToTransfer.push({
+            file_url: ev.file_url,
+            file_name: ev.file_name || `${ev.evidence_type}`,
+            tag: tagMap[ev.evidence_type] || 'reference'
+          })
+        }
+      }
+
+      // Insert as property_documents
+      if (docsToTransfer.length > 0) {
+        const docRows = docsToTransfer.map(doc => ({
+          company_id: refData.companyId,
+          property_id: refData.propertyId,
+          source_type: 'tenancy',
+          source_id: tenancy.id,
+          file_url: doc.file_url,
+          file_name: doc.file_name,
+          tag: doc.tag,
+          uploaded_at: new Date().toISOString()
+        }))
+
+        const { error: docInsertError } = await supabase
+          .from('property_documents')
+          .insert(docRows)
+
+        if (docInsertError) {
+          console.warn(`[V2 Conversion] Failed to transfer documents: ${docInsertError.message}`)
+        } else {
+          console.log(`[V2 Conversion] Transferred ${docsToTransfer.length} documents to tenancy ${tenancy.id}`)
+        }
+      }
+    } catch (docError) {
+      console.error('[V2 Conversion] Error transferring documents:', docError)
+      // Non-blocking
     }
 
     // Log conversion event

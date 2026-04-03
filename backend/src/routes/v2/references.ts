@@ -177,7 +177,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       isGuarantor,
       guarantorForReferenceId,
       parentReferenceId,
-      isGroupParent
+      isGroupParent,
+      depositReplacementOffered
     } = req.body
 
     // Support both new format (tenants array) and legacy format
@@ -246,7 +247,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           isGroupParent: isGroup && i === 0,
           createdBy: req.user?.id,
           holdingDepositAmount: holding_deposit_amount ? parseFloat(holding_deposit_amount) : undefined,
-          offerId: offer_id || undefined
+          offerId: offer_id || undefined,
+          depositReplacementOffered: depositReplacementOffered || false
         }
 
         const reference = await createReference(input)
@@ -509,22 +511,22 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       sectionsByRef.set(s.reference_id, arr)
     }
 
-    // Batch fetch UniHome data from linked offers
+    // Batch fetch offer data (UniHomes + deposit replacement) from linked offers
     const offerIds = [...new Set(references.map(r => r.offer_id).filter(Boolean))]
-    const offerUnihomesMap = new Map<string, { offer_unihomes: boolean; unihomes_interested: boolean }>()
+    const offerDataMap = new Map<string, { unihomes_offered: boolean; unihomes_interested: boolean; deposit_replacement_offered: boolean; deposit_replacement_requested: boolean }>()
     if (offerIds.length > 0) {
       const { data: offers } = await supabase
         .from('tenant_offers')
-        .select('id, offer_unihomes, unihomes_interested')
+        .select('id, unihomes_offered, unihomes_interested, deposit_replacement_offered, deposit_replacement_requested')
         .in('id', offerIds)
       for (const o of (offers || [])) {
-        offerUnihomesMap.set(o.id, { offer_unihomes: o.offer_unihomes, unihomes_interested: o.unihomes_interested })
+        offerDataMap.set(o.id, { unihomes_offered: o.unihomes_offered, unihomes_interested: o.unihomes_interested, deposit_replacement_offered: o.deposit_replacement_offered, deposit_replacement_requested: o.deposit_replacement_requested })
       }
     }
 
     // Decrypt fields (sync - no extra DB calls)
     const decryptedReferences = references.map(ref => {
-      const offerData = ref.offer_id ? offerUnihomesMap.get(ref.offer_id) : null
+      const offerData = ref.offer_id ? offerDataMap.get(ref.offer_id) : null
       return {
         ...ref,
         tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
@@ -540,8 +542,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           const issueStatus = s.section_data?.issue_status
           return issueStatus === 'OPEN' || issueStatus === 'RESPONSE_PENDING_REVIEW'
         }),
-        offer_unihomes: offerData?.offer_unihomes || false,
-        unihomes_interested: offerData?.unihomes_interested || false
+        offer_unihomes: offerData?.unihomes_offered || false,
+        unihomes_interested: offerData?.unihomes_interested || false,
+        deposit_replacement_offered: offerData?.deposit_replacement_offered || ref.deposit_replacement_offered || false,
+        deposit_replacement_requested: offerData?.deposit_replacement_requested || false
       }
     })
 
@@ -575,11 +579,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       Promise.resolve(decryptFormData(result.reference.form_data)),
       getSections(id),
       getGuarantor(id),
-      supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
+      supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).then(r => r.data),
       supabase.from('sanctions_screenings_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
       result.reference.is_group_parent ? getGroupChildren(id) : Promise.resolve(null),
       result.reference.offer_id
-        ? supabase.from('tenant_offers').select('offer_unihomes, unihomes_interested').eq('id', result.reference.offer_id).maybeSingle().then(r => r.data)
+        ? supabase.from('tenant_offers').select('unihomes_offered, unihomes_interested').eq('id', result.reference.offer_id).maybeSingle().then(r => r.data)
         : Promise.resolve(null)
     ])
 
@@ -604,13 +608,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         accountant_email: decrypt(result.reference.accountant_email_encrypted),
         accountant_phone: decrypt(result.reference.accountant_phone_encrypted),
         form_data: decryptedFormData,
-        offer_unihomes: offerResult?.offer_unihomes || false,
+        offer_unihomes: offerResult?.unihomes_offered || false,
         unihomes_interested: offerResult?.unihomes_interested || false
       },
       sections,
       children,
       guarantor,
-      creditCheck: creditResult,
+      creditCheck: Array.isArray(creditResult) ? creditResult[0] || null : creditResult,
+      creditChecks: Array.isArray(creditResult) ? creditResult : (creditResult ? [creditResult] : []),
       amlCheck: amlResult
     })
   } catch (error: any) {

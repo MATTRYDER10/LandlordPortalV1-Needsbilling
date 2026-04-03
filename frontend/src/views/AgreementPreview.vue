@@ -44,11 +44,11 @@
           </button>
         </div>
         <div class="relative">
-          <iframe
+          <PdfViewer
             v-if="agreement.pdf_url"
             :src="agreement.pdf_url"
-            class="w-full h-[700px] border-0"
-          ></iframe>
+            class="w-full h-[700px]"
+          />
           <div v-else class="h-[700px] flex items-center justify-center bg-gray-50">
             <div class="text-center">
               <FileText class="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -135,6 +135,7 @@ import { useAuthStore } from '../stores/auth'
 import { Download, FileText, AlertTriangle, Send, Pencil, ArrowLeft } from 'lucide-vue-next'
 import RecipientCard from '../components/RecipientCard.vue'
 import AgreementEditModal from '../components/AgreementEditModal.vue'
+import PdfViewer from '../components/PdfViewer.vue'
 
 interface Recipient {
   type: 'landlord' | 'tenant' | 'guarantor'

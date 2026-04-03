@@ -58,7 +58,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       offer_deposit_replacement,
       offer_unihomes,
       bills_included,
-      linked_property_id
+      linked_property_id,
+      negotiator_id
     } = req.body
 
     // Validate required fields
@@ -104,6 +105,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
+    // Generate form_ref before building URL so it can be included in the link
+    const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
+
     // Generate V2 offer form link
     const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
     const unihomesQuery = offer_unihomes ? '&unihomes=1' : ''
@@ -116,8 +120,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     const depositAmountQuery = deposit_amount ? `&deposit_amount=${encodeURIComponent(deposit_amount)}` : ''
     const moveInDateQuery = move_in_date ? `&move_in_date=${encodeURIComponent(move_in_date)}` : ''
     const propertyIdQuery = propertyIdToLink ? `&linked_property_id=${encodeURIComponent(propertyIdToLink)}` : ''
+    const formRefQuery = `&form_ref=${encodeURIComponent(formRef)}`
     // Add v2 flag to the URL so tenant form knows it's V2
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}${formRefQuery}`
 
     // Send email to tenant
     try {
@@ -136,7 +141,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Store record with V2 flag
-    const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
     try {
       const { data: insertedForm, error: insertError } = await supabase
         .from('sent_offer_forms')
@@ -149,13 +153,10 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
           property_city_encrypted: property_city ? encrypt(property_city) : null,
           property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
           rent_amount: rent_amount || null,
-          holding_deposit_amount: holding_deposit_amount || null,
-          deposit_amount: deposit_amount || null,
-          move_in_date: move_in_date || null,
           offer_deposit_replacement: !!offer_deposit_replacement,
           offer_unihomes: !!offer_unihomes,
           linked_property_id: propertyIdToLink || null,
-          is_v2: true,
+          negotiator_id: negotiator_id || null,
           status: 'sent'
         })
         .select('id, status')
@@ -167,6 +168,47 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
       }
     } catch (dbError: any) {
       console.error('[V2 Offers] Exception storing sent form:', dbError)
+    }
+
+    // Send negotiator notification email if deal owner assigned
+    if (negotiator_id) {
+      try {
+        const { data: negotiator } = await supabase
+          .from('negotiators')
+          .select('name, email')
+          .eq('id', negotiator_id)
+          .single()
+
+        if (negotiator && negotiator.email) {
+          // Get company's offer notification email to avoid duplicates
+          const { data: companySettings } = await supabase
+            .from('companies')
+            .select('offer_notification_email')
+            .eq('id', companyId)
+            .single()
+
+          const notificationEmail = companySettings?.offer_notification_email || companyEmail
+          if (negotiator.email.toLowerCase() !== notificationEmail?.toLowerCase()) {
+            const html = loadEmailTemplate('negotiator-offer-notification', {
+              NegotiatorName: negotiator.name,
+              TenantEmail: tenant_email,
+              PropertyAddress: property_address,
+              RentAmount: rent_amount ? `£${Number(rent_amount).toLocaleString()}` : 'TBC',
+              CompanyName: companyName,
+              AgentLogoUrl: companyLogoUrl || 'https://www.propertygoose.co.uk/logo.png'
+            })
+
+            await sendEmail({
+              to: negotiator.email,
+              subject: `New Offer Sent — ${property_address}`,
+              html
+            })
+            console.log('[V2 Offers] Negotiator notification sent to:', negotiator.email)
+          }
+        }
+      } catch (negError: any) {
+        console.error('[V2 Offers] Failed to send negotiator notification:', negError)
+      }
     }
 
     // Log property audit
@@ -266,7 +308,8 @@ router.post('/resend/:id', authenticateToken, async (req: AuthRequest, res) => {
     const moveInDateQuery = sentForm.move_in_date ? `&move_in_date=${encodeURIComponent(sentForm.move_in_date)}` : ''
     const propertyIdQuery = sentForm.linked_property_id ? `&linked_property_id=${encodeURIComponent(sentForm.linked_property_id)}` : ''
 
-    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}`
+    const formRefQuery = sentForm.form_ref ? `&form_ref=${encodeURIComponent(sentForm.form_ref)}` : ''
+    const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1${depositReplacementQuery}${unihomesQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}${holdingDepositQuery}${depositAmountQuery}${moveInDateQuery}${propertyIdQuery}${formRefQuery}`
 
     // Send email to tenant (email only, no new record)
     await sendTenantOfferRequest(
@@ -389,30 +432,29 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Get V2 sent offer forms
+    // Get sent offer forms
     const { data: sentForms, error } = await supabase
       .from('sent_offer_forms')
       .select('*')
       .eq('company_id', companyId)
-      .eq('is_v2', true)
       .or('status.eq.sent,status.is.null')
       .order('sent_at', { ascending: false })
 
-    console.log('[V2 Offers] Sent forms query:', { companyId, count: sentForms?.length, error: error?.message })
-
-    // Debug: check without is_v2 filter
-    if (!sentForms || sentForms.length === 0) {
-      const { data: allForms } = await supabase
-        .from('sent_offer_forms')
-        .select('id, company_id, is_v2, status, tenant_email, created_at')
-        .eq('company_id', companyId)
-        .order('created_at', { ascending: false })
-        .limit(5)
-      console.log('[V2 Offers] Debug - ALL forms for company (no is_v2/status filter):', JSON.stringify(allForms))
-    }
-
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Batch-fetch negotiator names for this company
+    const negotiatorIds = [...new Set((sentForms || []).map(f => f.negotiator_id).filter(Boolean))]
+    const negotiatorMap: Record<string, string> = {}
+    if (negotiatorIds.length > 0) {
+      const { data: negs } = await supabase
+        .from('negotiators')
+        .select('id, name')
+        .in('id', negotiatorIds)
+      if (negs) {
+        for (const n of negs) negotiatorMap[n.id] = n.name
+      }
     }
 
     // Decrypt sent form data
@@ -424,8 +466,10 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode: form.property_postcode_encrypted ? decrypt(form.property_postcode_encrypted) : '',
       rent_amount: form.rent_amount,
       offer_deposit_replacement: form.offer_deposit_replacement,
-      offer_unihomes: form.offer_unihomes,
+      offer_unihomes: form.offer_unihomes || false,
       linked_property_id: form.linked_property_id,
+      negotiator_id: form.negotiator_id || null,
+      negotiator_name: form.negotiator_id ? (negotiatorMap[form.negotiator_id] || null) : null,
       sent_at: form.sent_at,
       created_at: form.created_at
     })) || []
@@ -813,6 +857,19 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
+    // Batch-fetch negotiator names
+    const negIds = [...new Set((offers || []).map(o => o.negotiator_id).filter(Boolean))]
+    const negMap: Record<string, string> = {}
+    if (negIds.length > 0) {
+      const { data: negs } = await supabase
+        .from('negotiators')
+        .select('id, name')
+        .in('id', negIds)
+      if (negs) {
+        for (const n of negs) negMap[n.id] = n.name
+      }
+    }
+
     // Decrypt offer data
     const decryptedOffers = offers?.map(offer => {
       const tenants = (offer.tenant_offer_tenants || []).map((tenant: any) => ({
@@ -839,6 +896,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         property_postcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
         special_conditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : '',
         declined_reason: offer.declined_reason_encrypted ? decrypt(offer.declined_reason_encrypted) : '',
+        negotiator_name: offer.negotiator_id ? (negMap[offer.negotiator_id] || null) : null,
         tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order)
       }
     }) || []

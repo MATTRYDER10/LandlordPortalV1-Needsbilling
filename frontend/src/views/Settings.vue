@@ -552,6 +552,90 @@
             </table>
           </div>
 
+          <!-- Negotiators -->
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Negotiators</h3>
+              <button
+                @click="showAddNegotiatorModal = true"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+              >
+                Add Negotiator
+              </button>
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-800">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
+                <tr v-if="negotiators.length === 0">
+                  <td colspan="3" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                    No negotiators added yet. Add your first negotiator to track deal ownership.
+                  </td>
+                </tr>
+                <tr v-for="neg in negotiators" :key="neg.id">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ neg.name }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ neg.email }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      @click="removeNegotiator(neg)"
+                      class="text-red-600 hover:text-red-900"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Add Negotiator Modal -->
+          <div v-if="showAddNegotiatorModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-slate-900 rounded-lg max-w-md w-full shadow-xl p-6">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Negotiator</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Name *</label>
+                  <input
+                    v-model="newNegotiator.name"
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="e.g. John Smith"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email *</label>
+                  <input
+                    v-model="newNegotiator.email"
+                    type="email"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="e.g. john@example.com"
+                  />
+                </div>
+                <p v-if="addNegotiatorError" class="text-sm text-red-600">{{ addNegotiatorError }}</p>
+              </div>
+              <div class="flex justify-end gap-3 mt-6">
+                <button
+                  @click="showAddNegotiatorModal = false; addNegotiatorError = ''"
+                  class="px-4 py-2 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="addNegotiator"
+                  :disabled="addNegotiatorLoading || !newNegotiator.name || !newNegotiator.email"
+                  class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+                >
+                  {{ addNegotiatorLoading ? 'Adding...' : 'Add Negotiator' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Pending Invitations -->
           <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
@@ -1144,6 +1228,13 @@ const teamMembers = ref<any[]>([])
 
 const pendingInvitations = ref<any[]>([])
 
+// Negotiator data
+const negotiators = ref<any[]>([])
+const showAddNegotiatorModal = ref(false)
+const addNegotiatorLoading = ref(false)
+const addNegotiatorError = ref('')
+const newNegotiator = ref({ name: '', email: '' })
+
 // Audit Logs data
 const auditLogs = ref<any[]>([])
 const auditLoading = ref(false)
@@ -1258,6 +1349,78 @@ const fetchPendingInvitations = async () => {
   }
 }
 
+const fetchNegotiators = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(`${API_URL}/api/v2/negotiators`, {
+      token,
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      negotiators.value = data.negotiators || []
+    }
+  } catch (error) {
+    console.error('Failed to fetch negotiators:', error)
+  }
+}
+
+const addNegotiator = async () => {
+  addNegotiatorLoading.value = true
+  addNegotiatorError.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(`${API_URL}/api/v2/negotiators`, {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newNegotiator.value.name,
+        email: newNegotiator.value.email
+      })
+    })
+
+    if (response.ok) {
+      showAddNegotiatorModal.value = false
+      newNegotiator.value = { name: '', email: '' }
+      await fetchNegotiators()
+    } else {
+      const data = await response.json()
+      addNegotiatorError.value = data.error || 'Failed to add negotiator'
+    }
+  } catch (error) {
+    addNegotiatorError.value = 'Failed to add negotiator'
+  } finally {
+    addNegotiatorLoading.value = false
+  }
+}
+
+const removeNegotiator = async (neg: any) => {
+  if (!confirm(`Remove ${neg.name} as a negotiator?`)) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(`${API_URL}/api/v2/negotiators/${neg.id}`, {
+      method: 'DELETE',
+      token
+    })
+
+    if (response.ok) {
+      await fetchNegotiators()
+    }
+  } catch (error) {
+    console.error('Failed to remove negotiator:', error)
+  }
+}
+
 const fetchCompanyData = async () => {
   try {
     const token = authStore.session?.access_token
@@ -1326,6 +1489,7 @@ onMounted(async () => {
   fetchCompanyData()
   fetchProfileData()
   fetchPendingInvitations()
+  fetchNegotiators()
 })
 
 // Reload company data when branch changes

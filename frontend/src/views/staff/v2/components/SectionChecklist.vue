@@ -151,6 +151,40 @@
           </label>
         </div>
 
+        <!-- Affordability Threshold (income sections) -->
+        <div
+          v-if="step.affordabilityNote"
+          class="mt-4 p-3 rounded-lg"
+          :class="step.affordabilityNote.confirmedAnnual && step.affordabilityNote.confirmedAnnual >= step.affordabilityNote.requiredAnnualIncome
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+            : step.affordabilityNote.confirmedAnnual
+              ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+              : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Required: £{{ step.affordabilityNote.requiredAnnualIncome.toLocaleString('en-GB') }}/year
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {{ step.affordabilityNote.isGuarantor ? '32x' : '30x' }} monthly rent (£{{ step.affordabilityNote.rentShare.toLocaleString('en-GB') }}/mo)
+              </p>
+            </div>
+            <div v-if="step.affordabilityNote.confirmedAnnual" class="text-right">
+              <p class="text-sm font-semibold"
+                :class="step.affordabilityNote.confirmedAnnual >= step.affordabilityNote.requiredAnnualIncome ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
+              >
+                Confirmed: £{{ step.affordabilityNote.confirmedAnnual.toLocaleString('en-GB') }}/year
+              </p>
+              <p class="text-xs"
+                :class="step.affordabilityNote.confirmedAnnual >= step.affordabilityNote.requiredAnnualIncome ? 'text-green-600' : 'text-red-600'"
+              >
+                {{ step.affordabilityNote.confirmedAnnual >= step.affordabilityNote.requiredAnnualIncome ? 'Meets threshold' : 'Below threshold' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Input Fields (if any) -->
         <div v-if="step.inputFields" class="mt-4 grid grid-cols-2 gap-4">
           <div v-for="field in step.inputFields" :key="field.name">
@@ -312,6 +346,13 @@ interface Step {
   refereeName?: string
   confirmedIncomeNote?: string | null
   refereeConfirmedAnnual?: number | null
+  affordabilityNote?: {
+    rentShare: number
+    requiredMultiplier: number
+    requiredAnnualIncome: number
+    isGuarantor: boolean
+    confirmedAnnual?: number | null
+  } | null
 }
 
 const props = defineProps<{

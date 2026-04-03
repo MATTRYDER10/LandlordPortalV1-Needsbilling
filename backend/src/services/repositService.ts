@@ -4,7 +4,7 @@ import { encrypt, decrypt } from './encryption'
 // Reposit API endpoints
 const REPOSIT_BASE_URLS = {
   sandbox: 'https://demo.reposit.co.uk',
-  live: 'https://api.reposit.co.uk'
+  live: 'https://reposit.co.uk'
 }
 
 // Reposit status types

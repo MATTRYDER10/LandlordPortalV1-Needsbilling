@@ -368,7 +368,38 @@ export async function setReferencingDecision(
   }
 
   // If referencing is required, create references for each incoming tenant
+  // But skip if references were already created (user navigated back and re-submitted)
   const referenceIds: string[] = []
+  const existingReferenceIds = tenantChange.incoming_tenant_reference_ids || []
+
+  if (requiresReferencing && existingReferenceIds.length > 0) {
+    // References already exist — verify they're still valid
+    const { data: existingRefs } = await supabase
+      .from('tenant_references_v2')
+      .select('id')
+      .in('id', existingReferenceIds)
+
+    if (existingRefs && existingRefs.length > 0) {
+      // References already exist, just advance stage without re-creating
+      const { data, error } = await supabase
+        .from('tenant_changes')
+        .update({
+          referencing_skipped: false,
+          stage: Math.max(tenantChange.stage, 2),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tenantChangeId)
+        .eq('company_id', companyId)
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to set referencing decision: ${error.message}`)
+      }
+
+      return formatTenantChange(data)
+    }
+  }
 
   if (requiresReferencing && tenantChange.incoming_tenants && tenantChange.incoming_tenants.length > 0) {
     // Get tenancy and property details
@@ -1232,7 +1263,7 @@ async function buildAddendumPdfData(
     remainingTenants,
     landlordName,
     landlordAddress: landlordAddress || undefined,
-    tenancyStartDate: tenancy.start_date || '',
+    tenancyStartDate: tenancy.tenancy_start_date || tenancy.start_date || '',
     monthlyRent: parseFloat(tenancy.rent_amount || 0),
     rentDueDay: tenancy.rent_due_day || 1,
     changeoverDate: tenantChange.changeover_date || '',
@@ -1501,7 +1532,7 @@ export async function getSigningStatus(
  */
 export async function getSignatureByToken(
   token: string
-): Promise<{ signature: TenantChangeSignature; tenantChange: any; propertyAddress: string } | null> {
+): Promise<{ signature: TenantChangeSignature; tenantChange: any; propertyAddress: string; originalAgreementPdfUrl: string | null; tenancyStartDate: string | null } | null> {
   const { data: signature, error } = await supabase
     .from('tenant_change_signatures')
     .select('*')
@@ -1539,6 +1570,53 @@ export async function getSignatureByToken(
     tenantChange.tenancies?.properties?.postcode
   ].filter(Boolean).join(', ')
 
+  // Look up the original tenancy agreement PDF
+  let originalAgreementPdfUrl: string | null = null
+  const tenancyId = tenantChange.tenancy_id
+
+  // First check agreements table for a signed agreement
+  const { data: agreement } = await supabase
+    .from('agreements')
+    .select('signed_pdf_url, pdf_url')
+    .eq('tenancy_id', tenancyId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (agreement?.signed_pdf_url) {
+    originalAgreementPdfUrl = agreement.signed_pdf_url
+  } else if (agreement?.pdf_url) {
+    originalAgreementPdfUrl = agreement.pdf_url
+  }
+
+  // If not found in agreements, check property_documents with tag='agreement'
+  if (!originalAgreementPdfUrl) {
+    const { data: doc } = await supabase
+      .from('property_documents')
+      .select('file_path')
+      .eq('source_type', 'tenancy')
+      .eq('source_id', tenancyId)
+      .eq('tag', 'agreement')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (doc?.file_path) {
+      // If it's already a full URL, use it directly; otherwise generate a signed URL
+      if (doc.file_path.startsWith('http')) {
+        originalAgreementPdfUrl = doc.file_path
+      } else {
+        const { data: signedUrlData } = await supabase.storage
+          .from(PROPERTY_DOCS_BUCKET)
+          .createSignedUrl(doc.file_path, 3600) // 1 hour
+        originalAgreementPdfUrl = signedUrlData?.signedUrl || null
+      }
+    }
+  }
+
+  // Get tenancy start date for legal text
+  const tenancyStartDate = tenantChange.tenancies?.start_date || null
+
   return {
     signature: formatSignature(signature),
     tenantChange: {
@@ -1548,7 +1626,9 @@ export async function getSignatureByToken(
       outgoing_tenant_ids: tenantChange.outgoing_tenant_ids,
       addendum_pdf_url: tenantChange.addendum_pdf_url
     },
-    propertyAddress
+    propertyAddress,
+    originalAgreementPdfUrl,
+    tenancyStartDate
   }
 }
 
@@ -2090,7 +2170,7 @@ export async function finalizeTenantChange(
     }
   }
 
-  // 2. Send signed addendum to all signers
+  // 2. Send signed addendum (and original agreement) to all signers
   if (signedPdfUrl) {
     try {
       const { data: signatures } = await supabase
@@ -2117,6 +2197,41 @@ export async function finalizeTenantChange(
       const properties = tenancyData?.properties as { address_line1_encrypted?: string; postcode?: string } | null
       const propertyAddress = [decrypt(properties?.address_line1_encrypted || null), properties?.postcode].filter(Boolean).join(', ')
 
+      // Download signed addendum PDF as Buffer for attachment
+      let addendumBuffer: Buffer | null = null
+      try {
+        const addendumResponse = await fetch(signedPdfUrl)
+        if (addendumResponse.ok) {
+          addendumBuffer = Buffer.from(await addendumResponse.arrayBuffer())
+        }
+      } catch (dlErr) {
+        console.error('[finalizeTenantChange] Failed to download addendum PDF for attachment:', dlErr)
+      }
+
+      // Look up and download original agreement PDF
+      let originalAgreementBuffer: Buffer | null = null
+      try {
+        const agreementResult = await checkOriginalAgreement(tenantChangeId, companyId)
+        if (agreementResult.available && agreementResult.url) {
+          const agreementResponse = await fetch(agreementResult.url)
+          if (agreementResponse.ok) {
+            originalAgreementBuffer = Buffer.from(await agreementResponse.arrayBuffer())
+          }
+        }
+      } catch (agErr) {
+        console.error('[finalizeTenantChange] Failed to download original agreement for attachment:', agErr)
+      }
+
+      // Build attachments array
+      const attachments: { filename: string; content: Buffer }[] = []
+      const docRef = `COT-${tenantChangeId.substring(0, 8).toUpperCase()}`
+      if (addendumBuffer) {
+        attachments.push({ filename: `Change-of-Tenant-Addendum-${docRef}.pdf`, content: addendumBuffer })
+      }
+      if (originalAgreementBuffer) {
+        attachments.push({ filename: 'Original-Tenancy-Agreement.pdf', content: originalAgreementBuffer })
+      }
+
       if (signatures && signatures.length > 0) {
         for (const sig of signatures) {
           if (sig.signer_email) {
@@ -2132,7 +2247,8 @@ export async function finalizeTenantChange(
               await sendEmail({
                 to: sig.signer_email,
                 subject: `Signed Addendum - Change of Tenant at ${propertyAddress}`,
-                html
+                html,
+                attachments: attachments.length > 0 ? attachments : undefined
               })
 
               console.log(`[finalizeTenantChange] Sent signed addendum to ${sig.signer_email}`)
@@ -2141,6 +2257,72 @@ export async function finalizeTenantChange(
             }
           }
         }
+      }
+
+      // Push to Apex27 if configured
+      try {
+        const { data: tenancyForApex } = await supabase
+          .from('tenancies')
+          .select('property_id')
+          .eq('id', tenantChange.tenancy_id)
+          .single()
+
+        if (tenancyForApex?.property_id) {
+          const { data: property } = await supabase
+            .from('properties')
+            .select('apex27_listing_id')
+            .eq('id', tenancyForApex.property_id)
+            .single()
+
+          if (property?.apex27_listing_id) {
+            const { data: integration } = await supabase
+              .from('company_integrations')
+              .select('apex27_api_key_encrypted')
+              .eq('company_id', companyId)
+              .single()
+
+            if (integration?.apex27_api_key_encrypted) {
+              const apiKey = decrypt(integration.apex27_api_key_encrypted)
+              if (apiKey) {
+                const { pushDocument } = await import('./apex27Service')
+                const pushResult = await pushDocument(apiKey, {
+                  listingId: property.apex27_listing_id,
+                  name: `Change of Tenant Addendum - ${docRef}`,
+                  url: signedPdfUrl
+                })
+
+                if (pushResult.success) {
+                  console.log(`[finalizeTenantChange] Pushed addendum to Apex27 for listing ${property.apex27_listing_id}`)
+
+                  // Log to apex27_document_pushes
+                  await supabase
+                    .from('apex27_document_pushes')
+                    .insert({
+                      company_id: companyId,
+                      listing_id: property.apex27_listing_id,
+                      document_name: `Change of Tenant Addendum - ${docRef}`,
+                      document_url: signedPdfUrl,
+                      push_status: 'success'
+                    })
+                } else {
+                  console.error(`[finalizeTenantChange] Apex27 push failed:`, pushResult.error)
+                  await supabase
+                    .from('apex27_document_pushes')
+                    .insert({
+                      company_id: companyId,
+                      listing_id: property.apex27_listing_id,
+                      document_name: `Change of Tenant Addendum - ${docRef}`,
+                      document_url: signedPdfUrl,
+                      push_status: 'failed',
+                      error_message: pushResult.error
+                    })
+                }
+              }
+            }
+          }
+        }
+      } catch (apex27Error) {
+        console.error('[finalizeTenantChange] Apex27 push error:', apex27Error)
       }
     } catch (sendError) {
       console.error('[finalizeTenantChange] Failed to send signed addendum:', sendError)
@@ -2277,6 +2459,235 @@ export async function finalizeTenantChange(
 }
 
 // ============================================================================
+// ORIGINAL AGREEMENT CHECK / UPLOAD / SELECT
+// ============================================================================
+
+/**
+ * Get all PDF documents for this tenancy's property (for picker)
+ */
+export async function getTenancyDocuments(
+  tenantChangeId: string,
+  companyId: string
+): Promise<{ id: string; file_name: string; tag: string; description: string | null; created_at: string }[]> {
+  const tenantChange = await getTenantChange(tenantChangeId, companyId)
+  if (!tenantChange) {
+    throw new Error('Tenant change not found')
+  }
+
+  const { data: tenancy } = await supabase
+    .from('tenancies')
+    .select('property_id')
+    .eq('id', tenantChange.tenancy_id)
+    .single()
+
+  if (!tenancy?.property_id) {
+    return []
+  }
+
+  const { data: docs } = await supabase
+    .from('property_documents')
+    .select('id, file_name, tag, description, created_at')
+    .eq('property_id', tenancy.property_id)
+    .eq('file_type', 'application/pdf')
+    .order('created_at', { ascending: false })
+
+  return docs || []
+}
+
+/**
+ * Select an existing property document as the original agreement
+ */
+export async function selectExistingAgreement(
+  tenantChangeId: string,
+  companyId: string,
+  documentId: string
+): Promise<{ url: string }> {
+  const tenantChange = await getTenantChange(tenantChangeId, companyId)
+  if (!tenantChange) {
+    throw new Error('Tenant change not found')
+  }
+
+  // Get the document
+  const { data: doc } = await supabase
+    .from('property_documents')
+    .select('id, file_path, file_name, tag')
+    .eq('id', documentId)
+    .single()
+
+  if (!doc) {
+    throw new Error('Document not found')
+  }
+
+  // Generate a URL
+  let url: string
+  if (doc.file_path.startsWith('http')) {
+    url = doc.file_path
+  } else {
+    const { data: signedUrlData } = await supabase.storage
+      .from(PROPERTY_DOCS_BUCKET)
+      .createSignedUrl(doc.file_path, 365 * 24 * 60 * 60)
+    url = signedUrlData?.signedUrl || doc.file_path
+  }
+
+  // If the document isn't already tagged as an agreement for this tenancy, create a copy record
+  if (doc.tag !== 'agreement') {
+    const { data: tenancy } = await supabase
+      .from('tenancies')
+      .select('property_id')
+      .eq('id', tenantChange.tenancy_id)
+      .single()
+
+    if (tenancy?.property_id) {
+      // Check if there's already an agreement doc for this tenancy
+      const { data: existing } = await supabase
+        .from('property_documents')
+        .select('id')
+        .eq('source_type', 'tenancy')
+        .eq('source_id', tenantChange.tenancy_id)
+        .eq('tag', 'agreement')
+        .limit(1)
+        .single()
+
+      if (!existing) {
+        await supabase
+          .from('property_documents')
+          .insert({
+            property_id: tenancy.property_id,
+            file_name: doc.file_name,
+            file_path: doc.file_path,
+            file_type: 'application/pdf',
+            tag: 'agreement',
+            source_type: 'tenancy',
+            source_id: tenantChange.tenancy_id,
+            description: 'Original Tenancy Agreement (linked from existing document)'
+          })
+      }
+    }
+  }
+
+  return { url }
+}
+
+/**
+ * Check if an original tenancy agreement PDF is available
+ */
+export async function checkOriginalAgreement(
+  tenantChangeId: string,
+  companyId: string
+): Promise<{ available: boolean; url: string | null }> {
+  const tenantChange = await getTenantChange(tenantChangeId, companyId)
+  if (!tenantChange) {
+    throw new Error('Tenant change not found')
+  }
+
+  // Check agreements table
+  const { data: agreement } = await supabase
+    .from('agreements')
+    .select('signed_pdf_url, pdf_url')
+    .eq('tenancy_id', tenantChange.tenancy_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (agreement?.signed_pdf_url) {
+    return { available: true, url: agreement.signed_pdf_url }
+  }
+  if (agreement?.pdf_url) {
+    return { available: true, url: agreement.pdf_url }
+  }
+
+  // Check property_documents
+  const { data: doc } = await supabase
+    .from('property_documents')
+    .select('file_path')
+    .eq('source_type', 'tenancy')
+    .eq('source_id', tenantChange.tenancy_id)
+    .eq('tag', 'agreement')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (doc?.file_path) {
+    if (doc.file_path.startsWith('http')) {
+      return { available: true, url: doc.file_path }
+    }
+    const { data: signedUrlData } = await supabase.storage
+      .from(PROPERTY_DOCS_BUCKET)
+      .createSignedUrl(doc.file_path, 3600)
+    return { available: true, url: signedUrlData?.signedUrl || null }
+  }
+
+  return { available: false, url: null }
+}
+
+/**
+ * Upload an original agreement PDF for a tenancy
+ */
+export async function uploadOriginalAgreement(
+  tenantChangeId: string,
+  companyId: string,
+  fileBuffer: Buffer,
+  originalFilename: string,
+  userId: string
+): Promise<{ url: string }> {
+  const tenantChange = await getTenantChange(tenantChangeId, companyId)
+  if (!tenantChange) {
+    throw new Error('Tenant change not found')
+  }
+
+  // Get tenancy property_id
+  const { data: tenancy } = await supabase
+    .from('tenancies')
+    .select('property_id')
+    .eq('id', tenantChange.tenancy_id)
+    .single()
+
+  if (!tenancy?.property_id) {
+    throw new Error('Tenancy property not found')
+  }
+
+  // Upload to storage
+  const fileName = `original-agreement-${tenantChange.tenancy_id.substring(0, 8)}-${Date.now()}.pdf`
+  const storagePath = `${companyId}/${tenancy.property_id}/agreements/${fileName}`
+
+  const { error: uploadError } = await supabase.storage
+    .from(PROPERTY_DOCS_BUCKET)
+    .upload(storagePath, fileBuffer, {
+      contentType: 'application/pdf',
+      upsert: true
+    })
+
+  if (uploadError) {
+    throw new Error(`Failed to upload agreement: ${uploadError.message}`)
+  }
+
+  // Get signed URL
+  const { data: signedUrlData } = await supabase.storage
+    .from(PROPERTY_DOCS_BUCKET)
+    .createSignedUrl(storagePath, 365 * 24 * 60 * 60)
+
+  const url = signedUrlData?.signedUrl || storagePath
+
+  // Create property_documents record
+  await supabase
+    .from('property_documents')
+    .insert({
+      property_id: tenancy.property_id,
+      file_name: originalFilename || fileName,
+      file_path: storagePath,
+      file_size: fileBuffer.length,
+      file_type: 'application/pdf',
+      tag: 'agreement',
+      source_type: 'tenancy',
+      source_id: tenantChange.tenancy_id,
+      description: 'Original Tenancy Agreement',
+      uploaded_by: userId
+    })
+
+  return { url }
+}
+
+// ============================================================================
 // CANCEL
 // ============================================================================
 
@@ -2298,18 +2709,23 @@ export async function cancelTenantChange(
     throw new Error('Can only cancel in-progress tenant changes')
   }
 
-  // Delete any associated references for incoming tenants
+  // Cancel any associated V2 references for incoming tenants
   if (tenantChange.incoming_tenant_reference_ids && tenantChange.incoming_tenant_reference_ids.length > 0) {
-    const { error: refDeleteError } = await supabase
-      .from('tenant_references')
-      .delete()
+    // Only cancel references that haven't already completed
+    const { error: refCancelError } = await supabase
+      .from('tenant_references_v2')
+      .update({
+        status: 'REJECTED',
+        updated_at: new Date().toISOString()
+      })
       .in('id', tenantChange.incoming_tenant_reference_ids)
+      .in('status', ['SENT', 'COLLECTING_EVIDENCE', 'ACTION_REQUIRED'])
 
-    if (refDeleteError) {
-      console.error('Failed to delete associated references:', refDeleteError)
-      // Don't throw - continue with cancellation even if reference deletion fails
+    if (refCancelError) {
+      console.error('[cancelTenantChange] Failed to cancel V2 references:', refCancelError)
+      // Don't throw - continue with cancellation even if reference cancellation fails
     } else {
-      console.log(`[cancelTenantChange] Deleted ${tenantChange.incoming_tenant_reference_ids.length} associated reference(s)`)
+      console.log(`[cancelTenantChange] Cancelled ${tenantChange.incoming_tenant_reference_ids.length} V2 reference(s)`)
     }
   }
 

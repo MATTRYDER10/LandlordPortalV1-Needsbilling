@@ -1397,3 +1397,30 @@ export async function pushDocument(
 
   return { success: true, response: result.data }
 }
+
+/**
+ * Update a listing's status on Apex27 (e.g. to "Let Agreed")
+ */
+export async function updateListingStatus(
+  apiKey: string,
+  listingId: string,
+  status: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`[Apex27] Updating listing ${listingId} status to "${status}"`)
+
+  const result = await apex27Fetch(
+    apiKey,
+    `/listings/${listingId}`,
+    undefined,
+    'PUT',
+    { status }
+  )
+
+  if (!result.success) {
+    console.error(`[Apex27] Failed to update listing status: ${result.error}`)
+    return { success: false, error: result.error }
+  }
+
+  console.log(`[Apex27] Successfully updated listing ${listingId} to "${status}"`)
+  return { success: true }
+}

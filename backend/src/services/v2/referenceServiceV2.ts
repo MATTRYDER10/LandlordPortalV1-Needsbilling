@@ -23,24 +23,9 @@ import { logActivity } from './activityServiceV2'
 /**
  * Check if a company should use V2 references
  */
-export async function shouldUseV2(companyId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('use_references_v2')
-      .eq('id', companyId)
-      .single()
-
-    if (error) {
-      console.error('[ReferenceServiceV2] Error checking feature flag:', error)
-      return false
-    }
-
-    return data?.use_references_v2 === true
-  } catch (error) {
-    console.error('[ReferenceServiceV2] Error:', error)
-    return false
-  }
+export async function shouldUseV2(_companyId: string): Promise<boolean> {
+  // V2 is now enabled for all companies
+  return true
 }
 
 /**

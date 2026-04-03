@@ -849,9 +849,9 @@
                   <div>
                     <label for="guarantor-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Guarantor Email Address
                       *</label>
-                    <input id="guarantor-email" v-model="formData.guarantor_email" type="email"
+                    <EmailInput id="guarantor-email" v-model="formData.guarantor_email"
                       :required="formData.requires_guarantor"
-                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white" />
+                      input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white" />
                   </div>
 
                   <PhoneInput v-model="formData.guarantor_phone" label="Guarantor Phone Number" id="guarantor-phone"
@@ -1122,9 +1122,9 @@
                       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
-                          <input v-model="formData.employer_ref_email" type="email"
+                          <EmailInput v-model="formData.employer_ref_email"
                             :required="formData.income_regular_employment"
-                            class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
+                            input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
                             :class="{ 'border-red-500': employerEmailError }" />
                           <p v-if="employerEmailError" class="mt-1 text-sm text-red-600">{{ employerEmailError }}</p>
                         </div>
@@ -1186,9 +1186,9 @@
                         </div>
                         <div>
                           <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
-                          <input v-model="formData.accountant_email" type="email"
+                          <EmailInput v-model="formData.accountant_email"
                             :required="formData.income_self_employed"
-                            class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
+                            input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
                             :class="{ 'border-red-500': accountantEmailError }" />
                           <p v-if="accountantEmailError" class="mt-1 text-sm text-red-600">{{ accountantEmailError }}
                           </p>
@@ -1670,9 +1670,9 @@
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{{ formData.reference_type === 'agent' ?
                     "Agent's Email" : "Landlord's Email" }} *</label>
-                  <input v-model="formData.previous_landlord_email" type="email"
+                  <EmailInput v-model="formData.previous_landlord_email"
                     :required="formData.reference_type !== 'living_with_family'"
-                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
+                    input-class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white"
                     :class="{ 'border-red-500': landlordEmailError }"
                     :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'" />
                   <p v-if="landlordEmailError" class="mt-1 text-sm text-red-600">{{ landlordEmailError }}</p>
@@ -1970,6 +1970,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { CheckCircle, X, Check, Info, FileText } from 'lucide-vue-next'
 import PhoneInput from '../components/PhoneInput.vue'
+import EmailInput from '../components/EmailInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'

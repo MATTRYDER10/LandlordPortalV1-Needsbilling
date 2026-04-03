@@ -83,6 +83,13 @@
                       {{ statusLabel }}
                     </span>
                     <span
+                      v-if="tenancy?.deposit_replacement_offered || tenancy?.deposit_replacement_requested"
+                      class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400"
+                    >
+                      <Sparkles class="w-3.5 h-3.5" />
+                      Reposit
+                    </span>
+                    <span
                       v-if="tenancy?.offer_unihomes"
                       class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                     >
@@ -1162,8 +1169,11 @@
                 </EditableField>
               </div>
               <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
-                <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">End Date</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  {{ tenancy?.status === 'notice_given' ? 'Move Out Date' : 'End Date' }}
+                </p>
                 <EditableField
+                  v-if="tenancy?.status !== 'notice_given'"
                   :model-value="endDate"
                   type="date"
                   :can-edit="isDraftTenancy"
@@ -1174,6 +1184,11 @@
                     <span class="mt-1 text-lg font-medium text-gray-900 dark:text-white">{{ endDate ? formatDate(endDate) : 'Periodic' }}</span>
                   </template>
                 </EditableField>
+                <div v-else>
+                  <span class="mt-1 text-lg font-medium text-orange-600 dark:text-orange-400">
+                    {{ tenancy?.actual_end_date ? formatDate(tenancy.actual_end_date) : 'Not set' }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1331,10 +1346,9 @@
                 </div>
                 <div>
                   <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Email</label>
-                  <input
+                  <EmailInput
                     v-model="newTenant.email"
-                    type="email"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-primary focus:border-primary"
+                    input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-primary focus:border-primary"
                     placeholder="john@example.com"
                   />
                 </div>
@@ -1505,10 +1519,9 @@
                   </div>
                   <div>
                     <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Email</label>
-                    <input
+                    <EmailInput
                       v-model="newGuarantor.email"
-                      type="email"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                      input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                       placeholder="jane@example.com"
                     />
                   </div>
@@ -2203,6 +2216,7 @@
             v-if="tenancy"
             v-model:open="showBookInspectionModal"
             :tenancy-id="tenancy.id"
+            :move-in-date="tenancy?.start_date || tenancy?.tenancy_start_date || ''"
             @booked="fetchInspections"
           />
 
@@ -3018,6 +3032,7 @@ import {
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
   Sparkles, Star, RefreshCw, AlertTriangle, Zap
 } from 'lucide-vue-next'
+import EmailInput from '@/components/EmailInput.vue'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
 import InitialMoniesModal from './InitialMoniesModal.vue'
@@ -5632,7 +5647,11 @@ const loadApex27Status = async () => {
     const response = await authFetch(`${API_URL}/api/settings/apex27`, { token } as any)
     if (response.ok) {
       const data = await response.json()
-      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+      const companyConfigured = data.configured && data.lastTestStatus === 'success'
+
+      // Show Apex27 button if company has valid Apex27 config
+      // Backend has fuzzy matching fallback for properties without apex27_listing_id
+      apex27Connected.value = companyConfigured
     }
   } catch {
     // Silently fail - just don't show the button
