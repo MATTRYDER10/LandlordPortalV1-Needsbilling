@@ -15,6 +15,9 @@ export interface ScheduleEntry {
   amount_received: number
   status: string
   due_date: string
+  paid_at?: string
+  payout_sent_at?: string
+  total_charges?: number
   // Joined data
   property_address?: string
   property_postcode?: string
@@ -1551,4 +1554,91 @@ export async function updateScheduleStatuses(): Promise<void> {
     .update({ status: 'overdue', updated_at: new Date().toISOString() })
     .eq('status', 'due')
     .lt('due_date', today)
+}
+
+// ============================================================================
+// TENANCY LIFECYCLE — ARCHIVE / REACTIVATE
+// ============================================================================
+
+/**
+ * Cancel all unpaid future rent schedule entries when a tenancy is archived/terminated.
+ * Paid entries are preserved for accounting.
+ */
+export async function cancelScheduleForTenancy(tenancyId: string): Promise<void> {
+  const { error } = await supabase
+    .from('rent_schedule_entries')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('tenancy_id', tenancyId)
+    .not('status', 'in', '("paid","cancelled")')
+
+  if (error) {
+    console.error('[RentGoose] Failed to cancel schedule entries:', error)
+  } else {
+    console.log(`[RentGoose] Cancelled unpaid entries for tenancy ${tenancyId}`)
+  }
+}
+
+/**
+ * Reactivate a tenancy's rent schedule. Un-cancels entries that were cancelled
+ * when the tenancy was archived, and regenerates if needed.
+ */
+export async function reactivateScheduleForTenancy(tenancyId: string, companyId: string): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]
+
+  // Un-cancel entries that haven't been paid (restore to correct status)
+  const { data: cancelledEntries } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, due_date')
+    .eq('tenancy_id', tenancyId)
+    .eq('status', 'cancelled')
+
+  if (cancelledEntries && cancelledEntries.length > 0) {
+    for (const entry of cancelledEntries) {
+      let newStatus = 'upcoming'
+      if (entry.due_date === today) newStatus = 'due'
+      else if (entry.due_date < today) newStatus = 'overdue'
+
+      await supabase
+        .from('rent_schedule_entries')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', entry.id)
+    }
+    console.log(`[RentGoose] Reactivated ${cancelledEntries.length} entries for tenancy ${tenancyId}`)
+  }
+
+  // If no entries exist at all, generate a fresh schedule
+  const { count } = await supabase
+    .from('rent_schedule_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenancy_id', tenancyId)
+    .neq('status', 'cancelled')
+
+  if (!count || count === 0) {
+    // Reset and regenerate - remove cancelled entries first
+    await supabase
+      .from('rent_schedule_entries')
+      .delete()
+      .eq('tenancy_id', tenancyId)
+      .eq('status', 'cancelled')
+
+    await initTenancySchedule(tenancyId, companyId)
+    console.log(`[RentGoose] Regenerated schedule for tenancy ${tenancyId}`)
+  }
+
+  // Extend rolling schedule if periodic
+  await extendRollingSchedule(tenancyId, companyId)
+}
+
+/**
+ * Update the notice end date for a tenancy — re-does pro-rata calculation.
+ * Call this when reverting from archived to notice_given with a new end date.
+ */
+export async function updateNoticeEndDate(tenancyId: string, newEndDate: string, companyId: string): Promise<void> {
+  // First, un-cancel any entries that were cancelled when archived
+  await reactivateScheduleForTenancy(tenancyId, companyId)
+
+  // Then re-run the notice handling with the new date
+  await handleNotice(tenancyId, newEndDate, companyId)
+
+  console.log(`[RentGoose] Updated notice end date to ${newEndDate} for tenancy ${tenancyId}`)
 }

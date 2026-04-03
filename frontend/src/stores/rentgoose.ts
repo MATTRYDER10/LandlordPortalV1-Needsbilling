@@ -11,6 +11,9 @@ export interface ScheduleEntry {
   amount_received: number
   status: string
   due_date: string
+  paid_at?: string
+  payout_sent_at?: string
+  total_charges?: number
   property_address?: string
   property_postcode?: string
   property_id?: string

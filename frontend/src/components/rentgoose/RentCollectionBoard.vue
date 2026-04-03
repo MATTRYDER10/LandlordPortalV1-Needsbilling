@@ -168,19 +168,27 @@ function getPeriodStart(period: string): string {
 
 const periodSummary = computed(() => {
   const start = getPeriodStart(summaryPeriod.value)
+  const today = new Date().toISOString().split('T')[0]
   const entries = store.scheduleEntries
+  const isToday = summaryPeriod.value === 'today'
 
+  // Collected: paid entries within the period (by paid_at date, or due_date as fallback)
   const collected = entries
-    .filter(e => e.status === 'paid' && e.due_date >= start)
+    .filter(e => e.status === 'paid' && (isToday ? (e.paid_at || '').startsWith(today) : e.due_date >= start))
     .reduce((sum, e) => sum + (e.amount_received || 0), 0)
 
+  // Due: unpaid entries with due_date in the period (for "today", only due_date === today)
   const due = entries
-    .filter(e => e.due_date >= start && e.status !== 'paid' && e.status !== 'cancelled')
+    .filter(e => {
+      if (e.status === 'paid' || e.status === 'cancelled') return false
+      if (isToday) return e.due_date === today
+      return e.due_date >= start && e.due_date <= today
+    })
     .reduce((sum, e) => sum + (e.amount_due || 0), 0)
 
   // Agent fees: sum of charges on paid entries in period
   const agentFees = entries
-    .filter(e => e.status === 'paid' && e.due_date >= start)
+    .filter(e => e.status === 'paid' && (isToday ? (e.paid_at || '').startsWith(today) : e.due_date >= start))
     .reduce((sum, e) => sum + (e.total_charges || 0), 0)
 
   return { collected, due, agentFees }

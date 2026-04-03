@@ -30,6 +30,7 @@ import {
 } from '../services/tenancyStatusService'
 import { evaluateAndTransition } from '../services/verificationStateService'
 import * as tenancyService from '../services/tenancyService'
+import { cancelScheduleForTenancy, reactivateScheduleForTenancy, updateNoticeEndDate } from '../services/rentgooseService'
 import * as conversionService from '../services/tenancyConversionService'
 import * as emailService from '../services/emailService'
 
@@ -1560,6 +1561,15 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
       // Non-blocking — don't fail the activation
     }
 
+    // Initialize RentGoose rent schedule for this tenancy
+    try {
+      const { initTenancySchedule } = await import('../services/rentgooseService')
+      await initTenancySchedule(req.params.id, companyId)
+      console.log(`[RentGoose] Schedule initialized for tenancy ${req.params.id}`)
+    } catch (rgErr: any) {
+      console.error('[RentGoose] Failed to init schedule on activation (non-blocking):', rgErr.message)
+    }
+
     res.json({ tenancy })
   } catch (error: any) {
     console.error('Error in POST /api/tenancies/records/:id/activate:', error)
@@ -1841,6 +1851,13 @@ router.post('/records/:id/revert-to-active', authenticateToken, async (req: Auth
       return res.status(500).json({ error: 'Failed to revert tenancy' })
     }
 
+    // Reactivate RentGoose schedule (un-cancel entries, restore pro-rata)
+    try {
+      await reactivateScheduleForTenancy(req.params.id, companyId)
+    } catch (rgErr: any) {
+      console.error('[revert-to-active] RentGoose reactivation failed (non-blocking):', rgErr.message)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'STATUS_CHANGED',
@@ -1886,13 +1903,20 @@ router.post('/records/:id/revert-to-notice-served', authenticateToken, async (re
       return res.status(400).json({ error: 'Can only revert archived tenancies to notice served status' })
     }
 
-    // Update tenancy: set status back to notice_given
+    const { actual_end_date } = req.body
+
+    // Update tenancy: set status back to notice_given, with optional new end date
+    const updateData: Record<string, any> = {
+      status: 'notice_given',
+      updated_at: new Date().toISOString()
+    }
+    if (actual_end_date) {
+      updateData.actual_end_date = actual_end_date
+    }
+
     const { data: tenancy, error } = await supabase
       .from('tenancies')
-      .update({
-        status: 'notice_given',
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', req.params.id)
       .eq('company_id', companyId)
       .select()
@@ -1903,13 +1927,25 @@ router.post('/records/:id/revert-to-notice-served', authenticateToken, async (re
       return res.status(500).json({ error: 'Failed to revert tenancy' })
     }
 
+    // Update RentGoose: reactivate schedule and apply new pro-rata end date
+    try {
+      const endDate = actual_end_date || currentTenancy.actual_end_date
+      if (endDate) {
+        await updateNoticeEndDate(req.params.id, endDate, companyId)
+      } else {
+        await reactivateScheduleForTenancy(req.params.id, companyId)
+      }
+    } catch (rgErr: any) {
+      console.error('[revert-to-notice-served] RentGoose update failed (non-blocking):', rgErr.message)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'STATUS_CHANGED',
       category: 'general',
       title: 'Tenancy Reverted to Notice Served',
-      description: `Tenancy reverted from archived back to notice given status`,
-      metadata: { previousStatus: 'archived', newStatus: 'notice_given' },
+      description: `Tenancy reverted from archived back to notice given status${actual_end_date ? ` with new end date ${actual_end_date}` : ''}`,
+      metadata: { previousStatus: 'archived', newStatus: 'notice_given', newEndDate: actual_end_date || null },
       performedBy: userId
     })
 
@@ -2118,6 +2154,13 @@ router.post('/records/:id/mark-fallen-through', authenticateToken, async (req: A
     if (updateError) {
       console.error('Error marking tenancy as fallen through:', updateError)
       return res.status(500).json({ error: `Failed to update tenancy: ${updateError.message}` })
+    }
+
+    // Cancel RentGoose schedule entries
+    try {
+      await cancelScheduleForTenancy(req.params.id)
+    } catch (rgErr: any) {
+      console.error('[mark-fallen-through] RentGoose cancellation failed (non-blocking):', rgErr.message)
     }
 
     // Log activity

@@ -68,18 +68,22 @@ router.get('/schedule', authenticateToken, async (req: AuthRequest, res) => {
 
     // Compute summary stats
     const today = new Date().toISOString().split('T')[0]
+    // Collected today: entries that were receipted/paid today (regardless of due date)
     const collectedToday = entries
-      .filter(e => e.status === 'paid' && e.due_date === today)
+      .filter(e => e.status === 'paid' && (e.paid_at || '').startsWith(today))
       .reduce((sum, e) => sum + e.amount_received, 0)
+    // Due today: entries with due_date = today that haven't been paid
     const dueToday = entries
       .filter(e => e.due_date === today && e.status !== 'paid' && e.status !== 'cancelled')
       .reduce((sum, e) => sum + e.amount_due, 0)
+    // Arrears: overdue entries (due date in past, not paid)
     const overdueTotal = entries
-      .filter(e => e.status === 'arrears' || e.status === 'overdue')
+      .filter(e => (e.status === 'arrears' || e.status === 'overdue') && e.due_date < today)
       .reduce((sum, e) => sum + (e.amount_due - e.amount_received), 0)
+    // Payouts ready: paid entries where payout hasn't been sent to landlord yet
     const payoutsReady = entries
-      .filter(e => e.status === 'paid')
-      .reduce((sum, e) => sum + e.amount_received, 0)
+      .filter(e => e.status === 'paid' && !e.payout_sent_at)
+      .reduce((sum, e) => sum + (e.amount_received - (e.total_charges || 0)), 0)
 
     // Status counts
     const statusCounts = {

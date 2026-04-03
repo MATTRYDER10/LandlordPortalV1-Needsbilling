@@ -120,6 +120,9 @@
             />
           </div>
 
+          <!-- Version Badge -->
+          <span :class="['text-[9px] font-mono px-1.5 py-0.5 rounded-full', isDark ? 'text-white/30 bg-white/5' : 'text-gray-400 bg-gray-100']">v{{ appVersion }}</span>
+
           <!-- Create Button -->
           <div class="relative" data-create-menu>
             <button
@@ -360,6 +363,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 const adminCompanyStore = useAdminCompanyStore()
 const { isDark, toggleDarkMode } = useDarkMode()
+
+declare const __APP_VERSION__: string
+const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'
 
 const exitViewAs = () => {
   adminCompanyStore.clearOverride()
