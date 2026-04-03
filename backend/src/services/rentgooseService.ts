@@ -28,6 +28,9 @@ export interface ScheduleEntry {
   tenancy_ref?: string
   fee_percent?: number
   management_type?: string
+  rent_credit_amount?: number
+  rent_credit_reason?: string
+  original_amount_due?: number
 }
 
 export interface PayoutItem {
@@ -398,6 +401,9 @@ export async function getRentSchedule(companyId: string, filters: {
       tenancy_ref: entry.tenancy_id.substring(0, 8).toUpperCase(),
       fee_percent: property.fee_percent ? parseFloat(property.fee_percent) : undefined,
       management_type: property.management_type,
+      rent_credit_amount: entry.rent_credit_amount ? parseFloat(entry.rent_credit_amount) : undefined,
+      rent_credit_reason: entry.rent_credit_reason || undefined,
+      original_amount_due: entry.original_amount_due ? parseFloat(entry.original_amount_due) : undefined,
     })
   }
 
@@ -407,6 +413,47 @@ export async function getRentSchedule(companyId: string, filters: {
   }
 
   return enriched
+}
+
+// ============================================================================
+// APPLY RENT CREDIT
+// ============================================================================
+
+export async function applyRentCredit(companyId: string, input: {
+  schedule_entry_id: string
+  credit_amount: number
+  reason: string
+  applied_by?: string
+}): Promise<{ success: boolean; new_amount_due: number }> {
+  const { data: entry, error: entryErr } = await supabase
+    .from('rent_schedule_entries')
+    .select('*')
+    .eq('id', input.schedule_entry_id)
+    .eq('company_id', companyId)
+    .single()
+
+  if (entryErr || !entry) throw new Error('Schedule entry not found')
+
+  const currentAmountDue = parseFloat(entry.amount_due)
+  const originalAmount = entry.original_amount_due ? parseFloat(entry.original_amount_due) : currentAmountDue
+  const existingCredit = parseFloat(entry.rent_credit_amount || 0)
+  const newCreditTotal = existingCredit + input.credit_amount
+  const newAmountDue = Math.max(0, originalAmount - newCreditTotal)
+
+  const { error: updateErr } = await supabase
+    .from('rent_schedule_entries')
+    .update({
+      amount_due: newAmountDue,
+      rent_credit_amount: newCreditTotal,
+      rent_credit_reason: input.reason,
+      original_amount_due: originalAmount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.schedule_entry_id)
+
+  if (updateErr) throw updateErr
+
+  return { success: true, new_amount_due: newAmountDue }
 }
 
 // ============================================================================
@@ -882,6 +929,10 @@ export async function markPayoutPaid(companyId: string, input: {
         html,
         companyId,
         emailCategory: 'landlord_statement',
+        attachments: pdfBuffer ? [{
+          filename: `statement-${payout.statement_ref}.pdf`,
+          content: pdfBuffer,
+        }] : undefined,
       })
 
       await supabase
@@ -965,43 +1016,114 @@ export async function batchPayout(companyId: string, input: {
 // ============================================================================
 
 export async function getAgentFees(companyId: string, fromDate?: string, toDate?: string): Promise<{
-  management_fees: AgentChargeItem[]
-  letting_fees: AgentChargeItem[]
-  contractor_commissions: AgentChargeItem[]
-  ad_hoc_charges: AgentChargeItem[]
-  grand_total: number
+  fees: Array<{
+    id: string
+    fee_type: string
+    description: string
+    net_amount: number
+    vat_amount: number
+    gross_amount: number
+    status: 'paid' | 'due'
+    date: string
+    source: 'rent_charge' | 'expected_payment'
+  }>
+  summary: { total_paid: number; total_due: number; grand_total: number }
 }> {
-  // Get all included charges, optionally filtered by date
-  let query = supabase
+  // 1. Get agent_charges from rent receipts
+  let chargeQuery = supabase
     .from('agent_charges')
     .select('*')
     .eq('company_id', companyId)
     .eq('included', true)
     .order('created_at', { ascending: false })
 
-  if (fromDate) query = query.gte('created_at', `${fromDate}T00:00:00`)
-  if (toDate) query = query.lte('created_at', `${toDate}T23:59:59`)
+  if (fromDate) chargeQuery = chargeQuery.gte('created_at', `${fromDate}T00:00:00`)
+  if (toDate) chargeQuery = chargeQuery.lte('created_at', `${toDate}T23:59:59`)
 
-  const { data: charges } = await query
+  const { data: charges } = await chargeQuery
 
-  const mapped = (charges || []).map(c => ({
+  // Look up schedule entry statuses
+  const entryIds = [...new Set((charges || []).map(c => c.schedule_entry_id))]
+  let entryStatusMap = new Map<string, string>()
+  if (entryIds.length > 0) {
+    const { data: entries } = await supabase
+      .from('rent_schedule_entries')
+      .select('id, status')
+      .in('id', entryIds)
+    for (const e of (entries || [])) {
+      entryStatusMap.set(e.id, e.status)
+    }
+  }
+
+  const chargeItems = (charges || []).map(c => ({
     id: c.id,
-    charge_type: c.charge_type,
+    fee_type: c.charge_type,
     description: c.description,
     net_amount: parseFloat(c.net_amount),
     vat_amount: parseFloat(c.vat_amount),
     gross_amount: parseFloat(c.gross_amount),
-    included: c.included,
-    contractor_invoice_id: c.contractor_invoice_id,
+    status: (entryStatusMap.get(c.schedule_entry_id) === 'paid' ? 'paid' : 'due') as 'paid' | 'due',
+    date: c.created_at,
+    source: 'rent_charge' as const,
   }))
 
-  const management_fees = mapped.filter(c => c.charge_type === 'management_fee')
-  const letting_fees = mapped.filter(c => c.charge_type === 'letting_fee')
-  const contractor_commissions = mapped.filter(c => c.charge_type === 'contractor_commission')
-  const ad_hoc_charges = mapped.filter(c => c.charge_type === 'ad_hoc')
-  const grand_total = mapped.reduce((sum, c) => sum + c.gross_amount, 0)
+  // 2. Get expected_payments where agent gets a fee
+  let epQuery = supabase
+    .from('expected_payments')
+    .select('*')
+    .eq('company_id', companyId)
+    .neq('status', 'cancelled')
 
-  return { management_fees, letting_fees, contractor_commissions, ad_hoc_charges, grand_total }
+  if (fromDate) epQuery = epQuery.gte('created_at', `${fromDate}T00:00:00`)
+  if (toDate) epQuery = epQuery.lte('created_at', `${toDate}T23:59:59`)
+
+  const { data: expectedPayments } = await epQuery
+
+  const epItems: Array<{
+    id: string; fee_type: string; description: string; net_amount: number; vat_amount: number;
+    gross_amount: number; status: 'paid' | 'due'; date: string; source: 'rent_charge' | 'expected_payment'
+  }> = []
+  for (const ep of (expectedPayments || [])) {
+    const splits = ep.payout_split || []
+    for (const split of splits) {
+      if (split.type === 'agent_fee') {
+        epItems.push({
+          id: ep.id + '-fee',
+          fee_type: ep.payment_type,
+          description: split.description || ep.description,
+          net_amount: parseFloat(split.amount),
+          vat_amount: 0,
+          gross_amount: parseFloat(split.amount),
+          status: (ep.status === 'paid' ? 'paid' : 'due') as 'paid' | 'due',
+          date: ep.paid_at || ep.created_at,
+          source: 'expected_payment' as const,
+        })
+      }
+    }
+    if (ep.payout_type === 'agent' && !splits.some((s: any) => s.type === 'agent_fee')) {
+      epItems.push({
+        id: ep.id,
+        fee_type: ep.payment_type,
+        description: ep.description,
+        net_amount: parseFloat(ep.amount_due),
+        vat_amount: 0,
+        gross_amount: parseFloat(ep.amount_due),
+        status: (ep.status === 'paid' ? 'paid' : 'due') as 'paid' | 'due',
+        date: ep.paid_at || ep.created_at,
+        source: 'expected_payment' as const,
+      })
+    }
+  }
+
+  const allFees = [...chargeItems, ...epItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const total_paid = allFees.filter(f => f.status === 'paid').reduce((s, f) => s + f.gross_amount, 0)
+  const total_due = allFees.filter(f => f.status === 'due').reduce((s, f) => s + f.gross_amount, 0)
+
+  return {
+    fees: allFees,
+    summary: { total_paid, total_due, grand_total: total_paid + total_due },
+  }
 }
 
 // ============================================================================
@@ -1140,16 +1262,21 @@ export async function getClientAccount(companyId: string, filters?: {
 }
 
 export async function addManualEntry(companyId: string, input: {
-  entry_type: 'manual_credit' | 'manual_debit'
+  entry_type: 'manual_credit' | 'manual_debit' | 'opening_balance'
   amount: number
   description: string
   reference?: string
   created_by?: string
 }): Promise<any> {
   const currentBalance = await getCurrentBalance(companyId)
-  const newBalance = input.entry_type === 'manual_credit'
-    ? currentBalance + input.amount
-    : currentBalance - input.amount
+  let newBalance: number
+  if (input.entry_type === 'opening_balance') {
+    newBalance = input.amount
+  } else if (input.entry_type === 'manual_credit') {
+    newBalance = currentBalance + input.amount
+  } else {
+    newBalance = currentBalance - input.amount
+  }
 
   const { data, error } = await supabase
     .from('client_account_entries')
@@ -1641,4 +1768,472 @@ export async function updateNoticeEndDate(tenancyId: string, newEndDate: string,
   await handleNotice(tenancyId, newEndDate, companyId)
 
   console.log(`[RentGoose] Updated notice end date to ${newEndDate} for tenancy ${tenancyId}`)
+}
+
+// ============================================================================
+// EXPECTED PAYMENTS
+// ============================================================================
+
+export interface UnifiedPaymentItem {
+  id: string
+  item_type: 'rent' | 'expected_payment'
+  payment_type: string
+  tenancy_id?: string
+  property_id?: string
+  property_address?: string
+  property_postcode?: string
+  tenant_name?: string
+  landlord_name?: string
+  landlord_id?: string
+  description: string
+  amount_due: number
+  amount_received: number
+  status: string
+  due_date?: string
+  paid_at?: string
+  payout_type?: string
+  payout_split?: any[]
+  source_type?: string
+  source_id?: string
+  // Rent-specific
+  period_start?: string
+  period_end?: string
+  fee_percent?: number
+  management_type?: string
+  tenancy_ref?: string
+  tenant_names?: string
+  payout_sent_at?: string
+  total_charges?: number
+}
+
+export async function createExpectedPayment(companyId: string, input: {
+  tenancy_id?: string
+  property_id?: string
+  payment_type: string
+  source_type?: string
+  source_id?: string
+  description: string
+  amount_due: number
+  amount_received?: number
+  status?: string
+  due_date?: string
+  paid_at?: string
+  payment_method?: string
+  payment_reference?: string
+  receipted_by?: string
+  payout_type?: string
+  payout_split?: any[]
+  property_address?: string
+  property_postcode?: string
+  tenant_name?: string
+  landlord_name?: string
+  landlord_id?: string
+}): Promise<any> {
+  const { data, error } = await supabase
+    .from('expected_payments')
+    .insert({
+      company_id: companyId,
+      tenancy_id: input.tenancy_id || null,
+      property_id: input.property_id || null,
+      payment_type: input.payment_type,
+      source_type: input.source_type || null,
+      source_id: input.source_id || null,
+      description: input.description,
+      amount_due: input.amount_due,
+      amount_received: input.amount_received || 0,
+      status: input.status || 'pending',
+      due_date: input.due_date || null,
+      paid_at: input.paid_at || null,
+      payment_method: input.payment_method || null,
+      payment_reference: input.payment_reference || null,
+      receipted_by: input.receipted_by || null,
+      payout_type: input.payout_type || null,
+      payout_split: input.payout_split || null,
+      property_address: input.property_address || null,
+      property_postcode: input.property_postcode || null,
+      tenant_name: input.tenant_name || null,
+      landlord_name: input.landlord_name || null,
+      landlord_id: input.landlord_id || null,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[RentGoose] Failed to create expected payment:', error)
+    throw error
+  }
+
+  return data
+}
+
+export async function getExpectedPayments(companyId: string, filters?: {
+  payment_type?: string
+  status?: string
+  date_from?: string
+  date_to?: string
+  tenancy_id?: string
+}): Promise<any[]> {
+  let query = supabase
+    .from('expected_payments')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('due_date', { ascending: true })
+
+  if (filters?.payment_type) query = query.eq('payment_type', filters.payment_type)
+  if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
+  else query = query.neq('status', 'cancelled')
+  if (filters?.date_from) query = query.gte('due_date', filters.date_from)
+  if (filters?.date_to) query = query.lte('due_date', filters.date_to)
+  if (filters?.tenancy_id) query = query.eq('tenancy_id', filters.tenancy_id)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  return (data || []).map(ep => ({
+    ...ep,
+    amount_due: parseFloat(ep.amount_due),
+    amount_received: parseFloat(ep.amount_received),
+  }))
+}
+
+export async function receiptExpectedPayment(companyId: string, input: {
+  expected_payment_id: string
+  amount: number
+  payment_method?: string
+  payment_reference?: string
+  date_received?: string
+  receipted_by?: string
+  holding_deposit_credit_amount?: number
+  holding_deposit_credit_id?: string
+}): Promise<{ success: boolean }> {
+  const { data: ep, error: epErr } = await supabase
+    .from('expected_payments')
+    .select('*')
+    .eq('id', input.expected_payment_id)
+    .eq('company_id', companyId)
+    .single()
+
+  if (epErr || !ep) throw new Error('Expected payment not found')
+
+  const now = new Date().toISOString()
+  const totalReceived = parseFloat(ep.amount_received) + input.amount
+  const amountDue = parseFloat(ep.amount_due)
+  const isFullyPaid = totalReceived >= amountDue
+  const newStatus = isFullyPaid ? 'paid' : 'partial'
+
+  // Update expected_payment record
+  await supabase
+    .from('expected_payments')
+    .update({
+      amount_received: totalReceived,
+      status: newStatus,
+      paid_at: isFullyPaid ? now : null,
+      payment_method: input.payment_method || null,
+      payment_reference: input.payment_reference || null,
+      receipted_by: input.receipted_by || null,
+      updated_at: now,
+    })
+    .eq('id', input.expected_payment_id)
+
+  // Process payout_split to create client_account_entries
+  const splits = ep.payout_split || []
+  for (const split of splits) {
+    let entryType: string
+    let description: string
+    const splitAmount = parseFloat(split.amount)
+
+    switch (split.type) {
+      case 'landlord_rent':
+      case 'landlord_prorata':
+        entryType = 'initial_monies_rent_in'
+        description = split.description || `Rent portion - ${ep.description}`
+        break
+      case 'deposit_hold':
+        entryType = 'deposit_in'
+        description = split.description || `Security deposit - ${ep.description}`
+        break
+      case 'agent_fee':
+        entryType = 'invoice_fee_in'
+        description = split.description || `Fee - ${ep.description}`
+        break
+      case 'holding_deposit':
+        entryType = 'holding_deposit_in'
+        description = split.description || `Holding deposit - ${ep.description}`
+        break
+      default:
+        entryType = 'initial_monies_rent_in'
+        description = split.description || ep.description
+    }
+
+    const currentBalance = await getCurrentBalance(companyId)
+    const isCredit = ['initial_monies_rent_in', 'deposit_in', 'invoice_fee_in', 'holding_deposit_in'].includes(entryType)
+    const newBalance = isCredit ? currentBalance + splitAmount : currentBalance - splitAmount
+
+    await supabase
+      .from('client_account_entries')
+      .insert({
+        company_id: companyId,
+        entry_type: entryType,
+        amount: splitAmount,
+        description,
+        reference: input.payment_reference || null,
+        related_id: input.expected_payment_id,
+        related_type: 'expected_payment',
+        balance_after: newBalance,
+        created_by: input.receipted_by || null,
+        is_manual: false,
+      })
+  }
+
+  // If holding deposit credit is being applied, create offsetting entry
+  if (input.holding_deposit_credit_amount && input.holding_deposit_credit_id) {
+    const currentBalance = await getCurrentBalance(companyId)
+    const newBalance = currentBalance - input.holding_deposit_credit_amount
+
+    await supabase
+      .from('client_account_entries')
+      .insert({
+        company_id: companyId,
+        entry_type: 'holding_deposit_in',
+        amount: input.holding_deposit_credit_amount,
+        description: `Holding deposit applied to initial monies`,
+        related_id: input.holding_deposit_credit_id,
+        related_type: 'holding_deposit_offset',
+        balance_after: newBalance,
+        created_by: input.receipted_by || null,
+        is_manual: false,
+      })
+  }
+
+  return { success: true }
+}
+
+export async function getUnifiedSchedule(companyId: string, filters?: {
+  status?: string
+  payment_type?: string
+  category?: string
+  date_from?: string
+  date_to?: string
+}): Promise<{
+  items: UnifiedPaymentItem[]
+  categoryCounts: Record<string, number>
+  summary: { collected: number; due: number; arrears: number; payoutsReady: number; agentFees: number }
+}> {
+  // Get rent schedule entries
+  const rentEntries = await getRentSchedule(companyId, {
+    status: (filters?.category === 'rent' || !filters?.category || filters?.category === 'all') ? filters?.status : undefined,
+    date_from: filters?.date_from,
+    date_to: filters?.date_to,
+  })
+
+  // Get expected payments
+  const expectedPayments = await getExpectedPayments(companyId, {
+    status: filters?.status,
+    date_from: filters?.date_from,
+    date_to: filters?.date_to,
+  })
+
+  // Map rent entries to unified format
+  const rentItems: UnifiedPaymentItem[] = rentEntries.map(e => ({
+    id: e.id,
+    item_type: 'rent' as const,
+    payment_type: 'rent',
+    tenancy_id: e.tenancy_id,
+    property_id: e.property_id,
+    property_address: e.property_address,
+    property_postcode: e.property_postcode,
+    tenant_name: e.tenant_names,
+    tenant_names: e.tenant_names,
+    landlord_name: e.landlord_name,
+    landlord_id: e.landlord_id,
+    description: `Rent ${e.period_start} to ${e.period_end}`,
+    amount_due: e.amount_due,
+    amount_received: e.amount_received,
+    status: e.status,
+    due_date: e.due_date,
+    paid_at: e.paid_at,
+    period_start: e.period_start,
+    period_end: e.period_end,
+    fee_percent: e.fee_percent,
+    management_type: e.management_type,
+    tenancy_ref: e.tenancy_ref,
+    payout_sent_at: e.payout_sent_at,
+    total_charges: e.total_charges,
+  }))
+
+  // Map expected payments to unified format
+  const expectedItems: UnifiedPaymentItem[] = expectedPayments.map(ep => ({
+    id: ep.id,
+    item_type: 'expected_payment' as const,
+    payment_type: ep.payment_type,
+    tenancy_id: ep.tenancy_id,
+    property_id: ep.property_id,
+    property_address: ep.property_address,
+    property_postcode: ep.property_postcode,
+    tenant_name: ep.tenant_name,
+    landlord_name: ep.landlord_name,
+    landlord_id: ep.landlord_id,
+    description: ep.description,
+    amount_due: ep.amount_due,
+    amount_received: ep.amount_received,
+    status: ep.status,
+    due_date: ep.due_date,
+    paid_at: ep.paid_at,
+    payout_type: ep.payout_type,
+    payout_split: ep.payout_split,
+    source_type: ep.source_type,
+    source_id: ep.source_id,
+  }))
+
+  // Determine which items to include based on category filter
+  let allItems: UnifiedPaymentItem[] = []
+  const category = filters?.category || 'all'
+
+  if (category === 'all') {
+    allItems = [...rentItems, ...expectedItems]
+  } else if (category === 'rent') {
+    allItems = rentItems
+  } else if (category === 'pre_tenancy') {
+    allItems = expectedItems.filter(ep =>
+      ['holding_deposit', 'initial_monies', 'deposit'].includes(ep.payment_type)
+    )
+  } else if (category === 'invoices') {
+    allItems = expectedItems.filter(ep =>
+      ['tenant_change_fee', 'rent_change_fee', 'invoice'].includes(ep.payment_type)
+    )
+  } else if (category === 'arrears') {
+    allItems = [...rentItems, ...expectedItems].filter(item =>
+      item.status === 'arrears' || item.status === 'overdue'
+    )
+  }
+
+  // Apply payment_type filter if specified
+  if (filters?.payment_type) {
+    allItems = allItems.filter(item => item.payment_type === filters.payment_type)
+  }
+
+  // Sort by due_date
+  allItems.sort((a, b) => {
+    const da = a.due_date || '9999-12-31'
+    const db = b.due_date || '9999-12-31'
+    return da.localeCompare(db)
+  })
+
+  // Calculate category counts
+  const categoryCounts = {
+    all: rentItems.length + expectedItems.length,
+    rent: rentItems.length,
+    pre_tenancy: expectedItems.filter(ep =>
+      ['holding_deposit', 'initial_monies', 'deposit'].includes(ep.payment_type)
+    ).length,
+    invoices: expectedItems.filter(ep =>
+      ['tenant_change_fee', 'rent_change_fee', 'invoice'].includes(ep.payment_type)
+    ).length,
+    arrears: [...rentItems, ...expectedItems].filter(item =>
+      item.status === 'arrears' || item.status === 'overdue'
+    ).length,
+  }
+
+  // Calculate summary
+  const today = new Date().toISOString().split('T')[0]
+  const allForSummary = [...rentItems, ...expectedItems]
+
+  const collected = allForSummary
+    .filter(item => item.status === 'paid')
+    .reduce((sum, item) => sum + item.amount_received, 0)
+
+  const due = allForSummary
+    .filter(item => item.status !== 'paid' && item.status !== 'cancelled' && item.due_date && item.due_date <= today)
+    .reduce((sum, item) => sum + (item.amount_due - item.amount_received), 0)
+
+  const arrears = allForSummary
+    .filter(item => (item.status === 'arrears' || item.status === 'overdue'))
+    .reduce((sum, item) => sum + (item.amount_due - item.amount_received), 0)
+
+  const payoutsReady = rentItems
+    .filter(item => item.status === 'paid' && !item.payout_sent_at)
+    .reduce((sum, item) => sum + (item.amount_received - (item.total_charges || 0)), 0)
+
+  const agentFees = expectedItems
+    .filter(ep => ep.payout_type === 'agent' && ep.status === 'paid')
+    .reduce((sum, ep) => sum + ep.amount_received, 0) +
+    rentItems
+      .filter(e => e.status === 'paid')
+      .reduce((sum, e) => sum + (e.total_charges || 0), 0)
+
+  return {
+    items: allItems,
+    categoryCounts,
+    summary: { collected, due, arrears, payoutsReady, agentFees },
+  }
+}
+
+export async function getHoldingDepositCredit(companyId: string, tenancyId: string): Promise<{
+  available: boolean
+  amount: number
+  expected_payment_id: string | null
+}> {
+  const { data } = await supabase
+    .from('expected_payments')
+    .select('id, amount_received')
+    .eq('company_id', companyId)
+    .eq('tenancy_id', tenancyId)
+    .eq('payment_type', 'holding_deposit')
+    .eq('status', 'paid')
+    .limit(1)
+    .single()
+
+  if (data && parseFloat(data.amount_received) > 0) {
+    return {
+      available: true,
+      amount: parseFloat(data.amount_received),
+      expected_payment_id: data.id,
+    }
+  }
+
+  return { available: false, amount: 0, expected_payment_id: null }
+}
+
+export async function markDepositProtected(companyId: string, input: {
+  expected_payment_id: string
+  dan_reference: string
+  scheme: string
+  protected_date: string
+  receipted_by?: string
+}): Promise<any> {
+  // Get the deposit expected payment
+  const { data: ep } = await supabase
+    .from('expected_payments')
+    .select('*')
+    .eq('id', input.expected_payment_id)
+    .eq('company_id', companyId)
+    .single()
+
+  if (!ep) throw new Error('Expected payment not found')
+
+  // Create deposit_out client_account_entry
+  const depositAmount = parseFloat(ep.amount_received) || parseFloat(ep.amount_due)
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - depositAmount
+
+  const { data: entry, error } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: depositAmount,
+      description: `Deposit registered with ${input.scheme} - DAN: ${input.dan_reference}`,
+      reference: input.dan_reference,
+      related_id: input.expected_payment_id,
+      related_type: 'deposit_protection',
+      balance_after: newBalance,
+      created_by: input.receipted_by || null,
+      is_manual: false,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  return entry
 }

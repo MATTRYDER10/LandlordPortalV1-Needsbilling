@@ -3439,6 +3439,49 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       // Don't fail the whole request, just log the error
     }
 
+    // Create expected payment for initial monies
+    try {
+      const { createExpectedPayment } = await import('../services/rentgooseService')
+
+      // Get property details
+      const propForEp = tenancy?.property || {}
+      const propertyAddr = (propForEp as any).address_line1 || ''
+      const propertyPc = (propForEp as any).postcode || ''
+
+      // Build payout split
+      const payoutSplit: any[] = []
+      const rentPortion = firstMonthRent - holdingDepositPaid
+      if (rentPortion > 0) {
+        payoutSplit.push({ type: 'landlord_rent', amount: rentPortion, description: 'First month rent (less holding deposit)' })
+      }
+      if (depositAmount > 0) {
+        payoutSplit.push({ type: 'deposit_hold', amount: depositAmount, description: 'Security deposit' })
+      }
+      for (const charge of additionalCharges) {
+        payoutSplit.push({ type: 'agent_fee', amount: charge.amount, description: charge.name })
+      }
+
+      await createExpectedPayment(companyId, {
+        tenancy_id: req.params.id,
+        property_id: tenancy?.property_id || undefined,
+        payment_type: 'initial_monies',
+        source_type: 'payment_request',
+        source_id: req.params.id,
+        description: `Initial monies - ${propertyAddr || 'Property'}`,
+        amount_due: totalDue,
+        status: 'pending',
+        due_date: editedDueDate || undefined,
+        payout_type: 'mixed',
+        payout_split: payoutSplit,
+        property_address: propertyAddr || undefined,
+        property_postcode: propertyPc || undefined,
+        tenant_name: `${targetTenant.first_name} ${targetTenant.last_name}`,
+        landlord_name: undefined,
+      })
+    } catch (epError) {
+      console.error('[RentGoose] Failed to create initial monies expected payment:', epError)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'INITIAL_MONIES_REQUESTED',
@@ -3616,6 +3659,110 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
       metadata: { amount: totalPaidAmount, manualReceipt: manualReceipt || false },
       performedBy: userId
     })
+
+    // Receipt the expected payment (creates client account entries from payout split)
+    try {
+      const { createExpectedPayment, receiptExpectedPayment } = await import('../services/rentgooseService')
+      const { supabase: sb } = await import('../config/supabase')
+
+      // Find the expected payment for this tenancy's initial monies
+      let { data: ep } = await sb
+        .from('expected_payments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('tenancy_id', req.params.id)
+        .eq('payment_type', 'initial_monies')
+        .in('status', ['pending', 'due'])
+        .limit(1)
+        .single()
+
+      // If no expected_payment exists (tenancy predates this feature), create one now
+      if (!ep) {
+        const propAddr = tenancy?.property?.address_line1 || ''
+        const propPc = tenancy?.property?.postcode || ''
+
+        // Calculate the breakdown from the tenancy data
+        const firstMonthRent = parseFloat(String(currentTenancy.monthly_rent || 0))
+        const depositAmt = parseFloat(String(currentTenancy.deposit_amount || 0))
+        let holdingDepPaid = 0
+        if (currentTenancy.primary_reference_id) {
+          const { data: offer } = await sb
+            .from('tenant_offers')
+            .select('holding_deposit_amount_paid')
+            .eq('reference_id', currentTenancy.primary_reference_id)
+            .single()
+          if (offer?.holding_deposit_amount_paid) {
+            holdingDepPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+          }
+        }
+
+        const additionalChargesAmt = (currentTenancy.additional_charges || [])
+          .filter((c: any) => c.frequency === 'one_time')
+          .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
+
+        const payoutSplit: any[] = []
+        const rentPortion = firstMonthRent - holdingDepPaid
+        if (rentPortion > 0) {
+          payoutSplit.push({ type: 'landlord_rent', amount: rentPortion, description: 'First month rent (less holding deposit)' })
+        }
+        if (depositAmt > 0) {
+          payoutSplit.push({ type: 'deposit_hold', amount: depositAmt, description: 'Security deposit' })
+        }
+        if (additionalChargesAmt > 0) {
+          payoutSplit.push({ type: 'agent_fee', amount: additionalChargesAmt, description: 'Additional charges' })
+        }
+
+        const tenantNames = (currentTenancy.tenants || [])
+          .filter((t: any) => t.status === 'active')
+          .map((t: any) => `${t.first_name || ''} ${t.last_name || ''}`.trim())
+          .join(', ')
+
+        try {
+          ep = await createExpectedPayment(companyId, {
+            tenancy_id: req.params.id,
+            property_id: currentTenancy.property_id || undefined,
+            payment_type: 'initial_monies',
+            source_type: 'payment_request',
+            source_id: req.params.id,
+            description: `Initial monies - ${propAddr || 'Property'}`,
+            amount_due: totalPaidAmount,
+            status: 'pending',
+            payout_type: 'mixed',
+            payout_split: payoutSplit,
+            property_address: propAddr || undefined,
+            property_postcode: propPc || undefined,
+            tenant_name: tenantNames || undefined,
+          })
+        } catch (createErr: any) {
+          // UNIQUE conflict means one already exists (possibly in a different status)
+          if (createErr?.code === '23505') {
+            const { data: existing } = await sb
+              .from('expected_payments')
+              .select('id')
+              .eq('company_id', companyId)
+              .eq('source_type', 'payment_request')
+              .eq('source_id', req.params.id)
+              .limit(1)
+              .single()
+            ep = existing
+          } else {
+            throw createErr
+          }
+        }
+      }
+
+      if (ep) {
+        await receiptExpectedPayment(companyId, {
+          expected_payment_id: ep.id,
+          amount: totalPaidAmount,
+          payment_method: 'bank_transfer',
+          date_received: new Date().toISOString().split('T')[0],
+          receipted_by: userId,
+        })
+      }
+    } catch (epError) {
+      console.error('[RentGoose] Failed to receipt initial monies expected payment:', epError)
+    }
 
     // Create notification
     try {
@@ -5834,6 +5981,36 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
       }
     })
 
+    // Create expected payment for rent due date change
+    try {
+      const { createExpectedPayment } = await import('../services/rentgooseService')
+
+      const payoutSplit: any[] = []
+      if (proRataAmount > 0) {
+        payoutSplit.push({ type: 'landlord_prorata', amount: parseFloat(proRataAmount.toFixed(2)), description: 'Pro-rata rent adjustment' })
+      }
+      if (adminFeeNum > 0) {
+        payoutSplit.push({ type: 'agent_fee', amount: adminFeeNum, description: 'Administration fee' })
+      }
+
+      await createExpectedPayment(companyId, {
+        tenancy_id: req.params.id,
+        property_id: propertyData?.id || undefined,
+        payment_type: 'rent_change_fee',
+        source_type: 'rent_due_date_change',
+        source_id: changeRecord.id,
+        description: `Rent due date change - ${propertyAddress || 'Property'}`,
+        amount_due: parseFloat(totalAmount.toFixed(2)),
+        status: 'pending',
+        payout_type: 'mixed',
+        payout_split: payoutSplit,
+        property_address: propertyAddress || undefined,
+        tenant_name: leadTenantName,
+      })
+    } catch (epError) {
+      console.error('[RentGoose] Failed to create rent change expected payment:', epError)
+    }
+
     res.status(201).json({
       change: {
         id: changeRecord.id,
@@ -6218,6 +6395,34 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
       console.log('[activate] Activity logged successfully')
     } catch (activityError) {
       console.error('[activate] Failed to log activity:', activityError)
+    }
+
+    // Receipt the expected payment for this rent change
+    try {
+      const { receiptExpectedPayment } = await import('../services/rentgooseService')
+
+      const { data: ep } = await supabase
+        .from('expected_payments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('source_type', 'rent_due_date_change')
+        .eq('source_id', req.params.changeId)
+        .in('status', ['pending', 'due'])
+        .limit(1)
+        .single()
+
+      if (ep) {
+        await receiptExpectedPayment(companyId, {
+          expected_payment_id: ep.id,
+          amount: parseFloat(change.total_amount),
+          payment_method: 'bank_transfer',
+          payment_reference: paymentReference || undefined,
+          date_received: new Date().toISOString().split('T')[0],
+          receipted_by: userId,
+        })
+      }
+    } catch (epError) {
+      console.error('[RentGoose] Failed to receipt rent change expected payment:', epError)
     }
 
     console.log('[activate] Returning success. Document ID:', noticeDocumentId)

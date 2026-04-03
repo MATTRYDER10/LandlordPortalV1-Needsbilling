@@ -188,7 +188,7 @@ export async function generateLandlordStatement(companyId: string, payout: Payou
       doc.roundedRect(L, by, W, 44, 4).strokeColor('#bbf7d0').lineWidth(1).stroke()
       doc.restore()
       doc.fontSize(12).fillColor('#1f2937').font('Helvetica-Bold').text('Net Payout', L + 16, by + 14)
-      doc.fontSize(16).fillColor('#059669').font('Helvetica-Bold').text(`£${payout.net_payout.toFixed(2)}`, cGross - 40, by + 11, { width: 120, align: 'right' })
+      doc.fontSize(16).fillColor('#059669').font('Helvetica-Bold').text(`£${payout.net_payout.toFixed(2)}`, L + 16, by + 11, { width: W - 32, align: 'right' })
       doc.y = by + 54
 
       // === FOOTER ===

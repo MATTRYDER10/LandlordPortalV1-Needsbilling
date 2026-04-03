@@ -245,9 +245,10 @@ function searchContractors() {
   if (contractorSearchTimer) clearTimeout(contractorSearchTimer)
   contractorSearchTimer = setTimeout(async () => {
     try {
-      const result = await get<any[]>('/api/contractors')
+      const result = await get<any>('/api/contractors')
+      const contractors = result.contractors || result || []
       const search = contractorSearch.value.toLowerCase()
-      contractorResults.value = (result || []).filter((c: any) =>
+      contractorResults.value = contractors.filter((c: any) =>
         c.name?.toLowerCase().includes(search) || c.company_name?.toLowerCase().includes(search)
       ).slice(0, 10)
     } catch (err) {

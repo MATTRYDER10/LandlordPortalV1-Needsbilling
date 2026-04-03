@@ -261,7 +261,7 @@ import BatchPayoutModal from './BatchPayoutModal.vue'
 
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
-const { post } = useApi()
+const { get, post } = useApi()
 
 const payoutTab = ref('landlord')
 const undoingId = ref<string | null>(null)
@@ -270,6 +270,7 @@ const expandedId = ref<string | null>(null)
 const showMarkPaidModal = ref(false)
 const showBatchModal = ref(false)
 const selectedPayout = ref<PayoutItem | null>(null)
+const payingContractorId = ref<string | null>(null)
 
 // Landlord payouts = the main rent payouts
 const landlordPayouts = computed(() => store.payouts)
@@ -323,13 +324,11 @@ const payoutTabs = computed(() => [
 function onPaid() {
   showMarkPaidModal.value = false
   store.fetchPayouts()
-  fetchAgentCharges()
 }
 
 function onBatchCompleted() {
   showBatchModal.value = false
   store.fetchPayouts()
-  fetchAgentCharges()
 }
 
 async function undoReceipt(payout: PayoutItem) {
@@ -371,5 +370,6 @@ function formatDate(dateStr: string) {
 
 onMounted(() => {
   store.fetchPayouts()
+  fetchContractorPayouts()
 })
 </script>

@@ -49,11 +49,9 @@
 
     <!-- Tab content -->
     <div class="p-6">
-      <RentCollectionBoard v-if="store.activeTab === 'collection'" />
+      <UnifiedPaymentsBoard v-if="store.activeTab === 'collection'" />
       <PayoutsBoard v-else-if="store.activeTab === 'payouts'" />
       <AgentFeesBoard v-else-if="store.activeTab === 'fees'" />
-      <ArrearsBoard v-else-if="store.activeTab === 'arrears'" />
-      <SentEmailsBoard v-else-if="store.activeTab === 'sent-emails'" />
       <LandlordFinancialView v-else-if="store.activeTab === 'landlords'" />
       <ContractorsBoard v-else-if="store.activeTab === 'contractors'" />
       <ClientAccountTracker v-else-if="store.activeTab === 'client-account'" />
@@ -74,11 +72,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useDarkMode } from '../composables/useDarkMode'
 import { useRentGooseStore } from '../stores/rentgoose'
 import Sidebar from '../components/Sidebar.vue'
+import UnifiedPaymentsBoard from '../components/rentgoose/UnifiedPaymentsBoard.vue'
 import RentCollectionBoard from '../components/rentgoose/RentCollectionBoard.vue'
 import PayoutsBoard from '../components/rentgoose/PayoutsBoard.vue'
 import AgentFeesBoard from '../components/rentgoose/AgentFeesBoard.vue'
-import ArrearsBoard from '../components/rentgoose/ArrearsBoard.vue'
-import SentEmailsBoard from '../components/rentgoose/SentEmailsBoard.vue'
 import LandlordFinancialView from '../components/rentgoose/LandlordFinancialView.vue'
 import ContractorsBoard from '../components/rentgoose/ContractorsBoard.vue'
 import ClientAccountTracker from '../components/rentgoose/ClientAccountTracker.vue'
@@ -89,11 +86,9 @@ const store = useRentGooseStore()
 const showRaiseCharge = ref(false)
 
 const tabs = computed(() => [
-  { id: 'collection', name: 'Rent Collection', count: store.statusCounts.arrears || 0 },
+  { id: 'collection', name: 'Payments', count: store.categoryCounts.arrears || store.statusCounts.arrears || 0 },
   { id: 'payouts', name: 'Payouts', count: store.payouts.length },
   { id: 'fees', name: 'Fee Ledger' },
-  { id: 'arrears', name: 'Arrears', count: store.arrears.length },
-  { id: 'sent-emails', name: 'Sent Emails' },
   { id: 'landlords', name: 'Landlords' },
   { id: 'contractors', name: 'Contractors' },
   { id: 'client-account', name: 'Client Account' },

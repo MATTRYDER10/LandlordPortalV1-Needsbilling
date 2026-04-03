@@ -374,6 +374,31 @@ router.post('/contractor-payout', authenticateToken, async (req: AuthRequest, re
   }
 })
 
+// POST /api/rentgoose/rent-credit — apply a rent credit to a schedule entry
+router.post('/rent-credit', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id, credit_amount, reason } = req.body
+    if (!schedule_entry_id || !credit_amount || !reason) {
+      return res.status(400).json({ error: 'schedule_entry_id, credit_amount, and reason required' })
+    }
+
+    const result = await rentgooseService.applyRentCredit(companyId, {
+      schedule_entry_id,
+      credit_amount: parseFloat(credit_amount),
+      reason,
+      applied_by: req.user?.id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error applying rent credit:', err)
+    res.status(500).json({ error: 'Failed to apply rent credit' })
+  }
+})
+
 // POST /api/rentgoose/handle-notice
 router.post('/handle-notice', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -424,8 +449,18 @@ router.get('/statement/:id/pdf', authenticateToken, async (req: AuthRequest, res
       return res.status(404).json({ error: 'Statement not found' })
     }
 
-    // For now return the path — PDF serving will use storage
-    res.json({ pdf_path: payout.statement_pdf_path })
+    // Generate signed URL for download
+    const { supabase } = await import('../config/supabase')
+    const { data: signedData, error: signError } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(payout.statement_pdf_path, 300) // 5 min expiry
+
+    if (signError || !signedData?.signedUrl) {
+      console.error('Failed to create signed URL:', signError)
+      return res.status(500).json({ error: 'Failed to generate download link' })
+    }
+
+    res.json({ pdf_url: signedData.signedUrl, pdf_path: payout.statement_pdf_path })
   } catch (err: any) {
     console.error('Error getting statement PDF:', err)
     res.status(500).json({ error: 'Failed to get statement' })
@@ -779,6 +814,311 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
   } catch (err: any) {
     console.error('Error fetching pending agent charges:', err)
     res.status(500).json({ error: 'Failed to fetch agent charges' })
+  }
+})
+
+// POST /api/rentgoose/init-all-active — one-off: init rent schedules for all active tenancies
+router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+
+    // Get all active tenancies for this company
+    const { data: tenancies, error } = await supabase
+      .from('tenancies')
+      .select('id, status')
+      .eq('company_id', companyId)
+      .in('status', ['active', 'notice_given'])
+      .is('deleted_at', null)
+
+    if (error) throw error
+    if (!tenancies || tenancies.length === 0) {
+      return res.json({ message: 'No active tenancies found', count: 0 })
+    }
+
+    let successCount = 0
+    const errors: string[] = []
+
+    for (const tenancy of tenancies) {
+      try {
+        await rentgooseService.initTenancySchedule(tenancy.id, companyId)
+        successCount++
+      } catch (err: any) {
+        errors.push(`${tenancy.id}: ${err.message}`)
+      }
+    }
+
+    res.json({
+      message: `Initialised ${successCount} of ${tenancies.length} tenancies`,
+      count: successCount,
+      total: tenancies.length,
+      errors: errors.length > 0 ? errors : undefined,
+    })
+  } catch (err: any) {
+    console.error('Error initialising all tenancies:', err)
+    res.status(500).json({ error: 'Failed to initialise tenancies' })
+  }
+})
+
+// ============================================================================
+// UNIFIED PAYMENTS / EXPECTED PAYMENTS
+// ============================================================================
+
+// GET /api/rentgoose/unified-schedule
+router.get('/unified-schedule', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const result = await rentgooseService.getUnifiedSchedule(companyId, {
+      status: req.query.status as string,
+      payment_type: req.query.payment_type as string,
+      category: req.query.category as string,
+      date_from: req.query.date_from as string,
+      date_to: req.query.date_to as string,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error getting unified schedule:', err)
+    res.status(500).json({ error: 'Failed to get unified schedule' })
+  }
+})
+
+// POST /api/rentgoose/receipt-expected
+router.post('/receipt-expected', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { expected_payment_id, amount, payment_method, payment_reference, date_received, holding_deposit_credit_amount, holding_deposit_credit_id } = req.body
+    if (!expected_payment_id || !amount) {
+      return res.status(400).json({ error: 'expected_payment_id and amount required' })
+    }
+
+    const result = await rentgooseService.receiptExpectedPayment(companyId, {
+      expected_payment_id,
+      amount: parseFloat(amount),
+      payment_method,
+      payment_reference,
+      date_received,
+      receipted_by: req.user?.id,
+      holding_deposit_credit_amount: holding_deposit_credit_amount ? parseFloat(holding_deposit_credit_amount) : undefined,
+      holding_deposit_credit_id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error receipting expected payment:', err)
+    res.status(500).json({ error: 'Failed to receipt expected payment' })
+  }
+})
+
+// GET /api/rentgoose/holding-deposit-credit/:tenancyId
+router.get('/holding-deposit-credit/:tenancyId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const result = await rentgooseService.getHoldingDepositCredit(companyId, req.params.tenancyId)
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error getting holding deposit credit:', err)
+    res.status(500).json({ error: 'Failed to get holding deposit credit' })
+  }
+})
+
+// POST /api/rentgoose/deposit-protected
+router.post('/deposit-protected', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { expected_payment_id, dan_reference, scheme, protected_date } = req.body
+    if (!expected_payment_id || !dan_reference || !scheme) {
+      return res.status(400).json({ error: 'expected_payment_id, dan_reference, and scheme required' })
+    }
+
+    const result = await rentgooseService.markDepositProtected(companyId, {
+      expected_payment_id,
+      dan_reference,
+      scheme,
+      protected_date: protected_date || new Date().toISOString().split('T')[0],
+      receipted_by: req.user?.id,
+    })
+
+    res.json({ entry: result })
+  } catch (err: any) {
+    console.error('Error marking deposit protected:', err)
+    res.status(500).json({ error: 'Failed to mark deposit protected' })
+  }
+})
+
+// GET /api/rentgoose/landlords — landlords linked to active tenancies with financial summary
+router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+    const { decrypt } = await import('../services/encryption')
+
+    // Get active tenancies
+    const { data: tenancies } = await supabase
+      .from('tenancies')
+      .select('id, property_id, status')
+      .eq('company_id', companyId)
+      .in('status', ['active', 'notice_given'])
+      .is('deleted_at', null)
+
+    if (!tenancies || tenancies.length === 0) return res.json({ landlords: [] })
+
+    const propertyIds = [...new Set(tenancies.map(t => t.property_id).filter(Boolean))]
+
+    // Get property-landlord links
+    const { data: propLandlords } = await supabase
+      .from('property_landlords')
+      .select('property_id, landlord_id')
+      .in('property_id', propertyIds)
+      .eq('is_primary_contact', true)
+
+    const landlordIds = [...new Set((propLandlords || []).map(pl => pl.landlord_id))]
+    if (landlordIds.length === 0) return res.json({ landlords: [] })
+
+    // Get landlord details
+    const { data: landlords } = await supabase
+      .from('landlords')
+      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted')
+      .in('id', landlordIds)
+
+    // Count properties per landlord
+    const propsByLandlord = new Map<string, Set<string>>()
+    for (const pl of (propLandlords || [])) {
+      if (!propsByLandlord.has(pl.landlord_id)) propsByLandlord.set(pl.landlord_id, new Set())
+      propsByLandlord.get(pl.landlord_id)!.add(pl.property_id)
+    }
+
+    // Get payout totals per landlord
+    const { data: payoutSums } = await supabase
+      .from('payout_records')
+      .select('landlord_id, net_payout')
+      .eq('company_id', companyId)
+      .eq('payout_type', 'landlord')
+      .in('landlord_id', landlordIds)
+
+    const payoutTotals = new Map<string, number>()
+    for (const p of (payoutSums || [])) {
+      payoutTotals.set(p.landlord_id, (payoutTotals.get(p.landlord_id) || 0) + parseFloat(p.net_payout))
+    }
+
+    const result = (landlords || []).map(l => ({
+      id: l.id,
+      name: `${decrypt(l.first_name_encrypted) || ''} ${decrypt(l.last_name_encrypted) || ''}`.trim(),
+      email: decrypt(l.email_encrypted) || '',
+      property_count: propsByLandlord.get(l.id)?.size || 0,
+      total_paid: payoutTotals.get(l.id) || 0,
+    }))
+
+    res.json({ landlords: result })
+  } catch (err: any) {
+    console.error('Error getting landlords:', err)
+    res.status(500).json({ error: 'Failed to get landlords' })
+  }
+})
+
+// GET /api/rentgoose/landlord/:id/annual-statement — annual tax year statement
+router.get('/landlord/:id/annual-statement', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+    const { decrypt } = await import('../services/encryption')
+
+    const landlordId = req.params.id
+    const taxYear = parseInt(req.query.tax_year as string) || new Date().getFullYear()
+
+    // Tax year: April 6 of taxYear-1 to April 5 of taxYear
+    const periodStart = `${taxYear - 1}-04-06`
+    const periodEnd = `${taxYear}-04-05`
+
+    // Get all payout records for this landlord in the tax year
+    const { data: payouts } = await supabase
+      .from('payout_records')
+      .select('*, agent_charges(*)')
+      .eq('company_id', companyId)
+      .eq('landlord_id', landlordId)
+      .eq('payout_type', 'landlord')
+      .gte('paid_at', `${periodStart}T00:00:00`)
+      .lte('paid_at', `${periodEnd}T23:59:59`)
+      .order('paid_at', { ascending: true })
+
+    // Get landlord name
+    const { data: landlord } = await supabase
+      .from('landlords')
+      .select('first_name_encrypted, last_name_encrypted')
+      .eq('id', landlordId)
+      .single()
+
+    const landlordName = landlord
+      ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
+      : 'Unknown'
+
+    // Get charges for these payouts
+    const payoutEntryIds = (payouts || []).map(p => p.schedule_entry_id)
+    let charges: any[] = []
+    if (payoutEntryIds.length > 0) {
+      const { data: chargeData } = await supabase
+        .from('agent_charges')
+        .select('*')
+        .in('schedule_entry_id', payoutEntryIds)
+        .eq('included', true)
+      charges = chargeData || []
+    }
+
+    // Build line items
+    const items = (payouts || []).map(p => {
+      const entryCharges = charges.filter(c => c.schedule_entry_id === p.schedule_entry_id)
+      return {
+        date: p.paid_at,
+        gross_rent: parseFloat(p.gross_rent),
+        charges: entryCharges.map(c => ({
+          description: c.description,
+          net_amount: parseFloat(c.net_amount),
+          vat_amount: parseFloat(c.vat_amount),
+          gross_amount: parseFloat(c.gross_amount),
+        })),
+        total_charges: parseFloat(p.total_charges),
+        net_payout: parseFloat(p.net_payout),
+        statement_ref: p.id.substring(0, 8).toUpperCase(),
+      }
+    })
+
+    const totalGross = items.reduce((s, i) => s + i.gross_rent, 0)
+    const totalChargesNet = charges.reduce((s, c) => s + parseFloat(c.net_amount), 0)
+    const totalChargesVat = charges.reduce((s, c) => s + parseFloat(c.vat_amount), 0)
+    const totalChargesGross = charges.reduce((s, c) => s + parseFloat(c.gross_amount), 0)
+    const totalNet = items.reduce((s, i) => s + i.net_payout, 0)
+
+    res.json({
+      landlord_name: landlordName,
+      tax_year: `${taxYear - 1}/${taxYear}`,
+      period_start: periodStart,
+      period_end: periodEnd,
+      items,
+      totals: {
+        gross_income: totalGross,
+        charges_net: totalChargesNet,
+        charges_vat: totalChargesVat,
+        charges_gross: totalChargesGross,
+        net_paid: totalNet,
+      },
+    })
+  } catch (err: any) {
+    console.error('Error getting annual statement:', err)
+    res.status(500).json({ error: 'Failed to get annual statement' })
   }
 })
 

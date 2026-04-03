@@ -802,6 +802,29 @@ export async function sendFeeInvoice(
     performedBy: userId
   })
 
+  // Create expected payment for tenant change fee
+  try {
+    const { createExpectedPayment } = await import('./rentgooseService')
+    const feeAmt = tenantChange.fee_waived ? 0 : tenantChange.fee_amount
+    if (feeAmt > 0) {
+      await createExpectedPayment(companyId, {
+        tenancy_id: tenantChange.tenancy_id,
+        payment_type: 'tenant_change_fee',
+        source_type: 'tenant_change',
+        source_id: tenantChangeId,
+        description: `Tenant change fee - ${propertyAddress}`,
+        amount_due: feeAmt,
+        status: 'pending',
+        payout_type: 'agent',
+        payout_split: [{ type: 'agent_fee', amount: feeAmt, description: 'Tenant change administration fee' }],
+        property_address: propertyAddress || undefined,
+        tenant_name: recipientName,
+      })
+    }
+  } catch (epError) {
+    console.error('[RentGoose] Failed to create tenant change fee expected payment:', epError)
+  }
+
   return formatTenantChange(data)
 }
 
@@ -851,6 +874,34 @@ export async function markFeeReceived(
     },
     performedBy: userId
   })
+
+  // Receipt the expected payment
+  try {
+    const { receiptExpectedPayment } = await import('./rentgooseService')
+    const { supabase: sb } = await import('../config/supabase')
+
+    const { data: ep } = await sb
+      .from('expected_payments')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('source_type', 'tenant_change')
+      .eq('source_id', tenantChangeId)
+      .in('status', ['pending', 'due'])
+      .limit(1)
+      .single()
+
+    if (ep) {
+      await receiptExpectedPayment(companyId, {
+        expected_payment_id: ep.id,
+        amount: input.amount,
+        payment_method: 'bank_transfer',
+        date_received: new Date().toISOString().split('T')[0],
+        receipted_by: userId,
+      })
+    }
+  } catch (epError) {
+    console.error('[RentGoose] Failed to receipt tenant change fee:', epError)
+  }
 
   return formatTenantChange(data)
 }

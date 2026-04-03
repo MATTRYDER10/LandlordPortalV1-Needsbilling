@@ -23,6 +23,9 @@ export interface ScheduleEntry {
   tenancy_ref?: string
   fee_percent?: number
   management_type?: string
+  rent_credit_amount?: number
+  rent_credit_reason?: string
+  original_amount_due?: number
 }
 
 export interface PayoutItem {
@@ -63,6 +66,37 @@ export interface ArrearsItem {
   day21_sent: boolean
   day28_sent: boolean
   status: string
+}
+
+export interface UnifiedPaymentItem {
+  id: string
+  item_type: 'rent' | 'expected_payment'
+  payment_type: string
+  tenancy_id?: string
+  property_id?: string
+  property_address?: string
+  property_postcode?: string
+  tenant_name?: string
+  tenant_names?: string
+  landlord_name?: string
+  landlord_id?: string
+  description: string
+  amount_due: number
+  amount_received: number
+  status: string
+  due_date?: string
+  paid_at?: string
+  payout_type?: string
+  payout_split?: Array<{ type: string; amount: number; description: string }>
+  source_type?: string
+  source_id?: string
+  period_start?: string
+  period_end?: string
+  fee_percent?: number
+  management_type?: string
+  tenancy_ref?: string
+  payout_sent_at?: string
+  total_charges?: number
 }
 
 export interface ClientAccountEntry {
@@ -109,6 +143,12 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
   const clientAccount = ref<{ entries: ClientAccountEntry[]; current_balance: number }>({ entries: [], current_balance: 0 })
   const agentFees = ref<any>(null)
   const contractors = ref<Contractor[]>([])
+
+  // Unified payments state
+  const unifiedItems = ref<UnifiedPaymentItem[]>([])
+  const categoryCounts = ref<Record<string, number>>({ all: 0, rent: 0, pre_tenancy: 0, invoices: 0, arrears: 0 })
+  const categoryFilter = ref<'all' | 'rent' | 'pre_tenancy' | 'invoices' | 'arrears'>('all')
+  const unifiedSummary = ref({ collected: 0, due: 0, arrears: 0, payoutsReady: 0, agentFees: 0 })
 
   // Actions
   async function fetchSchedule(filters?: Record<string, string>) {
@@ -210,6 +250,53 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     }
   }
 
+  async function applyRentCredit(payload: { schedule_entry_id: string; credit_amount: number; reason: string }) {
+    const result = await post<any>('/api/rentgoose/rent-credit', payload)
+    await fetchSchedule({ status: statusFilter.value })
+    await fetchUnifiedSchedule({ status: statusFilter.value })
+    return result
+  }
+
+  async function fetchUnifiedSchedule(filters?: Record<string, string>) {
+    loading.value = true
+    try {
+      const params = new URLSearchParams()
+      if (categoryFilter.value && categoryFilter.value !== 'all') params.set('category', categoryFilter.value)
+      if (filters?.status && filters.status !== 'all') params.set('status', filters.status)
+      if (filters?.payment_type) params.set('payment_type', filters.payment_type)
+
+      const data = await get<any>(`/api/rentgoose/unified-schedule?${params.toString()}`)
+      unifiedItems.value = data.items || []
+      categoryCounts.value = data.categoryCounts || { all: 0, rent: 0, pre_tenancy: 0, invoices: 0, arrears: 0 }
+      unifiedSummary.value = data.summary || { collected: 0, due: 0, arrears: 0, payoutsReady: 0, agentFees: 0 }
+    } catch (err) {
+      console.error('Failed to fetch unified schedule:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function receiptExpectedPayment(payload: any) {
+    const result = await post<any>('/api/rentgoose/receipt-expected', payload)
+    await fetchUnifiedSchedule({ status: statusFilter.value })
+    return result
+  }
+
+  async function fetchHoldingDepositCredit(tenancyId: string) {
+    try {
+      return await get<any>(`/api/rentgoose/holding-deposit-credit/${tenancyId}`)
+    } catch (err) {
+      console.error('Failed to fetch holding deposit credit:', err)
+      return { available: false, amount: 0, expected_payment_id: null }
+    }
+  }
+
+  const filteredUnifiedItems = computed(() => {
+    if (statusFilter.value === 'paid') return unifiedItems.value.filter(item => item.status === 'paid')
+    if (statusFilter.value === 'all') return unifiedItems.value.filter(item => item.status !== 'paid' && item.status !== 'cancelled')
+    return unifiedItems.value.filter(item => item.status === statusFilter.value)
+  })
+
   async function fetchContractors() {
     try {
       const data = await get<any>('/api/contractors')
@@ -260,5 +347,13 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     fetchContractors,
     uploadContractorInvoice,
     markContractorPaid,
+    unifiedItems,
+    categoryCounts,
+    categoryFilter,
+    unifiedSummary,
+    filteredUnifiedItems,
+    fetchUnifiedSchedule,
+    receiptExpectedPayment,
+    fetchHoldingDepositCredit,
   }
 })

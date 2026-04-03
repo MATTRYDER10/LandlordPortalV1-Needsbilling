@@ -49,15 +49,6 @@
           :property-id="property.id"
           :service-type-id="property.service_type_id || null"
           :fee-percent="property.fee_percent || null"
-          :management-fee-type="property.management_fee_type || null"
-          :letting-fee-amount="property.letting_fee_amount || null"
-        />
-
-        <!-- Fee Bar -->
-        <PropertyFeeBar
-          :property-id="property.id"
-          :service-type-id="property.service_type_id || null"
-          :fee-percent="property.fee_percent || null"
           :fee-type="property.fee_type || null"
           :letting-fee-amount="property.letting_fee_amount || null"
         />
@@ -788,7 +779,6 @@ import EditPropertyLandlordsModal from '../components/properties/EditPropertyLan
 import PropertyFeeBar from '../components/properties/PropertyFeeBar.vue'
 import CreateTenancyModal from '../components/tenancies/CreateTenancyModal.vue'
 import LandlordMoveInPackModal from '../components/properties/LandlordMoveInPackModal.vue'
-import PropertyFeeBar from '../components/properties/PropertyFeeBar.vue'
 import { useAuthStore } from '../stores/auth'
 import { authFetch } from '../lib/authFetch'
 import { useDownload } from '../composables/useDownload'
