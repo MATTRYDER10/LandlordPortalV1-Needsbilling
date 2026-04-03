@@ -1239,6 +1239,21 @@
                 </EditableField>
               </div>
               <div class="px-4 py-3 flex justify-between items-center">
+                <span class="text-sm text-gray-500 dark:text-slate-400">Rent &amp; Legal Protection</span>
+                <EditableField
+                  :model-value="tenancy?.has_rlp ?? false"
+                  type="boolean"
+                  :can-edit="true"
+                  display-class="text-sm font-medium text-gray-900 dark:text-white"
+                  @save="(v) => updateTenancyField('hasRlp', v)"
+                >
+                  <template #display>
+                    <span v-if="tenancy?.has_rlp" class="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">RLP Active</span>
+                    <span v-else class="text-sm font-medium text-gray-900 dark:text-white">No</span>
+                  </template>
+                </EditableField>
+              </div>
+              <div class="px-4 py-3 flex justify-between items-center">
                 <span class="text-sm text-gray-500 dark:text-slate-400">Deposit Scheme</span>
                 <EditableField
                   :model-value="tenancy?.deposit_scheme || 'dps'"

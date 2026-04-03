@@ -103,6 +103,7 @@
                   <span :class="['px-2 py-0.5 text-xs font-medium rounded-full', typeBadgeClass(item.payment_type)]">
                     {{ typeLabel(item.payment_type) }}
                   </span>
+                  <span v-if="item.item_type === 'rent' && (item as any).has_rlp" class="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">RLP</span>
                 </td>
                 <td class="px-4 py-3">
                   <div class="font-medium text-sm">{{ item.property_address || item.description }}</div>

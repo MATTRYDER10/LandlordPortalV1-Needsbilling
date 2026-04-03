@@ -26,6 +26,7 @@ export interface ScheduleEntry {
   rent_credit_amount?: number
   rent_credit_reason?: string
   original_amount_due?: number
+  has_rlp?: boolean
 }
 
 export interface PayoutItem {
@@ -97,6 +98,7 @@ export interface UnifiedPaymentItem {
   tenancy_ref?: string
   payout_sent_at?: string
   total_charges?: number
+  has_rlp?: boolean
 }
 
 export interface ClientAccountEntry {

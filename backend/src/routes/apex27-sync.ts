@@ -8,6 +8,8 @@ import {
   pushDocument,
   previewSync,
   confirmSync,
+  previewTenancySync,
+  confirmTenancySync,
   apex27Fetch
 } from '../services/apex27Service'
 import { decrypt } from '../services/encryption'
@@ -214,6 +216,74 @@ router.post('/landlords', authenticateToken, async (req: AuthRequest, res) => {
     res.json({ success: true, ...result.result })
   } catch (error) {
     console.error('[Apex27] Error syncing landlords:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+// ============================================================================
+// TENANCY SYNC (PREVIEW + CONFIRM)
+// ============================================================================
+
+/**
+ * POST /api/apex27/tenancies/preview
+ * Preview tenancy import — no DB writes
+ */
+router.post('/tenancies/preview', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync tenancies' })
+    }
+
+    const result = await previewTenancySync(companyData.companyId)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, items: result.items })
+  } catch (error) {
+    console.error('[Apex27] Error previewing tenancy sync:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/apex27/tenancies/confirm
+ * Confirm tenancy import — write approved items
+ */
+router.post('/tenancies/confirm', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { items } = req.body
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'items array is required' })
+    }
+
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync tenancies' })
+    }
+
+    const result = await confirmTenancySync(companyData.companyId, companyData.userId, items)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, ...result.result })
+  } catch (error) {
+    console.error('[Apex27] Error confirming tenancy sync:', error)
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
   }
 })

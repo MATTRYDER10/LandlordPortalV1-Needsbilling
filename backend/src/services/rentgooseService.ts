@@ -31,6 +31,7 @@ export interface ScheduleEntry {
   rent_credit_amount?: number
   rent_credit_reason?: string
   original_amount_due?: number
+  has_rlp?: boolean
 }
 
 export interface PayoutItem {
@@ -303,7 +304,7 @@ export async function getRentSchedule(companyId: string, filters: {
 
   const { data: tenancies } = await supabase
     .from('tenancies')
-    .select('id, property_id, rent_amount, monthly_rent')
+    .select('id, property_id, rent_amount, monthly_rent, has_rlp')
     .in('id', tenancyIds)
 
   if (!tenancies) return entries
@@ -404,6 +405,7 @@ export async function getRentSchedule(companyId: string, filters: {
       rent_credit_amount: entry.rent_credit_amount ? parseFloat(entry.rent_credit_amount) : undefined,
       rent_credit_reason: entry.rent_credit_reason || undefined,
       original_amount_due: entry.original_amount_due ? parseFloat(entry.original_amount_due) : undefined,
+      has_rlp: tenancy.has_rlp || false,
     })
   }
 
@@ -1804,6 +1806,7 @@ export interface UnifiedPaymentItem {
   tenant_names?: string
   payout_sent_at?: string
   total_charges?: number
+  has_rlp?: boolean
 }
 
 export async function createExpectedPayment(companyId: string, input: {
@@ -2059,6 +2062,7 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     tenancy_ref: e.tenancy_ref,
     payout_sent_at: e.payout_sent_at,
     total_charges: e.total_charges,
+    has_rlp: e.has_rlp,
   }))
 
   // Map expected payments to unified format

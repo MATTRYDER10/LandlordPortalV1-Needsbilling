@@ -75,6 +75,7 @@ export interface UpdateTenancyInput {
   depositReference?: string
   depositProtectedAt?: string
   billsIncluded?: boolean
+  hasRlp?: boolean
   additionalCharges?: AdditionalCharge[]
   compliancePackSentAt?: string
   compliancePackSentBy?: string
@@ -136,6 +137,7 @@ export interface Tenancy {
   deposit_reference: string | null
   deposit_protected_at: string | null
   bills_included: boolean
+  has_rlp: boolean
   additional_charges: AdditionalCharge[]
   rent_due_day: number
   has_break_clause: boolean
@@ -628,6 +630,7 @@ export async function updateTenancy(
   if (input.depositReference !== undefined) updateData.deposit_reference = input.depositReference
   if (input.depositProtectedAt !== undefined) updateData.deposit_protected_at = input.depositProtectedAt
   if (input.billsIncluded !== undefined) updateData.bills_included = input.billsIncluded
+  if (input.hasRlp !== undefined) updateData.has_rlp = input.hasRlp
   if (input.additionalCharges !== undefined) updateData.additional_charges = input.additionalCharges
   if (input.compliancePackSentAt !== undefined) {
     updateData.compliance_pack_sent_at = input.compliancePackSentAt
@@ -1319,6 +1322,7 @@ function formatTenancy(data: any): Tenancy {
     deposit_reference: data.deposit_reference,
     deposit_protected_at: data.deposit_protected_at,
     bills_included: data.bills_included,
+    has_rlp: data.has_rlp || false,
     additional_charges: data.additional_charges || [],
     rent_due_day: data.rent_due_day || 1,
     has_break_clause: data.has_break_clause,
