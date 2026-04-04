@@ -6166,6 +6166,14 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
       return res.status(500).json({ error: 'Failed to update tenancy' })
     }
 
+    // Propagate new due day to future RentGoose schedule entries
+    try {
+      const { updateFutureRentDueDates } = await import('../services/rentgooseService')
+      await updateFutureRentDueDates(req.params.id, change.new_due_day)
+    } catch (err) {
+      console.error('[activate] Failed to propagate due date change to schedule:', err)
+    }
+
     // Get company details for email and PDF
     const { data: companyRaw } = await supabase
       .from('companies')

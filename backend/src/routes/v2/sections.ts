@@ -538,25 +538,38 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
         : file.section_type === 'RESIDENTIAL' ? 'proof_of_address'
         : 'document'
 
-      // Get public URL
-      const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(file.file_path)
+      // Get signed URL (1 hour expiry)
+      const { data: urlData } = await supabase.storage.from('reference-documents').createSignedUrl(file.file_path, 3600)
 
       evidence[key] = {
-        url: urlData?.publicUrl || file.file_path,
+        url: urlData?.signedUrl || file.file_path,
         filename: file.file_name,
         type: file.file_type,
         uploadedAt: file.created_at
       }
     }
 
-    // Also extract document URLs from form_data
-    if (sectionFormData.selfieUrl) evidence.selfie = { url: sectionFormData.selfieUrl, filename: 'Selfie' }
-    if (sectionFormData.idDocumentUrl) evidence.id_document = { url: sectionFormData.idDocumentUrl, filename: 'ID Document' }
-    if (sectionFormData.passportDocUrl) evidence.rtr_document = { url: sectionFormData.passportDocUrl, filename: 'Passport' }
-    if (sectionFormData.alternativeDocUrl) evidence.rtr_document = { url: sectionFormData.alternativeDocUrl, filename: 'Alternative ID' }
-    if (sectionFormData.proofOfAddressUrl) evidence.proof_of_address = { url: sectionFormData.proofOfAddressUrl, filename: 'Proof of Address' }
-    if (sectionFormData.payslipsUrl) evidence.payslips = { url: sectionFormData.payslipsUrl, filename: 'Payslips' }
-    if (sectionFormData.taxReturnUrl) evidence.tax_return = { url: sectionFormData.taxReturnUrl, filename: 'Tax Return' }
+    // Re-sign any Supabase storage URL to get a fresh authenticated URL
+    async function resignUrl(storedUrl: string): Promise<string> {
+      if (!storedUrl) return storedUrl
+      // Extract the file path from a Supabase public URL
+      const match = storedUrl.match(/\/storage\/v1\/object\/public\/reference-documents\/(.+)/)
+      if (match) {
+        const filePath = decodeURIComponent(match[1])
+        const { data } = await supabase.storage.from('reference-documents').createSignedUrl(filePath, 3600)
+        return data?.signedUrl || storedUrl
+      }
+      return storedUrl
+    }
+
+    // Also extract document URLs from form_data (re-sign if they're Supabase URLs)
+    if (sectionFormData.selfieUrl) evidence.selfie = { url: await resignUrl(sectionFormData.selfieUrl), filename: 'Selfie' }
+    if (sectionFormData.idDocumentUrl) evidence.id_document = { url: await resignUrl(sectionFormData.idDocumentUrl), filename: 'ID Document' }
+    if (sectionFormData.passportDocUrl) evidence.rtr_document = { url: await resignUrl(sectionFormData.passportDocUrl), filename: 'Passport' }
+    if (sectionFormData.alternativeDocUrl) evidence.rtr_document = { url: await resignUrl(sectionFormData.alternativeDocUrl), filename: 'Alternative ID' }
+    if (sectionFormData.proofOfAddressUrl) evidence.proof_of_address = { url: await resignUrl(sectionFormData.proofOfAddressUrl), filename: 'Proof of Address' }
+    if (sectionFormData.payslipsUrl) evidence.payslips = { url: await resignUrl(sectionFormData.payslipsUrl), filename: 'Payslips' }
+    if (sectionFormData.taxReturnUrl) evidence.tax_return = { url: await resignUrl(sectionFormData.taxReturnUrl), filename: 'Tax Return' }
 
     // For RTR sections: also pull the passport/ID from the Identity section if not already present
     if (section.section_type === 'RTR') {
@@ -571,8 +584,8 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
         .eq('section_type', 'IDENTITY')
 
       for (const ev of (identityEvidence || [])) {
-        const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(ev.file_path)
-        const url = urlData?.publicUrl || ev.file_path
+        const { data: urlData } = await supabase.storage.from('reference-documents').createSignedUrl(ev.file_path, 3600)
+        const url = urlData?.signedUrl || ev.file_path
 
         if (ev.evidence_type === 'id_document' || ev.file_name?.toLowerCase().includes('id')) {
           if (!evidence.id_document_cross_ref) {
@@ -673,9 +686,9 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
         .limit(5)
       if (resEvidence && resEvidence.length > 0) {
         for (const file of resEvidence) {
-          const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(file.file_path)
+          const { data: urlData } = await supabase.storage.from('reference-documents').createSignedUrl(file.file_path, 3600)
           proofOfAddressForCredit = {
-            url: urlData?.publicUrl || file.file_path,
+            url: urlData?.signedUrl || file.file_path,
             filename: file.file_name,
             type: file.file_type,
             uploadedAt: file.created_at
@@ -1663,14 +1676,14 @@ router.get('/:id/pending-responses', authenticateStaff, async (req: StaffAuthReq
       .order('created_at', { ascending: false })
 
     // Get public URLs for files
-    const enrichedEvidence = (evidence || []).map(e => {
+    const enrichedEvidence = await Promise.all((evidence || []).map(async e => {
       let fileUrl = ''
       if (e.file_path) {
-        const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(e.file_path)
-        fileUrl = urlData?.publicUrl || ''
+        const { data: urlData } = await supabase.storage.from('reference-documents').createSignedUrl(e.file_path, 3600)
+        fileUrl = urlData?.signedUrl || ''
       }
       return { ...e, file_url: fileUrl }
-    })
+    }))
 
     res.json({ evidence: enrichedEvidence })
   } catch (error: any) {

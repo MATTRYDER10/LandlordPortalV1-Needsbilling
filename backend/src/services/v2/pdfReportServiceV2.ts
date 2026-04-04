@@ -312,11 +312,120 @@ export async function uploadV2ReportPdf(
 }
 
 /**
+ * Push report PDF to the tenancy's property documents tab (if tenancy exists)
+ */
+async function pushReportToTenancyDocuments(referenceId: string, filePath: string): Promise<void> {
+  try {
+    // Find tenancy linked to this reference
+    const { data: tenancy } = await supabase
+      .from('tenancies')
+      .select('id, property_id')
+      .eq('primary_reference_id', referenceId)
+      .is('deleted_at', null)
+      .limit(1)
+      .single()
+
+    if (!tenancy?.property_id) {
+      // Also check V2 references for linked_property_id
+      const { data: ref } = await supabase
+        .from('tenant_references_v2')
+        .select('linked_property_id, tenant_first_name_encrypted, tenant_last_name_encrypted, reference_number')
+        .eq('id', referenceId)
+        .single()
+
+      // Try finding tenancy by matching reference's parent
+      const { data: parentTenancy } = await supabase
+        .from('tenancies')
+        .select('id, property_id')
+        .eq('property_id', ref?.linked_property_id)
+        .is('deleted_at', null)
+        .in('status', ['active', 'pending', 'draft'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!parentTenancy?.property_id) {
+        console.log(`[V2 PDF] No linked tenancy found for reference ${referenceId}, skipping document push`)
+        return
+      }
+
+      const { decrypt } = await import('../encryption')
+      const tenantName = ref
+        ? `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+        : 'Tenant'
+
+      await supabase.from('property_documents').insert({
+        property_id: parentTenancy.property_id,
+        file_name: `Reference Report - ${tenantName}.pdf`,
+        file_path: filePath,
+        file_type: 'application/pdf',
+        tag: 'reference',
+        source_type: 'reference',
+        source_id: referenceId,
+        description: `Reference report ${ref?.reference_number || ''} - ${tenantName}`,
+        uploaded_by: null
+      })
+
+      console.log(`[V2 PDF] Report pushed to property_documents for property ${parentTenancy.property_id}`)
+      return
+    }
+
+    // Direct tenancy link found
+    const { decrypt } = await import('../encryption')
+    const { data: ref } = await supabase
+      .from('tenant_references_v2')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted, reference_number')
+      .eq('id', referenceId)
+      .single()
+
+    const tenantName = ref
+      ? `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+      : 'Tenant'
+
+    // Check if already pushed (avoid duplicates)
+    const { data: existing } = await supabase
+      .from('property_documents')
+      .select('id')
+      .eq('source_type', 'reference')
+      .eq('source_id', referenceId)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      console.log(`[V2 PDF] Report already in property_documents for reference ${referenceId}`)
+      return
+    }
+
+    await supabase.from('property_documents').insert({
+      property_id: tenancy.property_id,
+      file_name: `Reference Report - ${tenantName}.pdf`,
+      file_path: filePath,
+      file_type: 'application/pdf',
+      tag: 'reference',
+      source_type: 'reference',
+      source_id: referenceId,
+      description: `Reference report ${ref?.reference_number || ''} - ${tenantName}`,
+      uploaded_by: null
+    })
+
+    console.log(`[V2 PDF] Report pushed to property_documents for tenancy ${tenancy.id}`)
+  } catch (err) {
+    console.error(`[V2 PDF] Failed to push report to property_documents:`, err)
+    // Don't throw — this is a nice-to-have, not critical
+  }
+}
+
+/**
  * Generate and upload V2 report PDF
  */
 export async function generateAndUploadV2Report(referenceId: string): Promise<string> {
   const pdfBuffer = await generateV2ReportPdf(referenceId)
   const pdfUrl = await uploadV2ReportPdf(referenceId, pdfBuffer)
   console.log(`[V2 PDF] Report uploaded: ${pdfUrl}`)
+
+  // Extract storage path from the URL for property_documents
+  const pathMatch = pdfUrl.match(/\/reference-reports\/[^\s?]+/)
+  const storagePath = pathMatch ? pathMatch[0].replace(/^\//, '') : `reference-reports/${referenceId}/`
+  await pushReportToTenancyDocuments(referenceId, storagePath)
+
   return pdfUrl
 }

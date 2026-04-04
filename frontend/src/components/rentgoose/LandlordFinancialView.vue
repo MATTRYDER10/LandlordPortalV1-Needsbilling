@@ -1,52 +1,74 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-lg font-semibold">Landlords</h2>
-      <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">Financial history, statements &amp; annual tax summaries</p>
+      <h2 class="text-[15px] font-semibold text-primary">Landlords</h2>
+      <div class="flex items-center gap-4">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search landlords..."
+          class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white w-56 focus:ring-2 focus:ring-primary/50 focus:border-primary"
+        />
+        <p v-if="filteredLandlords.length > 0" class="text-[13px] text-gray-500 dark:text-slate-400">
+          {{ filteredLandlords.length }} landlord{{ filteredLandlords.length !== 1 ? 's' : '' }} &middot;
+          &pound;{{ formatMoney(filteredLandlords.reduce((s: number, l: any) => s + (l.total_paid || 0), 0)) }} total paid
+        </p>
+      </div>
     </div>
 
     <div v-if="loading" class="flex justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
 
-    <div v-else-if="landlords.length === 0" class="text-center py-12" :class="isDark ? 'text-slate-400' : 'text-gray-400'">
-      No landlords linked to active tenancies yet.
+    <div v-else-if="filteredLandlords.length === 0" class="flex flex-col items-center justify-center py-16">
+      <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+      <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No landlords yet</p>
+      <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Landlords linked to active tenancies will appear here with their financial history.</p>
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-3">
       <div
-        v-for="landlord in landlords"
+        v-for="landlord in filteredLandlords"
         :key="landlord.id"
-        :class="['rounded-xl border overflow-hidden', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']"
+        :class="['rounded-[10px] border overflow-hidden transition-colors', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 hover:border-gray-300']"
       >
         <!-- Landlord header -->
         <button
           @click="toggleExpand(landlord.id)"
-          class="w-full px-5 py-4 flex items-center justify-between text-left"
+          class="w-full px-5 py-4 flex items-center text-left hover:bg-[#fff7ed] dark:hover:bg-slate-700/50 transition-colors"
         >
-          <div>
-            <p class="font-medium">{{ landlord.name }}</p>
+          <!-- ZONE 1: Name + property count + Active pill -->
+          <div class="flex-1">
+            <p class="font-semibold text-sm">{{ landlord.name }}</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <p :class="['text-xs', isDark ? 'text-slate-400' : 'text-gray-500']">{{ landlord.property_count }} propert{{ landlord.property_count === 1 ? 'y' : 'ies' }}</p>
+              <span class="bg-[#dcfce7] text-[#15803d] rounded-full text-[10px] font-medium px-2 py-0.5">Active</span>
+            </div>
+          </div>
+          <!-- ZONE 2: Property count muted -->
+          <div class="w-32 text-center">
             <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">{{ landlord.property_count }} propert{{ landlord.property_count === 1 ? 'y' : 'ies' }}</p>
           </div>
-          <div class="flex items-center gap-4">
-            <div class="text-right">
-              <p class="font-bold text-emerald-500">&pound;{{ formatMoney(landlord.total_paid) }}</p>
-              <p :class="['text-xs', isDark ? 'text-slate-400' : 'text-gray-500']">total paid out</p>
+          <!-- ZONE 3: Total paid + view statement + chevron -->
+          <div class="text-right flex items-center gap-4">
+            <div>
+              <p :class="['font-bold tabular-nums', landlord.total_paid > 0 ? 'text-[#15803d]' : 'text-gray-400 dark:text-slate-500']">&pound;{{ formatMoney(landlord.total_paid) }}</p>
+              <p class="text-xs text-[#f97316] mt-0.5">View statement &rarr;</p>
             </div>
-            <svg :class="['w-5 h-5 transition-transform', expandedId === landlord.id ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            <svg :class="['w-5 h-5 transition-transform text-gray-400 dark:text-slate-500', expandedId === landlord.id ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
         </button>
 
         <!-- Expanded content -->
-        <div v-if="expandedId === landlord.id" :class="['border-t px-5 py-4', isDark ? 'border-slate-700' : 'border-gray-100']">
+        <div v-if="expandedId === landlord.id" :class="['border-t px-5 py-4', isDark ? 'border-slate-700' : 'border-[#f3f4f6]']">
           <!-- Annual statement download -->
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold" :class="isDark ? 'text-slate-300' : 'text-gray-700'">Annual Tax Statement</h3>
+            <h3 class="text-[15px] font-semibold" :class="isDark ? 'text-slate-300' : 'text-primary'">Annual Tax Statement</h3>
             <div class="flex items-center gap-2">
               <select v-model="selectedTaxYear" :class="['text-sm rounded-lg px-3 py-1.5 border', isDark ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200']">
                 <option v-for="yr in taxYears" :key="yr" :value="yr">{{ yr - 1 }}/{{ yr }} (Apr 6 – Apr 5)</option>
               </select>
-              <button @click="downloadAnnualStatement(landlord.id, landlord.name)" class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-orange-600 rounded-lg transition-colors">
+              <button @click="downloadAnnualStatement(landlord.id, landlord.name)" class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2 text-xs transition-colors">
                 Download CSV
               </button>
             </div>
@@ -54,40 +76,48 @@
 
           <!-- Statements table -->
           <div v-if="landlordStatements[landlord.id]?.length > 0">
-            <table class="w-full">
-              <thead>
-                <tr>
-                  <th class="text-left text-xs uppercase py-2" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Date</th>
-                  <th class="text-right text-xs uppercase py-2" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Gross Rent</th>
-                  <th class="text-right text-xs uppercase py-2" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Charges</th>
-                  <th class="text-right text-xs uppercase py-2" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Net Paid</th>
-                  <th class="text-right text-xs uppercase py-2" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Statement</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="s in landlordStatements[landlord.id]" :key="s.id" :class="['border-t', isDark ? 'border-slate-700' : 'border-gray-100']">
-                  <td class="py-2 text-sm">{{ formatDate(s.paid_at) }}</td>
-                  <td class="py-2 text-sm text-right">&pound;{{ formatMoney(s.gross_rent) }}</td>
-                  <td class="py-2 text-sm text-right text-red-500">-&pound;{{ formatMoney(s.total_charges) }}</td>
-                  <td class="py-2 text-sm text-right font-medium text-emerald-500">&pound;{{ formatMoney(s.net_payout) }}</td>
-                  <td class="py-2 text-right">
-                    <button v-if="s.statement_pdf_path" @click="downloadPdf(s.statement_pdf_path, s.id)" class="text-xs text-primary hover:underline">Download PDF</button>
-                    <span v-else class="text-xs text-gray-400">—</span>
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr :class="['border-t-2 font-medium', isDark ? 'border-slate-600' : 'border-gray-300']">
-                  <td class="py-2 text-sm font-semibold">Total</td>
-                  <td class="py-2 text-sm text-right font-semibold">&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.gross_rent, 0)) }}</td>
-                  <td class="py-2 text-sm text-right font-semibold text-red-500">-&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.total_charges, 0)) }}</td>
-                  <td class="py-2 text-sm text-right font-semibold text-emerald-500">&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.net_payout, 0)) }}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
+            <div :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+              <table class="w-full">
+                <thead>
+                  <tr :class="isDark ? 'bg-slate-800' : 'bg-gray-50'">
+                    <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Date</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Gross Rent</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Charges</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Net Paid</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Statement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(s, idx) in landlordStatements[landlord.id]"
+                    :key="s.id"
+                    :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
+                  >
+                    <td class="px-4 py-3 text-sm">{{ formatDate(s.paid_at) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-medium tabular-nums">&pound;{{ formatMoney(s.gross_rent) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-medium text-[#dc2626] tabular-nums">-&pound;{{ formatMoney(s.total_charges) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-medium text-[#15803d] tabular-nums">&pound;{{ formatMoney(s.net_payout) }}</td>
+                    <td class="px-4 py-3 text-right">
+                      <button v-if="s.statement_pdf_path" @click="downloadPdf(s.statement_pdf_path, s.id)" class="text-xs text-primary hover:underline">Download PDF</button>
+                      <span v-else class="text-xs text-gray-400 dark:text-slate-500">---</span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr :class="['border-t-2 font-medium', isDark ? 'border-slate-600' : 'border-gray-300']">
+                    <td class="px-4 py-3 text-sm font-semibold">Total</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold tabular-nums">&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.gross_rent, 0)) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-[#dc2626] tabular-nums">-&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.total_charges, 0)) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-[#15803d] tabular-nums">&pound;{{ formatMoney(landlordStatements[landlord.id].reduce((s: number, r: any) => s + r.net_payout, 0)) }}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
-          <p v-else :class="['text-sm py-4 text-center', isDark ? 'text-slate-500' : 'text-gray-400']">No payouts recorded yet.</p>
+          <div v-else class="flex flex-col items-center justify-center py-8">
+            <p class="text-[13px] text-gray-500 dark:text-slate-400">No payouts recorded yet.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -95,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDarkMode } from '../../composables/useDarkMode'
 import { useApi } from '../../composables/useApi'
 
@@ -104,8 +134,18 @@ const { get } = useApi()
 
 const loading = ref(true)
 const landlords = ref<any[]>([])
+const searchQuery = ref('')
 const expandedId = ref<string | null>(null)
 const landlordStatements = ref<Record<string, any[]>>({})
+
+const filteredLandlords = computed(() => {
+  if (!searchQuery.value.trim()) return landlords.value
+  const q = searchQuery.value.toLowerCase()
+  return landlords.value.filter((l: any) =>
+    (l.name || '').toLowerCase().includes(q) ||
+    (l.property_addresses || []).some((addr: string) => addr.toLowerCase().includes(q))
+  )
+})
 
 // Tax year selection
 const currentYear = new Date().getFullYear()

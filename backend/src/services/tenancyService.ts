@@ -704,6 +704,16 @@ export async function updateTenancy(
     }
   }
 
+  // Propagate rent amount changes to future RentGoose schedule entries
+  if (input.monthlyRent !== undefined) {
+    try {
+      const { updateFutureRentAmounts } = await import('./rentgooseService')
+      await updateFutureRentAmounts(tenancyId, input.monthlyRent)
+    } catch (err) {
+      console.error('[TenancyService] Failed to propagate rent change to schedule:', err)
+    }
+  }
+
   return formatTenancy(data)
 }
 

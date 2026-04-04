@@ -2490,6 +2490,11 @@
             </div>
           </div>
 
+          <!-- Utilities Tab (JMI) -->
+          <div v-if="activeTab === 'utilities'">
+            <JMIUtilitiesTab :tenancy="tenancy" />
+          </div>
+
           <!-- Activity Tab -->
           <div v-if="activeTab === 'activity'" class="space-y-6">
             <!-- Add Note Section -->
@@ -3053,6 +3058,7 @@ import ProtectDepositModal from './ProtectDepositModal.vue'
 import InitialMoniesModal from './InitialMoniesModal.vue'
 import ManualReceiptModal from './ManualReceiptModal.vue'
 import TenancyAgreementModal from './TenancyAgreementModal.vue'
+import JMIUtilitiesTab from './JMIUtilitiesTab.vue'
 import TenancyAgreementStatus from './TenancyAgreementStatus.vue'
 import MoveInPackModal from './MoveInPackModal.vue'
 import LandlordMoveInPackModal from '../properties/LandlordMoveInPackModal.vue'
@@ -3088,7 +3094,7 @@ const emit = defineEmits<{
 const toast = useToast()
 const authStore = useAuthStore()
 // State
-const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'activity'>('overview')
+const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'utilities' | 'activity'>('overview')
 const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
@@ -3611,6 +3617,7 @@ const tabs = [
   { key: 'documents' as const, label: 'Documents' },
   { key: 'inspections' as const, label: 'Inspections' },
   { key: 'rent' as const, label: 'Tenancy Changes' },
+  { key: 'utilities' as const, label: 'Utilities' },
   { key: 'activity' as const, label: 'Activity' }
 ]
 

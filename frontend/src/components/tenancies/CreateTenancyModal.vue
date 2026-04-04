@@ -902,6 +902,7 @@ const loadCompletedReferences = async () => {
           monthlyRent: t.monthlyRent || 0,
           moveInDate: t.moveInDate || '',
           depositAmount: t.depositAmount || 0,
+          depositReplacementOffered: t.depositReplacementOffered || false,
           // Store ALL tenants for use when creating tenancy
           people: tenants.map((p: any, idx: number) => ({
             name: p.name || '',
@@ -974,6 +975,11 @@ const selectReference = (ref: any) => {
   }
   if (ref.depositAmount > 0) {
     form.value.depositAmount = ref.depositAmount
+  }
+
+  // Default to Reposit if the offer had deposit replacement
+  if (ref.depositReplacementOffered) {
+    form.value.depositScheme = 'reposit'
   }
 
   // Try to fuzzy match property

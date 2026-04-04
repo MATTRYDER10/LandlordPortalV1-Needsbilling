@@ -1686,6 +1686,82 @@ export async function updateScheduleStatuses(): Promise<void> {
 }
 
 // ============================================================================
+// RENT AMOUNT / DUE DATE PROPAGATION
+// ============================================================================
+
+/**
+ * Update amount_due on all unpaid future rent schedule entries when tenancy rent changes.
+ */
+export async function updateFutureRentAmounts(tenancyId: string, newMonthlyRent: number): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: entries, error: fetchErr } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, due_date, status')
+    .eq('tenancy_id', tenancyId)
+    .in('status', ['upcoming', 'due', 'overdue'])
+    .gte('due_date', today)
+
+  if (fetchErr || !entries || entries.length === 0) return
+
+  const { error } = await supabase
+    .from('rent_schedule_entries')
+    .update({ amount_due: newMonthlyRent, updated_at: new Date().toISOString() })
+    .in('id', entries.map(e => e.id))
+
+  if (error) {
+    console.error('[RentGoose] Failed to update future rent amounts:', error)
+  } else {
+    console.log(`[RentGoose] Updated ${entries.length} future entries to £${newMonthlyRent} for tenancy ${tenancyId}`)
+  }
+}
+
+/**
+ * Update due_date on all unpaid future rent schedule entries when rent due day changes.
+ */
+export async function updateFutureRentDueDates(tenancyId: string, newDueDay: number): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: entries, error: fetchErr } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, due_date, period_start')
+    .eq('tenancy_id', tenancyId)
+    .in('status', ['upcoming', 'due', 'overdue'])
+    .gte('due_date', today)
+
+  if (fetchErr || !entries || entries.length === 0) return
+
+  for (const entry of entries) {
+    const period = new Date(entry.period_start)
+    const newDueDate = new Date(period.getFullYear(), period.getMonth(), newDueDay)
+    // If due day is before period start, push to next month
+    if (newDueDate < period) {
+      newDueDate.setMonth(newDueDate.getMonth() + 1)
+    }
+
+    const todayDate = new Date()
+    todayDate.setHours(0, 0, 0, 0)
+    const dueDateOnly = new Date(newDueDate)
+    dueDateOnly.setHours(0, 0, 0, 0)
+
+    let newStatus = 'upcoming'
+    if (dueDateOnly.getTime() === todayDate.getTime()) newStatus = 'due'
+    else if (dueDateOnly < todayDate) newStatus = 'overdue'
+
+    await supabase
+      .from('rent_schedule_entries')
+      .update({
+        due_date: newDueDate.toISOString().split('T')[0],
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', entry.id)
+  }
+
+  console.log(`[RentGoose] Updated due dates for ${entries.length} future entries to day ${newDueDay} for tenancy ${tenancyId}`)
+}
+
+// ============================================================================
 // TENANCY LIFECYCLE — ARCHIVE / REACTIVATE
 // ============================================================================
 

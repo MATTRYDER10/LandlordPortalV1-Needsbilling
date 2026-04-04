@@ -825,23 +825,38 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
 
     const { supabase } = await import('../config/supabase')
 
-    // Get all active tenancies for this company
+    // Get all active managed tenancies for this company (exclude let-only)
     const { data: tenancies, error } = await supabase
       .from('tenancies')
-      .select('id, status')
+      .select('id, status, property_id')
       .eq('company_id', companyId)
       .in('status', ['active', 'notice_given'])
       .is('deleted_at', null)
 
     if (error) throw error
-    if (!tenancies || tenancies.length === 0) {
-      return res.json({ message: 'No active tenancies found', count: 0 })
+
+    // Filter to only managed properties
+    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+    let managedPropertyIds = new Set<string>()
+    if (propertyIds.length > 0) {
+      const { data: props } = await supabase
+        .from('properties')
+        .select('id, management_type')
+        .in('id', propertyIds)
+        .neq('management_type', 'let_only')
+      managedPropertyIds = new Set((props || []).map(p => p.id))
+    }
+
+    const managedTenancies = (tenancies || []).filter(t => !t.property_id || managedPropertyIds.has(t.property_id))
+
+    if (managedTenancies.length === 0) {
+      return res.json({ message: 'No managed active tenancies found', count: 0 })
     }
 
     let successCount = 0
     const errors: string[] = []
 
-    for (const tenancy of tenancies) {
+    for (const tenancy of managedTenancies) {
       try {
         await rentgooseService.initTenancySchedule(tenancy.id, companyId)
         successCount++
@@ -851,9 +866,9 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
     }
 
     res.json({
-      message: `Initialised ${successCount} of ${tenancies.length} tenancies`,
+      message: `Initialised ${successCount} of ${managedTenancies.length} managed tenancies (${(tenancies || []).length - managedTenancies.length} let-only excluded)`,
       count: successCount,
-      total: tenancies.length,
+      total: managedTenancies.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err: any) {
@@ -1013,12 +1028,32 @@ router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
       payoutTotals.set(p.landlord_id, (payoutTotals.get(p.landlord_id) || 0) + parseFloat(p.net_payout))
     }
 
+    // Get property addresses for search
+    const { data: allProperties } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, postcode')
+      .in('id', propertyIds)
+
+    const propertyAddrMap = new Map<string, string>()
+    for (const p of (allProperties || [])) {
+      propertyAddrMap.set(p.id, `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`)
+    }
+
+    // Build property addresses per landlord
+    const landlordPropertyAddresses = new Map<string, string[]>()
+    for (const pl of (propLandlords || [])) {
+      if (!landlordPropertyAddresses.has(pl.landlord_id)) landlordPropertyAddresses.set(pl.landlord_id, [])
+      const addr = propertyAddrMap.get(pl.property_id)
+      if (addr) landlordPropertyAddresses.get(pl.landlord_id)!.push(addr)
+    }
+
     const result = (landlords || []).map(l => ({
       id: l.id,
       name: `${decrypt(l.first_name_encrypted) || ''} ${decrypt(l.last_name_encrypted) || ''}`.trim(),
       email: decrypt(l.email_encrypted) || '',
       property_count: propsByLandlord.get(l.id)?.size || 0,
       total_paid: payoutTotals.get(l.id) || 0,
+      property_addresses: landlordPropertyAddresses.get(l.id) || [],
     }))
 
     res.json({ landlords: result })

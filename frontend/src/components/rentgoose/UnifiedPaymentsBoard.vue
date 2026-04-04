@@ -1,60 +1,76 @@
 <template>
   <div>
     <!-- Summary stat cards -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-bold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Collected</p>
-        <p class="text-2xl font-bold text-emerald-500 mt-1">&pound;{{ formatMoney(store.unifiedSummary.collected) }}</p>
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <!-- Collected = PRIMARY card -->
+      <div class="bg-[#fff7ed] dark:bg-orange-950/30 border border-gray-200 dark:border-slate-700 border-l-[3px] border-l-[#f97316] rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Collected</p>
+        <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.unifiedSummary.collected) }}</p>
       </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-bold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Due</p>
-        <p class="text-2xl font-bold text-amber-500 mt-1">&pound;{{ formatMoney(store.unifiedSummary.due) }}</p>
+      <!-- Due = neutral white -->
+      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Due</p>
+        <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.unifiedSummary.due) }}</p>
       </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-bold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Arrears</p>
-        <p class="text-2xl font-bold text-red-500 mt-1">&pound;{{ formatMoney(store.unifiedSummary.arrears) }}</p>
-      </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-bold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Payouts Ready</p>
-        <p class="text-2xl font-bold text-primary mt-1">&pound;{{ formatMoney(store.unifiedSummary.payoutsReady) }}</p>
-      </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-bold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Agent Fees</p>
-        <p class="text-2xl font-bold text-purple-500 mt-1">&pound;{{ formatMoney(store.unifiedSummary.agentFees) }}</p>
+      <!-- Arrears = red accent if > 0, neutral if 0 -->
+      <div :class="[
+        'rounded-[10px] px-5 py-4 border',
+        store.unifiedSummary.arrears > 0
+          ? 'bg-[#fef2f2] dark:bg-red-950/30 border-l-[3px] border-l-[#dc2626] border-gray-200 dark:border-slate-700'
+          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+      ]">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Arrears</p>
+        <p :class="['text-[22px] font-bold mt-1', store.unifiedSummary.arrears > 0 ? 'text-[#dc2626]' : 'text-gray-900 dark:text-white']">&pound;{{ formatMoney(store.unifiedSummary.arrears) }}</p>
       </div>
     </div>
 
-    <!-- Category tabs -->
-    <div class="flex gap-2 mb-4 flex-wrap">
-      <button
-        v-for="cat in categories"
-        :key="cat.value"
-        @click="setCategory(cat.value)"
-        :class="[
-          'px-3 py-1.5 text-sm font-medium rounded-full transition-all',
-          store.categoryFilter === cat.value
-            ? 'bg-primary text-white'
-            : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-        ]"
-      >
-        {{ cat.label }}
-        <span v-if="store.categoryCounts[cat.value] > 0" class="ml-1 opacity-75">({{ store.categoryCounts[cat.value] }})</span>
-      </button>
-    </div>
-
-    <!-- Status filter pills -->
-    <div class="flex gap-2 mb-4 flex-wrap">
-      <button
-        v-for="filter in statusFilters"
-        :key="filter.value"
-        @click="setStatusFilter(filter.value)"
-        :class="[
-          'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
-          store.statusFilter === filter.value
-            ? 'bg-primary/20 text-primary border border-primary/30'
-            : isDark ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-        ]"
-      >{{ filter.label }}</button>
+    <!-- Unified filter bar -->
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <!-- LEFT: type pills -->
+      <div class="flex gap-2 flex-wrap">
+        <button
+          v-for="cat in categories"
+          :key="cat.value"
+          @click="setCategory(cat.value)"
+          :class="[
+            'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
+            store.categoryFilter === cat.value
+              ? 'bg-gray-800 text-white'
+              : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
+          ]"
+        >
+          {{ cat.label }}
+          <span v-if="store.categoryCounts[cat.value] > 0" class="ml-1 opacity-75">({{ store.categoryCounts[cat.value] }})</span>
+        </button>
+      </div>
+      <!-- RIGHT: status dropdown -->
+      <div class="relative">
+        <button
+          @click="showStatusDropdown = !showStatusDropdown"
+          :class="[
+            'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all flex items-center gap-1',
+            store.statusFilter !== 'all'
+              ? 'bg-gray-800 text-white'
+              : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
+          ]"
+        >
+          Status: {{ statusDropdownOptions.find(o => o.value === store.statusFilter)?.label || 'All Active' }} &#9662;
+        </button>
+        <div
+          v-if="showStatusDropdown"
+          class="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg z-20 py-1"
+        >
+          <button
+            v-for="opt in statusDropdownOptions"
+            :key="opt.value"
+            @click="setStatusFilter(opt.value); showStatusDropdown = false"
+            :class="[
+              'w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors',
+              store.statusFilter === opt.value ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-slate-400'
+            ]"
+          >{{ opt.label }}</button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -63,41 +79,42 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="sortedItems.length === 0" class="text-center py-12" :class="isDark ? 'text-slate-400' : 'text-gray-400'">
-      No payment entries found for this filter.
+    <div v-else-if="sortedItems.length === 0" class="flex flex-col items-center justify-center py-16">
+      <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+      <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No payments found</p>
+      <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Try adjusting your filters or check back when new payments are scheduled.</p>
     </div>
 
     <!-- Grouped by month -->
     <div v-else class="space-y-6">
       <div v-for="group in groupedByMonth" :key="group.key">
         <!-- Month header -->
-        <div class="flex items-center gap-3 mb-3 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
-          <h3 class="text-sm font-bold text-primary">{{ group.label }}</h3>
-          <div class="flex-1 h-px bg-primary/20"></div>
-          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/20 text-primary">
+        <div class="bg-[#f9fafb] dark:bg-slate-800 h-10 px-4 flex items-center justify-between rounded-lg">
+          <h3 class="text-[12px] font-semibold uppercase tracking-[0.06em] text-gray-700 dark:text-slate-300">{{ group.label }}</h3>
+          <span class="text-[12px] font-medium px-2.5 py-0.5 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
             {{ group.items.length }} item{{ group.items.length === 1 ? '' : 's' }} &middot; &pound;{{ formatMoney(group.totalDue) }}
           </span>
         </div>
 
         <!-- Table for this month -->
-        <div :class="['rounded-xl border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+        <div :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
           <table class="w-full">
             <thead>
               <tr :class="isDark ? 'bg-slate-800' : 'bg-gray-50'">
-                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Type</th>
-                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Property / Description</th>
-                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide hidden md:table-cell" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Tenant</th>
-                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Due Date</th>
-                <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Amount</th>
-                <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Status</th>
-                <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Action</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Type</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Property / Description</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500 hidden md:table-cell">Tenant</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Due Date</th>
+                <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Amount</th>
+                <th class="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Status</th>
+                <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Action</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="item in group.items"
+                v-for="(item, idx) in group.items"
                 :key="item.id"
-                :class="['border-t transition-colors', isDark ? 'border-slate-700 hover:bg-slate-800/50' : 'border-gray-100 hover:bg-gray-50']"
+                :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
               >
                 <td class="px-4 py-3">
                   <span :class="['px-2 py-0.5 text-xs font-medium rounded-full', typeBadgeClass(item.payment_type)]">
@@ -106,14 +123,17 @@
                   <span v-if="item.item_type === 'rent' && (item as any).has_rlp" class="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">RLP</span>
                 </td>
                 <td class="px-4 py-3">
-                  <div class="font-medium text-sm">{{ item.property_address || item.description }}</div>
+                  <div v-if="item.property_address" class="font-semibold text-sm">
+                    {{ item.property_address }} <span :class="['font-normal', isDark ? 'text-slate-400' : 'text-gray-500']">&middot; {{ item.tenant_name || item.tenant_names || '-' }}</span>
+                  </div>
+                  <div v-else class="font-semibold text-sm">{{ item.description }}</div>
                   <div v-if="item.property_address" :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">{{ item.description }}</div>
                 </td>
                 <td class="px-4 py-3 text-sm hidden md:table-cell" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ item.tenant_name || item.tenant_names || '-' }}</td>
-                <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ formatDate(item.due_date) }}</td>
-                <td class="px-4 py-3 text-sm text-right font-medium">&pound;{{ formatMoney(item.amount_due) }}</td>
+                <td class="px-4 py-3 text-sm" :class="isOverdue(item) ? 'text-red-600 font-semibold' : (isDark ? 'text-slate-300' : 'text-gray-700')">{{ formatDate(item.due_date) }}</td>
+                <td class="px-4 py-3 text-sm text-right font-medium tabular-nums">&pound;{{ formatMoney(item.amount_due) }}</td>
                 <td class="px-4 py-3 text-center">
-                  <span :class="['px-2 py-1 text-xs font-medium rounded-full', statusClass(item.status)]">
+                  <span :class="['px-2.5 py-0.5 text-xs font-medium rounded-full', statusClass(item.status)]">
                     {{ statusLabel(item.status) }}
                   </span>
                 </td>
@@ -121,7 +141,7 @@
                   <button
                     v-if="item.status !== 'paid' && item.status !== 'cancelled'"
                     @click="openReceipt(item)"
-                    class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-orange-600 rounded-lg transition-colors"
+                    class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2 text-xs transition-colors"
                   >
                     Receipt
                   </button>
@@ -152,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDarkMode } from '../../composables/useDarkMode'
 import { useRentGooseStore, type ScheduleEntry, type UnifiedPaymentItem } from '../../stores/rentgoose'
 import ReceiptModal from './ReceiptModal.vue'
@@ -171,16 +191,17 @@ const categories = [
   { label: 'Rent', value: 'rent' },
   { label: 'Pre-Tenancy', value: 'pre_tenancy' },
   { label: 'Invoices', value: 'invoices' },
-  { label: 'Arrears', value: 'arrears' },
 ]
 
-const statusFilters = [
+const showStatusDropdown = ref(false)
+
+const statusDropdownOptions = [
   { label: 'All Active', value: 'all' },
   { label: 'Due', value: 'due' },
   { label: 'Arrears', value: 'arrears' },
   { label: 'Partial', value: 'partial' },
   { label: 'Scheduled', value: 'scheduled' },
-  { label: 'Show Paid', value: 'paid' },
+  { label: 'Paid', value: 'paid' },
 ]
 
 const statusOrder: Record<string, number> = { arrears: 0, overdue: 0, due: 1, partial: 2, pending: 2, scheduled: 3, upcoming: 3, paid: 4, cancelled: 5 }
@@ -232,6 +253,12 @@ function setStatusFilter(value: string) {
   store.fetchUnifiedSchedule({ status: value })
 }
 
+function isOverdue(item: UnifiedPaymentItem) {
+  if (item.status === 'arrears' || item.status === 'overdue') return true
+  if (!item.due_date) return false
+  return item.status !== 'paid' && item.status !== 'cancelled' && new Date(item.due_date) < new Date()
+}
+
 function openReceipt(item: UnifiedPaymentItem) {
   if (item.item_type === 'rent') {
     selectedRentEntry.value = {
@@ -266,12 +293,12 @@ function onReceipted() {
 
 function typeBadgeClass(type: string) {
   switch (type) {
-    case 'rent': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    case 'rent': return 'bg-[#eff6ff] text-[#1d4ed8]'
     case 'holding_deposit': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     case 'initial_monies': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
     case 'deposit': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-    case 'tenant_change_fee': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-    case 'rent_change_fee': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+    case 'tenant_change_fee': return 'bg-[#eff6ff] text-[#1d4ed8]'
+    case 'rent_change_fee': return 'bg-[#eff6ff] text-[#1d4ed8]'
     case 'invoice': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
     default: return 'bg-gray-100 text-gray-500'
   }
@@ -292,12 +319,12 @@ function typeLabel(type: string) {
 
 function statusClass(status: string) {
   switch (status) {
-    case 'arrears': case 'overdue': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-    case 'due': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    case 'pending': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    case 'scheduled': case 'upcoming': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    case 'partial': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-    case 'paid': return 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'
+    case 'arrears': case 'overdue': return 'bg-[#fee2e2] text-[#b91c1c]'
+    case 'due': return 'bg-[#fef3c7] text-[#b45309]'
+    case 'pending': return 'bg-[#fef3c7] text-[#b45309]'
+    case 'scheduled': case 'upcoming': return 'bg-gray-100 text-gray-700'
+    case 'partial': return 'bg-[#fef3c7] text-[#b45309]'
+    case 'paid': return 'bg-[#dcfce7] text-[#15803d]'
     default: return 'bg-gray-100 text-gray-500'
   }
 }
@@ -323,7 +350,18 @@ function formatDate(dateStr?: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function handleClickOutside(e: MouseEvent) {
+  if (showStatusDropdown.value && !(e.target as HTMLElement)?.closest?.('.relative')) {
+    showStatusDropdown.value = false
+  }
+}
+
 onMounted(() => {
   store.fetchUnifiedSchedule()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>

@@ -11,39 +11,41 @@
           <p :class="['text-sm mt-1', isDark ? 'text-slate-400' : 'text-gray-500']">Rent collection, payouts & client account management</p>
         </div>
         <button
+          v-if="['collection', 'payouts', 'fees', 'contractors'].includes(store.activeTab)"
           @click="showRaiseCharge = true"
-          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-orange-600 rounded-lg transition-colors"
+          class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors"
         >
           Raise Invoice / Charge / Credit
         </button>
       </div>
 
       <!-- Sub-tab navigation -->
-      <div class="flex gap-1 mt-4 overflow-x-auto">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="store.activeTab = tab.id"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
-            store.activeTab === tab.id
-              ? 'bg-primary text-white shadow-md shadow-primary/30'
-              : isDark
-                ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          ]"
-        >
-          {{ tab.name }}
-          <span
-            v-if="tab.count !== undefined && tab.count > 0"
+      <div class="flex gap-1 mt-4 overflow-x-auto items-center">
+        <template v-for="(tab, index) in tabs" :key="tab.id">
+          <div v-if="index === 3" class="w-px h-4 bg-gray-200 self-center mx-1"></div>
+          <button
+            @click="store.activeTab = tab.id"
             :class="[
-              'ml-1.5 px-1.5 py-0.5 text-xs rounded-full',
+              'px-4 py-2 text-sm rounded-lg transition-all whitespace-nowrap',
               store.activeTab === tab.id
-                ? 'bg-white/20'
-                : isDark ? 'bg-slate-700' : 'bg-gray-200'
+                ? 'bg-[#f97316] text-white font-semibold'
+                : isDark
+                  ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  : 'text-gray-700 hover:bg-gray-100'
             ]"
-          >{{ tab.count }}</span>
-        </button>
+          >
+            {{ tab.name }}
+            <span
+              v-if="tab.count !== undefined && tab.count > 0"
+              :class="[
+                'ml-1.5 px-1.5 py-0.5 text-xs rounded-full',
+                store.activeTab === tab.id
+                  ? 'bg-white/20'
+                  : isDark ? 'bg-slate-700' : 'bg-gray-200'
+              ]"
+            >{{ tab.count }}</span>
+          </button>
+        </template>
       </div>
     </div>
 
@@ -73,7 +75,6 @@ import { useDarkMode } from '../composables/useDarkMode'
 import { useRentGooseStore } from '../stores/rentgoose'
 import Sidebar from '../components/Sidebar.vue'
 import UnifiedPaymentsBoard from '../components/rentgoose/UnifiedPaymentsBoard.vue'
-import RentCollectionBoard from '../components/rentgoose/RentCollectionBoard.vue'
 import PayoutsBoard from '../components/rentgoose/PayoutsBoard.vue'
 import AgentFeesBoard from '../components/rentgoose/AgentFeesBoard.vue'
 import LandlordFinancialView from '../components/rentgoose/LandlordFinancialView.vue'

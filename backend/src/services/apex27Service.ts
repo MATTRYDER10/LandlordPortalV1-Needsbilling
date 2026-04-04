@@ -1695,8 +1695,8 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
       const listing = tenancy.listing
       const listingId = listing?.id ? String(listing.id) : ''
 
-      // Build address
-      const apex27Address = listing?.displayAddress || [listing?.address1, listing?.city, listing?.postalCode].filter(Boolean).join(', ')
+      // Build address from all lines (excluding displayAddress which may be truncated)
+      const apex27Address = [listing?.address1, listing?.address2, listing?.address3, listing?.city, listing?.county, listing?.postalCode].filter(Boolean).join(', ')
       const apex27Postcode = listing?.postalCode || ''
 
       // Match property
@@ -1952,12 +1952,15 @@ export async function confirmTenancySync(
           continue
         }
 
-        // Resolve landlord — match or create, link to property
-        if (item.importLandlord && item.landlordContact) {
+        // Resolve landlord — match or create, always link to property
+        if (item.landlordContact) {
           const lc = item.landlordContact
           let landlordId = landlordCache.get(lc.apex27Id) || lc.matchedLandlordId || null
 
-          if (!landlordId) {
+          if (landlordId) {
+            // Already matched — just ensure cache is set
+            landlordCache.set(lc.apex27Id, landlordId)
+          } else {
             // Try to find by apex27_contact_id
             const { data: existingByApex } = await supabase
               .from('landlords')

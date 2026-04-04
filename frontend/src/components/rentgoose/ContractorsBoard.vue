@@ -1,70 +1,85 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-lg font-semibold">Contractors</h2>
+      <h2 class="text-[15px] font-semibold text-primary">Contractors</h2>
       <div class="flex items-center gap-3">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search contractors..."
+          class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white w-56 focus:ring-2 focus:ring-primary/50 focus:border-primary"
+        />
         <label class="flex items-center gap-2">
           <input type="checkbox" v-model="showArchived" @change="reloadContractors" class="rounded text-primary" />
           <span class="text-sm" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Show archived</span>
         </label>
-        <button @click="showContractorModal = true" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-orange-600 rounded-lg transition-colors">
+        <button @click="showContractorModal = true" class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors">
           Add Contractor
         </button>
       </div>
     </div>
 
     <!-- Contractor list -->
-    <div v-if="store.contractors.length === 0 && !store.loading" class="text-center py-12" :class="isDark ? 'text-slate-400' : 'text-gray-400'">
-      No contractors added yet. Add your first contractor to start uploading invoices.
+    <div v-if="filteredContractors.length === 0 && !store.loading" class="flex flex-col items-center justify-center py-16">
+      <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+      <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No contractors added yet</p>
+      <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Add your first contractor to start uploading invoices and managing payouts.</p>
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-3">
       <div
-        v-for="contractor in store.contractors"
+        v-for="contractor in filteredContractors"
         :key="contractor.id"
-        :class="['rounded-xl border overflow-hidden', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']"
+        :class="['rounded-[10px] border overflow-hidden transition-colors', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 hover:border-gray-300']"
       >
         <!-- Card header -->
-        <div class="px-5 py-4 flex items-center justify-between">
-          <div class="cursor-pointer" @click="toggleExpand(contractor)">
-            <p class="font-medium text-primary hover:underline">{{ contractor.name }}</p>
-            <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">
+        <div class="px-5 py-4 flex items-center justify-between min-h-[52px]">
+          <!-- LEFT: name + company/email -->
+          <div class="cursor-pointer flex-1" @click="toggleExpand(contractor)">
+            <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ contractor.name }}</p>
+            <p :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
               {{ contractor.company_name || '' }}
               <span v-if="contractor.email"> &middot; {{ contractor.email }}</span>
             </p>
           </div>
-          <div class="flex items-center gap-4">
-            <div v-if="contractor.pi_policy_number" class="text-right">
-              <p :class="['text-xs uppercase', isDark ? 'text-slate-400' : 'text-gray-500']">PI Policy</p>
-              <p class="text-xs">{{ contractor.pi_policy_number }}</p>
-              <p v-if="contractor.pi_expiry_date" :class="['text-xs', isPIExpired(contractor.pi_expiry_date) ? 'text-red-500 font-medium' : 'text-gray-400']">
-                {{ isPIExpired(contractor.pi_expiry_date) ? 'EXPIRED' : 'Exp: ' + formatDate(contractor.pi_expiry_date) }}
-              </p>
-            </div>
-            <div v-else class="text-right">
-              <p :class="['text-xs text-amber-500']">No PI on file</p>
-            </div>
-            <div class="text-right">
-              <p :class="['text-xs uppercase', isDark ? 'text-slate-400' : 'text-gray-500']">Commission</p>
-              <p class="font-medium">{{ contractor.commission_percent }}%{{ contractor.commission_vat ? ' + VAT' : '' }}</p>
-            </div>
-            <span v-if="contractor.archived_at" class="px-2 py-0.5 text-xs bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 rounded-full">Archived</span>
+
+          <!-- CENTRE: commission pill + PI warning -->
+          <div class="flex items-center gap-3 mx-4">
+            <span class="bg-[#eff6ff] text-[#1d4ed8] rounded-full text-xs font-medium px-2.5 py-0.5">
+              {{ contractor.commission_percent }}%{{ contractor.commission_vat ? ' + VAT' : '' }}
+            </span>
+            <span v-if="!contractor.pi_policy_number" class="bg-[#fef3c7] text-[#b45309] rounded-full text-xs font-medium px-2.5 py-0.5">
+              ⚠ No PI on file
+            </span>
+            <template v-else>
+              <span v-if="isPIExpired(contractor.pi_expiry_date)" class="bg-[#fee2e2] text-[#b91c1c] rounded-full text-xs font-medium px-2.5 py-0.5">
+                PI Expired
+              </span>
+              <span v-else class="text-xs text-gray-400 dark:text-slate-500">
+                PI Exp: {{ formatDate(contractor.pi_expiry_date) }}
+              </span>
+            </template>
+            <span v-if="contractor.archived_at" class="bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-full text-xs font-medium px-2.5 py-0.5">Archived</span>
+          </div>
+
+          <!-- RIGHT: buttons -->
+          <div class="flex items-center gap-2">
             <template v-if="!contractor.archived_at">
               <button
                 @click="openInvoiceUpload(contractor)"
-                class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-orange-600 rounded-lg"
+                class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2 text-xs transition-colors"
               >
                 Upload Invoice
               </button>
               <button
                 @click="editContractor(contractor)"
-                :class="['px-3 py-1.5 text-xs font-medium rounded-lg', isDark ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-100 hover:bg-gray-200']"
+                class="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg px-3.5 py-2 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 Edit
               </button>
               <button
                 @click="deleteContractor(contractor)"
-                class="px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-700 rounded-lg"
+                class="px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-700 rounded-lg transition-colors"
               >
                 Delete
               </button>
@@ -80,93 +95,89 @@
         </div>
 
         <!-- Expanded detail -->
-        <div v-if="expandedId === contractor.id" :class="['border-t', isDark ? 'border-slate-700' : 'border-gray-100']">
+        <div v-if="expandedId === contractor.id" :class="['border-t', isDark ? 'border-slate-700' : 'border-[#f3f4f6]']">
           <!-- Contractor details -->
-          <div :class="['px-5 py-4 grid grid-cols-3 gap-4 text-sm', isDark ? 'bg-slate-800/50' : 'bg-gray-50']">
+          <div :class="['px-5 py-4 grid grid-cols-3 gap-4 text-sm', isDark ? 'bg-slate-800/50' : 'bg-[#f9fafb]']">
             <div>
-              <p :class="['text-xs uppercase', isDark ? 'text-slate-400' : 'text-gray-500']">Phone</p>
-              <p>{{ contractor.phone || '—' }}</p>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Phone</p>
+              <p>{{ contractor.phone || '---' }}</p>
             </div>
             <div>
-              <p :class="['text-xs uppercase', isDark ? 'text-slate-400' : 'text-gray-500']">Bank Details</p>
-              <p>{{ contractor.bank_details?.account_name || '—' }}</p>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Bank Details</p>
+              <p>{{ contractor.bank_details?.account_name || '---' }}</p>
               <p v-if="contractor.bank_details?.sort_code">{{ contractor.bank_details.sort_code }} / ****{{ (contractor.bank_details.account_number || '').slice(-4) }}</p>
             </div>
             <div>
-              <p :class="['text-xs uppercase', isDark ? 'text-slate-400' : 'text-gray-500']">Notes</p>
-              <p>{{ contractor.notes || '—' }}</p>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Notes</p>
+              <p>{{ contractor.notes || '---' }}</p>
             </div>
           </div>
 
           <!-- Transaction history -->
           <div class="px-5 py-4">
-            <p :class="['text-xs uppercase font-medium mb-3', isDark ? 'text-slate-400' : 'text-gray-500']">Invoice History</p>
+            <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold mb-3">Invoice History</p>
 
             <div v-if="loadingInvoices" class="text-center py-4">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto"></div>
             </div>
 
-            <div v-else-if="contractorInvoices.length === 0" :class="['text-sm py-3', isDark ? 'text-slate-500' : 'text-gray-400']">
+            <div v-else-if="contractorInvoices.length === 0" class="text-[13px] text-gray-500 dark:text-slate-400 py-3 text-center">
               No invoices yet.
             </div>
 
-            <table v-else class="w-full text-sm">
-              <thead>
-                <tr :class="isDark ? 'text-slate-400' : 'text-gray-500'">
-                  <th class="text-left py-2 text-xs uppercase">Date</th>
-                  <th class="text-left py-2 text-xs uppercase">Invoice #</th>
-                  <th class="text-left py-2 text-xs uppercase">Property</th>
-                  <th class="text-right py-2 text-xs uppercase">Gross</th>
-                  <th class="text-right py-2 text-xs uppercase">Commission</th>
-                  <th class="text-right py-2 text-xs uppercase">Payout</th>
-                  <th class="text-center py-2 text-xs uppercase">Status</th>
-                  <th class="text-right py-2 text-xs uppercase">Invoice</th>
-                  <th class="text-right py-2 text-xs uppercase">Remittance</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="inv in contractorInvoices"
-                  :key="inv.id"
-                  :class="['border-t', isDark ? 'border-slate-700' : 'border-gray-100']"
-                >
-                  <td class="py-2">{{ formatDate(inv.invoice_date) }}</td>
-                  <td class="py-2">{{ inv.invoice_number }}</td>
-                  <td class="py-2">{{ inv.property_address || '—' }}</td>
-                  <td class="py-2 text-right">&pound;{{ formatMoney(inv.gross_amount) }}</td>
-                  <td class="py-2 text-right">&pound;{{ formatMoney(inv.commission_net) }}</td>
-                  <td class="py-2 text-right font-medium">&pound;{{ formatMoney(inv.payout_amount) }}</td>
-                  <td class="py-2 text-center">
-                    <span
-                      :class="[
-                        'px-2 py-0.5 text-xs rounded-full',
-                        inv.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        inv.status === 'charged' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      ]"
-                    >{{ inv.status }}</span>
-                  </td>
-                  <td class="py-2 text-right">
-                    <a v-if="inv.pdf_path" :href="inv.pdf_path" target="_blank" class="text-primary hover:underline text-xs">Download</a>
-                    <span v-else class="text-gray-400">—</span>
-                  </td>
-                  <td class="py-2 text-right">
-                    <button v-if="inv.remittance_pdf_path" @click="downloadRemittance(inv.id)" class="text-primary hover:underline text-xs">Download</button>
-                    <span v-else-if="inv.status === 'paid'" class="text-gray-400 text-xs">Pending</span>
-                    <span v-else class="text-gray-400">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div v-else :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr :class="isDark ? 'bg-slate-800' : 'bg-gray-50'">
+                    <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Date</th>
+                    <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Invoice #</th>
+                    <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Property</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Gross</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Commission</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Payout</th>
+                    <th class="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Status</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Invoice</th>
+                    <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Remittance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(inv, idx) in contractorInvoices"
+                    :key="inv.id"
+                    :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
+                  >
+                    <td class="px-4 py-3">{{ formatDate(inv.invoice_date) }}</td>
+                    <td class="px-4 py-3">{{ inv.invoice_number }}</td>
+                    <td class="px-4 py-3">{{ inv.property_address || '---' }}</td>
+                    <td class="px-4 py-3 text-right font-medium tabular-nums">&pound;{{ formatMoney(inv.gross_amount) }}</td>
+                    <td class="px-4 py-3 text-right tabular-nums">&pound;{{ formatMoney(inv.commission_net) }}</td>
+                    <td class="px-4 py-3 text-right font-medium tabular-nums">&pound;{{ formatMoney(inv.payout_amount) }}</td>
+                    <td class="px-4 py-3 text-center">
+                      <span
+                        :class="[
+                          'px-2.5 py-0.5 text-xs font-medium rounded-full',
+                          inv.status === 'paid' ? 'bg-[#dcfce7] text-[#15803d]' :
+                          inv.status === 'charged' ? 'bg-[#eff6ff] text-[#1d4ed8]' :
+                          'bg-[#fef3c7] text-[#b45309]'
+                        ]"
+                      >{{ inv.status }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <a v-if="inv.pdf_path" :href="inv.pdf_path" target="_blank" class="text-primary hover:underline text-xs">Download</a>
+                      <span v-else class="text-gray-400 dark:text-slate-500">---</span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <button v-if="inv.remittance_pdf_path" @click="downloadRemittance(inv.id)" class="text-primary hover:underline text-xs">Download</button>
+                      <span v-else-if="inv.status === 'paid'" class="text-gray-400 dark:text-slate-500 text-xs">Pending</span>
+                      <span v-else class="text-gray-400 dark:text-slate-500">---</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <!-- Expand toggle -->
-        <div :class="['px-5 py-2 border-t', isDark ? 'border-slate-700' : 'border-gray-100']">
-          <button @click="toggleExpand(contractor)" class="text-sm text-primary hover:underline">
-            {{ expandedId === contractor.id ? 'Hide details' : 'View details' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -189,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDarkMode } from '../../composables/useDarkMode'
 import { useRentGooseStore, type Contractor } from '../../stores/rentgoose'
 import { useApi } from '../../composables/useApi'
@@ -200,6 +211,18 @@ const { isDark } = useDarkMode()
 const store = useRentGooseStore()
 const { get, post, del } = useApi()
 const showArchived = ref(false)
+const searchQuery = ref('')
+
+const filteredContractors = computed(() => {
+  if (!searchQuery.value.trim()) return store.contractors
+  const q = searchQuery.value.toLowerCase()
+  return store.contractors.filter((c: any) =>
+    (c.name || '').toLowerCase().includes(q) ||
+    (c.company_name || '').toLowerCase().includes(q) ||
+    (c.email || '').toLowerCase().includes(q) ||
+    (c.notes || '').toLowerCase().includes(q)
+  )
+})
 
 const showContractorModal = ref(false)
 const showInvoiceModal = ref(false)
@@ -296,7 +319,7 @@ function formatMoney(val: number) {
 }
 
 function formatDate(dateStr: string) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '---'
   return new Date(dateStr).toLocaleDateString('en-GB')
 }
 

@@ -875,7 +875,7 @@
         </div>
 
         <!-- Apex27 CRM Tab -->
-        <div v-else-if="activeTab === 'apex27'" class="max-w-3xl">
+        <div v-else-if="activeTab === 'apex27'">
           <Apex27IntegrationSettings />
         </div>
 
@@ -887,11 +887,6 @@
         <!-- Just Move In Tab -->
         <div v-else-if="activeTab === 'jmi'" class="max-w-3xl">
           <JMIIntegrationSettings />
-        </div>
-
-        <!-- Property Settings Tab -->
-        <div v-else-if="activeTab === 'property-settings'">
-          <PropertySettings />
         </div>
 
         <!-- Property Settings Tab -->
@@ -1108,6 +1103,8 @@ const activeTab = computed(() => {
   if (path.includes('/settings/review-links')) return 'review-links'
   if (path.includes('/settings/apex27')) return 'apex27'
   if (path.includes('/settings/inventorygoose')) return 'inventorygoose'
+  if (path.includes('/settings/jmi')) return 'jmi'
+  if (path.includes('/settings/property-settings')) return 'property-settings'
   // Legacy route support
   if (path.includes('/settings/integrations')) return 'tds'
   return 'profile'
@@ -1127,7 +1124,6 @@ const tabs = computed(() => {
     { id: 'apex27', name: 'Apex27 CRM' },
     { id: 'inventorygoose', name: 'InventoryGoose' },
     { id: 'jmi', name: 'Just Move In' },
-    { id: 'property-settings', name: 'Property Settings' },
     { id: 'property-settings', name: 'Property Settings' },
     { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }

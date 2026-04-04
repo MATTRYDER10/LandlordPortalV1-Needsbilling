@@ -157,6 +157,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
           offer_unihomes: !!offer_unihomes,
           linked_property_id: propertyIdToLink || null,
           negotiator_id: negotiator_id || null,
+          is_v2: true,
           status: 'sent'
         })
         .select('id, status')
@@ -432,11 +433,12 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Get sent offer forms
+    // Get sent offer forms (V2 only)
     const { data: sentForms, error } = await supabase
       .from('sent_offer_forms')
       .select('*')
       .eq('company_id', companyId)
+      .eq('is_v2', true)
       .or('status.eq.sent,status.is.null')
       .order('sent_at', { ascending: false })
 

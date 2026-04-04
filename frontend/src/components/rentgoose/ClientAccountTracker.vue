@@ -2,20 +2,21 @@
   <div>
     <!-- Summary bar -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div :class="['rounded-xl p-4 border-2 border-primary/20', isDark ? 'bg-slate-800' : 'bg-primary/5']">
-        <p :class="['text-xs font-medium uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Current Balance</p>
-        <p class="text-2xl font-bold text-primary mt-1">&pound;{{ formatMoney(store.clientAccount.current_balance) }}</p>
+      <!-- Current Balance = PRIMARY -->
+      <div class="bg-[#fff7ed] dark:bg-orange-950/30 border border-gray-200 dark:border-slate-700 border-l-[3px] border-l-[#f97316] rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Current Balance</p>
+        <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.clientAccount.current_balance) }}</p>
       </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-medium uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Rent Held</p>
-        <p class="text-2xl font-bold text-emerald-500 mt-1">&pound;{{ formatMoney(rentHeld) }}</p>
+      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Rent Held</p>
+        <p class="text-[22px] font-bold text-[#15803d] mt-1">&pound;{{ formatMoney(rentHeld) }}</p>
       </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-medium uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Deposits Held</p>
-        <p class="text-2xl font-bold text-blue-500 mt-1">&pound;{{ formatMoney(depositsHeld) }}</p>
+      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposits Held</p>
+        <p class="text-[22px] font-bold text-[#3b82f6] mt-1">&pound;{{ formatMoney(depositsHeld) }}</p>
       </div>
-      <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
-        <p :class="['text-xs font-medium uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">Last Updated</p>
+      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Last Updated</p>
         <p class="text-sm font-medium mt-2">{{ lastUpdated }}</p>
       </div>
     </div>
@@ -23,63 +24,68 @@
     <!-- Chart of Accounts -->
     <div class="mb-6">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold" :class="isDark ? 'text-slate-300' : 'text-gray-700'">Chart of Accounts</h3>
+        <button @click="showChartOfAccounts = !showChartOfAccounts" class="flex items-center gap-2 text-[15px] font-semibold text-primary hover:underline">
+          <svg :class="['w-4 h-4 transition-transform', showChartOfAccounts ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          Chart of Accounts
+        </button>
         <button
-          v-if="expandedCategory"
+          v-if="expandedCategory && showChartOfAccounts"
           @click="expandedCategory = null"
           class="text-xs text-primary hover:underline"
         >Back to overview</button>
       </div>
 
-      <!-- Category cards -->
-      <div v-if="!expandedCategory" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <button
-          v-for="cat in accountCategories"
-          :key="cat.type"
-          @click="expandedCategory = cat.type"
-          :class="['rounded-xl p-3 border text-left transition-all hover:shadow-md', isDark ? 'bg-slate-800 border-slate-700 hover:border-slate-500' : 'bg-white border-gray-200 hover:border-gray-400']"
-        >
-          <div class="flex items-center gap-2 mb-1">
-            <span :class="['w-2.5 h-2.5 rounded-full', cat.dotClass]"></span>
-            <span :class="['text-xs font-medium uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-gray-500']">{{ cat.label }}</span>
-          </div>
-          <p :class="['text-lg font-bold', cat.amountClass]">&pound;{{ formatMoney(cat.total) }}</p>
-          <p :class="['text-xs mt-0.5', isDark ? 'text-slate-500' : 'text-gray-400']">{{ cat.count }} entr{{ cat.count === 1 ? 'y' : 'ies' }}</p>
-        </button>
-      </div>
+      <div v-if="showChartOfAccounts">
+        <!-- Category cards -->
+        <div v-if="!expandedCategory" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <button
+            v-for="cat in accountCategories"
+            :key="cat.type"
+            @click="expandedCategory = cat.type"
+            :class="[
+              'rounded-[10px] p-4 border text-left transition-all hover:shadow-md',
+              cat.type === highestBalanceType ? 'bg-[#f9fafb] dark:bg-slate-700/50' : '',
+              isDark ? 'bg-slate-800 border-slate-700 hover:border-slate-500' : 'bg-white border-gray-200 hover:border-gray-400'
+            ]"
+            :style="{ borderLeftWidth: '3px', borderLeftColor: categoryBorderColor(cat.type) }"
+          >
+            <span :class="['text-[11px] uppercase tracking-[0.06em] font-semibold', isDark ? 'text-slate-400' : 'text-gray-500']">{{ cat.label }}</span>
+            <p :class="['text-lg font-bold mt-1 tabular-nums', cat.amountClass]">&pound;{{ formatMoney(cat.total) }}</p>
+            <p :class="['text-xs mt-0.5', isDark ? 'text-slate-500' : 'text-gray-400']">{{ cat.count }} entr{{ cat.count === 1 ? 'y' : 'ies' }}</p>
+          </button>
+        </div>
 
-      <!-- Expanded category detail table -->
-      <div v-else>
-        <div :class="['rounded-xl border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
-          <div :class="['px-4 py-2 text-sm font-semibold', isDark ? 'bg-slate-800 text-slate-300' : 'bg-gray-50 text-gray-700']">
+        <!-- Expanded category detail -->
+        <div v-else :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+          <div :class="['px-4 py-2 text-[15px] font-semibold', isDark ? 'bg-slate-800 text-slate-300' : 'bg-[#f9fafb] text-primary']">
             {{ accountCategories.find(c => c.type === expandedCategory)?.label }} — {{ categoryEntries.length }} entries
           </div>
           <table class="w-full">
             <thead>
-              <tr :class="isDark ? 'bg-slate-800/50' : 'bg-gray-50/50'">
-                <th class="px-4 py-2 text-left text-xs uppercase" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Date</th>
-                <th class="px-4 py-2 text-left text-xs uppercase" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Description</th>
-                <th class="px-4 py-2 text-left text-xs uppercase" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Reference</th>
-                <th class="px-4 py-2 text-right text-xs uppercase" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Amount</th>
+              <tr :class="isDark ? 'bg-slate-800/50' : 'bg-gray-50'">
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Date</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Description</th>
+                <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Reference</th>
+                <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Amount</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="e in categoryEntries" :key="e.id" :class="['border-t', isDark ? 'border-slate-700' : 'border-gray-100']">
-                <td class="px-4 py-2 text-sm">{{ formatDateTime(e.created_at) }}</td>
-                <td class="px-4 py-2 text-sm">{{ e.description }}</td>
-                <td class="px-4 py-2 text-sm" :class="isDark ? 'text-slate-400' : 'text-gray-500'">{{ e.reference || '—' }}</td>
-                <td :class="['px-4 py-2 text-sm text-right font-medium', isCredit(e.entry_type) ? 'text-emerald-500' : 'text-red-500']">
+              <tr v-for="(e, idx) in categoryEntries" :key="e.id" :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']">
+                <td class="px-4 py-3 text-sm">{{ formatDateTime(e.created_at) }}</td>
+                <td class="px-4 py-3 text-sm">{{ e.description }}</td>
+                <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-400' : 'text-gray-500'">{{ e.reference || '---' }}</td>
+                <td :class="['px-4 py-3 text-sm text-right font-bold tabular-nums', isCredit(e.entry_type) ? 'text-[#15803d]' : 'text-[#dc2626]']">
                   {{ isCredit(e.entry_type) ? '' : '-' }}&pound;{{ formatMoney(e.amount) }}
                 </td>
               </tr>
               <tr v-if="categoryEntries.length === 0">
-                <td colspan="4" class="px-4 py-8 text-center text-sm" :class="isDark ? 'text-slate-500' : 'text-gray-400'">No entries in this category.</td>
+                <td colspan="4" class="px-4 py-8 text-center text-[13px] text-gray-500 dark:text-slate-400">No entries in this category.</td>
               </tr>
             </tbody>
             <tfoot v-if="categoryEntries.length > 0">
               <tr :class="['border-t-2 font-medium', isDark ? 'border-slate-600' : 'border-gray-300']">
-                <td colspan="3" class="px-4 py-2 text-sm font-semibold">Total</td>
-                <td class="px-4 py-2 text-sm text-right font-bold">&pound;{{ formatMoney(categoryEntries.reduce((s, e) => s + (isCredit(e.entry_type) ? e.amount : -e.amount), 0)) }}</td>
+                <td colspan="3" class="px-4 py-3 text-sm font-semibold">Total</td>
+                <td class="px-4 py-3 text-sm text-right font-bold tabular-nums">&pound;{{ formatMoney(categoryEntries.reduce((s, e) => s + (isCredit(e.entry_type) ? e.amount : -e.amount), 0)) }}</td>
               </tr>
             </tfoot>
           </table>
@@ -87,11 +93,14 @@
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex gap-3 mb-6">
-      <button @click="showManualModal = true" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-orange-600 rounded-lg transition-colors">Add Manual Entry</button>
-      <button @click="showReconcileModal = true" :class="['px-4 py-2 text-sm font-medium rounded-lg border transition-colors', isDark ? 'border-slate-600 hover:bg-slate-800' : 'border-gray-300 hover:bg-gray-50']">Reconcile</button>
-      <button @click="exportCSV" :class="['px-4 py-2 text-sm font-medium rounded-lg border transition-colors', isDark ? 'border-slate-600 hover:bg-slate-800' : 'border-gray-300 hover:bg-gray-50']">Export CSV</button>
+    <!-- Transactions sub-header -->
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-[15px] font-semibold text-primary">Transactions</h3>
+      <div class="flex gap-2">
+        <button @click="showManualModal = true" class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors">Add Manual Entry</button>
+        <button @click="showReconcileModal = true" class="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg px-3.5 py-2 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">Reconcile</button>
+        <button @click="exportCSV" class="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg px-3.5 py-2 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">Export CSV</button>
+      </div>
     </div>
 
     <!-- Filter by type -->
@@ -101,32 +110,32 @@
         :key="filter.value"
         @click="selectedType = filter.value"
         :class="[
-          'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
+          'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
           selectedType === filter.value
-            ? 'bg-primary text-white'
-            : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            ? 'bg-gray-800 text-white'
+            : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
         ]"
       >{{ filter.label }}</button>
     </div>
 
     <!-- Ledger table -->
-    <div :class="['rounded-xl border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+    <div :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
       <table class="w-full">
         <thead>
           <tr :class="isDark ? 'bg-slate-800' : 'bg-gray-50'">
-            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Date/Time</th>
-            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Type</th>
-            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Description</th>
-            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Credit</th>
-            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Debit</th>
-            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" :class="isDark ? 'text-slate-400' : 'text-gray-500'">Balance</th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Date/Time</th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Type</th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Description</th>
+            <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Credit</th>
+            <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Debit</th>
+            <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Balance</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="entry in filteredEntries"
+            v-for="(entry, idx) in filteredEntries"
             :key="entry.id"
-            :class="['border-t', isDark ? 'border-slate-700' : 'border-gray-100']"
+            :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
           >
             <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ formatDateTime(entry.created_at) }}</td>
             <td class="px-4 py-3">
@@ -136,22 +145,32 @@
               <span v-if="entry.is_manual" class="ml-1 text-xs text-purple-500">M</span>
             </td>
             <td class="px-4 py-3 text-sm">{{ entry.description }}</td>
-            <td class="px-4 py-3 text-sm text-right font-medium text-emerald-500">
+            <td class="px-4 py-3 text-sm text-right font-bold text-[#15803d] tabular-nums">
               {{ isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
             </td>
-            <td class="px-4 py-3 text-sm text-right font-medium text-red-500">
+            <td class="px-4 py-3 text-sm text-right font-bold text-[#dc2626] tabular-nums">
               {{ !isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
             </td>
-            <td class="px-4 py-3 text-sm text-right font-bold">&pound;{{ formatMoney(entry.balance_after) }}</td>
+            <td class="px-4 py-3 text-sm text-right font-semibold tabular-nums">
+              &pound;{{ formatMoney(entry.balance_after) }}
+              <span v-if="idx < filteredEntries.length - 1 && entry.balance_after > filteredEntries[idx + 1].balance_after" class="text-[#15803d] text-xs ml-1">&uarr;</span>
+              <span v-else-if="idx < filteredEntries.length - 1 && entry.balance_after < filteredEntries[idx + 1].balance_after" class="text-[#dc2626] text-xs ml-1">&darr;</span>
+            </td>
           </tr>
           <tr v-if="filteredEntries.length === 0">
-            <td colspan="6" class="px-4 py-12 text-center" :class="isDark ? 'text-slate-400' : 'text-gray-400'">
-              No entries found. Add an opening balance to get started.
+            <td colspan="6" class="px-4 py-12 text-center">
+              <div class="flex flex-col items-center">
+                <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No entries found</p>
+                <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Add an opening balance to get started.</p>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- Modals moved below -->
 
     <!-- Manual Entry Modal -->
     <ManualEntryModal v-if="showManualModal" @close="showManualModal = false" @saved="onSaved" />
@@ -175,6 +194,7 @@ const showManualModal = ref(false)
 const showReconcileModal = ref(false)
 const selectedType = ref('all')
 const expandedCategory = ref<string | null>(null)
+const showChartOfAccounts = ref(false)
 
 const typeFilters = [
   { label: 'All', value: 'all' },
@@ -237,6 +257,30 @@ const accountCategories = computed(() => {
     }
   })
 })
+
+const highestBalanceType = computed(() => {
+  let max = 0
+  let maxType = ''
+  for (const cat of accountCategories.value) {
+    if (Math.abs(cat.total) > max) {
+      max = Math.abs(cat.total)
+      maxType = cat.type
+    }
+  }
+  return maxType
+})
+
+function categoryBorderColor(type: string) {
+  switch (type) {
+    case 'rent': return '#22c55e'
+    case 'holding_deposit': return '#8b5cf6'
+    case 'deposit': return '#3b82f6'
+    case 'fees': return '#f97316'
+    case 'contractor': return '#dc2626'
+    case 'manual': return '#9ca3af'
+    default: return '#e5e7eb'
+  }
+}
 
 const categoryEntries = computed(() => {
   if (!expandedCategory.value) return []
