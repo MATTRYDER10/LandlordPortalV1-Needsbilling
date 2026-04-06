@@ -130,6 +130,10 @@ export async function generateLandlordStatement(companyId: string, payout: Payou
       // === TITLE ===
       doc.moveDown(0.8)
       doc.fontSize(18).fillColor(primaryColor).font('Helvetica-Bold').text('Rental Statement', L, doc.y, { width: W, align: 'center' })
+      if (payout.ownership_percentage && payout.ownership_percentage < 100) {
+        doc.moveDown(0.2)
+        doc.fontSize(10).fillColor('#6b7280').font('Helvetica').text(`${payout.ownership_percentage}% ownership share`, L, doc.y, { width: W, align: 'center' })
+      }
       doc.moveDown(0.8)
 
       // === META GRID ===

@@ -199,6 +199,7 @@ const showChartOfAccounts = ref(false)
 const typeFilters = [
   { label: 'All', value: 'all' },
   { label: 'Rent In', value: 'rent_in' },
+  { label: 'Held Rents', value: 'rent_held_in' },
   { label: 'Payouts', value: 'payout_out' },
   { label: 'Deposits', value: 'deposit' },
   { label: 'Holding Deposits', value: 'holding_deposit_in' },
@@ -297,12 +298,13 @@ function onSaved() {
 }
 
 function isCredit(type: string) {
-  return ['rent_in', 'deposit_in', 'manual_credit', 'opening_balance', 'holding_deposit_in', 'initial_monies_rent_in', 'invoice_fee_in'].includes(type)
+  return ['rent_in', 'rent_held_in', 'deposit_in', 'manual_credit', 'opening_balance', 'holding_deposit_in', 'initial_monies_rent_in', 'invoice_fee_in'].includes(type)
 }
 
 function typeClass(type: string) {
   switch (type) {
     case 'rent_in': case 'initial_monies_rent_in': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    case 'rent_held_in': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
     case 'payout_out': case 'contractor_payout_out': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     case 'deposit_in': case 'holding_deposit_in': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     case 'deposit_out': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
@@ -313,8 +315,24 @@ function typeClass(type: string) {
   }
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  rent_in: 'Rent In',
+  rent_held_in: 'Held Rent',
+  payout_out: 'Payout Out',
+  contractor_payout_out: 'Contractor Payout',
+  deposit_in: 'Deposit In',
+  deposit_out: 'Deposit Out',
+  holding_deposit_in: 'Holding Deposit',
+  initial_monies_rent_in: 'Initial Monies',
+  invoice_fee_in: 'Fee In',
+  manual_credit: 'Manual Credit',
+  manual_debit: 'Manual Debit',
+  opening_balance: 'Opening Balance',
+  reconciliation_checkpoint: 'Reconciliation',
+}
+
 function typeLabel(type: string) {
-  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  return TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function formatMoney(val: number) {

@@ -103,10 +103,13 @@
               <!-- Add ad hoc charge -->
               <div class="px-4 py-3">
                 <button @click="showAdHoc = !showAdHoc" class="text-sm text-primary hover:underline">+ Add charge</button>
-                <div v-if="showAdHoc" class="mt-3 flex gap-2">
-                  <input v-model="adHocDesc" type="text" placeholder="Description" :class="[inputClass, 'flex-1']" />
-                  <input v-model.number="adHocAmount" type="number" step="0.01" placeholder="Amount" :class="[inputClass, 'w-28']" />
-                  <button @click="addAdHocCharge" class="px-3 py-2 text-sm bg-primary text-white rounded-lg">Add</button>
+                <div v-if="showAdHoc" class="mt-3 flex gap-2 items-center">
+                  <input v-model="adHocDesc" type="text" placeholder="Item description" :class="[`px-3 py-2 text-sm rounded-lg border ${isDark ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-primary/50 focus:border-primary`, 'flex-1 min-w-0']" />
+                  <div class="relative flex-shrink-0 w-28">
+                    <span class="absolute left-3 top-2 text-sm text-gray-400">&pound;</span>
+                    <input v-model.number="adHocAmount" type="number" step="0.01" min="0" placeholder="0.00" :class="[`pl-7 pr-3 py-2 text-sm rounded-lg border ${isDark ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-primary/50 focus:border-primary w-full`]" />
+                  </div>
+                  <button @click="addAdHocCharge" class="px-3 py-2 text-sm bg-primary text-white rounded-lg flex-shrink-0">Add</button>
                 </div>
               </div>
             </div>

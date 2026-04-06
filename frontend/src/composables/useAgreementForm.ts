@@ -26,12 +26,82 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   const depositManuallyEdited = ref(false)
   const endDateManuallyEdited = ref(false)
 
-  // Template options
+  // RRA (Renters' Rights Act) cutoff date
+  const RRA_CUTOFF = '2026-05-01'
+
+  // Agreement type options (computed based on start date and language)
+  const agreementTypeOptions = computed(() => {
+    const startDate = formData.value.tenancyStartDate
+    const lang = formData.value.language || 'english'
+    const hasDate = !!startDate
+    const isPostRRA = hasDate && new Date(startDate) >= new Date(RRA_CUTOFF)
+
+    const options: Array<{ value: string; label: string; description?: string }> = []
+
+    if (lang === 'english') {
+      if (!hasDate) {
+        // No date yet — show both, auto-corrects when date entered
+        options.push({ value: 'ast', label: 'Assured Shorthold Tenancy (AST)', description: 'For tenancies starting before 1 May 2026' })
+        options.push({ value: 'apta', label: 'Assured Periodic Tenancy (APTA)', description: 'Required from 1 May 2026 under the Renters\' Rights Act' })
+      } else if (isPostRRA) {
+        options.push({ value: 'apta', label: 'Assured Periodic Tenancy (APTA)', description: 'Required for tenancies starting on or after 1 May 2026 under the Renters\' Rights Act' })
+      } else {
+        options.push({ value: 'ast', label: 'Assured Shorthold Tenancy (AST)' })
+      }
+    } else {
+      options.push({ value: 'ast', label: 'Welsh Occupation Contract' })
+    }
+
+    options.push({ value: 'company_let', label: 'Company Let' })
+    options.push({ value: 'lodger', label: 'Lodger Agreement' })
+
+    return options
+  })
+
+  // Legacy template options (backward compat alias)
   const templateOptions = [
     { value: 'ast', label: 'Assured Shorthold Tenancy (AST)' },
     { value: 'company_let', label: 'Company Let' },
     { value: 'lodger', label: 'Lodger Agreement' }
   ]
+
+  // Utility options for bills included
+  const utilityOptions = [
+    { value: 'gas', label: 'Gas' },
+    { value: 'electric', label: 'Electricity' },
+    { value: 'water', label: 'Water' },
+    { value: 'council_tax', label: 'Council Tax' },
+    { value: 'internet', label: 'Internet/Broadband' },
+    { value: 'tv_licence', label: 'TV Licence' },
+  ]
+
+  // Computed: is the current agreement type APTA
+  const isAPTA = computed(() => formData.value.agreementType === 'apta')
+
+  // Auto-switch agreement type when date crosses RRA cutoff
+  watch(() => formData.value.tenancyStartDate, (newDate) => {
+    if (!newDate) return
+    const lang = formData.value.language || 'english'
+    if (lang !== 'english') return
+    const isPostRRA = new Date(newDate) >= new Date(RRA_CUTOFF)
+    if (isPostRRA && formData.value.agreementType === 'ast') {
+      formData.value.agreementType = 'apta'
+    } else if (!isPostRRA && formData.value.agreementType === 'apta') {
+      formData.value.agreementType = 'ast'
+    }
+  })
+
+  // Clear APTA-incompatible fields when switching to APTA
+  watch(() => formData.value.agreementType, (newType) => {
+    if (newType === 'apta') {
+      formData.value.tenancyTerm = 0
+      formData.value.tenancyEndDate = ''
+      formData.value.breakClauseEnabled = false
+      formData.value.breakClause = ''
+      formData.value.breakClauseMonths = null
+      formData.value.breakClauseNoticePeriod = null
+    }
+  })
 
   const depositSchemeOptions = [
     { value: 'dps_custodial', label: 'DPS Custodial' },
@@ -441,9 +511,14 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     endDateManuallyEdited,
 
     // Options
-    templateOptions,
+    templateOptions: agreementTypeOptions,
+    agreementTypeOptions,
+    utilityOptions,
     depositSchemeOptions,
     rentDueDayOptions,
+
+    // APTA
+    isAPTA,
 
     // Computed values
     calculatedDeposit,

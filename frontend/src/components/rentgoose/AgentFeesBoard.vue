@@ -52,19 +52,30 @@
       </div>
     </div>
 
-    <!-- Type filter pills -->
-    <div class="flex gap-2 mb-4 flex-wrap">
-      <button
-        v-for="f in typeFilters"
-        :key="f.value"
-        @click="selectedType = f.value"
-        :class="[
-          'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
-          selectedType === f.value
-            ? 'bg-gray-800 text-white'
-            : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
-        ]"
-      >{{ f.label }}</button>
+    <!-- Type filter pills + property search -->
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div class="flex gap-2 flex-wrap">
+        <button
+          v-for="f in typeFilters"
+          :key="f.value"
+          @click="selectedType = f.value"
+          :class="[
+            'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
+            selectedType === f.value
+              ? 'bg-gray-800 text-white'
+              : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
+          ]"
+        >{{ f.label }}</button>
+      </div>
+      <div class="relative">
+        <svg class="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        <input
+          v-model="propertySearch"
+          type="text"
+          placeholder="Search property..."
+          :class="['pl-9 pr-3 py-1.5 text-sm border rounded-lg w-56', isDark ? 'border-slate-600 bg-slate-800 text-white placeholder-slate-500' : 'border-gray-300 placeholder-gray-400']"
+        />
+      </div>
     </div>
 
     <div v-if="loading" class="flex justify-center py-12">
@@ -83,6 +94,7 @@
         <thead>
           <tr :class="isDark ? 'bg-slate-800' : 'bg-gray-50'">
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Date</th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Property</th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Type</th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Description</th>
             <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Net</th>
@@ -95,9 +107,10 @@
           <tr
             v-for="(fee, idx) in filteredFees"
             :key="fee.id"
-            :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
+            :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? (isDark ? 'bg-slate-800/50' : 'bg-[#fff8f3]') : '']"
           >
             <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ formatDate(fee.date) }}</td>
+            <td class="px-4 py-3 text-sm text-gray-700 dark:text-slate-300 max-w-[200px] truncate">{{ fee.property_address || '—' }}</td>
             <td class="px-4 py-3">
               <span :class="['px-2 py-0.5 text-xs font-medium rounded-full', feeTypeBadge(fee.fee_type)]">{{ feeTypeLabel(fee.fee_type) }}</span>
             </td>
@@ -131,6 +144,7 @@ const activePeriod = ref('month')
 const customFrom = ref('')
 const customTo = ref('')
 const selectedType = ref('all')
+const propertySearch = ref('')
 
 const periods = [
   { id: 'today', name: 'Today' },
@@ -153,8 +167,15 @@ const typeFilters = [
 
 const filteredFees = computed(() => {
   if (!data.value?.fees) return []
-  if (selectedType.value === 'all') return data.value.fees
-  return data.value.fees.filter((f: any) => f.fee_type === selectedType.value)
+  let fees = data.value.fees
+  if (selectedType.value !== 'all') {
+    fees = fees.filter((f: any) => f.fee_type === selectedType.value)
+  }
+  if (propertySearch.value.trim()) {
+    const q = propertySearch.value.toLowerCase()
+    fees = fees.filter((f: any) => (f.property_address || '').toLowerCase().includes(q))
+  }
+  return fees
 })
 
 function getDateRange(period: string): { from: string; to: string } {

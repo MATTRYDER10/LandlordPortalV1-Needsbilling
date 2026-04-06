@@ -25,6 +25,18 @@
             <p class="mt-2 text-gray-600 dark:text-slate-400">Complete Landlord Details</p>
           </div>
           <div class="flex items-center gap-3">
+            <button
+              @click="toggleRentHold"
+              :class="[
+                'flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                landlord.rent_hold_active
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300'
+              ]"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {{ landlord.rent_hold_active ? 'Remove Hold' : 'Place Hold on Rent' }}
+            </button>
             <button @click="showEditModal = true"
               class="flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors">
               <Pencil class="w-4 h-4 mr-2" />
@@ -38,6 +50,15 @@
             }">
               {{ formatAMLStatus(landlord.aml_status) }}
             </span>
+          </div>
+        </div>
+
+        <!-- Rent hold banner -->
+        <div v-if="landlord.rent_hold_active" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 mb-4 flex items-center gap-3">
+          <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+          <div>
+            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Rent payments on hold</p>
+            <p v-if="landlord.rent_hold_note" class="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{{ landlord.rent_hold_note }}</p>
           </div>
         </div>
 
@@ -465,6 +486,33 @@ const showEditModal = ref(false)
 const showAddPropertyModal = ref(false)
 const showLinkPropertyModal = ref(false)
 const initiatingAML = ref(false)
+
+// Rent hold toggle
+async function toggleRentHold() {
+  if (!landlord.value?.id) return
+  const isCurrentlyHeld = landlord.value.rent_hold_active
+  let note = ''
+
+  if (!isCurrentlyHeld) {
+    note = prompt('Add a note for this hold (optional):') || ''
+  }
+
+  try {
+    const token = authStore.session?.access_token
+    const response = await fetch(`${API_URL}/api/landlords/${landlord.value.id}/rent-hold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ active: !isCurrentlyHeld, note })
+    })
+    if (!response.ok) throw new Error('Failed to update hold status')
+    landlord.value.rent_hold_active = !isCurrentlyHeld
+    landlord.value.rent_hold_note = !isCurrentlyHeld ? note : null
+    toast.success(isCurrentlyHeld ? 'Hold removed' : 'Rent placed on hold')
+  } catch (err) {
+    console.error('Failed to toggle rent hold:', err)
+    toast.error('Failed to update hold status')
+  }
+}
 
 // Document blob URLs for displaying images
 const idDocumentBlobUrl = ref<string | null>(null)

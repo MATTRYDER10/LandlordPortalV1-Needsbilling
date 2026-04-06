@@ -1,0 +1,60 @@
+{
+  "id": "properties-special-clauses",
+  "slug": "properties-special-clauses",
+  "title": "Adding Special Clauses to Agreements",
+  "category": "properties",
+  "tags": ["special clauses", "agreements", "properties", "apta", "rra", "break clause"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 12,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "Special clauses allow you to add custom terms to tenancy agreements on a per-property basis. They are included automatically whenever an agreement is generated for that property.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Add Special Clauses",
+        "steps": [
+          {
+            "title": "Open the Property",
+            "content": "Navigate to the Properties tab and open the property you want to add special clauses to.",
+            "image": null
+          },
+          {
+            "title": "Find the Special Clauses Section",
+            "content": "Within the property settings or edit view, locate the Special Clauses section.",
+            "image": null
+          },
+          {
+            "title": "Enter Your Clause Text",
+            "content": "Type or paste your custom clause text. Each clause should be clearly worded and specific to the obligations or permissions you want to include.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save to store the special clauses against the property.",
+            "image": null
+          },
+          {
+            "title": "Clauses Included in Agreements Automatically",
+            "content": "When you generate any tenancy agreement for this property, the special clauses will be included automatically in the agreement document — you do not need to add them manually each time.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "No Break Clauses for APTAs",
+        "content": "Under the Renters Rights Act 2026, break clauses are not permitted in Assured Periodic Tenancy Agreements (post May 2026). Do not add break clause language for any new tenancies starting on or after 1 May 2026."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Common Uses for Special Clauses",
+        "content": "Special clauses are suitable for a wide range of additional terms, including: no smoking within the property, requirement for professional end-of-tenancy cleaning, garden maintenance obligations, pet agreements (specifying permitted pets and any conditions), and any specific landlord requirements for the property."
+      }
+    ],
+    "relatedArticles": ["tenancies-apta", "properties-management-fees", "properties-setup-fees"]
+  }
+}

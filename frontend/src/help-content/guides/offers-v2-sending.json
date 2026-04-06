@@ -1,0 +1,70 @@
+{
+  "id": "offers-v2-sending",
+  "slug": "offers-v2-sending",
+  "title": "How to Send an Offer (V2)",
+  "category": "offers",
+  "tags": ["offers", "v2", "send", "advertised rent", "reposit", "unithomes"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 11,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "Sending an offer via Offers V2 takes under two minutes. The process captures the property, advertised rent, and tenant email, then delivers a secure offer form link directly to the applicant.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Send an Offer",
+        "steps": [
+          {
+            "title": "Open Offers V2",
+            "content": "Click Offers in the sidebar. This opens the V2 offers platform. Do not use Legacy References for new offers.",
+            "image": null
+          },
+          {
+            "title": "Click Send Offer",
+            "content": "Click the 'Send Offer' button in the top right corner of the Offers V2 screen.",
+            "image": null
+          },
+          {
+            "title": "Select the Property",
+            "content": "Choose the property from the dropdown or start typing an address to search. The property must already exist in the Properties tab.",
+            "image": null
+          },
+          {
+            "title": "Enter the Advertised Rent",
+            "content": "Enter the advertised monthly rent for the property. This is the maximum amount a tenant can offer — they may offer less but cannot exceed this figure.",
+            "image": null
+          },
+          {
+            "title": "Enter the Tenant's Email Address",
+            "content": "Type the applicant's email address. They will receive a secure link to complete the offer form online.",
+            "image": null
+          },
+          {
+            "title": "Optionally Add Reposit / Unithomes",
+            "content": "Tick the Reposit and/or Unithomes checkboxes if you want to include deposit replacement options in the tenant's offer form. This is optional.",
+            "image": null
+          },
+          {
+            "title": "Click Send",
+            "content": "Click Send to dispatch the offer. The tenant receives an email with a link to complete and submit their offer.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Advertised Rent is Locked",
+        "content": "The advertised rent you enter acts as a ceiling. Tenants can submit an offer at or below this amount but the form will not allow them to enter a higher figure. This is a deliberate RRA compliance feature."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "No Discriminatory Language",
+        "content": "Do not include discriminatory language (such as 'No DSS', 'No pets', or 'No children') in any property notes or offer communications. This is prohibited under the Renters Rights Act 2025."
+      }
+    ],
+    "relatedArticles": ["offers-v2-overview", "offers-v2-landlord-approval", "offers-v2-reposit-unithomes", "references-v2-how-to"]
+  }
+}

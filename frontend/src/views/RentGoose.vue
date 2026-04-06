@@ -63,7 +63,7 @@
     <RaiseChargeModal
       :show="showRaiseCharge"
       @close="showRaiseCharge = false"
-      @saved="showRaiseCharge = false; store.fetchSchedule()"
+      @saved="showRaiseCharge = false; store.fetchUnifiedSchedule()"
     />
   </div>
   </Sidebar>
@@ -87,7 +87,7 @@ const store = useRentGooseStore()
 const showRaiseCharge = ref(false)
 
 const tabs = computed(() => [
-  { id: 'collection', name: 'Payments', count: store.categoryCounts.arrears || store.statusCounts.arrears || 0 },
+  { id: 'collection', name: 'Payments', count: store.categoryCounts.arrears || 0 },
   { id: 'payouts', name: 'Payouts', count: store.payouts.length },
   { id: 'fees', name: 'Fee Ledger' },
   { id: 'landlords', name: 'Landlords' },
@@ -96,6 +96,6 @@ const tabs = computed(() => [
 ])
 
 onMounted(() => {
-  store.fetchSchedule()
+  // Each board component fetches its own data on mount — nothing to pre-load here
 })
 </script>

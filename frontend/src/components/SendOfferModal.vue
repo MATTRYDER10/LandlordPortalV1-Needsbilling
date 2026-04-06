@@ -144,14 +144,20 @@
                 @addressSelected="handlePropertyAddressSelected" />
             </div>
 
-            <!-- Rent Amount -->
+            <!-- Advertised Rent -->
             <div>
               <label for="rent-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                Monthly Rent Amount (£) *
+                Advertised Rent (£/month) *
               </label>
-              <input id="rent-amount" v-model.number="formData.rent_amount" type="number" step="0.01"
-                required min="0" placeholder="e.g., 1200"
-                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 dark:text-slate-400 text-sm font-medium pointer-events-none">£</span>
+                <input id="rent-amount" v-model.number="formData.rent_amount" type="number" step="0.01"
+                  required min="0" placeholder="0.00"
+                  class="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
+              </div>
+              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                This is the advertised rent. Tenants may offer less, but cannot offer more than this amount.
+              </p>
             </div>
 
             <!-- Bills Included -->

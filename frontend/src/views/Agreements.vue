@@ -348,6 +348,36 @@
             </div>
           </div>
 
+          <!-- Agreement Type Selection -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Agreement Type *</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                v-for="opt in agreementTypeOptions"
+                :key="opt.value"
+                type="button"
+                @click="formData.agreementType = opt.value as any"
+                class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md text-left"
+                :class="formData.agreementType === opt.value ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'"
+              >
+                <div class="flex items-center">
+                  <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    :class="formData.agreementType === opt.value ? 'border-primary bg-primary' : 'border-gray-300'">
+                    <div v-if="formData.agreementType === opt.value" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div class="ml-3">
+                    <h4 class="font-semibold text-gray-900">{{ opt.label }}</h4>
+                    <p v-if="opt.description" class="text-xs text-gray-500 mt-0.5">{{ opt.description }}</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+            <p v-if="isAPTA" class="text-xs text-amber-600 mt-2 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+              Renters' Rights Act 2025 — APTA is mandatory for tenancies starting on or after 1 May 2026. This is a periodic tenancy with no fixed end date.
+            </p>
+          </div>
+
           <!-- Deposit Scheme Selection -->
           <label class="block text-sm font-medium text-gray-700 mb-3">Deposit Protection Scheme *</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -616,7 +646,7 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
-              <div>
+              <div v-if="!isAPTA">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tenancy Term *</label>
                 <div class="flex items-center gap-3">
                   <input
@@ -632,9 +662,13 @@
                 </div>
                 <p class="text-xs text-gray-500 mt-1">Enter 0 for rolling (month-to-month)</p>
               </div>
+              <div v-else>
+                <p class="text-sm font-medium text-gray-700 mb-1">Tenancy Term</p>
+                <p class="text-sm text-gray-500 bg-gray-50 rounded-md px-3 py-2">Rolling periodic — no fixed term (APTA)</p>
+              </div>
             </div>
 
-            <div v-if="Number(formData.tenancyTerm) !== 0">
+            <div v-if="!isAPTA && Number(formData.tenancyTerm) !== 0">
               <label class="block text-sm font-medium text-gray-700 mb-1">Tenancy End Date</label>
               <input
                 v-model="formData.tenancyEndDate"
@@ -810,7 +844,7 @@
               <p class="text-xs text-gray-500 mt-1">Defaults to the property address if left blank.</p>
             </div>
 
-            <div>
+            <div v-if="!isAPTA">
               <label class="block text-sm font-medium text-gray-700 mb-2">Break Clause</label>
 
               <div class="mb-3">
@@ -872,15 +906,19 @@
             </div>
 
             <div class="mt-4">
-              <label class="flex items-center">
-                <input
-                  type="checkbox"
-                  v-model="formData.billsIncluded"
-                  class="rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span class="ml-2 text-sm text-gray-700">Bills included in rent</span>
-              </label>
-              <p class="text-xs text-gray-500 mt-1 ml-6">Check if utility bills are included in the rent amount</p>
+              <p class="text-sm font-medium text-gray-700 mb-2">Bills included in rent</p>
+              <p class="text-xs text-gray-500 mb-2">Select which utilities are included in the rent amount</p>
+              <div class="grid grid-cols-2 gap-2">
+                <label v-for="utility in utilityOptions" :key="utility.value" class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    :value="utility.value"
+                    v-model="formData.billsIncludedUtilities"
+                    class="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span class="text-sm text-gray-700">{{ utility.label }}</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -1508,6 +1546,44 @@ const expiredComplianceTypes = ref<string[]>([])
 const complianceOverrideReason = ref<string | null>(null)
 const selectedPropertyAddress = ref('')
 
+const RRA_CUTOFF = '2026-05-01'
+
+const utilityOptions = [
+  { value: 'gas', label: 'Gas' },
+  { value: 'electric', label: 'Electricity' },
+  { value: 'water', label: 'Water' },
+  { value: 'council_tax', label: 'Council Tax' },
+  { value: 'internet', label: 'Internet/Broadband' },
+  { value: 'tv_licence', label: 'TV Licence' },
+]
+
+const isAPTA = computed(() => formData.value.agreementType === 'apta')
+
+const agreementTypeOptions = computed(() => {
+  const startDate = formData.value.tenancyStartDate
+  const lang = formData.value.language || 'english'
+  const hasDate = !!startDate
+  const isPostRRA = hasDate && new Date(startDate) >= new Date(RRA_CUTOFF)
+
+  const options: Array<{ value: string; label: string; description?: string }> = []
+  if (lang === 'english') {
+    if (!hasDate) {
+      // No date set yet — show both, auto-corrects when date entered in Step 3
+      options.push({ value: 'ast', label: 'Assured Shorthold Tenancy (AST)', description: 'For tenancies starting before 1 May 2026' })
+      options.push({ value: 'apta', label: 'Assured Periodic Tenancy (APTA)', description: 'Required from 1 May 2026 under the Renters\' Rights Act' })
+    } else if (isPostRRA) {
+      options.push({ value: 'apta', label: 'Assured Periodic Tenancy (APTA)', description: 'Required for tenancies starting on or after 1 May 2026 under the Renters\' Rights Act' })
+    } else {
+      options.push({ value: 'ast', label: 'Assured Shorthold Tenancy (AST)' })
+    }
+  } else {
+    options.push({ value: 'ast', label: 'Welsh Occupation Contract' })
+  }
+  options.push({ value: 'company_let', label: 'Company Let' })
+  options.push({ value: 'lodger', label: 'Lodger Agreement' })
+  return options
+})
+
 const templateOptions = [
   {
     value: 'dps',
@@ -1583,6 +1659,8 @@ const formData = ref<{
   breakClause?: string
   specialClauses?: string
   billsIncluded: boolean
+  billsIncludedUtilities: string[]
+  agreementType: 'ast' | 'apta' | 'company_let' | 'lodger'
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
@@ -1590,6 +1668,7 @@ const formData = ref<{
 }>({
   language: 'english',
   templateType: '',
+  agreementType: 'ast',
   propertyAddress: {
     line1: '',
     line2: '',
@@ -1620,6 +1699,8 @@ const formData = ref<{
   breakClause: '',
   specialClauses: '',
   billsIncluded: false,
+  billsIncludedUtilities: [],
+  agreementType: 'ast',
   landlords: [
     {
       name: '',
@@ -1767,6 +1848,38 @@ function getOrdinalSuffix(day: number): string {
     default: return 'th'
   }
 }
+
+// Auto-switch agreement type based on RRA cutoff date
+watch(() => formData.value.tenancyStartDate, (newDate) => {
+  if (newDate) {
+    const lang = formData.value.language || 'english'
+    if (lang === 'english') {
+      const isPostRRA = new Date(newDate) >= new Date(RRA_CUTOFF)
+      if (isPostRRA && formData.value.agreementType === 'ast') {
+        formData.value.agreementType = 'apta'
+      } else if (!isPostRRA && formData.value.agreementType === 'apta') {
+        formData.value.agreementType = 'ast'
+      }
+    }
+  }
+})
+
+// Clear APTA-incompatible fields when agreement type changes
+watch(() => formData.value.agreementType, (newType) => {
+  if (newType === 'apta') {
+    formData.value.tenancyTerm = 0
+    formData.value.tenancyEndDate = ''
+    formData.value.breakClauseEnabled = false
+    formData.value.breakClause = ''
+    formData.value.breakClauseMonths = null
+    formData.value.breakClauseNoticePeriod = null
+  }
+})
+
+// Compute billsIncluded from utilities
+watch(() => formData.value.billsIncludedUtilities, (utils) => {
+  formData.value.billsIncluded = (utils || []).length > 0
+}, { deep: true })
 
 // Update rent due date when tenancy start date changes
 watch(() => formData.value.tenancyStartDate, (newDate) => {
@@ -3132,8 +3245,8 @@ async function generateAgreement() {
     // Create the agreement with end date (user-edited or calculated) and generated break clause
     const agreementData: Record<string, any> = {
       ...formData.value,
-      tenancyEndDate: formData.value.tenancyEndDate || calculatedEndDate.value || null,
-      breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : '',
+      tenancyEndDate: formData.value.agreementType === 'apta' ? null : (formData.value.tenancyEndDate || calculatedEndDate.value || null),
+      breakClause: formData.value.agreementType === 'apta' ? '' : (formData.value.breakClauseEnabled ? generatedBreakClause.value : ''),
       // Filter out empty guarantors before submitting
       guarantors: formData.value.guarantors.filter(
         (g) => g.name !== '' || g.address.line1 !== '' || g.address.city !== '' || g.address.postcode !== ''

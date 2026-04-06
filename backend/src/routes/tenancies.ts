@@ -1441,32 +1441,42 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
       console.error('Failed to create tenancy started notification:', notifError)
     }
 
-    // Auto-push tenancy summary + documents to Apex27 on activation
-    try {
-      const { getCompanyApex27Config, pushDocument, apex27Fetch } = await import('../services/apex27Service')
-      const { generateTenancySummary } = await import('../services/tenancySummaryService')
-      const { normalizePostcode, normalizeAddressLine } = await import('../services/propertyMatchingService')
-      const { decrypt } = await import('../services/encryption')
+    // Fire-and-forget: push all documents to Apex27 on activation
+    const tenancyId = req.params.id
+    const tenancyPropertyId = tenancy.property_id
+    const tenancyAgreementId = tenancy.agreement_id
+    const tenancyPrimaryRefId = tenancy.primary_reference_id
+    ;(async () => {
+      try {
+        const { getCompanyApex27Config, pushDocument, apex27Fetch } = await import('../services/apex27Service')
+        const { generateTenancySummary } = await import('../services/tenancySummaryService')
+        const { normalizeAddressLine } = await import('../services/propertyMatchingService')
+        const { decrypt } = await import('../services/encryption')
 
-      const apex27Config = await getCompanyApex27Config(companyId)
-      if (apex27Config) {
-        // Resolve listing ID with fuzzy fallback
+        const apex27Config = await getCompanyApex27Config(companyId)
+        if (!apex27Config) return
+
+        // Resolve listing ID — filter by synced branch
         let listingId: string | null = null
-        if (tenancy.property_id) {
-          // Direct lookup
+        if (tenancyPropertyId) {
           const { data: prop } = await supabase
             .from('properties')
             .select('apex27_listing_id, postcode, address_line1_encrypted')
-            .eq('id', tenancy.property_id)
+            .eq('id', tenancyPropertyId)
             .single()
 
           listingId = prop?.apex27_listing_id || null
 
-          // Fuzzy fallback: search Apex27 by postcode
+          // Fuzzy fallback: search Apex27 by postcode, filtered by branch
           if (!listingId && prop?.postcode) {
-            const searchResult = await apex27Fetch<any[]>(apex27Config.apiKey, '/listings', {
+            const searchParams: Record<string, any> = {
               transactionType: 'rent', postalCode: prop.postcode, pageSize: 25
-            })
+            }
+            // Filter by synced branch to avoid matching wrong office's listings
+            if (apex27Config.branchId) {
+              searchParams.branchId = apex27Config.branchId
+            }
+            const searchResult = await apex27Fetch<any[]>(apex27Config.apiKey, '/listings', searchParams)
             if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
               const addr = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
               if (searchResult.data.length === 1) {
@@ -1480,86 +1490,132 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
                   }
                 }
               }
-              if (!listingId) listingId = String(searchResult.data[0].id)
+              // Don't blindly use first result — only match by address
+              if (!listingId && addr) {
+                console.warn('[Apex27] No branch-filtered listing matched for', addr)
+              }
             }
           }
         }
 
-        if (listingId) {
-          console.log(`[Apex27] Auto-pushing tenancy docs on activation to listing ${listingId}`)
+        if (!listingId) {
+          console.log('[Apex27] No listing ID resolved — skipping doc push')
+          return
+        }
 
-          // 1. Push tenancy summary
-          const summary = await generateTenancySummary(req.params.id, companyId)
+        console.log(`[Apex27] Fire-and-forget doc push to listing ${listingId}`)
+        let pushed = 0
+
+        // 1. Tenancy summary
+        try {
+          const summary = await generateTenancySummary(tenancyId, companyId)
           if (summary.success && summary.html) {
-            const fileName = `tenancy-summaries/${companyId}/${req.params.id}-${Date.now()}.html`
+            const fileName = `tenancy-summaries/${companyId}/${tenancyId}-${Date.now()}.html`
             const { error: uploadErr } = await supabase.storage
               .from('documents')
               .upload(fileName, Buffer.from(summary.html), { contentType: 'text/html', upsert: true })
-
             if (!uploadErr) {
-              const { data: signedData } = await supabase.storage
-                .from('documents')
-                .createSignedUrl(fileName, 3600)
-
+              const { data: signedData } = await supabase.storage.from('documents').createSignedUrl(fileName, 3600)
               if (signedData?.signedUrl) {
-                await pushDocument(apex27Config.apiKey, {
-                  listingId, name: summary.title || 'Tenancy Summary', url: signedData.signedUrl
-                })
-                console.log('[Apex27] Tenancy summary pushed on activation')
+                await pushDocument(apex27Config.apiKey, { listingId, name: summary.title || 'Tenancy Summary', url: signedData.signedUrl })
+                pushed++
               }
             }
           }
+        } catch (e) { console.error('[Apex27] Failed to push tenancy summary:', e) }
 
-          // 2. Push signed tenancy agreement
-          if (tenancy.agreement_id) {
+        // 2. Signed tenancy agreement
+        if (tenancyAgreementId) {
+          try {
             const { data: agreement } = await supabase
               .from('agreements')
               .select('id, signed_pdf_url, pdf_url')
-              .eq('id', tenancy.agreement_id)
+              .eq('id', tenancyAgreementId)
               .single()
-
             const agreementUrl = agreement?.signed_pdf_url || agreement?.pdf_url
             if (agreementUrl) {
-              await pushDocument(apex27Config.apiKey, {
-                listingId, name: 'Tenancy Agreement (Signed)', url: agreementUrl
-              })
-              console.log('[Apex27] Signed tenancy agreement pushed on activation')
+              await pushDocument(apex27Config.apiKey, { listingId, name: 'Tenancy Agreement (Signed)', url: agreementUrl })
+              pushed++
             }
-          }
+          } catch (e) { console.error('[Apex27] Failed to push agreement:', e) }
+        }
 
-          // 3. Push all property documents linked to this tenancy (notices, legal docs, etc.)
+        // 3. Reference reports (from the primary reference and any linked references)
+        if (tenancyPrimaryRefId) {
+          try {
+            // Get all references linked to this tenancy's primary reference (including guarantors)
+            const { data: refs } = await supabase
+              .from('tenant_references_v2')
+              .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, report_pdf_url')
+              .or(`id.eq.${tenancyPrimaryRefId},guarantor_reference_id.eq.${tenancyPrimaryRefId}`)
+              .eq('company_id', companyId)
+            for (const ref of refs || []) {
+              if (ref.report_pdf_url) {
+                const name = `Reference Report - ${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+                await pushDocument(apex27Config.apiKey, { listingId, name, url: ref.report_pdf_url })
+                pushed++
+              }
+            }
+          } catch (e) { console.error('[Apex27] Failed to push references:', e) }
+        }
+
+        // 4. Safety certificates (compliance records for the property)
+        if (tenancyPropertyId) {
+          try {
+            const { data: compliance } = await supabase
+              .from('compliance_records')
+              .select('id, compliance_type, file_path, status')
+              .eq('property_id', tenancyPropertyId)
+              .eq('status', 'valid')
+            for (const cert of compliance || []) {
+              if (cert.file_path) {
+                const { data: signedData } = await supabase.storage.from('documents').createSignedUrl(cert.file_path, 3600)
+                if (signedData?.signedUrl) {
+                  const typeLabel = cert.compliance_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Safety Certificate'
+                  await pushDocument(apex27Config.apiKey, { listingId, name: typeLabel, url: signedData.signedUrl })
+                  pushed++
+                }
+              }
+            }
+          } catch (e) { console.error('[Apex27] Failed to push safety certs:', e) }
+        }
+
+        // 5. Deposit certificate (if TDS/DPS registration exists)
+        try {
+          const { data: tdsReg } = await supabase
+            .from('tds_registrations')
+            .select('certificate_url')
+            .eq('tenancy_id', tenancyId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          if (tdsReg?.[0]?.certificate_url) {
+            await pushDocument(apex27Config.apiKey, { listingId, name: 'Deposit Protection Certificate', url: tdsReg[0].certificate_url })
+            pushed++
+          }
+        } catch (e) { console.error('[Apex27] Failed to push deposit cert:', e) }
+
+        // 6. All property documents linked to this tenancy
+        try {
           const { data: propDocs } = await supabase
             .from('property_documents')
             .select('id, file_name, file_path')
-            .eq('property_id', tenancy.property_id)
-            .eq('source_type', 'tenancy')
-            .eq('source_id', req.params.id)
-
-          let docsPushed = 0
+            .eq('property_id', tenancyPropertyId)
           for (const doc of propDocs || []) {
-            try {
-              const { data: signedData } = await supabase.storage
-                .from('property-documents')
-                .createSignedUrl(doc.file_path, 3600)
-
+            if (doc.file_path) {
+              const { data: signedData } = await supabase.storage.from('property-documents').createSignedUrl(doc.file_path, 3600)
               if (signedData?.signedUrl) {
-                await pushDocument(apex27Config.apiKey, {
-                  listingId, name: doc.file_name, url: signedData.signedUrl
-                })
-                docsPushed++
+                await pushDocument(apex27Config.apiKey, { listingId, name: doc.file_name, url: signedData.signedUrl })
+                pushed++
               }
-            } catch (docErr) {
-              console.error(`[Apex27] Failed to push doc ${doc.id}:`, docErr)
             }
           }
+        } catch (e) { console.error('[Apex27] Failed to push property docs:', e) }
 
-          console.log(`[Apex27] Auto-push complete: summary + agreement + ${docsPushed} documents`)
-        }
+        console.log(`[Apex27] Activation doc push complete: ${pushed} documents pushed to listing ${listingId}`)
+      } catch (apex27Error) {
+        console.error('[Apex27] Fire-and-forget doc push failed:', apex27Error)
       }
-    } catch (apex27Error) {
-      console.error('[Apex27] Auto-push on activation failed (non-blocking):', apex27Error)
-      // Non-blocking — don't fail the activation
-    }
+    })()
 
     // Initialize RentGoose rent schedule for this tenancy
     try {

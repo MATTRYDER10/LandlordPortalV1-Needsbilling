@@ -10,18 +10,23 @@
       <div class="flex gap-6">
         <!-- Vertical Tabs -->
         <nav class="w-64 flex-shrink-0">
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2 space-y-1">
-            <router-link
-              v-for="tab in tabs"
-              :key="tab.id"
-              :to="`/settings/${tab.id}`"
-              class="block w-full text-left px-4 py-3 rounded-md font-medium text-sm transition-colors"
-              :class="activeTab === tab.id
-                ? 'bg-primary text-white'
-                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'"
-            >
-              {{ tab.name }}
-            </router-link>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2">
+            <template v-for="group in tabs" :key="group.category">
+              <p class="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 first:pt-1">
+                {{ group.category }}
+              </p>
+              <router-link
+                v-for="tab in group.items"
+                :key="tab.id"
+                :to="`/settings/${tab.id}`"
+                class="nav-tab group flex items-center px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200"
+                :class="activeTab === tab.id
+                  ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-md shadow-primary/30'
+                  : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10'"
+              >
+                <span class="group-hover:translate-x-0.5 transition-transform duration-200">{{ tab.name }}</span>
+              </router-link>
+            </template>
           </div>
         </nav>
 
@@ -289,6 +294,22 @@
               <!-- Management Information Section -->
               <div class="border-t dark:border-slate-700 pt-6">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Management Information</h4>
+
+                <!-- Just Move In Integration Toggle -->
+                <div class="mb-5 p-4 rounded-lg border" :class="companyData.jmiEnabled ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700'">
+                  <div class="flex items-start gap-3">
+                    <input
+                      id="jmi-enabled"
+                      v-model="companyData.jmiEnabled"
+                      type="checkbox"
+                      class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label for="jmi-enabled" class="cursor-pointer">
+                      <span class="block text-sm font-medium text-gray-900 dark:text-white">Use PropertyGoose's Partner Just Move In</span>
+                      <span class="block text-xs text-gray-500 dark:text-slate-400 mt-0.5">Auto notify utilities of move ins and move outs. Automated through the PropertyGoose Tenancies Tab. Uncheck to opt out and hide all Just Move In prompts.</span>
+                    </label>
+                  </div>
+                </div>
                 <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
                   The message below will be sent to your managed tenants in the move-in pack to tell them how to report maintenance issues. Please describe your process.
                 </p>
@@ -1111,27 +1132,42 @@ const activeTab = computed(() => {
 })
 
 // Filter tabs based on user role
-const tabs = computed(() => {
-  const allTabs = [
-    { id: 'profile', name: 'Profile' },
-    { id: 'company', name: 'Company' },
-    { id: 'branding', name: 'Branding' },
-    { id: 'team', name: 'Team' },
-    { id: 'tds', name: 'TDS Integration' },
-    { id: 'mydeposits', name: 'mydeposits' },
-    { id: 'reposit', name: 'Reposit' },
-    { id: 'review-links', name: 'Review Links' },
-    { id: 'apex27', name: 'Apex27 CRM' },
-    { id: 'inventorygoose', name: 'InventoryGoose' },
-    { id: 'jmi', name: 'Just Move In' },
-    { id: 'property-settings', name: 'Property Settings' },
-    { id: 'billing', name: 'Billing' },
-    { id: 'audit-logs', name: 'Audit Logs' }
-  ]
-
-  // TEMPORARY: Always show all tabs to debug the issue
-  return allTabs
-})
+const tabs = computed(() => [
+  {
+    category: 'Account',
+    items: [
+      { id: 'profile', name: 'Profile' }
+    ]
+  },
+  {
+    category: 'Company & Team',
+    items: [
+      { id: 'audit-logs', name: 'Audit Logs' },
+      { id: 'billing', name: 'Billing' },
+      { id: 'branding', name: 'Branding' },
+      { id: 'company', name: 'Company' },
+      { id: 'property-settings', name: 'Property Settings' },
+      { id: 'team', name: 'Team' }
+    ]
+  },
+  {
+    category: 'Deposits',
+    items: [
+      { id: 'mydeposits', name: 'mydeposits' },
+      { id: 'reposit', name: 'Reposit' },
+      { id: 'tds', name: 'TDS Integration' }
+    ]
+  },
+  {
+    category: 'Integrations',
+    items: [
+      { id: 'apex27', name: 'Apex27 CRM' },
+      { id: 'inventorygoose', name: 'InventoryGoose' },
+      { id: 'jmi', name: 'Just Move In' },
+      { id: 'review-links', name: 'Review Links' }
+    ]
+  }
+])
 
 // Profile data
 const profileData = ref({
@@ -1169,7 +1205,8 @@ const companyData = ref({
   bankSortCode: '',
   managementInfo: '',
   isVatRegistered: false,
-  vatNumber: ''
+  vatNumber: '',
+  jmiEnabled: true
 })
 
 const companyLoading = ref(false)
@@ -1444,6 +1481,7 @@ const fetchCompanyData = async () => {
         companyData.value.bankAccountNumber = data.company.bank_account_number || ''
         companyData.value.bankSortCode = data.company.bank_sort_code || ''
         companyData.value.managementInfo = data.company.management_info || ''
+        companyData.value.jmiEnabled = data.company.jmi_enabled !== false
         companyData.value.isVatRegistered = data.company.is_vat_registered || false
         companyData.value.vatNumber = data.company.vat_number || ''
 
@@ -1614,7 +1652,8 @@ const handleUpdateCompany = async () => {
         bank_sort_code: companyData.value.bankSortCode,
         management_info: companyData.value.managementInfo,
         is_vat_registered: companyData.value.isVatRegistered,
-        vat_number: companyData.value.vatNumber
+        vat_number: companyData.value.vatNumber,
+        jmi_enabled: companyData.value.jmiEnabled
       })
     })
 
@@ -2131,3 +2170,27 @@ const getAuditActionBadgeClass = (actionType: string) => {
   return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300'
 }
 </script>
+
+<style scoped>
+.nav-tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.15), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.nav-tab:hover::before {
+  transform: translateX(100%);
+}
+
+.nav-tab:hover {
+  transform: translateX(4px);
+}
+</style>

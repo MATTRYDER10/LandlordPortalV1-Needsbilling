@@ -1,0 +1,69 @@
+{
+  "id": "tenancies-apta",
+  "slug": "tenancies-apta",
+  "title": "Assured Periodic Tenancy Agreements (Post May 2026)",
+  "category": "tenancies",
+  "tags": ["apta", "rra", "periodic tenancy", "renters rights act", "ast"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 20,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "From 1 May 2026, all new English tenancies must use the Assured Periodic Tenancy Agreement (APTA) as required by the Renters Rights Act. PropertyGoose applies this automatically based on move-in date.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "What is an APTA?",
+        "content": "An Assured Periodic Tenancy Agreement (APTA) is a monthly rolling tenancy with no fixed end date. Under the Renters Rights Act, it is the only permitted form of new tenancy agreement for English residential lets from 1 May 2026. Key characteristics: the tenancy runs month-to-month indefinitely, there is no fixed term or end date, the landlord must give a minimum of two months' statutory notice to end the tenancy, and break clauses are not permitted."
+      },
+      {
+        "type": "text",
+        "title": "How PropertyGoose Applies the APTA",
+        "content": "PropertyGoose automatically selects the correct agreement template based on the tenancy move-in date. Any tenancy with a move-in date of 1 May 2026 or later will automatically use the APTA template. Tenancies with move-in dates before 1 May 2026 will continue to use the legacy Assured Shorthold Tenancy (AST) template. Welsh tenancy agreements are not affected by the Renters Rights Act and continue to use their existing templates."
+      },
+      {
+        "type": "text",
+        "title": "Special Clauses",
+        "content": "Special clauses can still be added to APTA agreements on a per-property basis via the Properties tab. Common uses include no-smoking clauses, professional cleaning obligations at the end of the tenancy, garden maintenance responsibilities, and pet agreements. However, break clauses must not be included in any APTA — they are not legally permitted under the Renters Rights Act 2026."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Student Tenancies on ASTs — Conversion Required",
+        "content": "Any student tenancies that were already signed on ASTs must be served the Conversion PDF before 30 May 2026, as required by the Renters Rights Act. This converts the existing AST to a periodic tenancy. The Conversion PDF is sent via the compliance pack in the Tenancies tab."
+      },
+      {
+        "type": "steps",
+        "title": "How to Generate an APTA",
+        "steps": [
+          {
+            "title": "Create a Tenancy with a May 2026 or Later Move-In Date",
+            "content": "Create a new tenancy in the Tenancies tab with a move-in date of 1 May 2026 or later. PropertyGoose will automatically apply APTA rules to this tenancy.",
+            "image": null
+          },
+          {
+            "title": "Go to Agreements",
+            "content": "Open the tenancy and navigate to the Agreements section.",
+            "image": null
+          },
+          {
+            "title": "System Auto-Selects APTA Template",
+            "content": "The system automatically selects the APTA template based on the move-in date. You do not need to manually select the agreement type.",
+            "image": null
+          },
+          {
+            "title": "Complete Deposit, Tenant, and Rent Details",
+            "content": "Fill in the required agreement fields: tenant names, rent amount, deposit amount and protection scheme, and any special clauses.",
+            "image": null
+          },
+          {
+            "title": "Send for E-Signature",
+            "content": "Click 'Send for Signing'. All parties (tenants and landlord if required) will receive a secure email with a link to sign the agreement electronically.",
+            "image": null
+          }
+        ]
+      }
+    ],
+    "relatedArticles": ["tenancies-compliance-pack", "properties-special-clauses", "tenancies-jmi"]
+  }
+}

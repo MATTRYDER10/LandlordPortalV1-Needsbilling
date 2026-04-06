@@ -1,0 +1,64 @@
+{
+  "id": "rentgoose-landlord-statements",
+  "slug": "rentgoose-landlord-statements",
+  "title": "Generating Landlord Statements in RentGoose",
+  "category": "account-settings",
+  "tags": ["rentgoose", "landlord statements", "rent", "deductions", "csv", "management fees"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 21,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "RentGoose allows you to generate detailed landlord statements for any date range, showing gross rent, management fee deductions, other charges, and net payment to the landlord.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Generate a Landlord Statement",
+        "steps": [
+          {
+            "title": "Navigate to RentGoose",
+            "content": "Open RentGoose from the sidebar beta section.",
+            "image": null
+          },
+          {
+            "title": "Click the Landlords Tab",
+            "content": "Select the Landlords tab within RentGoose to see all landlords with active rent schedules.",
+            "image": null
+          },
+          {
+            "title": "Find the Landlord",
+            "content": "Search or scroll to find the landlord you want to produce a statement for.",
+            "image": null
+          },
+          {
+            "title": "Click View",
+            "content": "Click 'View' to open their financial summary screen, which shows all properties and rent schedules linked to that landlord.",
+            "image": null
+          },
+          {
+            "title": "Select the Date Range",
+            "content": "Choose the date range for the statement — either a specific month or a full tax year. The statement will cover all rent activity within the selected period.",
+            "image": null
+          },
+          {
+            "title": "Review the Statement",
+            "content": "The statement displays gross rent received, management fees, any other deductions (setup fees, repair charges, etc.), and the net payment amount for the landlord.",
+            "image": null
+          },
+          {
+            "title": "Download as CSV",
+            "content": "Click Download to save the statement as a CSV file, suitable for sharing with the landlord or importing into accountancy software.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Monthly and Annual Statements",
+        "content": "Monthly statements are useful for landlords who request regular financial updates. Annual statements covering the UK tax year (April to April) are available for landlords who need a summary for self-assessment tax purposes."
+      }
+    ],
+    "relatedArticles": ["rentgoose-overview", "rentgoose-annual-statement", "properties-management-fees", "properties-setup-fees"]
+  }
+}

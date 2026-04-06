@@ -1,0 +1,60 @@
+{
+  "id": "offers-v2-reposit-unithomes",
+  "slug": "offers-v2-reposit-unithomes",
+  "title": "Offering Reposit & Unithomes via Offers V2",
+  "category": "offers",
+  "tags": ["offers", "v2", "reposit", "unithomes", "deposit replacement"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 14,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "Reposit and Unithomes are deposit replacement products that can be offered to tenants at the point of sending an offer via Offers V2, giving applicants an alternative to a traditional cash deposit.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "What are Reposit and Unithomes?",
+        "content": "Reposit is a deposit replacement product where the tenant pays a small non-refundable fee (typically one week's rent) instead of placing a traditional cash deposit of five or six weeks' rent. The landlord retains full protection against damages and unpaid rent. Unithomes is a similar deposit replacement product offering the same principle. Both can be offered simultaneously from the Offers V2 send modal."
+      },
+      {
+        "type": "steps",
+        "title": "How to Offer Reposit or Unithomes",
+        "steps": [
+          {
+            "title": "Tick the Option When Sending an Offer",
+            "content": "When creating an offer in Offers V2, tick the Reposit and/or Unithomes checkboxes before clicking Send.",
+            "image": null
+          },
+          {
+            "title": "Tenant Sees Options on Offer Form",
+            "content": "The tenant's online offer form will include details about the deposit replacement option(s) you selected, allowing them to choose their preferred deposit method.",
+            "image": null
+          },
+          {
+            "title": "Tenant Selects Reposit",
+            "content": "If the tenant selects Reposit on their offer form, this is recorded on the offer. Their preference is visible when you view the offer in Offers V2.",
+            "image": null
+          },
+          {
+            "title": "Complete the Reposit Sale",
+            "content": "Once the tenant becomes an active tenant in the Tenancies tab, open their tenancy and click 'Complete Reposit Sale' to finalise the Reposit product with one click via your connected Reposit account.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "important",
+        "title": "Link Your Reposit Account First",
+        "content": "You must connect your Reposit account before offering it to tenants. Go to Settings → Deposits → Reposit and enter your Reposit agent credentials. One-click Reposit sales from the Tenancies tab require an active Reposit integration."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Offer Both at Once",
+        "content": "You can tick both Reposit and Unithomes at the same time when sending an offer, giving tenants the widest choice of deposit options alongside a traditional cash deposit."
+      }
+    ],
+    "relatedArticles": ["offers-v2-sending", "offers-v2-overview", "integrations-reposit"]
+  }
+}

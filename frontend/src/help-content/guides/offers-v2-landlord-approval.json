@@ -1,0 +1,59 @@
+{
+  "id": "offers-v2-landlord-approval",
+  "slug": "offers-v2-landlord-approval",
+  "title": "Sending Offers to Landlords for Approval",
+  "category": "offers",
+  "tags": ["offers", "v2", "landlord", "approval", "workflow"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 12,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "The landlord approval workflow in Offers V2 allows you to forward a tenant's offer to the landlord for sign-off before proceeding to referencing. This is optional but recommended for managed properties.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Send an Offer to a Landlord",
+        "steps": [
+          {
+            "title": "Find a Pending Offer",
+            "content": "In Offers V2, locate an offer with Pending status. These are offers submitted by tenants that are awaiting your action.",
+            "image": null
+          },
+          {
+            "title": "Open the Offer",
+            "content": "Click the offer row to open the full offer detail view.",
+            "image": null
+          },
+          {
+            "title": "Click Send to Landlord",
+            "content": "Click the 'Send to Landlord' button. This sends the landlord an email containing the tenant's details and the offered rent.",
+            "image": null
+          },
+          {
+            "title": "Landlord Reviews the Offer",
+            "content": "The landlord receives an email with the applicant's name, offered rent, and property address. They can indicate approval by replying or via the link in the email.",
+            "image": null
+          },
+          {
+            "title": "Receive Approval Notification",
+            "content": "When the landlord approves the offer, you are notified by email. Alternatively, you can approve the offer yourself directly in Offers V2.",
+            "image": null
+          },
+          {
+            "title": "Proceed to Referencing",
+            "content": "Once approved, click 'Start Reference' on the offer to move the applicant into the References V2 workflow.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Landlord Approval Emails",
+        "content": "Landlord approval emails are sent from your company's notification email address. You can update this in Settings → Company under the notification email field."
+      }
+    ],
+    "relatedArticles": ["offers-v2-sending", "offers-v2-overview", "references-v2-how-to"]
+  }
+}

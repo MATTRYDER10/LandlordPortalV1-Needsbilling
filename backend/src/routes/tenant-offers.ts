@@ -133,7 +133,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
                     rent_amount: rent_amount || null,
                     offer_deposit_replacement: !!offer_deposit_replacement,
                     linked_property_id: linked_property_id || null,
-                    form_ref: formRef
+                    form_ref: formRef,
+                    is_v2: true
                 })
         } catch (dbError: any) {
             console.error('Failed to store sent offer form record:', dbError)

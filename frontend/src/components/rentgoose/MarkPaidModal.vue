@@ -48,10 +48,9 @@
           <button @click="$emit('close')" :class="['px-4 py-2 text-sm font-medium rounded-lg', isDark ? 'bg-slate-800 hover:bg-slate-700' : 'bg-gray-100 hover:bg-gray-200']">Cancel</button>
           <button
             @click="confirm"
-            :disabled="submitting"
-            class="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg disabled:opacity-50"
+            class="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg"
           >
-            {{ submitting ? 'Processing...' : 'Mark Paid & Send' }}
+            Mark Paid & Send
           </button>
         </div>
       </div>
@@ -70,26 +69,20 @@ const emit = defineEmits<{ close: []; paid: [] }>()
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
 
-const submitting = ref(false)
 const sendStatement = ref(true)
 const logStatement = ref(true)
 const sendTenantReceipt = ref(true)
 
-async function confirm() {
-  submitting.value = true
-  try {
-    await store.markPaid({
-      schedule_entry_id: props.payout.schedule_entry_id,
-      send_statement: sendStatement.value,
-      log_statement: logStatement.value,
-      send_tenant_receipt: sendTenantReceipt.value,
-    })
-    emit('paid')
-  } catch (err) {
-    console.error('Failed to mark paid:', err)
-  } finally {
-    submitting.value = false
-  }
+function confirm() {
+  store.markPaid({
+    schedule_entry_id: props.payout.schedule_entry_id,
+    landlord_id: props.payout.landlord_id || undefined,
+    payout_id: props.payout.id,
+    send_statement: sendStatement.value,
+    log_statement: logStatement.value,
+    send_tenant_receipt: sendTenantReceipt.value,
+  })
+  emit('paid')
 }
 
 function formatMoney(val: number) {

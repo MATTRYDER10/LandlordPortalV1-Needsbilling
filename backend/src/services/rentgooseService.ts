@@ -46,6 +46,9 @@ export interface PayoutItem {
   landlord_bank_name?: string
   landlord_bank_account_last4?: string
   landlord_bank_sort_code?: string
+  ownership_percentage: number
+  rent_hold_active?: boolean
+  rent_hold_note?: string
   tenant_names: string
   tenancy_ref: string
   period_start: string
@@ -54,6 +57,8 @@ export interface PayoutItem {
   charges: AgentChargeItem[]
   total_charges: number
   net_payout: number
+  deposit_amount: number
+  deposit_expected_payment_id?: string
   statement_ref: string
 }
 
@@ -76,7 +81,7 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
   // Get tenancy details
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, tenancy_end_date, rent_amount, monthly_rent, rent_due_day, status, property_id')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id')
     .eq('id', tenancyId)
     .single()
 
@@ -88,58 +93,48 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
   const startDate = new Date(tenancy.tenancy_start_date)
-  const endDate = tenancy.tenancy_end_date ? new Date(tenancy.tenancy_end_date) : null
+  startDate.setHours(0, 0, 0, 0)
 
   // Check if schedule already exists
   const { count } = await supabase
     .from('rent_schedule_entries')
     .select('id', { count: 'exact', head: true })
     .eq('tenancy_id', tenancyId)
+    .neq('status', 'cancelled')
 
   if (count && count > 0) return // Already initialised
 
-  // Determine how many periods to generate
-  // Fixed term: full duration. Rolling: 3 months forward
-  let periodsToGenerate: number
-  if (endDate) {
-    const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth())
-    periodsToGenerate = Math.max(monthsDiff, 1)
-  } else {
-    periodsToGenerate = 3
-  }
-
-  const entries: any[] = []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  for (let i = 0; i < periodsToGenerate; i++) {
-    const periodStart = new Date(startDate)
-    periodStart.setMonth(periodStart.getMonth() + i)
+  // Generate current month + next month (or start month + following if tenancy starts in future)
+  const firstMonth = startDate > today
+    ? new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    : new Date(today.getFullYear(), today.getMonth(), 1)
 
-    const periodEnd = new Date(periodStart)
-    periodEnd.setMonth(periodEnd.getMonth() + 1)
-    periodEnd.setDate(periodEnd.getDate() - 1)
+  const monthsToGenerate = [
+    firstMonth,
+    new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1),
+  ]
 
-    const dueDate = new Date(periodStart.getFullYear(), periodStart.getMonth(), rentDueDay)
-    // If due day hasn't been reached yet in first month, use the correct due date
-    if (dueDate < periodStart) {
-      dueDate.setMonth(dueDate.getMonth() + 1)
-    }
+  const entries: any[] = []
 
-    let status = 'upcoming'
+  for (const monthStart of monthsToGenerate) {
+    const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+    const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+    if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+
     const dueDateOnly = new Date(dueDate)
     dueDateOnly.setHours(0, 0, 0, 0)
 
-    if (dueDateOnly.getTime() === today.getTime()) {
-      status = 'due'
-    } else if (dueDateOnly < today) {
-      status = 'overdue'
-    }
+    let status = 'upcoming'
+    if (dueDateOnly.getTime() === today.getTime()) status = 'due'
+    else if (dueDateOnly < today) status = 'overdue'
 
     entries.push({
       company_id: companyId,
       tenancy_id: tenancyId,
-      period_start: periodStart.toISOString().split('T')[0],
+      period_start: monthStart.toISOString().split('T')[0],
       period_end: periodEnd.toISOString().split('T')[0],
       amount_due: monthlyRent,
       amount_received: 0,
@@ -208,16 +203,16 @@ async function initRentShareAllocations(tenancyId: string, companyId: string): P
 export async function extendRollingSchedule(tenancyId: string, companyId: string): Promise<void> {
   const { data: tenancy } = await supabase
     .from('tenancies')
-    .select('tenancy_end_date, rent_amount, monthly_rent, rent_due_day')
+    .select('rent_amount, monthly_rent, rent_due_day')
     .eq('id', tenancyId)
     .single()
 
-  if (!tenancy || tenancy.tenancy_end_date) return // Fixed term, don't extend
+  if (!tenancy) return
 
-  // Get latest schedule entry
+  // Get latest non-cancelled entry
   const { data: latest } = await supabase
     .from('rent_schedule_entries')
-    .select('period_end')
+    .select('period_start, period_end')
     .eq('tenancy_id', tenancyId)
     .neq('status', 'cancelled')
     .order('period_end', { ascending: false })
@@ -226,45 +221,126 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 
   if (!latest) return
 
-  const latestEnd = new Date(latest.period_end)
-  const threeMonthsFromNow = new Date()
-  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3)
+  // Only need next month covered — check if it already exists
+  const today = new Date()
+  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const latestPeriodStart = new Date(latest.period_start)
 
-  if (latestEnd >= threeMonthsFromNow) return // Already enough entries
+  // Already covers next month or beyond
+  if (latestPeriodStart >= nextMonthStart) return
 
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
-  const entries: any[] = []
 
-  let current = new Date(latestEnd)
-  current.setDate(current.getDate() + 1)
+  const periodEnd = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth() + 1, 0)
+  const dueDate = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth(), rentDueDay)
+  if (dueDate < nextMonthStart) dueDate.setMonth(dueDate.getMonth() + 1)
 
-  while (current < threeMonthsFromNow) {
-    const periodStart = new Date(current)
-    const periodEnd = new Date(current)
-    periodEnd.setMonth(periodEnd.getMonth() + 1)
-    periodEnd.setDate(periodEnd.getDate() - 1)
+  await supabase.from('rent_schedule_entries').insert({
+    company_id: companyId,
+    tenancy_id: tenancyId,
+    period_start: nextMonthStart.toISOString().split('T')[0],
+    period_end: periodEnd.toISOString().split('T')[0],
+    amount_due: monthlyRent,
+    amount_received: 0,
+    status: 'upcoming',
+    due_date: dueDate.toISOString().split('T')[0],
+  })
+}
 
-    const dueDate = new Date(periodStart.getFullYear(), periodStart.getMonth(), rentDueDay)
-    if (dueDate < periodStart) dueDate.setMonth(dueDate.getMonth() + 1)
+// ============================================================================
+// SYNC ACTIVE MANAGED TENANCIES
+// ============================================================================
 
-    entries.push({
-      company_id: companyId,
-      tenancy_id: tenancyId,
-      period_start: periodStart.toISOString().split('T')[0],
-      period_end: periodEnd.toISOString().split('T')[0],
-      amount_due: monthlyRent,
-      amount_received: 0,
-      status: 'upcoming',
-      due_date: dueDate.toISOString().split('T')[0],
-    })
+export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
+  // Get all active managed tenancies
+  const { data: tenancies, error } = await supabase
+    .from('tenancies')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day')
+    .eq('company_id', companyId)
+    .eq('status', 'active')
+    .eq('management_type', 'managed')
+    .is('deleted_at', null)
 
-    current.setMonth(current.getMonth() + 1)
+  if (error || !tenancies || tenancies.length === 0) return { synced: 0, extended: 0 }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // The two months we always want covered: current month + next month
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const targetMonths = [currentMonthStart, nextMonthStart]
+
+  const tenancyIds = tenancies.map(t => t.id)
+
+  // Get all non-cancelled entries for these tenancies
+  const { data: existing } = await supabase
+    .from('rent_schedule_entries')
+    .select('tenancy_id, period_start')
+    .in('tenancy_id', tenancyIds)
+    .neq('status', 'cancelled')
+
+  // Index existing entries: tenancyId → Set of 'YYYY-MM' strings
+  const coveredMonths = new Map<string, Set<string>>()
+  for (const e of (existing || [])) {
+    if (!coveredMonths.has(e.tenancy_id)) coveredMonths.set(e.tenancy_id, new Set())
+    const d = new Date(e.period_start)
+    coveredMonths.get(e.tenancy_id)!.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
 
-  if (entries.length > 0) {
-    await supabase.from('rent_schedule_entries').insert(entries)
+  let synced = 0
+  let extended = 0
+  const toInsert: any[] = []
+
+  for (const tenancy of tenancies) {
+    const startDate = new Date(tenancy.tenancy_start_date)
+    startDate.setHours(0, 0, 0, 0)
+    const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
+    const rentDueDay = tenancy.rent_due_day || 1
+    const existing = coveredMonths.get(tenancy.id) || new Set<string>()
+    const isNew = existing.size === 0
+
+    for (const monthStart of targetMonths) {
+      // Skip months before the tenancy started
+      if (monthStart < new Date(startDate.getFullYear(), startDate.getMonth(), 1)) continue
+
+      const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
+      if (existing.has(key)) continue // Already covered
+
+      const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+      const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+      if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+
+      const dueDateOnly = new Date(dueDate)
+      dueDateOnly.setHours(0, 0, 0, 0)
+      let status = 'upcoming'
+      if (dueDateOnly.getTime() === today.getTime()) status = 'due'
+      else if (dueDateOnly < today) status = 'overdue'
+
+      toInsert.push({
+        company_id: companyId,
+        tenancy_id: tenancy.id,
+        period_start: monthStart.toISOString().split('T')[0],
+        period_end: periodEnd.toISOString().split('T')[0],
+        amount_due: monthlyRent,
+        amount_received: 0,
+        status,
+        due_date: dueDate.toISOString().split('T')[0],
+      })
+
+      if (isNew) { synced++ } else { extended++ }
+    }
   }
+
+  if (toInsert.length > 0) {
+    await supabase.from('rent_schedule_entries').insert(toInsert)
+  }
+
+  // Update statuses (overdue detection)
+  await updateScheduleStatuses()
+
+  return { synced, extended }
 }
 
 // ============================================================================
@@ -632,25 +708,50 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 
   if (!entries || entries.length === 0) return []
 
-  // Check which already have payout records
+  // Check which already have payout records (track per entry+landlord pair for split landlords)
   const entryIds = entries.map(e => e.id)
   const { data: existingPayouts } = await supabase
     .from('payout_records')
-    .select('schedule_entry_id')
+    .select('schedule_entry_id, landlord_id')
     .in('schedule_entry_id', entryIds)
     .eq('payout_type', 'landlord')
 
-  const paidOutIds = new Set((existingPayouts || []).map(p => p.schedule_entry_id))
-  const unpaidEntries = entries.filter(e => !paidOutIds.has(e.id))
+  const paidOutPairs = new Set((existingPayouts || []).map(p => `${p.schedule_entry_id}:${p.landlord_id || ''}`))
 
-  if (unpaidEntries.length === 0) return []
+  if (entries.length === 0) return []
 
   // Enrich with tenancy/property/landlord data
-  const tenancyIds = [...new Set(unpaidEntries.map(e => e.tenancy_id))]
+  const tenancyIds = [...new Set(entries.map(e => e.tenancy_id))]
   const { data: tenancies } = await supabase
     .from('tenancies')
-    .select('id, property_id')
+    .select('id, property_id, deposit_scheme')
     .in('id', tenancyIds)
+
+  // Batch-fetch landlord-held deposits not yet paid out to landlord
+  const landlordHeldTenancyIds = (tenancies || [])
+    .filter(t => t.deposit_scheme === 'landlord_held')
+    .map(t => t.id)
+
+  const depositByTenancy = new Map<string, { amount: number; expected_payment_id: string }>()
+  if (landlordHeldTenancyIds.length > 0) {
+    const { data: depositEPs } = await supabase
+      .from('expected_payments')
+      .select('id, tenancy_id, payout_split')
+      .in('tenancy_id', landlordHeldTenancyIds)
+      .eq('status', 'paid')
+      .is('deposit_payout_at', null)
+
+    for (const ep of (depositEPs || [])) {
+      const splits: any[] = ep.payout_split || []
+      const depositSplit = splits.find((s: any) => s.type === 'deposit_hold')
+      if (depositSplit && parseFloat(depositSplit.amount) > 0) {
+        depositByTenancy.set(ep.tenancy_id, {
+          amount: parseFloat(depositSplit.amount),
+          expected_payment_id: ep.id,
+        })
+      }
+    }
+  }
 
   const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
   const { data: properties } = await supabase
@@ -667,13 +768,12 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 
   const { data: propertyLandlords } = await supabase
     .from('property_landlords')
-    .select('property_id, landlord_id')
+    .select('property_id, landlord_id, ownership_percentage')
     .in('property_id', propertyIds)
-    .eq('is_primary_contact', true)
 
   const landlordIds = [...new Set((propertyLandlords || []).map(pl => pl.landlord_id))]
   const { data: landlords } = landlordIds.length > 0
-    ? await supabase.from('landlords').select('id, first_name_encrypted, last_name_encrypted, email_encrypted, bank_account_name_encrypted, bank_account_number_encrypted, bank_sort_code_encrypted').in('id', landlordIds)
+    ? await supabase.from('landlords').select('id, first_name_encrypted, last_name_encrypted, email_encrypted, bank_account_name_encrypted, bank_account_number_encrypted, bank_sort_code_encrypted, rent_hold_active, rent_hold_note').in('id', landlordIds)
     : { data: [] }
 
   const { data: tenancyTenants } = await supabase
@@ -685,13 +785,19 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
   const { data: allCharges } = await supabase
     .from('agent_charges')
     .select('*')
-    .in('schedule_entry_id', unpaidEntries.map(e => e.id))
+    .in('schedule_entry_id', entries.map(e => e.id))
 
   // Build lookups
   const tenancyMap = new Map((tenancies || []).map(t => [t.id, t]))
   const propertyMap = new Map((properties || []).map(p => [p.id, p]))
   const landlordMap = new Map((landlords || []).map(l => [l.id, l]))
-  const propertyLandlordMap = new Map((propertyLandlords || []).map(pl => [pl.property_id, pl.landlord_id]))
+  // Map property_id → array of { landlord_id, ownership_percentage }
+  const propertyLandlordsMap = new Map<string, Array<{ landlord_id: string; ownership_percentage: number }>>()
+  for (const pl of (propertyLandlords || [])) {
+    const existing = propertyLandlordsMap.get(pl.property_id) || []
+    existing.push({ landlord_id: pl.landlord_id, ownership_percentage: parseFloat(pl.ownership_percentage) || 100 })
+    propertyLandlordsMap.set(pl.property_id, existing)
+  }
   const tenantsByTenancy = new Map<string, any[]>()
   for (const tt of (tenancyTenants || [])) {
     const existing = tenantsByTenancy.get(tt.tenancy_id) || []
@@ -712,6 +818,17 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
     propertyChargesByProperty.set(pc.property_id, existing)
   }
 
+  // Pre-filter: only keep entries that have at least one unpaid landlord split
+  const unpaidEntries = entries.filter(entry => {
+    const tenancy = tenancyMap.get(entry.tenancy_id)
+    if (!tenancy) return false
+    const propLandlords = propertyLandlordsMap.get(tenancy.property_id) || []
+    const splits = propLandlords.length > 0 ? propLandlords : [{ landlord_id: '', ownership_percentage: 100 }]
+    return splits.some(s => !paidOutPairs.has(`${entry.id}:${s.landlord_id || ''}`))
+  })
+
+  if (unpaidEntries.length === 0) return []
+
   const payouts: PayoutItem[] = []
   for (const entry of unpaidEntries) {
     const tenancy = tenancyMap.get(entry.tenancy_id)
@@ -720,14 +837,18 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
     const property = propertyMap.get(tenancy.property_id)
     if (!property) continue
 
-    const landlordId = propertyLandlordMap.get(tenancy.property_id)
-    const landlord = landlordId ? landlordMap.get(landlordId) : null
+    // Get all landlords for this property (split landlord support)
+    const propLandlords = propertyLandlordsMap.get(tenancy.property_id) || []
+    // If no landlords linked, create a single payout with unknown landlord
+    const landlordSplits = propLandlords.length > 0
+      ? propLandlords
+      : [{ landlord_id: '', ownership_percentage: 100 }]
 
     const tenants = tenantsByTenancy.get(entry.tenancy_id) || []
-    const grossRent = parseFloat(entry.amount_received)
+    const fullGrossRent = parseFloat(entry.amount_received)
 
-    // Start with any existing agent_charges (from receipting or raised invoices)
-    const charges: AgentChargeItem[] = (chargesByEntry.get(entry.id) || []).map((c: any) => ({
+    // Build charges once (shared across landlord splits — charges are deducted proportionally)
+    const fullCharges: AgentChargeItem[] = (chargesByEntry.get(entry.id) || []).map((c: any) => ({
       id: c.id,
       charge_type: c.charge_type,
       description: c.description,
@@ -738,12 +859,9 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
       contractor_invoice_id: c.contractor_invoice_id,
     }))
 
-    // Only auto-generate charges if none were recorded during receipting
-    // If agent_charges exist for this entry, the user already made their selections
     const hasExistingCharges = chargesByEntry.has(entry.id)
 
     if (!hasExistingCharges) {
-      // Auto-calculate management fee from property
       if (property.fee_percent) {
         const feePercent = parseFloat(property.fee_percent)
         if (feePercent > 0) {
@@ -751,10 +869,10 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
           if (property.management_fee_type === 'fixed') {
             netFee = feePercent
           } else {
-            netFee = Math.round((feePercent / 100) * grossRent * 100) / 100
+            netFee = Math.round((feePercent / 100) * fullGrossRent * 100) / 100
           }
           const vatFee = Math.round(netFee * 0.20 * 100) / 100
-          charges.push({
+          fullCharges.push({
             id: `auto-mgmt-${entry.id}`,
             charge_type: 'management_fee',
             description: property.management_fee_type === 'fixed' ? `Management fee (£${netFee.toFixed(2)}/month)` : `Management fee at ${feePercent}%`,
@@ -766,12 +884,11 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
         }
       }
 
-      // Add recurring property charges
       const propCharges = propertyChargesByProperty.get(tenancy.property_id) || []
       for (const pc of propCharges) {
         const amt = parseFloat(pc.amount)
         const vat = pc.is_vatable ? Math.round(amt * 0.20 * 100) / 100 : 0
-        charges.push({
+        fullCharges.push({
           id: `prop-charge-${pc.id}`,
           charge_type: 'ad_hoc',
           description: pc.description,
@@ -783,43 +900,74 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
       }
     }
 
-    const includedCharges = charges.filter((c: AgentChargeItem) => c.included)
-    const totalCharges = includedCharges.reduce((sum: number, c: AgentChargeItem) => sum + c.gross_amount, 0)
-    const netPayout = grossRent - totalCharges
+    const tenantNameStr = tenants
+      .filter((t: any) => !t.status || t.status === 'active')
+      .map((t: any) => decrypt(t.tenant_name_encrypted) || 'Tenant')
+      .join(', ')
+    const propertyAddress = decrypt(property.address_line1_encrypted) || ''
 
-    const landlordName = landlord
-      ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
-      : 'Unknown'
+    // Create a separate payout per landlord, split by ownership_percentage
+    for (const split of landlordSplits) {
+      // Skip if this entry+landlord pair already paid
+      if (split.landlord_id && paidOutPairs.has(`${entry.id}:${split.landlord_id}`)) continue
 
-    const statementRef = `RG-${Date.now().toString(36).toUpperCase()}-${entry.id.substring(0, 4).toUpperCase()}`
+      const pct = split.ownership_percentage / 100
+      const landlord = split.landlord_id ? landlordMap.get(split.landlord_id) : null
+      const grossRent = Math.round(fullGrossRent * pct * 100) / 100
 
-    payouts.push({
-      id: entry.id,
-      schedule_entry_id: entry.id,
-      property_id: tenancy.property_id,
-      property_address: decrypt(property.address_line1_encrypted) || '',
-      property_postcode: property.postcode || '',
-      landlord_name: landlordName,
-      landlord_id: landlordId || '',
-      landlord_email: landlord ? decrypt(landlord.email_encrypted) || undefined : undefined,
-      landlord_bank_name: landlord?.bank_account_name_encrypted ? decrypt(landlord.bank_account_name_encrypted) || undefined : undefined,
-      landlord_bank_account_last4: landlord?.bank_account_number_encrypted
-        ? (decrypt(landlord.bank_account_number_encrypted) || '').slice(-4) || undefined
-        : undefined,
-      landlord_bank_sort_code: landlord?.bank_sort_code_encrypted ? decrypt(landlord.bank_sort_code_encrypted) || undefined : undefined,
-      tenant_names: tenants
-        .filter((t: any) => !t.status || t.status === 'active')
-        .map((t: any) => decrypt(t.tenant_name_encrypted) || 'Tenant')
-        .join(', '),
-      tenancy_ref: entry.tenancy_id.substring(0, 8).toUpperCase(),
-      period_start: entry.period_start,
-      period_end: entry.period_end,
-      gross_rent: grossRent,
-      charges,
-      total_charges: totalCharges,
-      net_payout: netPayout,
-      statement_ref: statementRef,
-    })
+      // Split charges proportionally
+      const charges: AgentChargeItem[] = fullCharges.map(c => ({
+        ...c,
+        net_amount: Math.round(c.net_amount * pct * 100) / 100,
+        vat_amount: Math.round(c.vat_amount * pct * 100) / 100,
+        gross_amount: Math.round(c.gross_amount * pct * 100) / 100,
+      }))
+
+      const includedCharges = charges.filter((c: AgentChargeItem) => c.included)
+      const totalCharges = includedCharges.reduce((sum: number, c: AgentChargeItem) => sum + c.gross_amount, 0)
+      const netPayout = Math.round((grossRent - totalCharges) * 100) / 100
+
+      const landlordName = landlord
+        ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
+        : 'Unknown'
+
+      const statementRef = `RG-${Date.now().toString(36).toUpperCase()}-${entry.id.substring(0, 4).toUpperCase()}`
+
+      // Deposit: only include on the primary landlord split (highest ownership %) to avoid double-paying
+      const isPrimaryLandlord = split.ownership_percentage >= Math.max(...landlordSplits.map(s => s.ownership_percentage))
+      const depositInfo = isPrimaryLandlord ? depositByTenancy.get(entry.tenancy_id) : undefined
+      const depositAmount = depositInfo ? Math.round(depositInfo.amount * pct * 100) / 100 : 0
+
+      payouts.push({
+        id: split.landlord_id ? `${entry.id}:${split.landlord_id}` : entry.id,
+        schedule_entry_id: entry.id,
+        property_id: tenancy.property_id,
+        property_address: propertyAddress,
+        property_postcode: property.postcode || '',
+        landlord_name: landlordName,
+        landlord_id: split.landlord_id || '',
+        landlord_email: landlord ? decrypt(landlord.email_encrypted) || undefined : undefined,
+        landlord_bank_name: landlord?.bank_account_name_encrypted ? decrypt(landlord.bank_account_name_encrypted) || undefined : undefined,
+        landlord_bank_account_last4: landlord?.bank_account_number_encrypted
+          ? (decrypt(landlord.bank_account_number_encrypted) || '').slice(-4) || undefined
+          : undefined,
+        landlord_bank_sort_code: landlord?.bank_sort_code_encrypted ? decrypt(landlord.bank_sort_code_encrypted) || undefined : undefined,
+        ownership_percentage: split.ownership_percentage,
+        rent_hold_active: landlord?.rent_hold_active || false,
+        rent_hold_note: landlord?.rent_hold_note || undefined,
+        tenant_names: tenantNameStr,
+        tenancy_ref: entry.tenancy_id.substring(0, 8).toUpperCase(),
+        period_start: entry.period_start,
+        period_end: entry.period_end,
+        gross_rent: grossRent,
+        charges,
+        total_charges: totalCharges,
+        net_payout: netPayout,
+        deposit_amount: depositAmount,
+        deposit_expected_payment_id: depositInfo?.expected_payment_id,
+        statement_ref: statementRef,
+      })
+    }
   }
 
   return payouts
@@ -831,40 +979,25 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 
 export async function markPayoutPaid(companyId: string, input: {
   schedule_entry_id: string
+  landlord_id?: string
   paid_by?: string
   send_statement: boolean
   log_statement: boolean
   send_tenant_receipt: boolean
-}): Promise<{ payout_id: string; pdf_path?: string }> {
+}): Promise<{ payout_id: string }> {
   // Get entry and related data
   const payouts = await getPayoutsQueue(companyId)
-  const payout = payouts.find(p => p.schedule_entry_id === input.schedule_entry_id)
+  const payout = payouts.find(p => {
+    if (p.schedule_entry_id !== input.schedule_entry_id) return false
+    // For split landlords, match by landlord_id; for single/unknown landlord, match first
+    if (input.landlord_id !== undefined && input.landlord_id !== '') {
+      return p.landlord_id === input.landlord_id
+    }
+    return true
+  })
   if (!payout) throw new Error('Payout not found in queue')
 
-  // Get company details for email
-  const { data: company } = await supabase
-    .from('companies')
-    .select('name_encrypted, logo_url')
-    .eq('id', companyId)
-    .single()
-  const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
-  const companyLogo = company?.logo_url || ''
-
-  // Generate statement PDF
-  let pdfPath: string | undefined
-  let pdfBuffer: Buffer | undefined
-  try {
-    console.log('[Payout] Generating statement PDF for', payout.landlord_name, payout.property_address)
-    const { generateLandlordStatement } = await import('./rentgooseStatementService')
-    const result = await generateLandlordStatement(companyId, payout)
-    pdfPath = result.storagePath
-    pdfBuffer = result.pdfBuffer
-    console.log('[Payout] Statement PDF generated:', pdfPath, 'size:', pdfBuffer?.length, 'bytes')
-  } catch (err) {
-    console.error('[Payout] Failed to generate statement PDF:', err)
-  }
-
-  // Create payout record
+  // Create payout record (synchronous — must succeed before returning)
   const { data: payoutRecord, error: payoutErr } = await supabase
     .from('payout_records')
     .insert({
@@ -875,15 +1008,15 @@ export async function markPayoutPaid(companyId: string, input: {
       gross_rent: payout.gross_rent,
       total_charges: payout.total_charges,
       net_payout: payout.net_payout,
+      deposit_amount: payout.deposit_amount || 0,
       paid_by: input.paid_by || null,
-      statement_pdf_path: pdfPath || null,
     })
     .select()
     .single()
 
   if (payoutErr) throw payoutErr
 
-  // Create ClientAccountEntry (payout_out)
+  // Create ClientAccountEntry (payout_out) for rent portion
   const currentBalance = await getCurrentBalance(companyId)
   const newBalance = currentBalance - payout.net_payout
 
@@ -893,7 +1026,7 @@ export async function markPayoutPaid(companyId: string, input: {
       company_id: companyId,
       entry_type: 'payout_out',
       amount: payout.net_payout,
-      description: `Payout to ${payout.landlord_name} for ${payout.property_address}`,
+      description: `Rent payout to ${payout.landlord_name}${payout.ownership_percentage < 100 ? ` (${payout.ownership_percentage}%)` : ''} for ${payout.property_address}`,
       related_id: payoutRecord.id,
       related_type: 'payout_record',
       balance_after: newBalance,
@@ -910,74 +1043,291 @@ export async function markPayoutPaid(companyId: string, input: {
       .eq('id', payoutRecord.id)
   }
 
-  // Send statement email if requested
-  console.log('[Payout] Email check — send_statement:', input.send_statement, 'landlord_email:', payout.landlord_email, 'pdfPath:', pdfPath)
-  if (input.send_statement && payout.landlord_email && pdfPath) {
-    try {
-      const { sendEmail, loadEmailTemplate } = await import('./emailService')
-      const html = loadEmailTemplate('landlord-statement', {
-        LandlordName: payout.landlord_name,
-        PropertyAddress: `${payout.property_address}, ${payout.property_postcode}`,
-        PeriodStart: payout.period_start,
-        PeriodEnd: payout.period_end,
-        NetPayout: payout.net_payout.toFixed(2),
-        CompanyName: companyName,
-        AgentLogoUrl: companyLogo,
-      })
-
-      await sendEmail({
-        to: payout.landlord_email,
-        subject: `Rental Statement - ${payout.property_address}`,
-        html,
-        companyId,
-        emailCategory: 'landlord_statement',
-        attachments: pdfBuffer ? [{
-          filename: `statement-${payout.statement_ref}.pdf`,
-          content: pdfBuffer,
-        }] : undefined,
-      })
-
-      await supabase
-        .from('payout_records')
-        .update({ statement_sent_at: new Date().toISOString() })
-        .eq('id', payoutRecord.id)
-    } catch (err) {
-      console.error('Failed to send statement email:', err)
-    }
+  // If landlord-held deposit, pay it out and mark expected payment as settled
+  if (payout.deposit_amount > 0 && payout.deposit_expected_payment_id) {
+    const depositBalance = await getCurrentBalance(companyId)
+    await supabase.from('client_account_entries').insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: payout.deposit_amount,
+      description: `Security deposit (landlord held) paid to ${payout.landlord_name} for ${payout.property_address}`,
+      related_id: payoutRecord.id,
+      related_type: 'payout_record',
+      balance_after: depositBalance - payout.deposit_amount,
+      created_by: input.paid_by || null,
+      is_manual: false,
+    })
+    await supabase
+      .from('expected_payments')
+      .update({ deposit_payout_at: new Date().toISOString() })
+      .eq('id', payout.deposit_expected_payment_id)
   }
 
-  // Save statement to landlord documents if PDF was generated
-  if (pdfPath && payout.landlord_id) {
+  // Fire-and-forget: PDF generation, email, document logging, tenant receipt
+  // Returns immediately so the agent can move on to the next payout
+  const payoutId = payoutRecord.id
+  ;(async () => {
     try {
-      // Save as a property document linked to the landlord
-      await supabase
-        .from('property_documents')
-        .insert({
-          property_id: payout.property_id,
-          company_id: companyId,
-          file_name: `Statement-${payout.statement_ref}.pdf`,
-          file_path: pdfPath,
-          file_type: 'application/pdf',
-          file_size: pdfBuffer?.length || 0,
-          tag: 'statement',
-          description: `Rental statement for ${payout.period_start} to ${payout.period_end}`,
-          uploaded_by: input.paid_by || null,
-        })
-    } catch (err) {
-      console.error('Failed to save statement to documents:', err)
-    }
-  }
+      // Get company details for email
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name_encrypted, logo_url')
+        .eq('id', companyId)
+        .single()
+      const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
+      const companyLogo = company?.logo_url || ''
 
-  // Send tenant receipt if requested
-  if (input.send_tenant_receipt) {
-    try {
-      await sendTenantReceipt(companyId, input.schedule_entry_id)
-    } catch (err) {
-      console.error('Failed to send tenant receipt:', err)
-    }
-  }
+      // Generate statement PDF
+      let pdfPath: string | undefined
+      let pdfBuffer: Buffer | undefined
+      try {
+        const { generateLandlordStatement } = await import('./rentgooseStatementService')
+        const result = await generateLandlordStatement(companyId, payout)
+        pdfPath = result.storagePath
+        pdfBuffer = result.pdfBuffer
+        console.log('[Payout] Statement PDF generated:', pdfPath, 'size:', pdfBuffer?.length, 'bytes')
+      } catch (err) {
+        console.error('[Payout] Failed to generate statement PDF:', err)
+      }
 
-  return { payout_id: payoutRecord.id, pdf_path: pdfPath }
+      // Update payout record with PDF path
+      if (pdfPath) {
+        await supabase.from('payout_records').update({ statement_pdf_path: pdfPath }).eq('id', payoutId)
+      }
+
+      // Send statement email
+      if (input.send_statement && payout.landlord_email && pdfPath) {
+        try {
+          const { sendEmail, loadEmailTemplate } = await import('./emailService')
+          const html = loadEmailTemplate('landlord-statement', {
+            LandlordName: payout.landlord_name,
+            PropertyAddress: `${payout.property_address}, ${payout.property_postcode}`,
+            PeriodStart: payout.period_start,
+            PeriodEnd: payout.period_end,
+            NetPayout: payout.net_payout.toFixed(2),
+            CompanyName: companyName,
+            AgentLogoUrl: companyLogo,
+          })
+
+          await sendEmail({
+            to: payout.landlord_email,
+            subject: `Rental Statement - ${payout.property_address}`,
+            html,
+            companyId,
+            emailCategory: 'landlord_statement',
+            attachments: pdfBuffer ? [{
+              filename: `statement-${payout.statement_ref}.pdf`,
+              content: pdfBuffer,
+            }] : undefined,
+          })
+
+          await supabase.from('payout_records').update({ statement_sent_at: new Date().toISOString() }).eq('id', payoutId)
+        } catch (err) {
+          console.error('[Payout] Failed to send statement email:', err)
+        }
+      }
+
+      // Save statement to documents
+      if (pdfPath && payout.landlord_id) {
+        try {
+          await supabase.from('property_documents').insert({
+            property_id: payout.property_id,
+            company_id: companyId,
+            file_name: `Statement-${payout.statement_ref}.pdf`,
+            file_path: pdfPath,
+            file_type: 'application/pdf',
+            file_size: pdfBuffer?.length || 0,
+            tag: 'statement',
+            description: `Rental statement for ${payout.period_start} to ${payout.period_end}`,
+            uploaded_by: input.paid_by || null,
+          })
+        } catch (err) {
+          console.error('[Payout] Failed to save statement to documents:', err)
+        }
+      }
+
+      // Send tenant receipt
+      if (input.send_tenant_receipt) {
+        try {
+          await sendTenantReceipt(companyId, input.schedule_entry_id)
+        } catch (err) {
+          console.error('[Payout] Failed to send tenant receipt:', err)
+        }
+      }
+    } catch (err) {
+      console.error('[Payout] Background task failed for payout', payoutId, err)
+    }
+  })()
+
+  return { payout_id: payoutId }
+}
+
+// ============================================================================
+// HOLD PAYOUT — Move rent into held monies instead of paying out
+// ============================================================================
+
+export async function holdPayout(companyId: string, input: {
+  schedule_entry_id: string
+  landlord_id?: string
+  held_by?: string
+}): Promise<{ payout_id: string }> {
+  const payouts = await getPayoutsQueue(companyId)
+  const payout = payouts.find(p => {
+    if (p.schedule_entry_id !== input.schedule_entry_id) return false
+    if (input.landlord_id !== undefined && input.landlord_id !== '') {
+      return p.landlord_id === input.landlord_id
+    }
+    return true
+  })
+  if (!payout) throw new Error('Payout not found in queue')
+
+  // Create payout record with status 'held'
+  const { data: payoutRecord, error: payoutErr } = await supabase
+    .from('payout_records')
+    .insert({
+      company_id: companyId,
+      schedule_entry_id: input.schedule_entry_id,
+      landlord_id: payout.landlord_id || null,
+      payout_type: 'landlord',
+      gross_rent: payout.gross_rent,
+      total_charges: payout.total_charges,
+      net_payout: payout.net_payout,
+      paid_by: input.held_by || null,
+      statement_pdf_path: null,
+      // Use a metadata flag to indicate held status
+    })
+    .select()
+    .single()
+
+  if (payoutErr) throw payoutErr
+
+  // Mark as held
+  await supabase
+    .from('payout_records')
+    .update({ statement_pdf_path: 'HELD' })
+    .eq('id', payoutRecord.id)
+
+  // Create client_account_entry — rent_held_in with the actual amount
+  // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold
+  const currentBalance = await getCurrentBalance(companyId)
+
+  await supabase.from('client_account_entries').insert({
+    company_id: companyId,
+    entry_type: 'rent_held_in',
+    amount: payout.net_payout,
+    description: `Rent held for ${payout.landlord_name}${payout.ownership_percentage < 100 ? ` (${payout.ownership_percentage}%)` : ''} — ${payout.property_address}`,
+    reference: `HELD-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
+    related_id: payoutRecord.id,
+    related_type: 'payout_record',
+    balance_after: currentBalance,
+    created_by: input.held_by || null,
+    is_manual: false,
+  })
+
+  return { payout_id: payoutRecord.id }
+}
+
+export async function getHeldRents(companyId: string): Promise<any[]> {
+  const { data: heldPayouts } = await supabase
+    .from('payout_records')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('payout_type', 'landlord')
+    .eq('statement_pdf_path', 'HELD')
+    .order('created_at', { ascending: false })
+
+  if (!heldPayouts || heldPayouts.length === 0) return []
+
+  // Enrich with property/landlord data
+  const landlordIds = [...new Set(heldPayouts.map(p => p.landlord_id).filter(Boolean))]
+  const { data: landlords } = landlordIds.length > 0
+    ? await supabase.from('landlords').select('id, first_name_encrypted, last_name_encrypted, email_encrypted, bank_account_name_encrypted, bank_account_number_encrypted, bank_sort_code_encrypted').in('id', landlordIds)
+    : { data: [] }
+  const landlordMap = new Map((landlords || []).map(l => [l.id, l]))
+
+  const entryIds = [...new Set(heldPayouts.map(p => p.schedule_entry_id))]
+  const { data: entries } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, tenancy_id, period_start, period_end')
+    .in('id', entryIds)
+  const entryMap = new Map((entries || []).map(e => [e.id, e]))
+
+  const tenancyIds = [...new Set((entries || []).map(e => e.tenancy_id))]
+  const { data: tenancies } = tenancyIds.length > 0
+    ? await supabase.from('tenancies').select('id, property_id').in('id', tenancyIds)
+    : { data: [] }
+  const tenancyMap = new Map((tenancies || []).map(t => [t.id, t]))
+
+  const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+  const { data: properties } = propertyIds.length > 0
+    ? await supabase.from('properties').select('id, address_line1_encrypted, postcode').in('id', propertyIds)
+    : { data: [] }
+  const propertyMap = new Map((properties || []).map(p => [p.id, p]))
+
+  return heldPayouts.map(p => {
+    const landlord = p.landlord_id ? landlordMap.get(p.landlord_id) : null
+    const entry = entryMap.get(p.schedule_entry_id)
+    const tenancy = entry ? tenancyMap.get(entry.tenancy_id) : null
+    const property = tenancy?.property_id ? propertyMap.get(tenancy.property_id) : null
+
+    return {
+      id: p.id,
+      schedule_entry_id: p.schedule_entry_id,
+      landlord_name: landlord
+        ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
+        : 'Unknown',
+      landlord_id: p.landlord_id || '',
+      landlord_bank_name: landlord?.bank_account_name_encrypted ? decrypt(landlord.bank_account_name_encrypted) : undefined,
+      landlord_bank_sort_code: landlord?.bank_sort_code_encrypted ? decrypt(landlord.bank_sort_code_encrypted) : undefined,
+      landlord_bank_account_last4: landlord?.bank_account_number_encrypted
+        ? (decrypt(landlord.bank_account_number_encrypted) || '').slice(-4)
+        : undefined,
+      property_address: property ? decrypt(property.address_line1_encrypted) || '' : '',
+      property_postcode: property?.postcode || '',
+      period_start: entry?.period_start || '',
+      period_end: entry?.period_end || '',
+      gross_rent: parseFloat(p.gross_rent),
+      total_charges: parseFloat(p.total_charges),
+      net_payout: parseFloat(p.net_payout),
+      held_at: p.created_at,
+    }
+  })
+}
+
+export async function releaseHeldRent(companyId: string, input: {
+  payout_record_id: string
+  released_by?: string
+}): Promise<{ success: boolean }> {
+  // Get the held payout details before deleting
+  const { data: payoutRecord } = await supabase
+    .from('payout_records')
+    .select('id, schedule_entry_id, landlord_id, net_payout')
+    .eq('id', input.payout_record_id)
+    .eq('company_id', companyId)
+    .eq('statement_pdf_path', 'HELD')
+    .single()
+
+  if (!payoutRecord) throw new Error('Held payout not found')
+
+  // Delete the held payout record — this puts the entry back into getPayoutsQueue
+  // so the agent can process it through the normal payout flow with charges/invoices
+  const { error } = await supabase
+    .from('payout_records')
+    .delete()
+    .eq('id', input.payout_record_id)
+    .eq('statement_pdf_path', 'HELD')
+
+  if (error) throw error
+
+  // Remove the rent_held_in client account entry
+  await supabase
+    .from('client_account_entries')
+    .delete()
+    .eq('related_id', input.payout_record_id)
+    .eq('related_type', 'payout_record')
+    .eq('entry_type', 'rent_held_in')
+
+  return { success: true }
 }
 
 // ============================================================================
@@ -1022,6 +1372,7 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
     id: string
     fee_type: string
     description: string
+    property_address: string
     net_amount: number
     vat_amount: number
     gross_amount: number
@@ -1044,16 +1395,32 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
 
   const { data: charges } = await chargeQuery
 
-  // Look up schedule entry statuses
+  // Look up schedule entry statuses + property addresses
   const entryIds = [...new Set((charges || []).map(c => c.schedule_entry_id))]
   let entryStatusMap = new Map<string, string>()
+  let entryPropertyMap = new Map<string, string>()
   if (entryIds.length > 0) {
     const { data: entries } = await supabase
       .from('rent_schedule_entries')
-      .select('id, status')
+      .select('id, status, tenancy_id')
       .in('id', entryIds)
+
+    const tenancyIds = [...new Set((entries || []).map(e => e.tenancy_id))]
+    const { data: tenancies } = tenancyIds.length > 0
+      ? await supabase.from('tenancies').select('id, property_id').in('id', tenancyIds)
+      : { data: [] }
+    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+    const { data: properties } = propertyIds.length > 0
+      ? await supabase.from('properties').select('id, address_line1_encrypted, postcode').in('id', propertyIds)
+      : { data: [] }
+
+    const propMap = new Map((properties || []).map(p => [p.id, `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`]))
+    const tenPropMap = new Map((tenancies || []).map(t => [t.id, t.property_id]))
+
     for (const e of (entries || [])) {
       entryStatusMap.set(e.id, e.status)
+      const propId = tenPropMap.get(e.tenancy_id)
+      if (propId) entryPropertyMap.set(e.id, propMap.get(propId) || '')
     }
   }
 
@@ -1061,6 +1428,7 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
     id: c.id,
     fee_type: c.charge_type,
     description: c.description,
+    property_address: entryPropertyMap.get(c.schedule_entry_id) || '',
     net_amount: parseFloat(c.net_amount),
     vat_amount: parseFloat(c.vat_amount),
     gross_amount: parseFloat(c.gross_amount),
@@ -1082,7 +1450,7 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
   const { data: expectedPayments } = await epQuery
 
   const epItems: Array<{
-    id: string; fee_type: string; description: string; net_amount: number; vat_amount: number;
+    id: string; fee_type: string; description: string; property_address: string; net_amount: number; vat_amount: number;
     gross_amount: number; status: 'paid' | 'due'; date: string; source: 'rent_charge' | 'expected_payment'
   }> = []
   for (const ep of (expectedPayments || [])) {
@@ -1093,6 +1461,7 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
           id: ep.id + '-fee',
           fee_type: ep.payment_type,
           description: split.description || ep.description,
+          property_address: ep.property_address || '',
           net_amount: parseFloat(split.amount),
           vat_amount: 0,
           gross_amount: parseFloat(split.amount),
@@ -1107,6 +1476,7 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
         id: ep.id,
         fee_type: ep.payment_type,
         description: ep.description,
+        property_address: ep.property_address || '',
         net_amount: parseFloat(ep.amount_due),
         vat_amount: 0,
         gross_amount: parseFloat(ep.amount_due),
@@ -1497,6 +1867,107 @@ export async function markContractorPaid(companyId: string, input: {
     is_manual: false,
   })
 
+  // Fire-and-forget: generate remittance PDF and email to contractor
+  const invoiceId = input.invoice_id
+  ;(async () => {
+    try {
+      // Get contractor details
+      const { data: contractor } = await supabase
+        .from('contractors')
+        .select('name, email, bank_account_name_encrypted')
+        .eq('id', invoice.contractor_id)
+        .single()
+
+      // Get property address
+      let propertyAddress = ''
+      if (invoice.property_id) {
+        const { data: prop } = await supabase
+          .from('properties')
+          .select('address_line1_encrypted, postcode')
+          .eq('id', invoice.property_id)
+          .single()
+        if (prop) {
+          propertyAddress = `${decrypt(prop.address_line1_encrypted) || ''}, ${prop.postcode || ''}`
+        }
+      }
+
+      const contractorName = contractor?.name || 'Contractor'
+      const contractorEmail = contractor?.email || null
+
+      // Generate remittance PDF
+      const { generateContractorRemittance } = await import('./rentgooseRemittanceService')
+      const { storagePath, pdfBuffer } = await generateContractorRemittance(companyId, {
+        contractor_name: contractorName,
+        contractor_email: contractorEmail || undefined,
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+        property_address: propertyAddress,
+        gross_amount: parseFloat(invoice.gross_amount),
+        commission_percent: parseFloat(invoice.commission_percent),
+        commission_net: parseFloat(invoice.commission_net),
+        commission_vat_amount: parseFloat(invoice.commission_vat_amount || 0),
+        payout_amount: parseFloat(invoice.payout_to_contractor),
+        commission_vat: !!invoice.commission_vat,
+      })
+
+      // Save remittance path to invoice
+      await supabase
+        .from('contractor_invoices')
+        .update({ remittance_pdf_path: storagePath })
+        .eq('id', invoiceId)
+
+      console.log('[Remittance] PDF generated:', storagePath)
+
+      // Send remittance email to contractor
+      if (contractorEmail) {
+        try {
+          const { data: company } = await supabase
+            .from('companies')
+            .select('name_encrypted, logo_url')
+            .eq('id', companyId)
+            .single()
+          const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
+          const companyLogo = company?.logo_url || ''
+
+          const commissionTotal = parseFloat(invoice.commission_net) + parseFloat(invoice.commission_vat_amount || 0)
+          const invoiceDateFmt = new Date(invoice.invoice_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+
+          const { sendEmail, loadEmailTemplate } = await import('./emailService')
+          const html = loadEmailTemplate('contractor-remittance', {
+            ContractorName: contractorName,
+            InvoiceNumber: invoice.invoice_number,
+            InvoiceDate: invoiceDateFmt,
+            PropertyAddress: propertyAddress || 'N/A',
+            GrossAmount: parseFloat(invoice.gross_amount).toFixed(2),
+            CommissionPercent: parseFloat(invoice.commission_percent).toFixed(0),
+            CommissionTotal: commissionTotal.toFixed(2),
+            PayoutAmount: parseFloat(invoice.payout_to_contractor).toFixed(2),
+            CompanyName: companyName,
+            AgentLogoUrl: companyLogo,
+          })
+
+          await sendEmail({
+            to: contractorEmail,
+            subject: `Remittance Advice - Invoice #${invoice.invoice_number}`,
+            html,
+            companyId,
+            emailCategory: 'contractor_remittance',
+            attachments: pdfBuffer ? [{
+              filename: `remittance-${invoice.invoice_number}.pdf`,
+              content: pdfBuffer,
+            }] : undefined,
+          })
+
+          console.log('[Remittance] Email sent to', contractorEmail)
+        } catch (emailErr) {
+          console.error('[Remittance] Failed to send email:', emailErr)
+        }
+      }
+    } catch (err) {
+      console.error('[Remittance] Background task failed for invoice', invoiceId, err)
+    }
+  })()
+
   return payoutRecord
 }
 
@@ -1677,12 +2148,44 @@ export async function updateScheduleStatuses(): Promise<void> {
     .eq('status', 'upcoming')
     .eq('due_date', today)
 
-  // Mark 'due' as 'overdue' if due_date < today
-  await supabase
+  // Find 'due' entries that are now past due — capture them before updating
+  const { data: newlyOverdue } = await supabase
     .from('rent_schedule_entries')
-    .update({ status: 'overdue', updated_at: new Date().toISOString() })
+    .select('id, tenancy_id, company_id, amount_due, due_date')
     .eq('status', 'due')
     .lt('due_date', today)
+
+  if (newlyOverdue && newlyOverdue.length > 0) {
+    // Mark as overdue
+    await supabase
+      .from('rent_schedule_entries')
+      .update({ status: 'overdue', updated_at: new Date().toISOString() })
+      .in('id', newlyOverdue.map(e => e.id))
+
+    // Create arrears_chases records for any that don't already have one
+    const entryIds = newlyOverdue.map(e => e.id)
+    const { data: existingChases } = await supabase
+      .from('arrears_chases')
+      .select('schedule_entry_id')
+      .in('schedule_entry_id', entryIds)
+
+    const alreadyChased = new Set((existingChases || []).map(c => c.schedule_entry_id))
+
+    const newChases = newlyOverdue
+      .filter(e => !alreadyChased.has(e.id))
+      .map(e => ({
+        company_id: e.company_id,
+        schedule_entry_id: e.id,
+        tenant_id: null,
+        amount_outstanding: e.amount_due,
+        partial_paid: 0,
+        status: 'active',
+      }))
+
+    if (newChases.length > 0) {
+      await supabase.from('arrears_chases').insert(newChases)
+    }
+  }
 }
 
 // ============================================================================
@@ -2098,16 +2601,13 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
   categoryCounts: Record<string, number>
   summary: { collected: number; due: number; arrears: number; payoutsReady: number; agentFees: number }
 }> {
-  // Get rent schedule entries
+  // Fetch unfiltered — status filtering is applied in memory so summary cards remain accurate
   const rentEntries = await getRentSchedule(companyId, {
-    status: (filters?.category === 'rent' || !filters?.category || filters?.category === 'all') ? filters?.status : undefined,
     date_from: filters?.date_from,
     date_to: filters?.date_to,
   })
 
-  // Get expected payments
   const expectedPayments = await getExpectedPayments(companyId, {
-    status: filters?.status,
     date_from: filters?.date_from,
     date_to: filters?.date_to,
   })
@@ -2187,6 +2687,21 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     )
   }
 
+  // Apply status filter in memory (never passed to DB so summary stays accurate)
+  if (filters?.status && filters.status !== 'all') {
+    const s = filters.status
+    if (s === 'arrears') {
+      allItems = allItems.filter(item => item.status === 'arrears' || item.status === 'overdue')
+    } else if (s === 'paid') {
+      allItems = allItems.filter(item => item.status === 'paid')
+    } else {
+      allItems = allItems.filter(item => item.status === s)
+    }
+  } else if (!filters?.status || filters.status === 'all') {
+    // Default: exclude paid and cancelled
+    allItems = allItems.filter(item => item.status !== 'paid' && item.status !== 'cancelled')
+  }
+
   // Apply payment_type filter if specified
   if (filters?.payment_type) {
     allItems = allItems.filter(item => item.payment_type === filters.payment_type)
@@ -2214,37 +2729,37 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     ).length,
   }
 
-  // Calculate summary
+  // Calculate summary — accurate to the second
   const today = new Date().toISOString().split('T')[0]
   const allForSummary = [...rentItems, ...expectedItems]
 
-  const collected = allForSummary
-    .filter(item => item.status === 'paid')
-    .reduce((sum, item) => sum + item.amount_received, 0)
-
-  const due = allForSummary
-    .filter(item => item.status !== 'paid' && item.status !== 'cancelled' && item.due_date && item.due_date <= today)
+  // Due Today: only items due on today's date that haven't been paid
+  const dueToday = allForSummary
+    .filter(item => item.status !== 'paid' && item.status !== 'cancelled' && item.due_date === today)
     .reduce((sum, item) => sum + (item.amount_due - item.amount_received), 0)
 
+  // Arrears: rent/payments where due date has passed without full receipt
   const arrears = allForSummary
-    .filter(item => (item.status === 'arrears' || item.status === 'overdue'))
+    .filter(item => (item.status === 'arrears' || item.status === 'overdue') ||
+      (item.status !== 'paid' && item.status !== 'cancelled' && item.due_date && item.due_date < today))
     .reduce((sum, item) => sum + (item.amount_due - item.amount_received), 0)
+
+  // Agent Fees Due to Pay: unpaid agent charges from payouts (rent management fees + agent-type expected payments)
+  const agentFeesDueToPay = rentItems
+    .filter(item => item.status === 'paid' && !item.payout_sent_at)
+    .reduce((sum, item) => sum + (item.total_charges || 0), 0) +
+    expectedItems
+      .filter(ep => ep.payout_type === 'agent' && ep.status === 'paid')
+      .reduce((sum, ep) => sum + ep.amount_received, 0)
 
   const payoutsReady = rentItems
     .filter(item => item.status === 'paid' && !item.payout_sent_at)
     .reduce((sum, item) => sum + (item.amount_received - (item.total_charges || 0)), 0)
 
-  const agentFees = expectedItems
-    .filter(ep => ep.payout_type === 'agent' && ep.status === 'paid')
-    .reduce((sum, ep) => sum + ep.amount_received, 0) +
-    rentItems
-      .filter(e => e.status === 'paid')
-      .reduce((sum, e) => sum + (e.total_charges || 0), 0)
-
   return {
     items: allItems,
     categoryCounts,
-    summary: { collected, due, arrears, payoutsReady, agentFees },
+    summary: { collected: agentFeesDueToPay, due: dueToday, arrears, payoutsReady, agentFees: agentFeesDueToPay },
   }
 }
 

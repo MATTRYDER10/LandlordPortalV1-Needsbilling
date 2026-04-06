@@ -1,0 +1,54 @@
+{
+  "id": "references-v2-report",
+  "slug": "references-v2-report",
+  "title": "Reference Reports & HMO Group Referencing",
+  "category": "references",
+  "tags": ["references", "v2", "report", "hmo", "group", "pdf"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 12,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "Once a reference is complete, you can generate a formal PDF report. For HMOs and group lets with multiple applicants, the group referencing feature produces a combined report with a joint income assessment.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Generate a Reference Report",
+        "steps": [
+          {
+            "title": "Open a Completed Reference",
+            "content": "Go to References V2 in the sidebar and click on a reference with Complete status to open the full detail view.",
+            "image": null
+          },
+          {
+            "title": "Click Generate Report",
+            "content": "Click the 'Generate Report' button. The system produces a PDF summary covering income verification, employment status, credit check results, and landlord reference findings.",
+            "image": null
+          },
+          {
+            "title": "For Group Lets — Click Group Report",
+            "content": "If you are referencing multiple applicants for the same property (e.g. an HMO), click 'Group Report' instead of individual report generation.",
+            "image": null
+          },
+          {
+            "title": "Select All Applicants for the Property",
+            "content": "A selection panel appears. Tick all references for the same property that you want to include in the group report.",
+            "image": null
+          },
+          {
+            "title": "Generate the Combined Report",
+            "content": "Click Generate. The group report shows all applicants side by side with a combined income assessment, making it easy to assess the affordability of the group as a whole.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Group Reports for Student HMOs",
+        "content": "Group reports are particularly useful for student HMOs where individual affordability thresholds may not be met but the combined household income is sufficient. The report presents a combined income figure alongside individual breakdowns."
+      }
+    ],
+    "relatedArticles": ["references-v2-how-to", "references-v2-overview", "tenancies-apta"]
+  }
+}

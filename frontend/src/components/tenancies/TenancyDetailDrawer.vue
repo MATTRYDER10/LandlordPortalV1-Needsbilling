@@ -2491,7 +2491,7 @@
           </div>
 
           <!-- Utilities Tab (JMI) -->
-          <div v-if="activeTab === 'utilities'">
+          <div v-if="activeTab === 'utilities' && !tenancy?.bills_included">
             <JMIUtilitiesTab :tenancy="tenancy" />
           </div>
 
@@ -3609,17 +3609,23 @@ watch(activeTab, (tab) => {
 })
 
 // Tabs
-const tabs = [
-  { key: 'overview' as const, label: 'Overview' },
-  { key: 'tenants' as const, label: 'Tenants' },
-  { key: 'landlord' as const, label: 'Landlord' },
-  { key: 'property' as const, label: 'Property' },
-  { key: 'documents' as const, label: 'Documents' },
-  { key: 'inspections' as const, label: 'Inspections' },
-  { key: 'rent' as const, label: 'Tenancy Changes' },
-  { key: 'utilities' as const, label: 'Utilities' },
-  { key: 'activity' as const, label: 'Activity' }
-]
+const tabs = computed(() => {
+  const allTabs = [
+    { key: 'overview' as const, label: 'Overview' },
+    { key: 'tenants' as const, label: 'Tenants' },
+    { key: 'landlord' as const, label: 'Landlord' },
+    { key: 'property' as const, label: 'Property' },
+    { key: 'documents' as const, label: 'Documents' },
+    { key: 'inspections' as const, label: 'Inspections' },
+    { key: 'rent' as const, label: 'Tenancy Changes' },
+    { key: 'utilities' as const, label: 'Utilities' },
+    { key: 'activity' as const, label: 'Activity' }
+  ]
+  if (tenancy.value?.bills_included) {
+    return allTabs.filter(t => t.key !== 'utilities')
+  }
+  return allTabs
+})
 
 // Computed: Use fullTenancyData when available for most up-to-date values
 const rentAmount = computed(() => tenancy.value?.monthly_rent || tenancy.value?.rent_amount || 0)
@@ -3656,7 +3662,7 @@ const statusLabel = computed(() => {
 const tenancyTypeLabel = computed(() => {
   const labels: Record<string, string> = {
     ast: 'Assured Shorthold Tenancy',
-    periodic: 'Periodic Tenancy',
+    periodic: 'Assured Periodic Tenancy (APTA)',
     company_let: 'Company Let',
     lodger: 'Lodger Agreement',
     license: 'License to Occupy'
@@ -3736,9 +3742,9 @@ const isDraftTenancy = computed(() => tenancy.value?.status === 'pending')
 // Tenancy type options for dropdown
 const tenancyTypeOptions = [
   { value: 'ast', label: 'AST (Assured Shorthold)' },
-  { value: 'periodic', label: 'Periodic' },
-  { value: 'contractual_periodic', label: 'Contractual Periodic' },
-  { value: 'non_housing_act', label: 'Non Housing Act' },
+  { value: 'periodic', label: 'APTA (Assured Periodic)' },
+  { value: 'company_let', label: 'Company Let' },
+  { value: 'lodger', label: 'Lodger Agreement' },
   { value: 'license', label: 'License to Occupy' }
 ]
 

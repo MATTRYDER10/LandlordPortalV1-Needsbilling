@@ -1,6 +1,7 @@
 <template>
   <router-view />
   <ReportIssueButton v-if="authStore.session" />
+  <WhatsNewModal v-if="authStore.session" />
 </template>
 
 <script setup lang="ts">
@@ -9,6 +10,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useAdminCompanyStore } from './stores/adminCompany'
 import ReportIssueButton from './components/support/ReportIssueButton.vue'
+import WhatsNewModal from './components/WhatsNewModal.vue'
 
 const authStore = useAuthStore()
 const adminCompanyStore = useAdminCompanyStore()

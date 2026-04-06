@@ -493,6 +493,7 @@ const EDITABLE_FIELDS: Record<string, { column: string; isEncrypted: boolean; is
   accountant_name: { column: 'accountant_name_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantName' },
   accountant_email: { column: 'accountant_email_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantEmail' },
   accountant_phone: { column: 'accountant_phone_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantPhone' },
+  move_in_date: { column: 'move_in_date', isEncrypted: false, isRefereeField: false },
 }
 
 /**

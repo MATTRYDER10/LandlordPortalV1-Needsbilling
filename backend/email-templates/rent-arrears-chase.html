@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rent Overdue Notice - {{ CompanyName }}</title>
+</head>
+
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 36px 40px 28px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto;">
+                        </td>
+                    </tr>
+
+                    <!-- Red banner -->
+                    <tr>
+                        <td style="background-color: #dc2626; padding: 16px 40px; text-align: center;">
+                            <p style="margin: 0; font-size: 15px; font-weight: 700; color: #ffffff; letter-spacing: 0.04em; text-transform: uppercase;">Rent Overdue Notice</p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 36px 40px 0;">
+
+                            <p style="margin: 0 0 16px; font-size: 16px; line-height: 26px; color: #374151;">
+                                Dear {{ TenantName }},
+                            </p>
+
+                            <p style="margin: 0 0 20px; font-size: 16px; line-height: 26px; color: #374151;">
+                                Our records show that your rent payment for <strong>{{ PropertyAddress }}</strong> is now overdue. Details are shown below.
+                            </p>
+
+                            <!-- Overdue summary box -->
+                            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px 24px; margin: 0 0 24px;">
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 15px; color: #374151;">
+                                    <tr>
+                                        <td style="padding: 5px 0;">Amount Outstanding</td>
+                                        <td style="padding: 5px 0; text-align: right; font-weight: 700; color: #dc2626; font-size: 20px;">&pound;{{ Amount }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0; color: #6b7280;">Rent Period</td>
+                                        <td style="padding: 5px 0; text-align: right; color: #6b7280; font-size: 14px;">{{ PeriodStart }} to {{ PeriodEnd }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0; color: #6b7280;">Due Date</td>
+                                        <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #b91c1c;">{{ DueDate }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Payment details -->
+                            <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #111827;">Please make payment immediately using the details below:</p>
+                            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 24px; margin: 0 0 24px;">
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 15px; color: #374151;">
+                                    <tr>
+                                        <td style="padding: 5px 0; width: 140px; color: #6b7280;">Account Name</td>
+                                        <td style="padding: 5px 0; font-weight: 600; color: #111827;">{{ BankAccountName }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0; color: #6b7280;">Account Number</td>
+                                        <td style="padding: 5px 0; font-weight: 600; color: #111827;">{{ BankAccountNumber }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0; color: #6b7280;">Sort Code</td>
+                                        <td style="padding: 5px 0; font-weight: 600; color: #111827;">{{ BankSortCode }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0; color: #6b7280;">Payment Reference</td>
+                                        <td style="padding: 5px 0; font-weight: 700; color: {{ BrandColor }};">{{ PaymentReference }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <p style="margin: 0 0 20px; font-size: 15px; line-height: 25px; color: #374151;">
+                                Please use <strong>{{ PaymentReference }}</strong> as your payment reference so we can allocate your payment correctly.
+                            </p>
+
+                            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0 0 24px;">
+
+                            <!-- Alternatives -->
+                            <p style="margin: 0 0 12px; font-size: 15px; line-height: 25px; color: #374151;">
+                                <strong>Need to discuss a repayment plan or reason for non-payment?</strong><br>
+                                Please contact us as soon as possible — we are here to help and may be able to agree an arrangement with you.
+                            </p>
+
+                            <p style="margin: 0 0 24px; font-size: 15px; line-height: 25px; color: #374151;">
+                                <strong>Already paid?</strong><br>
+                                If you believe this notice has been sent in error, please reply to this email with your proof of payment and we will look into this immediately.
+                            </p>
+
+                            <!-- Contact box -->
+                            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px 24px; margin: 0 0 32px;">
+                                <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #111827;">Get in touch:</p>
+                                <p style="margin: 0; font-size: 15px; line-height: 24px; color: #374151;">
+                                    {{ CompanyName }}<br>
+                                    <a href="tel:{{ CompanyPhone }}" style="color: {{ BrandColor }}; text-decoration: none;">{{ CompanyPhone }}</a><br>
+                                    <a href="mailto:{{ CompanyEmail }}" style="color: {{ BrandColor }}; text-decoration: none;">{{ CompanyEmail }}</a>
+                                </p>
+                            </div>
+
+                            <p style="margin: 0 0 32px; font-size: 15px; line-height: 25px; color: #374151;">
+                                Kind regards,<br>
+                                <strong>{{ CompanyName }}</strong>
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                            <p style="margin: 0 0 6px; font-size: 13px; line-height: 20px; color: #6b7280; text-align: center;">
+                                This is an automated notice sent on behalf of {{ CompanyName }}.
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center;">
+                                &copy; 2026 {{ CompanyName }}. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

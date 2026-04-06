@@ -58,14 +58,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label for="offered-rent" class="block text-xs font-medium text-white/80 mb-1">
-                                Rent (£/month) *
+                                Your Offered Rent (£/month) *
                             </label>
+                            <div v-if="originalOfferRent" class="mb-1.5 flex items-center gap-1.5 bg-white/20 rounded-md px-2.5 py-1.5">
+                                <svg class="w-3.5 h-3.5 text-white/80 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span class="text-xs text-white font-medium">Advertised Rent: £{{ originalOfferRent.toLocaleString('en-GB', { minimumFractionDigits: 2 }) }}/month</span>
+                            </div>
                             <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
                                 step="0.01" required min="0" :max="originalOfferRent || undefined"
                                 class="block w-full px-3 py-2 border-0 rounded-md focus:ring-2 focus:ring-white/50 bg-white/90 text-gray-900 text-sm font-medium" />
-                            <p v-if="originalOfferRent" class="mt-1 text-xs text-white/70">
-                                Agent's offer: £{{ originalOfferRent }}/month
-                            </p>
                         </div>
                         <div>
                             <label for="move-in-date" class="block text-xs font-medium text-white/80 mb-1">

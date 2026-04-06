@@ -52,6 +52,142 @@ router.post('/init-tenancy', authenticateToken, async (req: AuthRequest, res) =>
   }
 })
 
+// POST /api/rentgoose/chase-email — send arrears chase email to tenants
+router.post('/chase-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    const { supabase } = await import('../config/supabase')
+    const { decrypt } = await import('../services/encryption')
+    const { sendEmail, loadEmailTemplate } = await import('../services/emailService')
+
+    // Get schedule entry
+    const { data: entry } = await supabase
+      .from('rent_schedule_entries')
+      .select('tenancy_id, amount_due, amount_received, due_date, period_start, period_end, status')
+      .eq('id', schedule_entry_id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (!entry) return res.status(404).json({ error: 'Schedule entry not found' })
+    if (entry.status !== 'arrears' && entry.status !== 'overdue') {
+      return res.status(400).json({ error: 'Entry is not in arrears' })
+    }
+
+    // Get tenancy + property
+    const { data: tenancy } = await supabase
+      .from('tenancies')
+      .select('property_id')
+      .eq('id', entry.tenancy_id)
+      .single()
+
+    if (!tenancy) return res.status(404).json({ error: 'Tenancy not found' })
+
+    // Get property address (first line = payment reference)
+    const { data: property } = await supabase
+      .from('properties')
+      .select('address_line1_encrypted, postcode')
+      .eq('id', tenancy.property_id)
+      .single()
+
+    const propertyLine1 = property ? (decrypt(property.address_line1_encrypted) || '') : ''
+    const propertyFull = property ? `${propertyLine1}, ${property.postcode || ''}`.trim().replace(/,\s*$/, '') : ''
+
+    // Get active tenants
+    const { data: tenants } = await supabase
+      .from('tenancy_tenants')
+      .select('first_name_encrypted, last_name_encrypted, email_encrypted')
+      .eq('tenancy_id', entry.tenancy_id)
+      .eq('status', 'active')
+
+    if (!tenants || tenants.length === 0) return res.status(400).json({ error: 'No active tenants found' })
+
+    // Get company settings
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, email_encrypted, phone_encrypted, logo_url, primary_color, bank_account_name, bank_account_number, bank_sort_code')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = company ? (decrypt(company.name_encrypted) || 'Your Letting Agent') : 'Your Letting Agent'
+    const companyEmail = company ? (decrypt(company.email_encrypted) || '') : ''
+    const companyPhone = company ? (decrypt(company.phone_encrypted) || '') : ''
+    const logoUrl = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+    const brandColor = company?.primary_color || '#f97316'
+    const bankAccountName = company?.bank_account_name || 'Not provided'
+    const bankAccountNumber = company?.bank_account_number || 'Not provided'
+    const bankSortCode = company?.bank_sort_code || 'Not provided'
+
+    // Format dates UK style
+    const fmtDate = (d: string) => {
+      const dt = new Date(d)
+      return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    }
+
+    const amountOutstanding = (entry.amount_due - entry.amount_received).toFixed(2)
+
+    // Send to each tenant
+    const tenantNames = tenants.map(t => `${decrypt(t.first_name_encrypted) || ''} ${decrypt(t.last_name_encrypted) || ''}`.trim())
+
+    for (const tenant of tenants) {
+      const tenantEmail = decrypt(tenant.email_encrypted)
+      if (!tenantEmail) continue
+
+      const tenantName = `${decrypt(tenant.first_name_encrypted) || ''} ${decrypt(tenant.last_name_encrypted) || ''}`.trim()
+      const salutation = tenants.length > 1 ? tenantNames.join(' & ') : tenantName
+
+      const html = loadEmailTemplate('rent-arrears-chase', {
+        CompanyName: companyName,
+        AgentLogoUrl: logoUrl,
+        TenantName: salutation,
+        PropertyAddress: propertyFull,
+        Amount: parseFloat(amountOutstanding).toLocaleString('en-GB', { minimumFractionDigits: 2 }),
+        DueDate: fmtDate(entry.due_date),
+        PeriodStart: fmtDate(entry.period_start),
+        PeriodEnd: fmtDate(entry.period_end),
+        PaymentReference: propertyLine1 || propertyFull,
+        BankAccountName: bankAccountName,
+        BankAccountNumber: bankAccountNumber,
+        BankSortCode: bankSortCode,
+        CompanyEmail: companyEmail,
+        CompanyPhone: companyPhone,
+        BrandColor: brandColor,
+      })
+
+      await sendEmail({
+        to: tenantEmail,
+        subject: `Rent Overdue Notice — ${propertyFull}`,
+        html,
+        companyId,
+        emailCategory: 'arrears_chase',
+      })
+    }
+
+    res.json({ success: true, sent_to: tenants.length })
+  } catch (err: any) {
+    console.error('Error sending chase email:', err)
+    res.status(500).json({ error: 'Failed to send chase email' })
+  }
+})
+
+// POST /api/rentgoose/sync-tenancies — ensure all active managed tenancies have schedule entries
+router.post('/sync-tenancies', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const result = await rentgooseService.syncActiveManagedTenancies(companyId)
+    res.json({ success: true, ...result })
+  } catch (err: any) {
+    console.error('Error syncing tenancies:', err)
+    res.status(500).json({ error: 'Failed to sync tenancies' })
+  }
+})
+
 // GET /api/rentgoose/schedule
 router.get('/schedule', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -157,11 +293,12 @@ router.post('/payout', authenticateToken, async (req: AuthRequest, res) => {
     const companyId = await getCompanyIdForRequest(req)
     if (!companyId) return res.status(400).json({ error: 'Company ID required' })
 
-    const { schedule_entry_id, send_statement, log_statement, send_tenant_receipt } = req.body
+    const { schedule_entry_id, landlord_id, send_statement, log_statement, send_tenant_receipt } = req.body
     if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
 
     const result = await rentgooseService.markPayoutPaid(companyId, {
       schedule_entry_id,
+      landlord_id: landlord_id || undefined,
       paid_by: req.user?.id,
       send_statement: send_statement !== false,
       log_statement: log_statement !== false,
@@ -172,6 +309,63 @@ router.post('/payout', authenticateToken, async (req: AuthRequest, res) => {
   } catch (err: any) {
     console.error('Error processing payout:', err)
     res.status(500).json({ error: 'Failed to process payout' })
+  }
+})
+
+// POST /api/rentgoose/hold-payout — move a payout into held monies
+router.post('/hold-payout', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id, landlord_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    const result = await rentgooseService.holdPayout(companyId, {
+      schedule_entry_id,
+      landlord_id: landlord_id || undefined,
+      held_by: req.user?.id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error holding payout:', err)
+    res.status(500).json({ error: 'Failed to hold payout' })
+  }
+})
+
+// GET /api/rentgoose/held-rents — get all held rent payouts
+router.get('/held-rents', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const result = await rentgooseService.getHeldRents(companyId)
+    res.json({ heldRents: result })
+  } catch (err: any) {
+    console.error('Error fetching held rents:', err)
+    res.status(500).json({ error: 'Failed to fetch held rents' })
+  }
+})
+
+// POST /api/rentgoose/release-held — release held rent back into payout flow
+router.post('/release-held', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { payout_record_id } = req.body
+    if (!payout_record_id) return res.status(400).json({ error: 'payout_record_id required' })
+
+    const result = await rentgooseService.releaseHeldRent(companyId, {
+      payout_record_id,
+      released_by: req.user?.id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error releasing held rent:', err)
+    res.status(500).json({ error: 'Failed to release held rent' })
   }
 })
 
@@ -1154,6 +1348,135 @@ router.get('/landlord/:id/annual-statement', authenticateToken, async (req: Auth
   } catch (err: any) {
     console.error('Error getting annual statement:', err)
     res.status(500).json({ error: 'Failed to get annual statement' })
+  }
+})
+
+// POST /api/rentgoose/landlord/:id/annual-statement/email
+router.post('/landlord/:id/annual-statement/email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+    const { decrypt } = await import('../services/encryption')
+    const { sendEmail, loadEmailTemplate } = await import('../services/emailService')
+
+    const landlordId = req.params.id
+    const taxYear = parseInt(req.body.tax_year as string) || new Date().getFullYear()
+
+    const periodStart = `${taxYear - 1}-04-06`
+    const periodEnd = `${taxYear}-04-05`
+
+    // Get landlord details + email
+    const { data: landlord } = await supabase
+      .from('landlords')
+      .select('first_name_encrypted, last_name_encrypted, email_encrypted')
+      .eq('id', landlordId)
+      .single()
+
+    if (!landlord) return res.status(404).json({ error: 'Landlord not found' })
+
+    const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
+    const landlordEmail = decrypt(landlord.email_encrypted)
+    if (!landlordEmail) return res.status(400).json({ error: 'Landlord has no email address on file' })
+
+    // Get company branding
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, logo_url, email_encrypted, phone_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
+    const companyLogo = company?.logo_url || 'https://www.propertygoose.co.uk/pg-logo.png'
+    const companyEmail = (company?.email_encrypted ? decrypt(company.email_encrypted) : null) || ''
+    const companyPhone = (company?.phone_encrypted ? decrypt(company.phone_encrypted) : null) || ''
+
+    // Fetch payouts for tax year
+    const { data: payouts } = await supabase
+      .from('payout_records')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('landlord_id', landlordId)
+      .eq('payout_type', 'landlord')
+      .gte('paid_at', `${periodStart}T00:00:00`)
+      .lte('paid_at', `${periodEnd}T23:59:59`)
+      .order('paid_at', { ascending: true })
+
+    const payoutEntryIds = (payouts || []).map((p: any) => p.schedule_entry_id).filter(Boolean)
+    let charges: any[] = []
+    if (payoutEntryIds.length > 0) {
+      const { data: chargeData } = await supabase
+        .from('agent_charges')
+        .select('*')
+        .in('schedule_entry_id', payoutEntryIds)
+        .eq('included', true)
+      charges = chargeData || []
+    }
+
+    const items = (payouts || []).map((p: any) => {
+      const entryCharges = charges.filter((c: any) => c.schedule_entry_id === p.schedule_entry_id)
+      return {
+        date: p.paid_at,
+        gross_rent: parseFloat(p.gross_rent),
+        total_charges: parseFloat(p.total_charges),
+        net_payout: parseFloat(p.net_payout),
+        statement_ref: p.id.substring(0, 8).toUpperCase(),
+        charges: entryCharges,
+      }
+    })
+
+    const totalGross = items.reduce((s: number, i: any) => s + i.gross_rent, 0)
+    const totalDeductions = items.reduce((s: number, i: any) => s + i.total_charges, 0)
+    const totalNet = items.reduce((s: number, i: any) => s + i.net_payout, 0)
+    const totalVat = charges.reduce((s: number, c: any) => s + parseFloat(c.vat_amount || 0), 0)
+    const totalChargesNet = charges.reduce((s: number, c: any) => s + parseFloat(c.net_amount || 0), 0)
+
+    const fmt = (n: number) => n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    const fmtDate = (s: string) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
+
+    // Build item rows HTML
+    const itemRows = items.map((item: any, idx: number) => {
+      const bg = idx % 2 === 1 ? 'background-color: #fafafa;' : ''
+      return `<tr style="${bg}">
+        <td style="padding: 10px 14px; color: #374151; border-bottom: 1px solid #f3f4f6;">${fmtDate(item.date)}</td>
+        <td style="padding: 10px 14px; color: #6b7280; border-bottom: 1px solid #f3f4f6; font-size: 12px;">${item.statement_ref}</td>
+        <td style="padding: 10px 14px; text-align: right; color: #15803d; font-weight: 600; border-bottom: 1px solid #f3f4f6;">&pound;${fmt(item.gross_rent)}</td>
+        <td style="padding: 10px 14px; text-align: right; color: #dc2626; border-bottom: 1px solid #f3f4f6;">-&pound;${fmt(item.total_charges)}</td>
+        <td style="padding: 10px 14px; text-align: right; color: #1d4ed8; font-weight: 600; border-bottom: 1px solid #f3f4f6;">&pound;${fmt(item.net_payout)}</td>
+      </tr>`
+    }).join('')
+
+    const html = loadEmailTemplate('landlord-annual-statement', {
+      LandlordName: landlordName,
+      TaxYear: `${taxYear - 1}/${taxYear}`,
+      PeriodStart: fmtDate(`${periodStart}T00:00:00`),
+      PeriodEnd: fmtDate(`${periodEnd}T00:00:00`),
+      TotalGross: fmt(totalGross),
+      TotalDeductions: fmt(totalDeductions),
+      TotalNet: fmt(totalNet),
+      TotalVat: fmt(totalVat),
+      TotalChargesNet: fmt(totalChargesNet),
+      ItemRows: itemRows,
+      CompanyName: companyName,
+      AgentLogoUrl: companyLogo,
+      CompanyEmail: companyEmail,
+      CompanyPhone: companyPhone,
+      Year: new Date().getFullYear().toString(),
+    })
+
+    await sendEmail({
+      to: landlordEmail,
+      subject: `Annual Tax Statement ${taxYear - 1}/${taxYear} — ${companyName}`,
+      html,
+      companyId,
+      emailCategory: 'annual_statement',
+    })
+
+    res.json({ success: true, sent_to: landlordEmail })
+  } catch (err: any) {
+    console.error('Error sending annual statement:', err)
+    res.status(500).json({ error: err.message || 'Failed to send annual statement' })
   }
 })
 

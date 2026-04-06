@@ -1,0 +1,54 @@
+{
+  "id": "tenancies-compliance-pack",
+  "slug": "tenancies-compliance-pack",
+  "title": "Sending the Compliance Pack (Move-In Documents)",
+  "category": "tenancies",
+  "tags": ["compliance pack", "move-in", "documents", "conversion pdf", "rra", "epc", "gas safety"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 21,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "The compliance pack bundles all legally required move-in documents into a single send. PropertyGoose assembles the correct documents automatically based on the tenancy type and start date.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Send the Compliance Pack",
+        "steps": [
+          {
+            "title": "Open the Tenancy",
+            "content": "Navigate to the Tenancies tab and open the tenancy you want to send documents for.",
+            "image": null
+          },
+          {
+            "title": "Click Send Compliance Pack",
+            "content": "Click 'Send Compliance Pack' or 'Move-In Pack' (the button label may vary). This opens the document selection screen.",
+            "image": null
+          },
+          {
+            "title": "Select Documents to Include",
+            "content": "Choose which documents to include in the pack. Options typically include: the tenancy agreement, EPC (Energy Performance Certificate), Gas Safety Certificate, the government's How to Rent guide, and the deposit protection certificate.",
+            "image": null
+          },
+          {
+            "title": "Conversion PDF Included Automatically for Pre-May 2026 Tenancies",
+            "content": "For tenancies with a start date before 1 May 2026, the Conversion PDF is automatically included in the compliance pack selection. This document converts the existing AST to an Assured Periodic Tenancy as required by law.",
+            "image": null
+          },
+          {
+            "title": "Click Send",
+            "content": "Click Send to dispatch the compliance pack. The tenant receives all selected documents by email in a single, clearly organised message.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "important",
+        "title": "Conversion PDF Deadline — 30 May 2026",
+        "content": "For all legacy AST tenants (tenancies that started before 1 May 2026), the Conversion PDF must be served before 30 May 2026. This is a legal requirement under the Renters Rights Act. Failure to serve it by this date may affect your ability to take possession proceedings."
+      }
+    ],
+    "relatedArticles": ["tenancies-apta", "tenancies-jmi", "integrations-tds"]
+  }
+}

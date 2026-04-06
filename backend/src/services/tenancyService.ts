@@ -237,12 +237,20 @@ export async function createTenancy(
   const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase()
   const referenceNumber = `TEN-${datePart}-${randomPart}`
 
+  // Auto-set tenancy type based on RRA cutoff if not explicitly periodic
+  const RRA_CUTOFF = '2026-05-01'
+  let resolvedTenancyType = tenancyType
+  if (startDate && new Date(startDate) >= new Date(RRA_CUTOFF) && tenancyType === 'ast') {
+    resolvedTenancyType = 'periodic'
+  }
+
   // Create tenancy record - using actual table column names
   const insertData: Record<string, any> = {
     company_id: companyId,
     property_id: propertyId,
     reference_number: referenceNumber,
     status: 'pending',
+    tenancy_type: resolvedTenancyType,
     tenancy_start_date: startDate,
     rent_amount: monthlyRent,
     created_by: createdBy

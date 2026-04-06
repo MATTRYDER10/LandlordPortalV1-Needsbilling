@@ -1,0 +1,49 @@
+{
+  "id": "offers-v2-multi-select",
+  "slug": "offers-v2-multi-select",
+  "title": "Multi-Select: Accept or Decline Multiple Offers",
+  "category": "offers",
+  "tags": ["offers", "v2", "multi-select", "bulk", "decline", "accept"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 13,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "The multi-select feature in Offers V2 lets you accept or decline multiple offers at once, saving time when managing a busy applicant queue.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Use Multi-Select",
+        "steps": [
+          {
+            "title": "Tick the Checkboxes",
+            "content": "In Offers V2, tick the checkboxes on the left side of each offer row you want to action. You can select as many offers as needed.",
+            "image": null
+          },
+          {
+            "title": "Bulk Action Bar Appears",
+            "content": "Once at least one offer is selected, a bulk action bar appears at the top of the offers list showing the number of selected offers and available actions.",
+            "image": null
+          },
+          {
+            "title": "Decline Selected Offers",
+            "content": "Click 'Decline Selected' to decline all ticked offers in one action. Each declined tenant is automatically notified by email — you do not need to contact them individually.",
+            "image": null
+          },
+          {
+            "title": "Accept Selected Offers",
+            "content": "Click 'Accept Selected' to move all ticked offers to an approved status, ready for the landlord approval or referencing steps.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Clear Your Queue Quickly",
+        "content": "Use multi-select to clear a busy applicant queue quickly. When a property has been let, you can select all remaining pending offers and decline them in one click — all applicants are notified automatically without any manual emailing."
+      }
+    ],
+    "relatedArticles": ["offers-v2-overview", "offers-v2-sending", "offers-v2-landlord-approval"]
+  }
+}

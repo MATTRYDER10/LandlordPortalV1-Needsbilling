@@ -1629,10 +1629,10 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
 
     const allTenancies = tenanciesResult.tenancies || []
 
-    // 2. Load PG properties with apex27_listing_id
+    // 2. Load PG properties with apex27_listing_id + linked landlords
     const { data: existingProperties } = await supabase
       .from('properties')
-      .select('id, address_line1_encrypted, postcode, apex27_listing_id')
+      .select('id, address_line1_encrypted, postcode, apex27_listing_id, property_landlords (landlord_id, is_primary_contact)')
       .eq('company_id', companyId)
       .is('deleted_at', null)
 
@@ -1667,10 +1667,10 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
       if (t.apex27_tenancy_id) importedTenancyIds.add(String(t.apex27_tenancy_id))
     }
 
-    // 4. Load landlords for matching
+    // 4. Load landlords for matching (include names for property fallback)
     const { data: existingLandlords } = await supabase
       .from('landlords')
-      .select('id, email_encrypted, apex27_contact_id')
+      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted, apex27_contact_id')
       .eq('company_id', companyId)
 
     const landlords = existingLandlords || []
@@ -1770,7 +1770,7 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
       // Management type from listing rentService
       const { managementType, hasRlp } = mapRentService(listing?.rentService)
 
-      // Match landlord
+      // Match landlord — try Apex27 contact first, then fallback to property_landlords
       let landlordContact: TenancyPreviewItem['landlordContact'] = null
       const noticeContactId = tenancy.noticeContact?.id ? String(tenancy.noticeContact.id) : null
       const listingContactId = listing?.contactId ? String(listing.contactId) : null
@@ -1782,7 +1782,6 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
         if (byId) {
           matchedLandlordId = byId.id
         } else {
-          // Try matching by email from noticeContact or listing contacts
           const contactEmail = tenancy.noticeContact?.email
           if (contactEmail) {
             const byEmail = llByEmail.get(contactEmail.toLowerCase())
@@ -1799,6 +1798,30 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
           name: contactName || `Contact #${landlordApex27Id}`,
           email: tenancy.noticeContact?.email || '',
           matchedLandlordId
+        }
+      }
+
+      // Fallback: if no Apex27 landlord contact, resolve from matched property's property_landlords
+      if (!landlordContact && matchedPropertyId) {
+        const matchedProp = propByApex27Id.get(listingId) ||
+          (propByPostcode.get(normalizePostcode(apex27Postcode)) || []).find((p: any) => p.id === matchedPropertyId)
+        const propLandlords = (matchedProp?.property_landlords || []) as any[]
+        const primaryLL = propLandlords.find((pl: any) => pl.is_primary_contact) || propLandlords[0]
+        if (primaryLL?.landlord_id) {
+          const ll = landlords.find(l => l.id === primaryLL.landlord_id)
+          if (ll) {
+            const llName = [
+              ll.first_name_encrypted ? decrypt(ll.first_name_encrypted) : '',
+              ll.last_name_encrypted ? decrypt(ll.last_name_encrypted) : ''
+            ].filter(Boolean).join(' ')
+            const llEmail = ll.email_encrypted ? decrypt(ll.email_encrypted) : ''
+            landlordContact = {
+              apex27Id: ll.apex27_contact_id || '',
+              name: llName || 'Landlord',
+              email: llEmail || '',
+              matchedLandlordId: ll.id
+            }
+          }
         }
       }
 

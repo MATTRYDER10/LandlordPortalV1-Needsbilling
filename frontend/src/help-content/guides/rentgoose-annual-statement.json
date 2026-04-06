@@ -1,0 +1,65 @@
+{
+  "id": "rentgoose-annual-statement",
+  "slug": "rentgoose-annual-statement",
+  "title": "Annual Statement — Tax Year Summary & Email to Landlord",
+  "category": "account-settings",
+  "tags": ["rentgoose", "annual statement", "tax year", "self-assessment", "landlord", "email"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 22,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "The annual statement in RentGoose provides a full UK tax year summary for a landlord, covering all income, deductions, and VAT. It can be emailed directly to the landlord from within PropertyGoose.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Generate and Send an Annual Statement",
+        "steps": [
+          {
+            "title": "Go to RentGoose Landlords",
+            "content": "Open RentGoose from the sidebar and click the Landlords tab.",
+            "image": null
+          },
+          {
+            "title": "Open the Landlord's Financial View",
+            "content": "Find the landlord and click View to open their financial summary.",
+            "image": null
+          },
+          {
+            "title": "Click Annual Statement",
+            "content": "Click the 'Annual Statement' button. A modal window opens showing the full tax year summary.",
+            "image": null
+          },
+          {
+            "title": "Review the Summary",
+            "content": "The annual statement modal displays: gross rental income for the tax year, management fee deductions, other deductions (setup fees, repairs, etc.), VAT breakdown (if applicable), and net income paid to the landlord.",
+            "image": null
+          },
+          {
+            "title": "Click Email to Landlord",
+            "content": "Click 'Email to Landlord' to send the statement directly to the landlord's email address held on their record in PropertyGoose.",
+            "image": null
+          },
+          {
+            "title": "Landlord Receives Formatted Statement",
+            "content": "The landlord receives a formatted HTML email containing the full tax year statement. They can pass this to their accountant for self-assessment purposes.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "UK Tax Year Coverage",
+        "content": "Annual statements cover the UK tax year: 6 April to 5 April. Landlords should pass the statement to their accountant or tax advisor for self-assessment. The statement is suitable for use as supporting evidence of rental income."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "For Reference Only",
+        "content": "The statement includes a note that PropertyGoose figures are for reference based on records held in the system. Landlords should confirm all figures with a qualified accountant before submitting a tax return."
+      }
+    ],
+    "relatedArticles": ["rentgoose-overview", "rentgoose-landlord-statements"]
+  }
+}

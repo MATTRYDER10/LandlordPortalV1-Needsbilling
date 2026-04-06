@@ -1,0 +1,60 @@
+{
+  "id": "integrations-reposit",
+  "slug": "integrations-reposit",
+  "title": "Reposit Integration — Deposit Replacement",
+  "category": "account-settings",
+  "tags": ["reposit", "deposit replacement", "integration", "settings", "unithomes", "offers v2"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 32,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "The Reposit integration enables you to offer deposit replacement to tenants via Offers V2 and complete Reposit sales with one click from the Tenancies tab.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Connect Reposit",
+        "steps": [
+          {
+            "title": "Go to Settings → Deposits → Reposit",
+            "content": "Navigate to Settings, open the Deposits section, and find the Reposit integration panel.",
+            "image": null
+          },
+          {
+            "title": "Enter Your Reposit Credentials",
+            "content": "Enter your Reposit agent account credentials or API key. These are available from your Reposit agent portal.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save to connect the integration and verify your credentials.",
+            "image": null
+          },
+          {
+            "title": "Offer Reposit via Offers V2",
+            "content": "Once connected, tick the Reposit checkbox when sending offers via Offers V2. Tenants will see Reposit as a deposit option on their offer form.",
+            "image": null
+          },
+          {
+            "title": "Complete a Reposit Sale",
+            "content": "If a tenant selects Reposit and becomes a tenant, open their tenancy record and click 'Complete Reposit Sale' to finalise the Reposit product with one click.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "What is Reposit?",
+        "content": "Reposit allows tenants to pay a small non-refundable fee (typically equivalent to one week's rent) instead of a traditional cash deposit of five or six weeks' rent. The landlord retains full protection against damages and unpaid rent through the Reposit guarantee."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Offer Unithomes at the Same Time",
+        "content": "You can offer Unithomes (a similar deposit replacement product) alongside Reposit at the same time from the Offers V2 send modal, giving tenants the widest choice of deposit options."
+      }
+    ],
+    "relatedArticles": ["offers-v2-reposit-unithomes", "integrations-tds", "integrations-mydeposits"]
+  }
+}

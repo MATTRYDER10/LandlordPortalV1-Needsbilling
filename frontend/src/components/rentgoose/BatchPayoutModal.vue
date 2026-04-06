@@ -41,8 +41,8 @@
 
         <div :class="['px-6 py-4 border-t flex justify-end gap-3', isDark ? 'border-slate-700' : 'border-gray-200']">
           <button @click="$emit('close')" :class="['px-4 py-2 text-sm font-medium rounded-lg', isDark ? 'bg-slate-800' : 'bg-gray-100']">Cancel</button>
-          <button @click="processBatch" :disabled="submitting" class="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg disabled:opacity-50">
-            {{ submitting ? 'Processing...' : 'Mark All Paid & Send' }}
+          <button @click="processBatch" class="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg">
+            Mark All Paid & Send
           </button>
         </div>
       </div>
@@ -61,7 +61,6 @@ const emit = defineEmits<{ close: []; completed: [] }>()
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
 
-const submitting = ref(false)
 const sendStatements = ref(true)
 const logStatements = ref(true)
 const sendReceipts = ref(true)
@@ -70,19 +69,14 @@ const totalGross = computed(() => props.payouts.reduce((s, p) => s + p.gross_ren
 const totalCharges = computed(() => props.payouts.reduce((s, p) => s + p.total_charges, 0))
 const totalNet = computed(() => props.payouts.reduce((s, p) => s + p.net_payout, 0))
 
-async function processBatch() {
-  submitting.value = true
-  try {
-    await store.batchPayout({
-      schedule_entry_ids: props.payouts.map(p => p.schedule_entry_id),
-      send_statements: sendStatements.value,
-      log_statements: logStatements.value,
-      send_tenant_receipts: sendReceipts.value,
-    })
-    emit('completed')
-  } finally {
-    submitting.value = false
-  }
+function processBatch() {
+  store.batchPayout({
+    schedule_entry_ids: props.payouts.map(p => p.schedule_entry_id),
+    send_statements: sendStatements.value,
+    log_statements: logStatements.value,
+    send_tenant_receipts: sendReceipts.value,
+  })
+  emit('completed')
 }
 
 function formatMoney(val: number) {

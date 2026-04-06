@@ -19,48 +19,47 @@
       </div>
     </div>
 
-    <!-- Sub-tabs + batch button -->
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex gap-2">
-      <button
-        v-for="tab in payoutTabs"
-        :key="tab.id"
-        @click="payoutTab = tab.id"
-        :class="[
-          'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
-          payoutTab === tab.id
-            ? 'bg-gray-800 text-white'
-            : isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-gray-100 text-gray-500'
-        ]"
-      >
-        {{ tab.name }}
-        <span
-          v-if="tab.count > 0"
-          :class="['ml-1.5 px-1.5 py-0.5 text-xs rounded-full', payoutTab === tab.id ? 'bg-white/20' : isDark ? 'bg-slate-700' : 'bg-gray-200']"
-        >{{ tab.count }}</span>
-      </button>
+    <!-- List container with tabs on top -->
+    <div :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+      <!-- Rectangle tabs bar -->
+      <div :class="['flex items-center justify-between border-b', isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200']">
+        <div class="flex">
+          <button
+            v-for="tab in payoutTabs"
+            :key="tab.id"
+            @click="payoutTab = tab.id"
+            :class="[
+              'px-5 py-3 text-[13px] font-semibold border-b-2 transition-all',
+              payoutTab === tab.id
+                ? 'border-[#f97316] text-[#f97316] bg-white dark:bg-slate-900'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+            ]"
+          >
+            {{ tab.name }}
+            <span v-if="tab.count > 0" :class="['ml-1.5 px-1.5 py-0.5 text-xs rounded-full', payoutTab === tab.id ? 'bg-[#f97316]/10 text-[#f97316]' : isDark ? 'bg-slate-700' : 'bg-gray-200']">{{ tab.count }}</span>
+          </button>
+        </div>
+        <div class="flex gap-3 items-center pr-4">
+          <label v-if="payoutTab === 'landlord'" class="flex items-center gap-2">
+            <input type="checkbox" v-model="groupByLandlord" class="rounded text-primary" />
+            <span class="text-sm text-gray-500 dark:text-slate-400">Group by landlord</span>
+          </label>
+          <button
+            v-if="store.payouts.length > 0"
+            @click="showBatchModal = true"
+            class="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 text-white rounded-lg font-semibold px-[18px] py-2 text-sm transition-colors"
+          >
+            Mark All Paid &amp; Send Statements
+          </button>
+        </div>
       </div>
-      <div class="flex gap-3 items-center">
-        <label v-if="payoutTab === 'landlord'" class="flex items-center gap-2">
-          <input type="checkbox" v-model="groupByLandlord" class="rounded text-primary" />
-          <span class="text-sm">Group by landlord</span>
-        </label>
-        <button
-          v-if="store.payouts.length > 0"
-          @click="showBatchModal = true"
-          class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors"
-        >
-          Mark All Paid &amp; Send Statements
-        </button>
-      </div>
-    </div>
 
     <div v-if="store.loading" class="flex justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
 
     <!-- LANDLORD PAYOUTS -->
-    <div v-else-if="payoutTab === 'landlord'" class="space-y-4">
+    <div v-else-if="payoutTab === 'landlord'">
       <div v-if="landlordPayouts.length === 0" class="flex flex-col items-center justify-center py-16">
         <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
         <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No landlord payouts ready</p>
@@ -68,15 +67,18 @@
       </div>
 
       <div
-        v-for="payout in landlordPayouts"
+        v-for="(payout, idx) in landlordPayouts"
         :key="payout.id"
-        :class="['rounded-[10px] border overflow-hidden transition-colors', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200 hover:border-gray-300']"
+        :class="['border-b last:border-b-0 transition-colors', isDark ? 'border-slate-700' : 'border-gray-100', idx % 2 === 1 ? (isDark ? 'bg-slate-800/50' : 'bg-[#fff8f3]') : (isDark ? 'bg-slate-900' : 'bg-white')]"
       >
         <div class="px-5 py-4 flex items-center justify-between">
           <div>
             <router-link :to="`/landlords/${payout.landlord_id}`" class="font-medium text-primary hover:underline text-base">
               {{ payout.landlord_name }}
             </router-link>
+            <span v-if="payout.ownership_percentage && payout.ownership_percentage < 100" class="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              {{ payout.ownership_percentage }}% share
+            </span>
             <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">
               <router-link :to="`/properties/${payout.property_id}`" class="hover:underline">{{ payout.property_address }}, {{ payout.property_postcode }}</router-link>
               &middot; {{ formatDate(payout.period_start) }} &ndash; {{ formatDate(payout.period_end) }}
@@ -84,13 +86,22 @@
           </div>
           <div class="text-right">
             <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Net Payout</p>
-            <p class="text-[22px] font-bold text-[#15803d]">&pound;{{ formatMoney(payout.net_payout) }}</p>
+            <p class="text-[22px] font-bold text-[#15803d]">&pound;{{ formatMoney(payout.net_payout + (payout.deposit_amount || 0)) }}</p>
+            <p v-if="payout.deposit_amount > 0" class="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">incl. &pound;{{ formatMoney(payout.deposit_amount) }} deposit</p>
           </div>
         </div>
 
-        <div :class="['px-5 py-3 flex gap-6 text-sm border-t', isDark ? 'border-slate-700 bg-slate-800/50' : 'border-[#f3f4f6] bg-[#f9fafb]']">
-          <div><span :class="isDark ? 'text-slate-400' : 'text-gray-500'">Income:</span> <span class="font-medium">&pound;{{ formatMoney(payout.gross_rent) }}</span></div>
+        <!-- Rent hold banner -->
+        <div v-if="payout.rent_hold_active" class="px-5 py-2.5 border-t bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+          <span class="text-xs font-semibold text-amber-700 dark:text-amber-400">RENT ON HOLD</span>
+          <span v-if="payout.rent_hold_note" class="text-xs text-amber-600 dark:text-amber-500">— {{ payout.rent_hold_note }}</span>
+        </div>
+
+        <div :class="['px-5 py-3 flex flex-wrap gap-4 text-sm border-t', isDark ? 'border-slate-700 bg-slate-800/50' : 'border-[#f3f4f6] bg-[#f9fafb]']">
+          <div><span :class="isDark ? 'text-slate-400' : 'text-gray-500'">Rent:</span> <span class="font-medium">&pound;{{ formatMoney(payout.gross_rent) }}</span></div>
           <div><span :class="isDark ? 'text-slate-400' : 'text-gray-500'">Charges:</span> <span class="font-medium text-[#dc2626]">-&pound;{{ formatMoney(payout.total_charges) }}</span></div>
+          <div v-if="payout.deposit_amount > 0" class="text-blue-700 dark:text-blue-400"><span class="opacity-70">Deposit:</span> <span class="font-medium">&pound;{{ formatMoney(payout.deposit_amount) }}</span></div>
           <div><span :class="isDark ? 'text-slate-400' : 'text-gray-500'">Ref:</span> <span class="font-mono text-xs">{{ payout.statement_ref }}</span></div>
         </div>
 
@@ -129,9 +140,16 @@
             <button
               @click="undoReceipt(payout)"
               :disabled="undoingId === payout.schedule_entry_id"
-              class="px-3.5 py-2 text-[13px] font-medium text-red-500 border border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+              class="px-3.5 py-2 text-[13px] font-medium text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
               {{ undoingId === payout.schedule_entry_id ? 'Undoing...' : 'Undo Receipt' }}
+            </button>
+            <button
+              @click="holdPayout(payout)"
+              :disabled="holdingId === payout.id"
+              class="px-3.5 py-2 text-[13px] font-medium text-gray-900 bg-[#fbbf24] hover:bg-[#f59e0b] rounded-lg transition-colors disabled:opacity-50"
+            >
+              {{ holdingId === payout.id ? 'Holding...' : 'Hold Monies' }}
             </button>
             <button
               @click="selectedPayout = payout; showMarkPaidModal = true"
@@ -244,13 +262,54 @@
           <button
             @click="markContractorPaid(cp.id)"
             :disabled="payingContractorId === cp.id"
-            class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors disabled:opacity-50"
+            class="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors disabled:opacity-50"
           >
             {{ payingContractorId === cp.id ? 'Processing...' : 'Mark Paid' }}
           </button>
         </div>
       </div>
     </div>
+
+    <!-- HELD RENTS -->
+    <div v-else-if="payoutTab === 'held'">
+      <div v-if="heldRents.length === 0" class="flex flex-col items-center justify-center py-16">
+        <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No held rents</p>
+        <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Rents placed on hold will appear here. You can release them for payout at any time.</p>
+      </div>
+
+      <div
+        v-for="(held, idx) in heldRents"
+        :key="held.id"
+        :class="['border-b last:border-b-0 transition-colors', isDark ? 'border-slate-700' : 'border-gray-100', idx % 2 === 1 ? (isDark ? 'bg-slate-800/50' : 'bg-[#fff8f3]') : (isDark ? 'bg-slate-900' : 'bg-white')]"
+      >
+        <div class="px-5 py-4 flex items-center justify-between">
+          <div>
+            <span class="font-medium text-primary text-base">{{ held.landlord_name }}</span>
+            <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">
+              {{ held.property_address }}, {{ held.property_postcode }}
+              &middot; {{ formatDate(held.period_start) }} &ndash; {{ formatDate(held.period_end) }}
+            </p>
+            <p class="text-xs text-amber-600 mt-1">Held since {{ new Date(held.held_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }}</p>
+          </div>
+          <div class="text-right flex items-center gap-4">
+            <div>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Held Amount</p>
+              <p class="text-[22px] font-bold text-amber-600">&pound;{{ formatMoney(held.net_payout) }}</p>
+            </div>
+            <button
+              @click="releaseHeld(held.id)"
+              :disabled="releasingId === held.id"
+              class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors disabled:opacity-50"
+            >
+              {{ releasingId === held.id ? 'Releasing...' : 'Release & Pay' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- close list container -->
 
     <!-- Mark Paid Modal -->
     <MarkPaidModal
@@ -295,7 +354,7 @@ const payingContractorId = ref<string | null>(null)
 const landlordPayouts = computed(() => store.payouts)
 
 // Total payout value (display-only computed)
-const totalPayoutValue = computed(() => landlordPayouts.value.reduce((s, p) => s + (p.net_payout || 0), 0))
+const totalPayoutValue = computed(() => landlordPayouts.value.reduce((s, p) => s + (p.net_payout || 0) + (p.deposit_amount || 0), 0))
 
 // Agent charges = all included charges across all payouts (management fees, ad-hoc agent charges)
 const agentCharges = computed(() => {
@@ -326,6 +385,49 @@ const agentChargesByProperty = computed(() => {
 const agentPropertyCount = computed(() => Object.keys(agentChargesByProperty.value).length)
 const agentTotal = computed(() => agentCharges.value.reduce((s, c) => s + c.gross_amount, 0))
 
+// Held rents
+const heldRents = ref<any[]>([])
+const holdingId = ref<string | null>(null)
+const releasingId = ref<string | null>(null)
+
+async function fetchHeldRents() {
+  try {
+    const data = await get<any>('/api/rentgoose/held-rents')
+    heldRents.value = data.heldRents || []
+  } catch (err) {
+    console.error('Failed to fetch held rents:', err)
+  }
+}
+
+async function holdPayout(payout: PayoutItem) {
+  holdingId.value = payout.id
+  try {
+    await post('/api/rentgoose/hold-payout', {
+      schedule_entry_id: payout.schedule_entry_id,
+      landlord_id: payout.landlord_id || undefined,
+    })
+    await store.fetchPayouts()
+    await fetchHeldRents()
+  } catch (err) {
+    console.error('Failed to hold payout:', err)
+  } finally {
+    holdingId.value = null
+  }
+}
+
+async function releaseHeld(id: string) {
+  releasingId.value = id
+  try {
+    await post('/api/rentgoose/release-held', { payout_record_id: id })
+    await fetchHeldRents()
+    await store.fetchPayouts()
+  } catch (err) {
+    console.error('Failed to release held rent:', err)
+  } finally {
+    releasingId.value = null
+  }
+}
+
 // Contractor payouts = pending contractor invoices
 const contractorPayouts = ref<any[]>([])
 
@@ -341,6 +443,7 @@ const payoutTabs = computed(() => [
   { id: 'landlord', name: 'Landlord Payouts', count: landlordPayouts.value.length },
   { id: 'contractor', name: 'Contractor Payouts', count: contractorPayouts.value.length },
   { id: 'agent', name: 'Agent Payouts', count: agentCharges.value.length },
+  { id: 'held', name: 'Held Rents', count: heldRents.value.length },
 ])
 
 function onPaid() {
@@ -359,7 +462,7 @@ async function undoReceipt(payout: PayoutItem) {
   try {
     await post('/api/rentgoose/undo-receipt', { schedule_entry_id: payout.schedule_entry_id })
     await store.fetchPayouts()
-    await store.fetchSchedule()
+    store.fetchUnifiedSchedule()
   } catch (err) {
     console.error('Failed to undo receipt:', err)
     alert('Failed to undo receipt')
@@ -393,5 +496,6 @@ function formatDate(dateStr: string) {
 onMounted(() => {
   store.fetchPayouts()
   fetchContractorPayouts()
+  fetchHeldRents()
 })
 </script>

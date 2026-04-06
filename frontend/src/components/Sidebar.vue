@@ -202,6 +202,16 @@
                   : 'text-gray-400 group-hover:text-primary group-hover:scale-110'"
             />
             <span class="flex-1 group-hover:translate-x-0.5 transition-transform duration-200">{{ item.name }}</span>
+            <!-- Badge: pending offers -->
+            <span
+              v-if="item.name === 'Offers' && badgeStore.pendingOffers > 0"
+              class="ml-1 min-w-[18px] h-[18px] rounded-full bg-yellow-400 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+            >{{ badgeStore.pendingOffers }}</span>
+            <!-- Badge: ready tenancies -->
+            <span
+              v-if="item.name === 'Tenancies' && badgeStore.readyTenancies > 0"
+              class="ml-1 min-w-[18px] h-[18px] rounded-full bg-yellow-400 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+            >{{ badgeStore.readyTenancies }}</span>
             <!-- Active indicator feather -->
             <div
               v-if="isActive(item.path)"
@@ -212,6 +222,38 @@
 
         <!-- Beta Section -->
         <div :class="['border-t px-3 py-2 space-y-0.5 transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
+
+          <!-- Legacy References collapsible -->
+          <button
+            @click="showLegacy = !showLegacy"
+            class="w-full flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors"
+            :class="isDark ? 'text-white/40 hover:text-white/60 hover:bg-white/5' : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'"
+          >
+            <svg class="w-3 h-3 mr-1.5 transition-transform duration-200" :class="showLegacy ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            Legacy References
+          </button>
+          <template v-if="showLegacy">
+            <router-link
+              v-for="item in legacyNavigation"
+              :key="'legacy-' + item.name"
+              :to="item.path"
+              @click="closeMobileMenu"
+              class="nav-item group flex items-center px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 ml-3"
+              :class="isActive(item.path)
+                ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg shadow-primary/30'
+                : isDark
+                  ? 'text-white/50 hover:text-white hover:bg-white/10'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-primary/10'"
+            >
+              <component
+                :is="item.icon"
+                class="w-4 h-4 mr-2.5 transition-all duration-300"
+                :class="isActive(item.path) ? 'text-white' : isDark ? 'text-white/40 group-hover:text-primary' : 'text-gray-400 group-hover:text-primary'"
+              />
+              <span class="flex-1 text-xs">{{ item.name }}</span>
+            </router-link>
+          </template>
+
           <template v-for="item in betaNavigation" :key="item.name">
             <!-- External link (InventoryGoose) -->
             <a
@@ -352,6 +394,7 @@ import { computed, ref, h, Transition, onMounted, onUnmounted, watch } from 'vue
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useAdminCompanyStore } from '../stores/adminCompany'
+import { useBadgeCountsStore } from '../stores/badgeCounts'
 import { useDarkMode } from '@/composables/useDarkMode'
 import CreditsDisplay from './CreditsDisplay.vue'
 import NotificationBell from './NotificationBell.vue'
@@ -362,6 +405,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const adminCompanyStore = useAdminCompanyStore()
+const badgeStore = useBadgeCountsStore()
 const { isDark, toggleDarkMode } = useDarkMode()
 
 declare const __APP_VERSION__: string
@@ -523,37 +567,56 @@ const handleClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  badgeStore.startPolling()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  badgeStore.stopPolling()
 })
 
 const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
 
-// Main navigation (V1)
+// Main navigation
 const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: GooseDashboard },
-  { name: 'Offers', path: '/tenant-offers', icon: GooseOffers },
-  { name: 'References', path: '/references', icon: GooseClipboard },
+  { name: 'Offers', path: '/tenant-offers-v2', icon: GooseOffers },
+  { name: 'References', path: '/references-v2', icon: GooseClipboard },
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
-  { name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose },
   { name: 'Standalone Agreements', path: '/agreements/history', icon: GooseDocument },
   { name: 'Settings', path: '/settings', icon: GooseSettings },
   { name: 'Help Centre', path: '/help-centre', icon: GooseHelp }
 ]
 
-// Beta navigation items (bottom of sidebar)
-const betaNavigation = [
-  { name: 'Offers V2', path: '/tenant-offers-v2', icon: GooseOffers, isExternal: false, isInventoryGoose: false },
-  { name: 'References V2', path: '/references-v2', icon: GooseClipboard, isExternal: false, isInventoryGoose: false },
-  { name: 'RentGoose', path: '/rentgoose', icon: GooseSettings, isExternal: false, isInventoryGoose: false },
-  { name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true }
+// Legacy navigation (V1 — collapsed under "Legacy References")
+const legacyNavigation = [
+  { name: 'Offers', path: '/tenant-offers', icon: GooseOffers },
+  { name: 'References', path: '/references', icon: GooseClipboard }
 ]
+
+// Companies permitted to see RentGoose (UI-only gate — name substring match)
+const RENTGOOSE_ALLOWED = ['rg property', 'propertygoose']
+
+const showRentGoose = computed(() => {
+  const name = (authStore.company?.name || '').toLowerCase()
+  return RENTGOOSE_ALLOWED.some(s => name.includes(s))
+})
+
+// Beta navigation items (bottom of sidebar)
+const betaNavigation = computed(() => {
+  const items: { name: string; path: string; icon: any; isExternal: boolean; isInventoryGoose: boolean }[] = []
+  if (showRentGoose.value) {
+    items.push({ name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose, isExternal: false, isInventoryGoose: false })
+  }
+  items.push({ name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true })
+  return items
+})
+
+const showLegacy = ref(false)
 
 const userEmail = computed(() => authStore.user?.email || '')
 const userRole = computed(() => {

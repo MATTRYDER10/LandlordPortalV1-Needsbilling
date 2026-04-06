@@ -2,15 +2,25 @@
   <div>
     <!-- Summary stat cards -->
     <div class="grid grid-cols-3 gap-4 mb-6">
-      <!-- Collected = PRIMARY card -->
-      <div class="bg-[#fff7ed] dark:bg-orange-950/30 border border-gray-200 dark:border-slate-700 border-l-[3px] border-l-[#f97316] rounded-[10px] px-5 py-4">
-        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Collected</p>
-        <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.unifiedSummary.collected) }}</p>
+      <!-- Agent Fees Due to Pay = PRIMARY card -->
+      <div :class="[
+        'rounded-[10px] px-5 py-4 border',
+        store.unifiedSummary.collected > 0
+          ? 'bg-[#fff7ed] dark:bg-orange-950/30 border-l-[3px] border-l-[#f97316] border-gray-200 dark:border-slate-700'
+          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+      ]">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Agent Fees Due to Pay</p>
+        <p :class="['text-[22px] font-bold mt-1', store.unifiedSummary.collected > 0 ? 'text-[#f97316]' : 'text-gray-900 dark:text-white']">&pound;{{ formatMoney(store.unifiedSummary.collected) }}</p>
       </div>
-      <!-- Due = neutral white -->
-      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
-        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Due</p>
-        <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.unifiedSummary.due) }}</p>
+      <!-- Due Today = neutral, amber if > 0 -->
+      <div :class="[
+        'rounded-[10px] px-5 py-4 border',
+        store.unifiedSummary.due > 0
+          ? 'bg-[#fffbeb] dark:bg-amber-950/30 border-l-[3px] border-l-[#f59e0b] border-gray-200 dark:border-slate-700'
+          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+      ]">
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Due Today</p>
+        <p :class="['text-[22px] font-bold mt-1', store.unifiedSummary.due > 0 ? 'text-[#f59e0b]' : 'text-gray-900 dark:text-white']">&pound;{{ formatMoney(store.unifiedSummary.due) }}</p>
       </div>
       <!-- Arrears = red accent if > 0, neutral if 0 -->
       <div :class="[
@@ -24,25 +34,26 @@
       </div>
     </div>
 
-    <!-- Unified filter bar -->
-    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-      <!-- LEFT: type pills -->
-      <div class="flex gap-2 flex-wrap">
-        <button
-          v-for="cat in categories"
-          :key="cat.value"
-          @click="setCategory(cat.value)"
-          :class="[
-            'rounded-full text-[13px] px-3.5 py-1 font-medium transition-all',
-            store.categoryFilter === cat.value
-              ? 'bg-gray-800 text-white'
-              : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-500'
-          ]"
-        >
-          {{ cat.label }}
-          <span v-if="store.categoryCounts[cat.value] > 0" class="ml-1 opacity-75">({{ store.categoryCounts[cat.value] }})</span>
-        </button>
-      </div>
+    <!-- List container with rectangle tabs -->
+    <div :class="['rounded-[10px] border overflow-hidden', isDark ? 'border-slate-700' : 'border-gray-200']">
+      <!-- Rectangle tabs bar -->
+      <div :class="['flex items-center justify-between border-b', isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200']">
+        <div class="flex">
+          <button
+            v-for="cat in categories"
+            :key="cat.value"
+            @click="setCategory(cat.value)"
+            :class="[
+              'px-5 py-3 text-[13px] font-semibold border-b-2 transition-all',
+              store.categoryFilter === cat.value
+                ? 'border-[#f97316] text-[#f97316] bg-white dark:bg-slate-900'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+            ]"
+          >
+            {{ cat.label }}
+            <span v-if="store.categoryCounts[cat.value] > 0" :class="['ml-1 text-xs', store.categoryFilter === cat.value ? 'text-[#f97316]/70' : 'opacity-60']">({{ store.categoryCounts[cat.value] }})</span>
+          </button>
+        </div>
       <!-- RIGHT: status dropdown -->
       <div class="relative">
         <button
@@ -114,7 +125,7 @@
               <tr
                 v-for="(item, idx) in group.items"
                 :key="item.id"
-                :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
+                :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? (isDark ? 'bg-slate-800/50' : 'bg-[#fff8f3]') : '']"
               >
                 <td class="px-4 py-3">
                   <span :class="['px-2 py-0.5 text-xs font-medium rounded-full', typeBadgeClass(item.payment_type)]">
@@ -124,12 +135,12 @@
                 </td>
                 <td class="px-4 py-3">
                   <div v-if="item.property_address" class="font-semibold text-sm">
-                    {{ item.property_address }} <span :class="['font-normal', isDark ? 'text-slate-400' : 'text-gray-500']">&middot; {{ item.tenant_name || item.tenant_names || '-' }}</span>
+                    {{ item.property_address }} <span :class="['font-normal', isDark ? 'text-slate-400' : 'text-gray-500']">&middot; {{ abbreviateNames(item.tenant_name || item.tenant_names) }}</span>
                   </div>
                   <div v-else class="font-semibold text-sm">{{ item.description }}</div>
-                  <div v-if="item.property_address" :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">{{ item.description }}</div>
+                  <div v-if="item.property_address" :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">{{ formatPeriodDesc(item.description) }}</div>
                 </td>
-                <td class="px-4 py-3 text-sm hidden md:table-cell" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ item.tenant_name || item.tenant_names || '-' }}</td>
+                <td class="px-4 py-3 text-sm hidden md:table-cell" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ abbreviateNames(item.tenant_name || item.tenant_names) }}</td>
                 <td class="px-4 py-3 text-sm" :class="isOverdue(item) ? 'text-red-600 font-semibold' : (isDark ? 'text-slate-300' : 'text-gray-700')">{{ formatDate(item.due_date) }}</td>
                 <td class="px-4 py-3 text-sm text-right font-medium tabular-nums">&pound;{{ formatMoney(item.amount_due) }}</td>
                 <td class="px-4 py-3 text-center">
@@ -138,13 +149,41 @@
                   </span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <button
-                    v-if="item.status !== 'paid' && item.status !== 'cancelled'"
-                    @click="openReceipt(item)"
-                    class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2 text-xs transition-colors"
-                  >
-                    Receipt
-                  </button>
+                  <div class="flex items-center justify-end gap-1.5">
+                    <!-- Chase button — only for rent items in arrears -->
+                    <template v-if="item.item_type === 'rent' && (item.status === 'arrears' || item.status === 'overdue')">
+                      <button
+                        @click="handleChase(item)"
+                        :disabled="chaseState[item.id] === 'sending' || chaseState[item.id] === 'sent'"
+                        :class="[
+                          'rounded-lg font-semibold px-3 py-2 text-xs transition-all',
+                          chaseState[item.id] === 'sent'
+                            ? 'bg-green-600 text-white cursor-default'
+                            : chaseState[item.id] === 'confirm'
+                              ? 'bg-gray-900 text-white hover:bg-black'
+                              : chaseState[item.id] === 'sending'
+                                ? 'bg-gray-600 text-white cursor-wait'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300'
+                        ]"
+                      >
+                        {{ chaseState[item.id] === 'sent' ? 'Sent ✓' : chaseState[item.id] === 'confirm' ? 'Confirm?' : chaseState[item.id] === 'sending' ? 'Sending…' : 'Chase' }}
+                      </button>
+                    </template>
+                    <!-- Greyed chase placeholder for non-arrears rent items -->
+                    <template v-else-if="item.item_type === 'rent' && item.status !== 'paid' && item.status !== 'cancelled'">
+                      <button disabled class="rounded-lg font-semibold px-3 py-2 text-xs bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600">
+                        Chase
+                      </button>
+                    </template>
+
+                    <button
+                      v-if="item.status !== 'paid' && item.status !== 'cancelled'"
+                      @click="openReceipt(item)"
+                      class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-3 py-2 text-xs transition-colors"
+                    >
+                      Receipt
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -152,6 +191,8 @@
         </div>
       </div>
     </div>
+
+    </div><!-- close list container with tabs -->
 
     <!-- Receipt Modal (for rent items) -->
     <ReceiptModal
@@ -185,6 +226,26 @@ const showRentReceipt = ref(false)
 const showExpectedReceipt = ref(false)
 const selectedRentEntry = ref<ScheduleEntry | null>(null)
 const selectedExpectedItem = ref<UnifiedPaymentItem | null>(null)
+
+// Chase button state: itemId -> 'confirm' (first click) | 'sending' | 'sent'
+const chaseState = ref<Record<string, 'confirm' | 'sending' | 'sent'>>({})
+
+async function handleChase(item: UnifiedPaymentItem) {
+  if (chaseState.value[item.id] === 'sent') return
+  if (chaseState.value[item.id] !== 'confirm') {
+    // First click — arm the button
+    chaseState.value[item.id] = 'confirm'
+    return
+  }
+  // Second click — send
+  chaseState.value[item.id] = 'sending'
+  try {
+    await store.sendChaseEmail(item.id)
+    chaseState.value[item.id] = 'sent'
+  } catch {
+    delete chaseState.value[item.id]
+  }
+}
 
 const categories = [
   { label: 'All', value: 'all' },
@@ -250,7 +311,7 @@ function setCategory(value: string) {
 
 function setStatusFilter(value: string) {
   store.statusFilter = value
-  store.fetchUnifiedSchedule({ status: value })
+  // No refetch — filtered in memory so summary cards stay static
 }
 
 function isOverdue(item: UnifiedPaymentItem) {
@@ -331,12 +392,12 @@ function statusClass(status: string) {
 
 function statusLabel(status: string) {
   switch (status) {
-    case 'overdue': return 'Arrears'
-    case 'pending': return 'Pending'
-    case 'due': return 'Due'
-    case 'upcoming': return 'Scheduled'
+    case 'arrears': case 'overdue': return 'Arrears'
+    case 'due': return 'Due Today'
+    case 'scheduled': case 'upcoming': return 'Scheduled'
     case 'partial': return 'Partial'
     case 'paid': return 'Paid'
+    case 'pending': return 'Pending'
     default: return status.charAt(0).toUpperCase() + status.slice(1)
   }
 }
@@ -347,7 +408,26 @@ function formatMoney(val: number) {
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const d = new Date(dateStr)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yy = String(d.getFullYear()).slice(2)
+  return `${dd}/${mm}/${yy}`
+}
+
+function abbreviateNames(nameStr?: string) {
+  if (!nameStr) return '-'
+  return nameStr.split(',').map(name => {
+    const parts = name.trim().split(' ').filter(Boolean)
+    if (parts.length <= 1) return parts[0] || ''
+    return `${parts[0][0]}. ${parts.slice(1).join(' ')}`
+  }).join(', ')
+}
+
+function formatPeriodDesc(desc?: string) {
+  if (!desc) return ''
+  // Replace ISO dates (YYYY-MM-DD) with DD/MM/YY
+  return desc.replace(/(\d{4})-(\d{2})-(\d{2})/g, (_, y, m, d) => `${d}/${m}/${y.slice(2)}`)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -356,7 +436,8 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await store.syncTenancies()
   store.fetchUnifiedSchedule()
   document.addEventListener('click', handleClickOutside)
 })

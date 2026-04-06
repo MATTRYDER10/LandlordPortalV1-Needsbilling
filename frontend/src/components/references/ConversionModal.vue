@@ -312,6 +312,19 @@
                   placeholder="Any notes about this tenancy..."
                 ></textarea>
               </div>
+
+              <!-- JMI move-in notification -->
+              <div v-if="authStore.company?.jmiEnabled !== false" class="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <input
+                  id="convert-notify-jmi"
+                  v-model="notifyJmi"
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label for="convert-notify-jmi" class="text-sm text-blue-800 cursor-pointer">
+                  <span class="font-medium">Notify utilities of move in via Just Move In</span>
+                </label>
+              </div>
             </div>
           </template>
         </div>
@@ -408,6 +421,7 @@ const loading = ref(false)
 const converting = ref(false)
 const conversionComplete = ref(false)
 const createdTenancyId = ref<string | null>(null)
+const notifyJmi = ref(true)
 const validationErrors = ref<string[]>([])
 const validationWarnings = ref<string[]>([])
 const previewData = ref<{
@@ -1103,7 +1117,7 @@ const convert = async () => {
         body: JSON.stringify({
           propertyId: propertyId,
           primaryReferenceId: props.tenancy.id,
-          tenancyType: 'ast',
+          tenancyType: new Date(editableDetails.value.moveInDate || new Date().toISOString().split('T')[0]) >= new Date('2026-05-01') ? 'periodic' : 'ast',
           startDate: editableDetails.value.moveInDate || new Date().toISOString().split('T')[0],
           monthlyRent: editableDetails.value.monthlyRent,
           depositAmount: options.value.depositAmount || undefined,
@@ -1147,6 +1161,22 @@ const convert = async () => {
 
       const data = await response.json()
       tenancyId = data.tenancy?.id
+    }
+
+    // JMI move-in notification (silent fail)
+    if (tenancyId && notifyJmi.value && authStore.company?.jmiEnabled !== false) {
+      try {
+        await authFetch(`${API_URL}/api/jmi/submit/${tenancyId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.session?.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ moveType: 'movein', gdprConsent: true })
+        })
+      } catch {
+        // JMI not configured — ignore
+      }
     }
 
     // Mark conversion as complete and store tenancy ID

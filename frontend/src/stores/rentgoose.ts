@@ -32,6 +32,7 @@ export interface ScheduleEntry {
 export interface PayoutItem {
   id: string
   schedule_entry_id: string
+  property_id?: string
   property_address: string
   property_postcode: string
   landlord_name: string
@@ -40,6 +41,9 @@ export interface PayoutItem {
   landlord_bank_name?: string
   landlord_bank_account_last4?: string
   landlord_bank_sort_code?: string
+  ownership_percentage: number
+  rent_hold_active?: boolean
+  rent_hold_note?: string
   tenant_names: string
   tenancy_ref: string
   period_start: string
@@ -48,6 +52,8 @@ export interface PayoutItem {
   charges: any[]
   total_charges: number
   net_payout: number
+  deposit_amount: number
+  deposit_expected_payment_id?: string
   statement_ref: string
 }
 
@@ -173,9 +179,7 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
   }
 
   async function receiptPayment(payload: any) {
-    const result = await post<any>('/api/rentgoose/receipt', payload)
-    await fetchSchedule({ status: statusFilter.value })
-    return result
+    return await post<any>('/api/rentgoose/receipt', payload)
   }
 
   async function fetchPayouts() {
@@ -191,15 +195,28 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
   }
 
   async function markPaid(payload: any) {
-    const result = await post<any>('/api/rentgoose/payout', payload)
-    await fetchPayouts()
-    return result
+    // Await the payout record creation (PDF/email still runs in background on backend)
+    try {
+      await post<any>('/api/rentgoose/payout', payload)
+      // Remove from local list only after backend confirms
+      payouts.value = payouts.value.filter(p => p.id !== payload.payout_id)
+    } catch (err) {
+      console.error('Payout failed:', err)
+    }
+    // Refresh to get accurate counts
+    fetchPayouts()
+    fetchUnifiedSchedule()
   }
 
   async function batchPayout(payload: any) {
-    const result = await post<any>('/api/rentgoose/payout/batch', payload)
-    await fetchPayouts()
-    return result
+    try {
+      await post<any>('/api/rentgoose/payout/batch', payload)
+      payouts.value = []
+    } catch (err) {
+      console.error('Batch payout failed:', err)
+    }
+    fetchPayouts()
+    fetchUnifiedSchedule()
   }
 
   async function fetchArrears() {
@@ -254,7 +271,6 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
 
   async function applyRentCredit(payload: { schedule_entry_id: string; credit_amount: number; reason: string }) {
     const result = await post<any>('/api/rentgoose/rent-credit', payload)
-    await fetchSchedule({ status: statusFilter.value })
     await fetchUnifiedSchedule({ status: statusFilter.value })
     return result
   }
@@ -264,7 +280,7 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     try {
       const params = new URLSearchParams()
       if (categoryFilter.value && categoryFilter.value !== 'all') params.set('category', categoryFilter.value)
-      if (filters?.status && filters.status !== 'all') params.set('status', filters.status)
+      // Status is filtered in memory — do not send to backend so summary stays unaffected
       if (filters?.payment_type) params.set('payment_type', filters.payment_type)
 
       const data = await get<any>(`/api/rentgoose/unified-schedule?${params.toString()}`)
@@ -294,10 +310,24 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
   }
 
   const filteredUnifiedItems = computed(() => {
-    if (statusFilter.value === 'paid') return unifiedItems.value.filter(item => item.status === 'paid')
-    if (statusFilter.value === 'all') return unifiedItems.value.filter(item => item.status !== 'paid' && item.status !== 'cancelled')
-    return unifiedItems.value.filter(item => item.status === statusFilter.value)
+    const s = statusFilter.value
+    if (s === 'paid') return unifiedItems.value.filter(item => item.status === 'paid')
+    if (s === 'arrears') return unifiedItems.value.filter(item => item.status === 'arrears' || item.status === 'overdue')
+    if (s === 'all' || !s) return unifiedItems.value.filter(item => item.status !== 'paid' && item.status !== 'cancelled')
+    return unifiedItems.value.filter(item => item.status === s)
   })
+
+  async function sendChaseEmail(scheduleEntryId: string) {
+    return await post<any>('/api/rentgoose/chase-email', { schedule_entry_id: scheduleEntryId })
+  }
+
+  async function syncTenancies() {
+    try {
+      await post<any>('/api/rentgoose/sync-tenancies', {})
+    } catch (err) {
+      console.error('Failed to sync tenancies:', err)
+    }
+  }
 
   async function fetchContractors() {
     try {
@@ -346,6 +376,8 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     addManualEntry,
     reconcile,
     fetchAgentFees,
+    sendChaseEmail,
+    syncTenancies,
     fetchContractors,
     uploadContractorInvoice,
     markContractorPaid,

@@ -29,8 +29,11 @@ export interface PropertyAddress {
 
 export type Language = 'english' | 'welsh'
 
+export type AgreementType = 'ast' | 'apta' | 'company_let' | 'lodger'
+
 export interface AgreementData {
   templateType: TemplateType
+  agreementType?: AgreementType
   propertyAddress: PropertyAddress
   landlords: Party[]
   tenants: Party[]
@@ -60,6 +63,7 @@ export interface AgreementData {
   specialClauses?: string
   // Bills
   billsIncluded?: boolean
+  billsIncludedUtilities?: string[]
   // Company details (for managed properties)
   companyName?: string
   companyAddress?: PropertyAddress
@@ -90,6 +94,7 @@ export class AgreementService {
   ): Promise<string> {
     const payload: Record<string, any> = {
       template_type: agreementData.templateType,
+      agreement_type: agreementData.agreementType || 'ast',
       property_address: agreementData.propertyAddress,
       landlords: agreementData.landlords,
       tenants: agreementData.tenants,
@@ -112,7 +117,8 @@ export class AgreementService {
       agent_signs_on_behalf: agreementData.agentSignsOnBehalf || false,
       break_clause: agreementData.breakClause,
       special_clauses: agreementData.specialClauses,
-      bills_included: agreementData.billsIncluded || false,
+      bills_included: agreementData.billsIncluded || (agreementData.billsIncludedUtilities && agreementData.billsIncludedUtilities.length > 0) || false,
+      bills_included_utilities: agreementData.billsIncludedUtilities || null,
       language: agreementData.language || 'english',
       company_id: companyId,
       reference_id: referenceId || null,

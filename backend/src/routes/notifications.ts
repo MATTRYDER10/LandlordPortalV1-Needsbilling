@@ -166,6 +166,40 @@ router.post('/:id/dismiss', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/notifications/badge-counts
+ * Returns counts for sidebar notification badges
+ */
+router.get('/badge-counts', async (req: Request, res: Response) => {
+  try {
+    const { supabase } = await import('../config/supabase')
+    const today = new Date().toISOString().split('T')[0]
+
+    const [offersResult, tenanciesResult] = await Promise.all([
+      supabase
+        .from('tenant_offers')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', req.companyId!)
+        .eq('status', 'pending')
+        .eq('is_v2', true),
+      supabase
+        .from('tenancies')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', req.companyId!)
+        .in('status', ['pending', 'draft'])
+        .lte('start_date', today)
+    ])
+
+    res.json({
+      pending_offers: offersResult.count || 0,
+      ready_tenancies: tenanciesResult.count || 0
+    })
+  } catch (err) {
+    console.error('Error fetching badge counts:', err)
+    res.status(500).json({ error: 'Failed to fetch badge counts' })
+  }
+})
+
 export default router
 
 // Extend Express Request type

@@ -26,7 +26,12 @@ async function processArrearsChases(): Promise<void> {
       const dueDate = new Date(chase.rent_schedule_entries.due_date)
       const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
-      if (daysOverdue >= 28 && !chase.day28_sent_at) {
+      if (daysOverdue >= 90 && !chase.day90_sent_at) {
+        // Only send day 90 if full amount is still outstanding (no partial payment received)
+        if (parseFloat(chase.partial_paid || 0) === 0) {
+          await sendChaseEmail(chase, 90)
+        }
+      } else if (daysOverdue >= 28 && !chase.day28_sent_at) {
         await sendChaseEmail(chase, 28)
       } else if (daysOverdue >= 21 && !chase.day21_sent_at) {
         await sendChaseEmail(chase, 21)
@@ -166,7 +171,7 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
     }
 
     // Update chase record
-    const updateField = `day${dayTrigger}_sent_at` as string
+    const updateField = `day${dayTrigger}_sent_at`
     await supabase
       .from('arrears_chases')
       .update({ [updateField]: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -180,10 +185,11 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
 
 function getDefaultSubject(dayTrigger: number, propertyAddress: string): string {
   switch (dayTrigger) {
-    case 7: return `Rent Payment Reminder - ${propertyAddress}`
-    case 14: return `Formal Rent Reminder - ${propertyAddress}`
-    case 21: return `Final Notice Before Formal Action - ${propertyAddress}`
-    case 28: return `Formal Notification: Rent Arrears - ${propertyAddress}`
-    default: return `Rent Arrears Notice - ${propertyAddress}`
+    case 7:  return `Rent Payment Reminder — ${propertyAddress}`
+    case 14: return `Rent Payment Outstanding — ${propertyAddress}`
+    case 21: return `Rent Arrears Notice — ${propertyAddress}`
+    case 28: return `Rent Arrears — 28 Days Outstanding — ${propertyAddress}`
+    case 90: return `Notice of Escalation — ${propertyAddress}`
+    default: return `Rent Arrears Notice — ${propertyAddress}`
   }
 }

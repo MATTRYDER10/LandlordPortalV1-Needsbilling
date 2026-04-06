@@ -1,0 +1,59 @@
+{
+  "id": "references-v2-how-to",
+  "slug": "references-v2-how-to",
+  "title": "How to Start a Reference (V2)",
+  "category": "references",
+  "tags": ["references", "v2", "start", "applicant", "progress"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 11,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "Starting a V2 reference is done directly from an approved offer in Offers V2. The system handles sending the secure form link to the applicant and tracking their progress in real time.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Start a Reference",
+        "steps": [
+          {
+            "title": "Go to Offers V2",
+            "content": "Navigate to Offers V2 from the sidebar and find the offer you want to reference. The offer must be in an approved status before referencing can begin.",
+            "image": null
+          },
+          {
+            "title": "Click Start Reference",
+            "content": "Click 'Start Reference' on the approved offer. The system creates a V2 reference record and links it to the offer automatically.",
+            "image": null
+          },
+          {
+            "title": "Applicant Receives Secure Form Link",
+            "content": "The applicant is sent an email with a secure, personalised link to their reference form. They do not need to create an account — the link takes them directly to their form.",
+            "image": null
+          },
+          {
+            "title": "Applicant Completes the Form",
+            "content": "The applicant fills in four sections online: employment and income details, landlord reference, identity documents (ID), and any additional information requested.",
+            "image": null
+          },
+          {
+            "title": "Track Progress in References V2",
+            "content": "Go to References V2 in the sidebar to see all active V2 references. Statuses are: Sent (link delivered, not started), In Progress (applicant has started), Awaiting Evidence (more documents needed), and Complete.",
+            "image": null
+          },
+          {
+            "title": "Review Evidence and Report",
+            "content": "Click any reference to view the full evidence submitted by the applicant, all documents, and the Creditsafe credit report. You can take notes and flag any concerns from this view.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Live Progress Indicator",
+        "content": "References V2 shows a live progress indicator for each applicant, so you can see exactly which section of the form they are currently completing — no need to chase them for updates."
+      }
+    ],
+    "relatedArticles": ["references-v2-overview", "references-v2-report", "offers-v2-landlord-approval"]
+  }
+}
