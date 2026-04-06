@@ -80,7 +80,7 @@
               <div v-for="(tenant, index) in offer.tenants" :key="tenant.id" class="tenant-card">
                 <div class="tenant-number">{{ index + 1 }}</div>
                 <div class="tenant-info">
-                  <p class="tenant-name">{{ tenant.name }}</p>
+                  <p class="tenant-name">{{ tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : tenant.name }}</p>
                   <p class="tenant-contact">{{ tenant.email }}</p>
                   <p v-if="tenant.phone" class="tenant-contact">{{ tenant.phone }}</p>
                   <p v-if="tenant.job_title || tenant.annual_income" class="tenant-job">
@@ -124,6 +124,8 @@ interface Tenant {
   id: string
   tenant_order: number
   name: string
+  first_name: string
+  last_name: string
   address: string
   phone: string
   email: string

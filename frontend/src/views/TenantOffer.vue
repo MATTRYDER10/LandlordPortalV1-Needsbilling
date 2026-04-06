@@ -114,11 +114,19 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label :for="`tenant-${index}-name`"
+                                <label :for="`tenant-${index}-first-name`"
                                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                    Full Name *
+                                    First Name *
                                 </label>
-                                <input :id="`tenant-${index}-name`" v-model="tenant.name" type="text" required
+                                <input :id="`tenant-${index}-first-name`" v-model="tenant.first_name" type="text" required
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label :for="`tenant-${index}-last-name`"
+                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                    Last Name *
+                                </label>
+                                <input :id="`tenant-${index}-last-name`" v-model="tenant.last_name" type="text" required
                                     class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
                             <div class="relative overflow-visible">
@@ -501,7 +509,8 @@ const formData = ref({
     special_conditions: '',
     tenants: [
         {
-            name: '',
+            first_name: '',
+            last_name: '',
             address: '',
             address_line2: '',
             address_city: '',
@@ -550,7 +559,8 @@ const isV2Offer = computed(() =>
 
 const addTenant = () => {
     formData.value.tenants.push({
-        name: '',
+        first_name: '',
+        last_name: '',
         address: '',
         address_line2: '',
         address_city: '',
@@ -619,9 +629,10 @@ const handleSubmit = async () => {
         // Validate each tenant
         for (let i = 0; i < formData.value.tenants.length; i++) {
             const tenant = formData.value.tenants[i]
-            if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email) {
+            if (!tenant?.first_name || !tenant?.last_name || !tenant.address || !tenant.phone || !tenant.email) {
                 const missing = []
-                if (!tenant?.name) missing.push('name')
+                if (!tenant?.first_name) missing.push('first name')
+                if (!tenant?.last_name) missing.push('last name')
                 if (!tenant?.address) missing.push('address')
                 if (!tenant?.phone) missing.push('phone')
                 if (!tenant?.email) missing.push('email')
@@ -664,7 +675,9 @@ const handleSubmit = async () => {
             deposit_amount: formData.value.deposit_amount || null,
             special_conditions: formData.value.special_conditions || null,
             tenants: formData.value.tenants.map(tenant => ({
-                name: tenant.name,
+                first_name: tenant.first_name,
+                last_name: tenant.last_name,
+                name: `${tenant.first_name} ${tenant.last_name}`.trim(),
                 address: tenant.address,
                 phone: tenant.phone,
                 email: tenant.email,
