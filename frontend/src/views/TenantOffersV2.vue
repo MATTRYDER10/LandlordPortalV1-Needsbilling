@@ -1028,8 +1028,48 @@
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-2">
-                          <div>
-                            <p class="font-semibold text-gray-900 dark:text-white">{{ tenant.name }}</p>
+                          <div class="flex-1 min-w-0">
+                            <!-- Editing mode -->
+                            <div v-if="editingTenantId === tenant.id" class="flex items-center gap-2 flex-wrap">
+                              <input
+                                v-model="editFirstName"
+                                type="text"
+                                placeholder="First Name"
+                                class="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white w-28"
+                              />
+                              <input
+                                v-model="editLastName"
+                                type="text"
+                                placeholder="Last Name"
+                                class="px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white w-28"
+                              />
+                              <button
+                                @click="saveTenantName(tenant)"
+                                :disabled="!editFirstName.trim() || !editLastName.trim() || savingTenantName"
+                                class="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded disabled:opacity-50"
+                              >
+                                <Check class="w-4 h-4" />
+                              </button>
+                              <button
+                                @click="editingTenantId = null"
+                                class="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+                              >
+                                <X class="w-4 h-4" />
+                              </button>
+                            </div>
+                            <!-- Display mode -->
+                            <div v-else class="flex items-center gap-1.5">
+                              <p class="font-semibold text-gray-900 dark:text-white">
+                                {{ tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : tenant.name }}
+                              </p>
+                              <button
+                                @click="startEditTenantName(tenant)"
+                                class="p-0.5 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
+                                title="Edit name"
+                              >
+                                <Pencil class="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                           <div v-if="tenant.annual_income" class="text-right flex-shrink-0">
                             <p class="text-sm font-bold text-green-600 dark:text-green-400">£{{ tenant.annual_income }}</p>
@@ -1585,7 +1625,9 @@ import {
   RotateCcw,
   Trash2,
   Sparkles,
-  Zap
+  Zap,
+  Pencil,
+  Check
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -1608,6 +1650,48 @@ const leadTenantSignature = computed(() => {
   return tenants.find((t: any) => t.signature) || tenants[0] || null
 })
 const processingAction = ref(false)
+
+// Tenant name editing state
+const editingTenantId = ref<string | null>(null)
+const editFirstName = ref('')
+const editLastName = ref('')
+const savingTenantName = ref(false)
+
+function startEditTenantName(tenant: any) {
+  editingTenantId.value = tenant.id
+  editFirstName.value = tenant.first_name || tenant.name?.split(' ')[0] || ''
+  editLastName.value = tenant.last_name || tenant.name?.split(' ').slice(1).join(' ') || ''
+}
+
+async function saveTenantName(tenant: any) {
+  if (!editFirstName.value.trim() || !editLastName.value.trim() || !selectedOffer.value) return
+  savingTenantName.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/tenant/${tenant.id}/name`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json',
+        ...(authStore.selectedBranchId ? { 'X-Branch-Id': authStore.selectedBranchId } : {})
+      },
+      body: JSON.stringify({ first_name: editFirstName.value.trim(), last_name: editLastName.value.trim() })
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to update name')
+    }
+    // Update local state
+    tenant.first_name = editFirstName.value.trim()
+    tenant.last_name = editLastName.value.trim()
+    tenant.name = `${tenant.first_name} ${tenant.last_name}`
+    editingTenantId.value = null
+    toast.success('Tenant name updated')
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to update tenant name')
+  } finally {
+    savingTenantName.value = false
+  }
+}
 
 // Receipt modal state
 const showReceiptModal = ref(false)
@@ -2636,9 +2720,14 @@ async function fetchOffers() {
       const offersWithNames = (offersData.offers || []).map((o: any) => {
         if (!o.tenant_first_name && o.tenants?.length > 0) {
           const leadTenant = o.tenants[0]
-          const nameParts = (leadTenant.name || '').split(' ')
-          o.tenant_first_name = nameParts[0] || ''
-          o.tenant_last_name = nameParts.slice(1).join(' ') || ''
+          if (leadTenant.first_name && leadTenant.last_name) {
+            o.tenant_first_name = leadTenant.first_name
+            o.tenant_last_name = leadTenant.last_name
+          } else {
+            const nameParts = (leadTenant.name || '').split(' ')
+            o.tenant_first_name = nameParts[0] || ''
+            o.tenant_last_name = nameParts.slice(1).join(' ') || ''
+          }
         }
         return o
       })

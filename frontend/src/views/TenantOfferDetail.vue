@@ -240,8 +240,12 @@
               <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Tenant {{ index + 1 }}</h4>
               <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Name</dt>
-                  <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ tenant.name }}</dd>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-slate-400">First Name</dt>
+                  <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ tenant.first_name || tenant.name?.split(' ')[0] || '-' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Last Name</dt>
+                  <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ tenant.last_name || tenant.name?.split(' ').slice(1).join(' ') || '-' }}</dd>
                 </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Email</dt>

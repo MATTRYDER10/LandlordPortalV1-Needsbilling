@@ -199,6 +199,8 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
           id,
           tenant_order,
           name_encrypted,
+          first_name_encrypted,
+          last_name_encrypted,
           address_encrypted,
           phone_encrypted,
           email_encrypted,
@@ -224,6 +226,8 @@ router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) 
                 id: tenant.id,
                 tenant_order: tenant.tenant_order,
                 name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
+                first_name: tenant.first_name_encrypted ? decrypt(tenant.first_name_encrypted) : '',
+                last_name: tenant.last_name_encrypted ? decrypt(tenant.last_name_encrypted) : '',
                 address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
                 address_line2: tenant.address_line2_encrypted ? decrypt(tenant.address_line2_encrypted) : '',
                 address_city: tenant.address_city_encrypted ? decrypt(tenant.address_city_encrypted) : '',
@@ -332,6 +336,8 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
                     id,
                     tenant_order,
                     name_encrypted,
+                    first_name_encrypted,
+                    last_name_encrypted,
                     address_encrypted,
                     phone_encrypted,
                     email_encrypted,
@@ -584,25 +590,32 @@ router.post('/submit', async (req, res) => {
         }
 
         // Create tenant records
-        const tenantRecords = tenants.map((tenant: any, index: number) => ({
-            tenant_offer_id: offer.id,
-            tenant_order: index + 1,
-            name_encrypted: encrypt(tenant.name),
-            address_encrypted: encrypt(tenant.address),
-            address_line2_encrypted: tenant.address_line2 ? encrypt(tenant.address_line2) : null,
-            address_city_encrypted: tenant.address_city ? encrypt(tenant.address_city) : null,
-            address_county_encrypted: tenant.address_county ? encrypt(tenant.address_county) : null,
-            address_postcode_encrypted: tenant.address_postcode ? encrypt(tenant.address_postcode) : null,
-            address_country_encrypted: tenant.address_country ? encrypt(tenant.address_country) : null,
-            phone_encrypted: encrypt(tenant.phone),
-            email_encrypted: encrypt(tenant.email),
-            annual_income_encrypted: encrypt(tenant.annual_income),
-            job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
-            no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
-            signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
-            signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
-            signed_at: tenant.signature ? new Date().toISOString() : null
-        }))
+        const tenantRecords = tenants.map((tenant: any, index: number) => {
+            const firstName = tenant.first_name || ''
+            const lastName = tenant.last_name || ''
+            const fullName = tenant.name || `${firstName} ${lastName}`.trim()
+            return {
+                tenant_offer_id: offer.id,
+                tenant_order: index + 1,
+                name_encrypted: encrypt(fullName),
+                first_name_encrypted: firstName ? encrypt(firstName) : null,
+                last_name_encrypted: lastName ? encrypt(lastName) : null,
+                address_encrypted: encrypt(tenant.address),
+                address_line2_encrypted: tenant.address_line2 ? encrypt(tenant.address_line2) : null,
+                address_city_encrypted: tenant.address_city ? encrypt(tenant.address_city) : null,
+                address_county_encrypted: tenant.address_county ? encrypt(tenant.address_county) : null,
+                address_postcode_encrypted: tenant.address_postcode ? encrypt(tenant.address_postcode) : null,
+                address_country_encrypted: tenant.address_country ? encrypt(tenant.address_country) : null,
+                phone_encrypted: encrypt(tenant.phone),
+                email_encrypted: encrypt(tenant.email),
+                annual_income_encrypted: encrypt(tenant.annual_income),
+                job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
+                no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
+                signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
+                signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
+                signed_at: tenant.signature ? new Date().toISOString() : null
+            }
+        })
 
         const { error: tenantsError } = await supabase
             .from('tenant_offer_tenants')
@@ -1059,6 +1072,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
           id,
           tenant_order,
           name_encrypted,
+          first_name_encrypted,
+          last_name_encrypted,
           address_encrypted,
           phone_encrypted,
           email_encrypted,
@@ -1584,20 +1599,27 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
             await supabase.from('tenant_offer_tenants').delete().eq('tenant_offer_id', id)
 
             // Insert updated tenants
-            const tenantRecords = tenants.map((tenant: any, index: number) => ({
-                tenant_offer_id: id,
-                tenant_order: index + 1,
-                name_encrypted: encrypt(tenant.name),
-                address_encrypted: encrypt(tenant.address),
-                phone_encrypted: encrypt(tenant.phone),
-                email_encrypted: encrypt(tenant.email),
-                annual_income_encrypted: encrypt(tenant.annual_income),
-                job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
-                no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
-                signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
-                signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
-                signed_at: tenant.signature ? new Date().toISOString() : null
-            }))
+            const tenantRecords = tenants.map((tenant: any, index: number) => {
+                const firstName = tenant.first_name || ''
+                const lastName = tenant.last_name || ''
+                const fullName = tenant.name || `${firstName} ${lastName}`.trim()
+                return {
+                    tenant_offer_id: id,
+                    tenant_order: index + 1,
+                    name_encrypted: encrypt(fullName),
+                    first_name_encrypted: firstName ? encrypt(firstName) : null,
+                    last_name_encrypted: lastName ? encrypt(lastName) : null,
+                    address_encrypted: encrypt(tenant.address),
+                    phone_encrypted: encrypt(tenant.phone),
+                    email_encrypted: encrypt(tenant.email),
+                    annual_income_encrypted: encrypt(tenant.annual_income),
+                    job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
+                    no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
+                    signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
+                    signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
+                    signed_at: tenant.signature ? new Date().toISOString() : null
+                }
+            })
 
             const { error: tenantsError } = await supabase
                 .from('tenant_offer_tenants')
@@ -1767,6 +1789,69 @@ router.post('/:id/set-rent-shares', authenticateToken, async (req: AuthRequest, 
         })
     } catch (error: any) {
         console.error('Error setting rent shares:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Update tenant name (first/last) on an offer tenant
+router.patch('/:id/tenant/:tenantId/name', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id, tenantId } = req.params
+        const { first_name, last_name } = req.body
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        if (!first_name || !last_name) {
+            return res.status(400).json({ error: 'First name and last name are required' })
+        }
+
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        // Verify offer belongs to company
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select('id')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        const fullName = `${first_name} ${last_name}`.trim()
+
+        const { error: updateError } = await supabase
+            .from('tenant_offer_tenants')
+            .update({
+                first_name_encrypted: encrypt(first_name),
+                last_name_encrypted: encrypt(last_name),
+                name_encrypted: encrypt(fullName)
+            })
+            .eq('id', tenantId)
+            .eq('tenant_offer_id', id)
+
+        if (updateError) {
+            return res.status(400).json({ error: updateError.message })
+        }
+
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'TENANT_NAME_UPDATED',
+            description: `Tenant name updated to "${fullName}"`,
+            metadata: { tenantId, first_name, last_name },
+            userId
+        })
+
+        res.json({ success: true, message: 'Tenant name updated' })
+    } catch (error: any) {
+        console.error('Error updating tenant name:', error)
         res.status(500).json({ error: error.message })
     }
 })
