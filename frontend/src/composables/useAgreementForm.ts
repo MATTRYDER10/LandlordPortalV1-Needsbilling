@@ -272,7 +272,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   const isValidEmail = (email: string): boolean => {
     if (!email) return false
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
+    return emailRegex.test(email.trim())
   }
 
   const validatePropertyAddress = computed(() => {
