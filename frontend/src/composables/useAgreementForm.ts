@@ -330,15 +330,12 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   })
 
   const validateGuarantors = computed(() => {
-    // Guarantors are optional, but if present, must be complete
+    // Guarantors are optional, but if present, need name and valid email
     if (formData.value.guarantors.length === 0) return true
     return formData.value.guarantors.every(g =>
       g.name &&
       g.email &&
-      isValidEmail(g.email) &&
-      g.address.line1 &&
-      g.address.city &&
-      g.address.postcode
+      isValidEmail(g.email)
     )
   })
 
