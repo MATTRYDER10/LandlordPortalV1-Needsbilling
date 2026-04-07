@@ -174,7 +174,13 @@
                     </button>
                   </div>
                   <div
-                    v-else-if="landlordSearchQuery && landlordSearchResults.length === 0"
+                    v-else-if="searchingLandlords"
+                    class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-400"
+                  >
+                    Searching...
+                  </div>
+                  <div
+                    v-else-if="landlordSearchQuery && !searchingLandlords && landlordSearchResults.length === 0"
                     class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-500"
                   >
                     No landlords found matching "{{ landlordSearchQuery }}"
@@ -376,23 +382,36 @@ const fetchExistingLandlords = async () => {
   }
 }
 
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+const searchingLandlords = ref(false)
+
 const searchLandlords = () => {
-  const query = landlordSearchQuery.value.toLowerCase()
+  const query = landlordSearchQuery.value.trim()
   if (!query) {
     landlordSearchResults.value = []
     return
   }
-  const assignedIds = form.value.landlords
-    .filter(l => l.landlord_id)
-    .map(l => l.landlord_id)
 
-  // No limit on search results - show all matching
-  landlordSearchResults.value = existingLandlords.value
-    .filter(l => !assignedIds.includes(l.id))
-    .filter(l =>
-      `${l.first_name} ${l.last_name}`.toLowerCase().includes(query) ||
-      l.email.toLowerCase().includes(query)
-    )
+  // Debounce: wait 150ms after last keystroke
+  if (searchDebounce) clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(async () => {
+    searchingLandlords.value = true
+    try {
+      const token = authStore.session?.access_token
+      const response = await fetch(`${API_URL}/api/landlords?search=${encodeURIComponent(query)}&limit=20`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const assignedIds = form.value.landlords.filter(l => l.landlord_id).map(l => l.landlord_id)
+        landlordSearchResults.value = (data.landlords || []).filter((l: ExistingLandlord) => !assignedIds.includes(l.id))
+      }
+    } catch (err) {
+      console.error('Failed to search landlords:', err)
+    } finally {
+      searchingLandlords.value = false
+    }
+  }, 150)
 }
 
 const addExistingLandlord = (landlord: ExistingLandlord) => {

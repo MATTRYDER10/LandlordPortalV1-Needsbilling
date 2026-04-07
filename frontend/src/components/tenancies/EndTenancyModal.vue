@@ -64,6 +64,19 @@
             ></textarea>
           </div>
 
+          <!-- JMI move-out notification -->
+          <div v-if="authStore.company?.jmiEnabled !== false" class="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <input
+              id="end-notify-jmi"
+              v-model="form.notifyJmi"
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label for="end-notify-jmi" class="text-sm text-blue-800 dark:text-blue-200 cursor-pointer">
+              <span class="font-medium">Notify utilities of pending move out via Just Move In</span>
+            </label>
+          </div>
+
           <!-- Warning -->
           <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div class="flex gap-3">
@@ -113,6 +126,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { AlertTriangle } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   show: boolean
@@ -130,7 +144,8 @@ const authStore = useAuthStore()
 const form = ref({
   endDate: '',
   reason: '',
-  notes: ''
+  notes: '',
+  notifyJmi: true
 })
 const submitting = ref(false)
 const error = ref('')
@@ -142,7 +157,8 @@ watch(() => props.show, (isShow) => {
     form.value = {
       endDate: new Date().toISOString().split('T')[0] || '',
       reason: '',
-      notes: ''
+      notes: '',
+      notifyJmi: true
     }
     error.value = ''
   }
@@ -176,6 +192,20 @@ const handleSubmit = async () => {
     if (!response.ok) {
       const data = await response.json()
       throw new Error(data.error || 'Failed to end tenancy')
+    }
+
+    // JMI move-out notification (silent fail)
+    if (form.value.notifyJmi && authStore.company?.jmiEnabled !== false) {
+      try {
+        await authFetch(`${API_URL}/api/jmi/submit/${props.tenancy.id}`, {
+          method: 'POST',
+          token: authStore.session?.access_token!,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moveType: 'moveout', gdprConsent: true })
+        })
+      } catch {
+        // JMI not configured or failed — ignore
+      }
     }
 
     toast.success('Tenancy ended successfully')

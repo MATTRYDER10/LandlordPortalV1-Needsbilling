@@ -777,6 +777,17 @@
                 back to Notice Served status?
               </p>
 
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">New Move-Out Date</label>
+                <input
+                  v-model="revertNoticeEndDate"
+                  type="date"
+                  :min="new Date().toISOString().split('T')[0]"
+                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-rose-500 focus:border-rose-500 dark:bg-slate-800 dark:text-white"
+                />
+                <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Set the new expected move-out date. Rent will be pro-rated accordingly.</p>
+              </div>
+
               <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg p-3 mb-4">
                 <p class="text-xs text-rose-800 dark:text-rose-300">
                   <strong>Note:</strong> This will move the tenancy from Archived back to Notice Served (notice_given), allowing it to be managed again before final end of tenancy.
@@ -925,6 +936,7 @@ const showRevertConfirm = ref(false)
 const isReverting = ref(false)
 const showRevertToNoticeServedConfirm = ref(false)
 const isRevertingToNoticeServed = ref(false)
+const revertNoticeEndDate = ref('')
 const showEmailTenantsModal = ref(false)
 const showBulkEmailModal = ref(false)
 const selectedTenancyIds = ref<string[]>([])
@@ -1406,7 +1418,10 @@ const handleRevertToNoticeServed = async () => {
       token,
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        actual_end_date: revertNoticeEndDate.value || undefined
+      })
     })
 
     if (!response.ok) {
@@ -1432,6 +1447,7 @@ const handleRevertToNoticeServed = async () => {
 
 const cancelRevertToNoticeServed = () => {
   showRevertToNoticeServedConfirm.value = false
+  revertNoticeEndDate.value = ''
   actionTenancy.value = null
 }
 

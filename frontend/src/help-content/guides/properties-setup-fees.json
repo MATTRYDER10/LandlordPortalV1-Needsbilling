@@ -1,0 +1,60 @@
+{
+  "id": "properties-setup-fees",
+  "slug": "properties-setup-fees",
+  "title": "Setup Fees & Let-Only Charges",
+  "category": "properties",
+  "tags": ["setup fees", "let fee", "admin fee", "landlord", "tenant fees act", "rentgoose"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 11,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "Setup fees (also called let fees or admin fees) are one-off charges billed to landlords when a new tenancy is set up. These appear in RentGoose under landlord deductions for the month the tenancy started.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Set Up a Let Fee",
+        "steps": [
+          {
+            "title": "Open the Relevant Property",
+            "content": "Navigate to the Properties tab and open the property you want to configure a setup fee for.",
+            "image": null
+          },
+          {
+            "title": "Go to the Fees Section",
+            "content": "Within the property settings, locate the Fees section.",
+            "image": null
+          },
+          {
+            "title": "Enter the Setup Fee Amount",
+            "content": "Enter the one-off setup or let fee amount that you charge the landlord when a new tenancy begins at this property.",
+            "image": null
+          },
+          {
+            "title": "Select VAT Treatment",
+            "content": "Select whether the fee amount includes VAT or is exclusive of VAT. If your agency is VAT registered, enter exclusive of VAT so that PropertyGoose can calculate and display the VAT correctly.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save. The setup fee will be applied the next time a tenancy is created for this property.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Tenant Fees Act 2019",
+        "content": "Under the Tenant Fees Act 2019, setup, admin, and let fees cannot be charged to tenants — they can only be charged to landlords. Ensure all fees are correctly allocated to the landlord in PropertyGoose."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Setup Fees in RentGoose",
+        "content": "Setup fees appear in RentGoose under landlord deductions for the month the new tenancy started. They are itemised separately from ongoing management fees on landlord statements."
+      }
+    ],
+    "relatedArticles": ["properties-management-fees", "properties-special-clauses", "rentgoose-landlord-statements"]
+  }
+}

@@ -8,6 +8,8 @@ import {
   pushDocument,
   previewSync,
   confirmSync,
+  previewTenancySync,
+  confirmTenancySync,
   apex27Fetch
 } from '../services/apex27Service'
 import { decrypt } from '../services/encryption'
@@ -131,7 +133,7 @@ router.post('/confirm', authenticateToken, async (req: AuthRequest, res) => {
           PropertiesSkipped: String(r.records_skipped),
           TotalProcessed: String(r.records_processed),
           ErrorCount: String(r.errors.length),
-          DashboardLink: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/properties`
+          DashboardLink: `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/properties`
         })
 
         await sendEmail({
@@ -219,6 +221,74 @@ router.post('/landlords', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // ============================================================================
+// TENANCY SYNC (PREVIEW + CONFIRM)
+// ============================================================================
+
+/**
+ * POST /api/apex27/tenancies/preview
+ * Preview tenancy import — no DB writes
+ */
+router.post('/tenancies/preview', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync tenancies' })
+    }
+
+    const result = await previewTenancySync(companyData.companyId)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, items: result.items })
+  } catch (error) {
+    console.error('[Apex27] Error previewing tenancy sync:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/apex27/tenancies/confirm
+ * Confirm tenancy import — write approved items
+ */
+router.post('/tenancies/confirm', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { items } = req.body
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'items array is required' })
+    }
+
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync tenancies' })
+    }
+
+    const result = await confirmTenancySync(companyData.companyId, companyData.userId, items)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, ...result.result })
+  } catch (error) {
+    console.error('[Apex27] Error confirming tenancy sync:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+// ============================================================================
 // SYNC LOGS
 // ============================================================================
 
@@ -261,6 +331,17 @@ router.get('/logs', authenticateToken, async (req: AuthRequest, res) => {
  * Fuzzy-resolve an apex27_listing_id from a property ID.
  * 3-level fallback: direct link → PG postcode search → Apex27 API search
  */
+function extractHouseNumber(address: string): string | null {
+  const match = address.match(/^(\d+\w?)\b/)
+  return match ? match[1].toLowerCase() : null
+}
+
+function addressContains(haystack: string, needle: string): boolean {
+  const h = haystack.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+  const n = needle.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+  return h.includes(n) || n.includes(h)
+}
+
 async function resolveApex27ListingId(
   propertyId: string | null,
   companyId: string,
@@ -281,7 +362,12 @@ async function resolveApex27ListingId(
   // Need postcode for fallback searches
   const postcode = property?.postcode
   const address = property?.address_line1_encrypted ? decrypt(property.address_line1_encrypted) : null
-  if (!postcode) return null
+  if (!postcode) {
+    console.log(`[Apex27] No postcode on property ${propertyId}, cannot fuzzy match`)
+    return null
+  }
+
+  const houseNum = address ? extractHouseNumber(address) : null
 
   // 2. PG search: other properties with same postcode that are linked
   const { data: matchedProps } = await supabase
@@ -299,8 +385,18 @@ async function resolveApex27ListingId(
       for (const p of matchedProps) {
         const pAddr = p.address_line1_encrypted ? decrypt(p.address_line1_encrypted) : null
         if (pAddr && normalizeAddressLine(pAddr) === normAddr) {
-          console.log(`[Apex27] Fuzzy-matched property to listing ${p.apex27_listing_id} via PG postcode search`)
+          console.log(`[Apex27] Exact fuzzy-matched property to listing ${p.apex27_listing_id}`)
           return p.apex27_listing_id
+        }
+      }
+      // Try house number match
+      if (houseNum) {
+        for (const p of matchedProps) {
+          const pAddr = p.address_line1_encrypted ? decrypt(p.address_line1_encrypted) : null
+          if (pAddr && extractHouseNumber(pAddr) === houseNum) {
+            console.log(`[Apex27] House-number matched property to listing ${p.apex27_listing_id}`)
+            return p.apex27_listing_id
+          }
         }
       }
     }
@@ -312,28 +408,58 @@ async function resolveApex27ListingId(
   const searchResult = await apex27Fetch<any[]>(apiKey, '/listings', {
     transactionType: 'rent',
     postalCode: postcode,
-    pageSize: 25
+    pageSize: 50
   })
 
   if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
     const listings = searchResult.data
     if (listings.length === 1) {
-      console.log(`[Apex27] Matched property to Apex27 listing ${listings[0].id} via API search`)
+      console.log(`[Apex27] Single Apex27 listing found for postcode ${postcode}: ${listings[0].id}`)
+      // Auto-link for future use
+      await supabase.from('properties').update({ apex27_listing_id: String(listings[0].id) }).eq('id', propertyId)
       return String(listings[0].id)
     }
+
+    // Try exact normalized address match
     if (address) {
       const normAddr = normalizeAddressLine(address)
       for (const l of listings) {
         if (l.address1 && normalizeAddressLine(l.address1) === normAddr) {
-          console.log(`[Apex27] Matched property to Apex27 listing ${l.id} via API search + address`)
+          console.log(`[Apex27] Matched to Apex27 listing ${l.id} via exact address`)
+          await supabase.from('properties').update({ apex27_listing_id: String(l.id) }).eq('id', propertyId)
           return String(l.id)
         }
       }
     }
-    console.log(`[Apex27] Best-guess matched property to Apex27 listing ${listings[0].id}`)
+
+    // Try house number match
+    if (houseNum) {
+      for (const l of listings) {
+        if (l.address1 && extractHouseNumber(l.address1) === houseNum) {
+          console.log(`[Apex27] Matched to Apex27 listing ${l.id} via house number "${houseNum}"`)
+          await supabase.from('properties').update({ apex27_listing_id: String(l.id) }).eq('id', propertyId)
+          return String(l.id)
+        }
+      }
+    }
+
+    // Try partial address match
+    if (address) {
+      for (const l of listings) {
+        if (l.address1 && addressContains(l.address1, address)) {
+          console.log(`[Apex27] Matched to Apex27 listing ${l.id} via partial address`)
+          await supabase.from('properties').update({ apex27_listing_id: String(l.id) }).eq('id', propertyId)
+          return String(l.id)
+        }
+      }
+    }
+
+    // Last resort: return first listing for same postcode
+    console.log(`[Apex27] No confident match, using first listing ${listings[0].id} for postcode ${postcode}`)
     return String(listings[0].id)
   }
 
+  console.log(`[Apex27] No Apex27 listings found for postcode ${postcode}`)
   return null
 }
 
@@ -588,28 +714,50 @@ router.post('/tenancy-summary/:tenancyId/push', authenticateToken, async (req: A
       return res.status(500).json({ error: summary.error || 'Failed to generate summary' })
     }
 
-    // Store summary as a file in Supabase Storage
-    const fileName = `tenancy-summaries/${companyData.companyId}/${req.params.tenancyId}-${Date.now()}.html`
+    // Convert HTML to PDF using Puppeteer
+    let pdfBuffer: Buffer
+    try {
+      const puppeteer = await import('puppeteer')
+      const browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+      const page = await browser.newPage()
+      await page.setContent(summary.html, { waitUntil: 'networkidle0' })
+      pdfBuffer = Buffer.from(await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } }))
+      await browser.close()
+    } catch (pdfErr) {
+      console.error('[Apex27] Puppeteer PDF generation failed, falling back to HTML:', pdfErr)
+      // Fallback: store as HTML if Puppeteer not available
+      pdfBuffer = Buffer.from(summary.html)
+    }
+
+    // Store as PDF in Supabase Storage
+    const isPdf = pdfBuffer[0] === 0x25 && pdfBuffer[1] === 0x50 // %P = PDF header
+    const ext = isPdf ? 'pdf' : 'html'
+    const contentType = isPdf ? 'application/pdf' : 'text/html'
+    const fileName = `tenancy-summaries/${companyData.companyId}/${req.params.tenancyId}-${Date.now()}.${ext}`
+
     const { error: uploadError } = await supabase.storage
       .from('documents')
-      .upload(fileName, Buffer.from(summary.html), {
-        contentType: 'text/html',
+      .upload(fileName, pdfBuffer, {
+        contentType,
         upsert: true
       })
 
     if (uploadError) {
       console.error('[Apex27] Error uploading summary:', uploadError)
-      return res.status(500).json({ error: 'Failed to store summary document' })
+      return res.status(500).json({ error: `Failed to store summary document: ${uploadError.message}` })
     }
 
-    // Generate signed URL
-    const { data: signedUrlData } = await supabase.storage
+    // Generate signed URL (7 days for Apex27 to fetch)
+    const { data: signedUrlData, error: signError } = await supabase.storage
       .from('documents')
-      .createSignedUrl(fileName, 3600)
+      .createSignedUrl(fileName, 604800)
 
-    if (!signedUrlData?.signedUrl) {
+    if (signError || !signedUrlData?.signedUrl) {
+      console.error('[Apex27] Error creating signed URL:', signError)
       return res.status(500).json({ error: 'Failed to generate document URL' })
     }
+
+    console.log('[Apex27] Document uploaded and signed URL generated:', signedUrlData.signedUrl.substring(0, 80) + '...')
 
     // Resolve Apex27 listing ID with fuzzy fallback
     const { data: tenancy } = await supabase
@@ -618,12 +766,22 @@ router.post('/tenancy-summary/:tenancyId/push', authenticateToken, async (req: A
       .eq('id', req.params.tenancyId)
       .single()
 
-    const listingId = tenancy?.property_id
-      ? await resolveApex27ListingId(tenancy.property_id, companyData.companyId, config.apiKey)
-      : null
+    if (!tenancy?.property_id) {
+      return res.status(400).json({ error: 'Tenancy has no linked property' })
+    }
+
+    const listingId = await resolveApex27ListingId(tenancy.property_id, companyData.companyId, config.apiKey)
 
     if (!listingId) {
-      return res.status(400).json({ error: 'Could not find a matching Apex27 listing for this property.' })
+      // Get property details for error message
+      const { data: prop } = await supabase
+        .from('properties')
+        .select('postcode, address_line1_encrypted')
+        .eq('id', tenancy.property_id)
+        .single()
+      const propAddr = prop?.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : 'Unknown'
+      const propPc = prop?.postcode || ''
+      return res.status(400).json({ error: `Could not find matching Apex27 listing for "${propAddr}, ${propPc}". Ensure the property exists in Apex27 with the same postcode.` })
     }
 
     // Push to Apex27

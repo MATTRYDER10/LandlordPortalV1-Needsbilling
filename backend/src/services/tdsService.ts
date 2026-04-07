@@ -369,6 +369,7 @@ export async function mapTenancyToTDSPayload(
         existingPersonId = tdsLandlordId
       } else {
         // Landlord not found in TDS — use plus addressing to ensure unique email
+        // e.g. landlord@example.com → landlord+tds1711878000@example.com
         const [localPart, domain] = landlordEmailOriginal.split('@')
         if (localPart && domain) {
           landlordEmail = `${localPart}+tds${Date.now()}@${domain}`

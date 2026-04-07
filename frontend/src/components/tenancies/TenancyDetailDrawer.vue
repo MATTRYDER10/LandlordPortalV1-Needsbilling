@@ -1239,6 +1239,21 @@
                 </EditableField>
               </div>
               <div class="px-4 py-3 flex justify-between items-center">
+                <span class="text-sm text-gray-500 dark:text-slate-400">Rent &amp; Legal Protection</span>
+                <EditableField
+                  :model-value="tenancy?.has_rlp ?? false"
+                  type="boolean"
+                  :can-edit="true"
+                  display-class="text-sm font-medium text-gray-900 dark:text-white"
+                  @save="(v) => updateTenancyField('hasRlp', v)"
+                >
+                  <template #display>
+                    <span v-if="tenancy?.has_rlp" class="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">RLP Active</span>
+                    <span v-else class="text-sm font-medium text-gray-900 dark:text-white">No</span>
+                  </template>
+                </EditableField>
+              </div>
+              <div class="px-4 py-3 flex justify-between items-center">
                 <span class="text-sm text-gray-500 dark:text-slate-400">Deposit Scheme</span>
                 <EditableField
                   :model-value="tenancy?.deposit_scheme || 'dps'"
@@ -2475,6 +2490,11 @@
             </div>
           </div>
 
+          <!-- Utilities Tab (JMI) -->
+          <div v-if="activeTab === 'utilities' && !tenancy?.bills_included">
+            <JMIUtilitiesTab :tenancy="tenancy" />
+          </div>
+
           <!-- Activity Tab -->
           <div v-if="activeTab === 'activity'" class="space-y-6">
             <!-- Add Note Section -->
@@ -3038,6 +3058,7 @@ import ProtectDepositModal from './ProtectDepositModal.vue'
 import InitialMoniesModal from './InitialMoniesModal.vue'
 import ManualReceiptModal from './ManualReceiptModal.vue'
 import TenancyAgreementModal from './TenancyAgreementModal.vue'
+import JMIUtilitiesTab from './JMIUtilitiesTab.vue'
 import TenancyAgreementStatus from './TenancyAgreementStatus.vue'
 import MoveInPackModal from './MoveInPackModal.vue'
 import LandlordMoveInPackModal from '../properties/LandlordMoveInPackModal.vue'
@@ -3073,7 +3094,7 @@ const emit = defineEmits<{
 const toast = useToast()
 const authStore = useAuthStore()
 // State
-const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'activity'>('overview')
+const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'documents' | 'inspections' | 'rent' | 'utilities' | 'activity'>('overview')
 const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
@@ -3588,16 +3609,23 @@ watch(activeTab, (tab) => {
 })
 
 // Tabs
-const tabs = [
-  { key: 'overview' as const, label: 'Overview' },
-  { key: 'tenants' as const, label: 'Tenants' },
-  { key: 'landlord' as const, label: 'Landlord' },
-  { key: 'property' as const, label: 'Property' },
-  { key: 'documents' as const, label: 'Documents' },
-  { key: 'inspections' as const, label: 'Inspections' },
-  { key: 'rent' as const, label: 'Tenancy Changes' },
-  { key: 'activity' as const, label: 'Activity' }
-]
+const tabs = computed(() => {
+  const allTabs = [
+    { key: 'overview' as const, label: 'Overview' },
+    { key: 'tenants' as const, label: 'Tenants' },
+    { key: 'landlord' as const, label: 'Landlord' },
+    { key: 'property' as const, label: 'Property' },
+    { key: 'documents' as const, label: 'Documents' },
+    { key: 'inspections' as const, label: 'Inspections' },
+    { key: 'rent' as const, label: 'Tenancy Changes' },
+    { key: 'utilities' as const, label: 'Utilities' },
+    { key: 'activity' as const, label: 'Activity' }
+  ]
+  if (tenancy.value?.bills_included) {
+    return allTabs.filter(t => t.key !== 'utilities')
+  }
+  return allTabs
+})
 
 // Computed: Use fullTenancyData when available for most up-to-date values
 const rentAmount = computed(() => tenancy.value?.monthly_rent || tenancy.value?.rent_amount || 0)
@@ -3634,7 +3662,7 @@ const statusLabel = computed(() => {
 const tenancyTypeLabel = computed(() => {
   const labels: Record<string, string> = {
     ast: 'Assured Shorthold Tenancy',
-    periodic: 'Periodic Tenancy',
+    periodic: 'Assured Periodic Tenancy (APTA)',
     company_let: 'Company Let',
     lodger: 'Lodger Agreement',
     license: 'License to Occupy'
@@ -3714,9 +3742,9 @@ const isDraftTenancy = computed(() => tenancy.value?.status === 'pending')
 // Tenancy type options for dropdown
 const tenancyTypeOptions = [
   { value: 'ast', label: 'AST (Assured Shorthold)' },
-  { value: 'periodic', label: 'Periodic' },
-  { value: 'contractual_periodic', label: 'Contractual Periodic' },
-  { value: 'non_housing_act', label: 'Non Housing Act' },
+  { value: 'periodic', label: 'APTA (Assured Periodic)' },
+  { value: 'company_let', label: 'Company Let' },
+  { value: 'lodger', label: 'Lodger Agreement' },
   { value: 'license', label: 'License to Occupy' }
 ]
 

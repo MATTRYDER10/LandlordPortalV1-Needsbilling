@@ -447,12 +447,13 @@
                     v-model="form.tenancyType"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
-                    <option value="ast">Assured Shorthold Tenancy</option>
-                    <option value="periodic">Periodic Tenancy</option>
+                    <option value="ast" :disabled="isPostRRA">Assured Shorthold Tenancy{{ isPostRRA ? ' (pre-May 2026 only)' : '' }}</option>
+                    <option value="periodic">Assured Periodic Tenancy (APTA)</option>
                     <option value="company_let">Company Let</option>
                     <option value="lodger">Lodger Agreement</option>
                     <option value="license">License to Occupy</option>
                   </select>
+                  <p v-if="isPostRRA" class="text-xs text-amber-600 mt-1">Renters' Rights Act — APTA is required for tenancies starting on or after 1 May 2026</p>
                 </div>
               </div>
             </div>
@@ -493,6 +494,20 @@
                 class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 placeholder="Any additional notes..."
               ></textarea>
+            </div>
+
+            <!-- JMI Notification -->
+            <div v-if="authStore.company?.jmiEnabled !== false" class="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <input
+                id="notifyJmi"
+                v-model="form.notifyJmi"
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label for="notifyJmi" class="text-sm text-blue-800 dark:text-blue-200 cursor-pointer">
+                <span class="font-medium">Notify Utility &amp; Council Tax via Just Move In</span>
+                <span class="block text-xs text-blue-600 dark:text-blue-400 mt-0.5">Automatically notify utility and council tax providers of this move-in</span>
+              </label>
             </div>
 
             <!-- Error -->
@@ -666,10 +681,23 @@ const form = ref({
   rentDueDay: 1,
   tenancyType: 'ast',
   depositScheme: '',
-  notes: ''
+  notes: '',
+  notifyJmi: true
 })
 
 const endDateManuallyEdited = ref(false)
+
+// RRA cutoff — auto-switch tenancy type
+const RRA_CUTOFF = '2026-05-01'
+const isPostRRA = computed(() => form.value.startDate && new Date(form.value.startDate) >= new Date(RRA_CUTOFF))
+
+watch(() => form.value.startDate, (newDate) => {
+  if (newDate && new Date(newDate) >= new Date(RRA_CUTOFF) && form.value.tenancyType === 'ast') {
+    form.value.tenancyType = 'periodic'
+  } else if (newDate && new Date(newDate) < new Date(RRA_CUTOFF) && form.value.tenancyType === 'periodic') {
+    form.value.tenancyType = 'ast'
+  }
+})
 
 // Computed helpers for payment terms
 const termLengthUnit = computed(() => {
@@ -902,6 +930,7 @@ const loadCompletedReferences = async () => {
           monthlyRent: t.monthlyRent || 0,
           moveInDate: t.moveInDate || '',
           depositAmount: t.depositAmount || 0,
+          depositReplacementOffered: t.depositReplacementOffered || false,
           // Store ALL tenants for use when creating tenancy
           people: tenants.map((p: any, idx: number) => ({
             name: p.name || '',
@@ -974,6 +1003,11 @@ const selectReference = (ref: any) => {
   }
   if (ref.depositAmount > 0) {
     form.value.depositAmount = ref.depositAmount
+  }
+
+  // Default to Reposit if the offer had deposit replacement
+  if (ref.depositReplacementOffered) {
+    form.value.depositScheme = 'reposit'
   }
 
   // Try to fuzzy match property
@@ -1177,6 +1211,22 @@ const handleSubmit = async () => {
       throw new Error(data.error || 'Failed to create tenancy')
     }
 
+    const createdData = await response.json()
+
+    // JMI notification (silent fail — JMI may not be configured)
+    if (form.value.notifyJmi && createdData?.tenancy?.id) {
+      try {
+        await authFetch(`${API_URL}/api/jmi/submit/${createdData.tenancy.id}`, {
+          method: 'POST',
+          token,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moveType: 'movein', gdprConsent: true })
+        })
+      } catch {
+        // JMI not configured — ignore
+      }
+    }
+
     toast.success('Tenancy created successfully')
     emit('created')
   } catch (err: any) {
@@ -1202,7 +1252,8 @@ watch(() => props.show, async (isShow) => {
       rentDueDay: 1,
       tenancyType: 'ast',
       depositScheme: '',
-      notes: ''
+      notes: '',
+      notifyJmi: true
     }
     error.value = ''
     endDateManuallyEdited.value = false

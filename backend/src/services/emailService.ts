@@ -100,6 +100,8 @@ interface EmailOptions {
   contactDetails?: ContactDetails;
   referenceId?: string;
   referenceType?: 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
+  companyId?: string;
+  emailCategory?: string;
 }
 
 interface ContactDetails {
@@ -259,6 +261,9 @@ async function logEmailDelivery(data: {
   toEmailEncrypted: string;
   subject: string;
   status: string;
+  htmlBody?: string;
+  companyId?: string;
+  emailCategory?: string;
 }): Promise<void> {
   try {
     await supabase.from('email_delivery_logs').insert({
@@ -268,6 +273,9 @@ async function logEmailDelivery(data: {
       to_email_encrypted: data.toEmailEncrypted,
       subject: data.subject,
       status: data.status,
+      html_body: data.htmlBody || null,
+      company_id: data.companyId || null,
+      email_category: data.emailCategory || null,
     });
   } catch (error) {
     console.error('Failed to log email delivery:', error);
@@ -461,6 +469,9 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
             toEmailEncrypted: encryptedEmail,
             subject,
             status: 'sent',
+            htmlBody: html,
+            companyId: options.companyId,
+            emailCategory: options.emailCategory,
           });
         }
       }
@@ -1873,7 +1884,7 @@ export async function sendVerificationCompleteNotification(
       DashboardLink: dashboardLink,
       GroupStatusSection: groupStatusHtml,
       PdfAttachmentNotice: pdfNoticeHtml,
-      AgentLogoUrl: groupStatus.agentLogoUrl || 'https://app.propertygoose.co.uk/logo.png',
+      AgentLogoUrl: groupStatus.agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       CompanyName: groupStatus.agentName || 'Property Goose'
     })
 

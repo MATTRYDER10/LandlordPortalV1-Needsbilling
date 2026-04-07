@@ -1,0 +1,65 @@
+{
+  "id": "tenancies-jmi",
+  "slug": "tenancies-jmi",
+  "title": "Just Move In — Automated Utility Notification",
+  "category": "tenancies",
+  "tags": ["jmi", "just move in", "utilities", "bills included", "move-in", "move-out"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 22,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "PropertyGoose integrates with Just Move In (JMI) to automatically notify utility providers when tenancy events occur, removing the need for agents to contact councils and utilities manually.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "What Just Move In Does",
+        "content": "Just Move In (JMI) is PropertyGoose's recommended utility switching partner. When a tenancy event occurs — a move-in, move-out, or tenant change — JMI notifies the relevant utility providers on your behalf. This includes gas and electricity suppliers, water providers, and council tax billing authorities. Properties marked as Bills Included are automatically excluded from utility switching, so no notifications are triggered for those properties."
+      },
+      {
+        "type": "steps",
+        "title": "How JMI Works in PropertyGoose",
+        "steps": [
+          {
+            "title": "JMI is Enabled by Default",
+            "content": "JMI is enabled for all companies by default. No manual setup or API connection is required to use the basic notification service.",
+            "image": null
+          },
+          {
+            "title": "Move-In Notification",
+            "content": "When you create a tenancy, a checkbox appears on the tenancy creation screen to notify JMI of the move-in. Tick this to send the move-in notification to utilities automatically.",
+            "image": null
+          },
+          {
+            "title": "Move-Out Notification",
+            "content": "When you end a tenancy, a checkbox appears to notify JMI of the move-out. This tells utility providers that the tenancy has ended and a new account holder (or void period) is beginning.",
+            "image": null
+          },
+          {
+            "title": "Tenant Change Notification",
+            "content": "When you process a tenant change on an active tenancy, JMI is notified automatically. You do not need to tick a checkbox — the notification is sent as part of the tenant change workflow.",
+            "image": null
+          },
+          {
+            "title": "Bills Included Properties Are Skipped",
+            "content": "Properties with the Bills Included flag ticked in PropertyGoose are automatically excluded from all JMI notifications. No utility switching is triggered for these properties — the system handles this without any manual intervention.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Opting Out of JMI",
+        "content": "To opt out of JMI entirely for your company, go to Settings → Company → Management Info and untick the 'Use PropertyGoose's Partner Just Move In' toggle. This disables all JMI notifications company-wide."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "JMI Notifications Are Silent",
+        "content": "JMI notifications are sent silently in the background. If JMI is not configured or a notification fails for any reason, it will not block or interrupt the tenancy process. You can continue with the tenancy workflow normally."
+      }
+    ],
+    "relatedArticles": ["integrations-jmi", "tenancies-apta", "tenancies-compliance-pack"]
+  }
+}

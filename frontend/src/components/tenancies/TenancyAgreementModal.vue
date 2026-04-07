@@ -64,18 +64,22 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Agreement Type *</label>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
-                    v-for="opt in templateOptions"
+                    v-for="opt in agreementTypeOptions"
                     :key="opt.value"
-                    @click="formData.templateType = opt.value"
+                    @click="formData.agreementType = opt.value as any"
                     type="button"
                     class="p-4 border-2 rounded-lg text-left transition-colors"
-                    :class="formData.templateType === opt.value
+                    :class="formData.agreementType === opt.value
                       ? 'border-primary bg-primary/5'
                       : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600'"
                   >
                     <span class="font-medium text-gray-900 dark:text-white">{{ opt.label }}</span>
+                    <p v-if="opt.description" class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{ opt.description }}</p>
                   </button>
                 </div>
+                <p v-if="isAPTA" class="text-xs text-amber-600 mt-2">
+                  Renters' Rights Act 2025 — APTA is mandatory for tenancies starting on or after 1 May 2026.
+                </p>
               </div>
 
               <div>
@@ -138,13 +142,16 @@
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
                 </div>
-                <div>
+                <div v-if="!isAPTA">
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tenancy End Date</label>
                   <input
                     v-model="formData.tenancyEndDate"
                     type="date"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
+                </div>
+                <div v-if="isAPTA" class="flex items-center text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                  Rolling periodic — no fixed end date
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monthly Rent *</label>
@@ -184,8 +191,8 @@
                 </select>
               </div>
 
-              <!-- Break Clause -->
-              <div class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+              <!-- Break Clause (not available for APTA) -->
+              <div v-if="!isAPTA" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                 <label class="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -222,15 +229,21 @@
                 </div>
               </div>
 
-              <!-- Bills Included -->
-              <label class="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  v-model="formData.billsIncluded"
-                  class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
-                />
-                <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Bills included in rent</span>
-              </label>
+              <!-- Bills Included Utilities -->
+              <div>
+                <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bills included in rent</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <label v-for="utility in utilityOptions" :key="utility.value" class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      :value="utility.value"
+                      v-model="formData.billsIncludedUtilities"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <span class="text-sm text-gray-700 dark:text-slate-300">{{ utility.label }}</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <!-- Step 3: Parties -->
@@ -849,6 +862,9 @@ const addressSearchQuery = ref('')
 const {
   formData,
   templateOptions,
+  agreementTypeOptions,
+  utilityOptions,
+  isAPTA,
   depositSchemeOptions,
   rentDueDayOptions,
   generatedBreakClause,

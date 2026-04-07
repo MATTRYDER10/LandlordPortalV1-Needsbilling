@@ -510,6 +510,16 @@ export async function archiveExpiredNoticeServed() {
       return { success: false, error: updateError.message }
     }
 
+    // Cancel RentGoose schedule entries for archived tenancies
+    try {
+      const { cancelScheduleForTenancy } = await import('./rentgooseService')
+      for (const t of expiredTenancies) {
+        await cancelScheduleForTenancy(t.id)
+      }
+    } catch (rgErr: any) {
+      console.error('[Scheduler] RentGoose cancellation failed (non-blocking):', rgErr.message)
+    }
+
     console.log(`[Scheduler] Successfully archived ${expiredTenancies.length} expired notice_given tenancies`)
     return { success: true, archivedCount: expiredTenancies.length }
   } catch (error: any) {

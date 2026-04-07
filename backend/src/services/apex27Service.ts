@@ -1,6 +1,8 @@
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt } from './encryption'
 import { normalizePostcode, normalizeAddressLine } from './propertyMatchingService'
+import { createTenancy, TenancyTenantInput } from './tenancyService'
+import type { DepositScheme, TenancyType } from './tenancyService'
 
 // Apex27 API
 const APEX27_BASE_URL = 'https://api.apex27.co.uk'
@@ -1423,4 +1425,724 @@ export async function updateListingStatus(
 
   console.log(`[Apex27] Successfully updated listing ${listingId} to "${status}"`)
   return { success: true }
+}
+
+// ============================================================================
+// TENANCY SYNC
+// ============================================================================
+
+interface Apex27Tenancy {
+  id: number | string
+  listing?: {
+    id: number | string
+    address1?: string
+    address2?: string
+    city?: string
+    postalCode?: string
+    displayAddress?: string
+    contactId?: number | string
+    contacts?: any[]
+    [key: string]: any
+  }
+  tenants?: Apex27Contact[]
+  dtsStart?: string
+  dtsEnd?: string
+  rentAmount?: number
+  rentFrequency?: string
+  rentDueDay?: number
+  depositAmount?: number
+  depositScheme?: number
+  depositSchemeReference?: string
+  fixedTerm?: boolean
+  noticeContact?: { id?: number | string; firstName?: string; lastName?: string; email?: string; [key: string]: any }
+  [key: string]: any
+}
+
+export interface TenancyPreviewItem {
+  apex27TenancyId: string
+  apex27ListingId: string
+  apex27Address: string
+  apex27Postcode: string
+  tenantNames: string[]
+  tenantContacts: Array<{ firstName: string; lastName: string; email: string; phone: string; address1: string; postcode: string }>
+  monthlyRent: number
+  startDate: string
+  endDate: string | null
+  depositAmount: number | null
+  depositScheme: DepositScheme | null
+  depositReference: string | null
+  rentDueDay: number
+  tenancyType: TenancyType
+  propertyMatchType: 'exact_id' | 'address_match' | 'new'
+  matchedPropertyId: string | null
+  matchedPropertyAddress: string | null
+  landlordContact: { apex27Id: string; name: string; email: string; matchedLandlordId: string | null } | null
+  managementType: 'managed' | 'let_only' | null
+  hasRlp: boolean
+  alreadyImported: boolean
+  importTenancy: boolean
+  createProperty: boolean
+  importLandlord: boolean
+}
+
+/**
+ * Map Apex27 rentService enum to PG management_type + RLP flag
+ * 0 = Let Only, 1 = Rent Collect, 2 = Fully Managed, 3 = Guaranteed Rent (RLP)
+ */
+export function mapRentService(rentService: number | undefined | null): { managementType: 'managed' | 'let_only' | null; hasRlp: boolean } {
+  if (rentService === undefined || rentService === null) return { managementType: null, hasRlp: false }
+  switch (rentService) {
+    case 0: return { managementType: 'let_only', hasRlp: false }
+    case 1: return { managementType: 'managed', hasRlp: false }   // rent collect
+    case 2: return { managementType: 'managed', hasRlp: false }   // fully managed
+    case 3: return { managementType: 'managed', hasRlp: true }    // guaranteed rent = managed + RLP
+    default: return { managementType: null, hasRlp: false }
+  }
+}
+
+/**
+ * Normalize rent to monthly amount based on frequency
+ */
+export function normalizeToMonthlyRent(amount: number, frequency: string | undefined): number {
+  if (!frequency || !amount) return amount || 0
+
+  const freq = frequency.toLowerCase().trim()
+  switch (freq) {
+    case 'monthly':
+    case 'pcm':
+      return amount
+    case 'weekly':
+      return Math.round((amount * 52 / 12) * 100) / 100
+    case 'fortnightly':
+      return Math.round((amount * 26 / 12) * 100) / 100
+    case 'quarterly':
+      return Math.round((amount / 3) * 100) / 100
+    case 'annually':
+    case 'pa':
+      return Math.round((amount / 12) * 100) / 100
+    default:
+      console.log(`[Apex27] Unknown rent frequency: ${frequency}, treating as monthly`)
+      return amount
+  }
+}
+
+/**
+ * Map Apex27 deposit scheme numeric ID to PG deposit scheme string
+ */
+export function mapDepositScheme(apex27Scheme: number | undefined | null): DepositScheme | null {
+  if (apex27Scheme === undefined || apex27Scheme === null) return null
+
+  const map: Record<number, DepositScheme> = {
+    0: 'dps_custodial',
+    1: 'mydeposits_custodial',
+    2: 'tds_custodial',
+    18: 'tds_insured',
+    15: 'reposit'
+  }
+
+  const result = map[apex27Scheme]
+  if (!result) {
+    console.log(`[Apex27] Unknown deposit scheme ID: ${apex27Scheme}, returning null`)
+    return null
+  }
+  return result
+}
+
+/**
+ * Fetch all active tenancies from Apex27, paginating through all pages.
+ * Deduplicates to most recent tenancy per listing.
+ */
+export async function fetchAllTenancies(
+  apiKey: string,
+  branchId?: string | null
+): Promise<{ success: boolean; tenancies?: Apex27Tenancy[]; error?: string }> {
+  const allTenancies: Apex27Tenancy[] = []
+  let page = 1
+  let totalPages = 1
+
+  while (page <= totalPages) {
+    const params: Record<string, string | number> = {
+      activeOnly: 1,
+      page,
+      pageSize: 250
+    }
+    if (branchId) {
+      params.branchId = branchId
+    }
+
+    const result = await apex27Fetch<Apex27Tenancy[]>(apiKey, '/tenancies', params)
+
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    const tenancies = Array.isArray(result.data) ? result.data : []
+    allTenancies.push(...tenancies)
+
+    if (page === 1 && result.pageCount) {
+      totalPages = result.pageCount
+    }
+
+    console.log(`[Apex27] Fetched tenancies page ${page}/${totalPages}, got ${tenancies.length} tenancies`)
+    page++
+  }
+
+  // Deduplicate: keep most recent tenancy per listing (by dtsStart)
+  const byListing = new Map<string, Apex27Tenancy>()
+  for (const t of allTenancies) {
+    const listingId = t.listing?.id ? String(t.listing.id) : null
+    if (!listingId) continue
+
+    const existing = byListing.get(listingId)
+    if (!existing) {
+      byListing.set(listingId, t)
+    } else {
+      const existingStart = existing.dtsStart ? new Date(existing.dtsStart).getTime() : 0
+      const newStart = t.dtsStart ? new Date(t.dtsStart).getTime() : 0
+      if (newStart > existingStart) {
+        byListing.set(listingId, t)
+      }
+    }
+  }
+
+  const deduplicated = Array.from(byListing.values())
+  console.log(`[Apex27] After deduplication: ${deduplicated.length} tenancies (from ${allTenancies.length} total)`)
+
+  return { success: true, tenancies: deduplicated }
+}
+
+/**
+ * Preview tenancy sync — no DB writes.
+ */
+export async function previewTenancySync(companyId: string): Promise<{ success: boolean; items?: TenancyPreviewItem[]; error?: string }> {
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) {
+    return { success: false, error: 'Apex27 not configured for this company' }
+  }
+
+  try {
+    // 1. Fetch active tenancies
+    const tenanciesResult = await fetchAllTenancies(config.apiKey, config.branchId)
+    if (!tenanciesResult.success) {
+      return { success: false, error: tenanciesResult.error }
+    }
+
+    const allTenancies = tenanciesResult.tenancies || []
+
+    // 2. Load PG properties with apex27_listing_id + linked landlords
+    const { data: existingProperties } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, postcode, apex27_listing_id, property_landlords (landlord_id, is_primary_contact)')
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+
+    const properties = existingProperties || []
+
+    const propByApex27Id = new Map<string, any>()
+    const propByPostcode = new Map<string, any[]>()
+
+    for (const prop of properties) {
+      const decryptedAddr = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
+      const entry = { ...prop, _decrypted_address: decryptedAddr }
+
+      if (prop.apex27_listing_id) {
+        propByApex27Id.set(String(prop.apex27_listing_id), entry)
+      }
+      if (prop.postcode) {
+        const normPC = normalizePostcode(prop.postcode)
+        if (!propByPostcode.has(normPC)) propByPostcode.set(normPC, [])
+        propByPostcode.get(normPC)!.push(entry)
+      }
+    }
+
+    // 3. Load existing tenancies with apex27_tenancy_id for already-imported detection
+    const { data: existingTenancies } = await supabase
+      .from('tenancies')
+      .select('id, apex27_tenancy_id')
+      .eq('company_id', companyId)
+      .not('apex27_tenancy_id', 'is', null)
+
+    const importedTenancyIds = new Set<string>()
+    for (const t of existingTenancies || []) {
+      if (t.apex27_tenancy_id) importedTenancyIds.add(String(t.apex27_tenancy_id))
+    }
+
+    // 4. Load landlords for matching (include names for property fallback)
+    const { data: existingLandlords } = await supabase
+      .from('landlords')
+      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted, apex27_contact_id')
+      .eq('company_id', companyId)
+
+    const landlords = existingLandlords || []
+    const llByApex27Id = new Map<string, any>()
+    const llByEmail = new Map<string, any>()
+
+    for (const ll of landlords) {
+      if (ll.apex27_contact_id) {
+        llByApex27Id.set(String(ll.apex27_contact_id), ll)
+      }
+      if (ll.email_encrypted) {
+        const email = decrypt(ll.email_encrypted)
+        if (email) llByEmail.set(email.toLowerCase(), ll)
+      }
+    }
+
+    // 5. Build preview items
+    const items: TenancyPreviewItem[] = []
+
+    for (const tenancy of allTenancies) {
+      const tenancyId = String(tenancy.id)
+      const listing = tenancy.listing
+      const listingId = listing?.id ? String(listing.id) : ''
+
+      // Build address from all lines (excluding displayAddress which may be truncated)
+      const apex27Address = [listing?.address1, listing?.address2, listing?.address3, listing?.city, listing?.county, listing?.postalCode].filter(Boolean).join(', ')
+      const apex27Postcode = listing?.postalCode || ''
+
+      // Match property
+      let propertyMatchType: TenancyPreviewItem['propertyMatchType'] = 'new'
+      let matchedPropertyId: string | null = null
+      let matchedPropertyAddress: string | null = null
+
+      // Exact ID match
+      if (listingId) {
+        const matchedById = propByApex27Id.get(listingId)
+        if (matchedById) {
+          propertyMatchType = 'exact_id'
+          matchedPropertyId = matchedById.id
+          matchedPropertyAddress = matchedById._decrypted_address
+        }
+      }
+
+      // Fuzzy postcode + address match
+      if (propertyMatchType === 'new' && apex27Postcode) {
+        const normPC = normalizePostcode(apex27Postcode)
+        const candidates = propByPostcode.get(normPC) || []
+        if (listing?.address1 && candidates.length > 0) {
+          const normAddr = normalizeAddressLine(listing.address1)
+          for (const candidate of candidates) {
+            if (candidate._decrypted_address && normalizeAddressLine(candidate._decrypted_address) === normAddr) {
+              propertyMatchType = 'address_match'
+              matchedPropertyId = candidate.id
+              matchedPropertyAddress = candidate._decrypted_address
+              break
+            }
+          }
+        }
+      }
+
+      // Build tenant info
+      const tenantNames: string[] = []
+      const tenantContacts: TenancyPreviewItem['tenantContacts'] = []
+      if (tenancy.tenants && Array.isArray(tenancy.tenants)) {
+        for (const t of tenancy.tenants) {
+          const name = [t.firstName, t.lastName].filter(Boolean).join(' ')
+          if (name) tenantNames.push(name)
+          tenantContacts.push({
+            firstName: t.firstName || '',
+            lastName: t.lastName || '',
+            email: t.email || '',
+            phone: t.mobile || t.phone || '',
+            address1: t.address1 || '',
+            postcode: t.postalCode || ''
+          })
+        }
+      }
+
+      // Normalize rent
+      const monthlyRent = normalizeToMonthlyRent(tenancy.rentAmount || 0, tenancy.rentFrequency)
+
+      // Parse dates
+      const startDate = tenancy.dtsStart ? tenancy.dtsStart.split('T')[0].split(' ')[0] : ''
+      const endDate = tenancy.dtsEnd ? tenancy.dtsEnd.split('T')[0].split(' ')[0] : null
+
+      // Deposit
+      const depositAmount = tenancy.depositAmount || null
+      const depositScheme = mapDepositScheme(tenancy.depositScheme)
+      const depositReference = tenancy.depositSchemeReference || null
+
+      // Rent due day
+      const rentDueDay = tenancy.rentDueDay || 1
+
+      // Tenancy type
+      const tenancyType: TenancyType = tenancy.fixedTerm ? 'ast' : 'periodic'
+
+      // Management type from listing rentService
+      const { managementType, hasRlp } = mapRentService(listing?.rentService)
+
+      // Match landlord — try Apex27 contact first, then fallback to property_landlords
+      let landlordContact: TenancyPreviewItem['landlordContact'] = null
+      const noticeContactId = tenancy.noticeContact?.id ? String(tenancy.noticeContact.id) : null
+      const listingContactId = listing?.contactId ? String(listing.contactId) : null
+      const landlordApex27Id = noticeContactId || listingContactId
+
+      if (landlordApex27Id) {
+        let matchedLandlordId: string | null = null
+        const byId = llByApex27Id.get(landlordApex27Id)
+        if (byId) {
+          matchedLandlordId = byId.id
+        } else {
+          const contactEmail = tenancy.noticeContact?.email
+          if (contactEmail) {
+            const byEmail = llByEmail.get(contactEmail.toLowerCase())
+            if (byEmail) matchedLandlordId = byEmail.id
+          }
+        }
+
+        const contactName = tenancy.noticeContact
+          ? [tenancy.noticeContact.firstName, tenancy.noticeContact.lastName].filter(Boolean).join(' ')
+          : ''
+
+        landlordContact = {
+          apex27Id: landlordApex27Id,
+          name: contactName || `Contact #${landlordApex27Id}`,
+          email: tenancy.noticeContact?.email || '',
+          matchedLandlordId
+        }
+      }
+
+      // Fallback: if no Apex27 landlord contact, resolve from matched property's property_landlords
+      if (!landlordContact && matchedPropertyId) {
+        const matchedProp = propByApex27Id.get(listingId) ||
+          (propByPostcode.get(normalizePostcode(apex27Postcode)) || []).find((p: any) => p.id === matchedPropertyId)
+        const propLandlords = (matchedProp?.property_landlords || []) as any[]
+        const primaryLL = propLandlords.find((pl: any) => pl.is_primary_contact) || propLandlords[0]
+        if (primaryLL?.landlord_id) {
+          const ll = landlords.find(l => l.id === primaryLL.landlord_id)
+          if (ll) {
+            const llName = [
+              ll.first_name_encrypted ? decrypt(ll.first_name_encrypted) : '',
+              ll.last_name_encrypted ? decrypt(ll.last_name_encrypted) : ''
+            ].filter(Boolean).join(' ')
+            const llEmail = ll.email_encrypted ? decrypt(ll.email_encrypted) : ''
+            landlordContact = {
+              apex27Id: ll.apex27_contact_id || '',
+              name: llName || 'Landlord',
+              email: llEmail || '',
+              matchedLandlordId: ll.id
+            }
+          }
+        }
+      }
+
+      // Already imported?
+      const alreadyImported = importedTenancyIds.has(tenancyId)
+      const isMatched = propertyMatchType !== 'new'
+
+      items.push({
+        apex27TenancyId: tenancyId,
+        apex27ListingId: listingId,
+        apex27Address,
+        apex27Postcode,
+        tenantNames,
+        tenantContacts,
+        monthlyRent,
+        startDate,
+        endDate,
+        depositAmount,
+        depositScheme,
+        depositReference,
+        rentDueDay,
+        tenancyType,
+        propertyMatchType,
+        matchedPropertyId,
+        matchedPropertyAddress,
+        landlordContact,
+        managementType,
+        hasRlp,
+        alreadyImported,
+        importTenancy: !alreadyImported && (isMatched || true),
+        createProperty: !isMatched,
+        importLandlord: !!landlordContact && !landlordContact.matchedLandlordId
+      })
+    }
+
+    // Sort by address
+    items.sort((a, b) => a.apex27Address.localeCompare(b.apex27Address))
+
+    return { success: true, items }
+  } catch (err) {
+    console.error('[Apex27] Preview tenancy sync error:', err)
+    return { success: false, error: err instanceof Error ? err.message : 'Preview failed' }
+  }
+}
+
+/**
+ * Confirm tenancy sync — creates tenancies for approved items.
+ */
+export async function confirmTenancySync(
+  companyId: string,
+  userId: string,
+  approvedItems: TenancyPreviewItem[]
+): Promise<{ success: boolean; result?: SyncResult; error?: string }> {
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) {
+    return { success: false, error: 'Apex27 not configured for this company' }
+  }
+
+  // Create sync log
+  const { data: syncLog } = await supabase
+    .from('apex27_sync_logs')
+    .insert({
+      company_id: companyId,
+      sync_type: 'tenancies',
+      status: 'started'
+    })
+    .select('id')
+    .single()
+
+  const syncLogId = syncLog?.id
+
+  const syncResult: SyncResult = {
+    records_processed: 0,
+    records_created: 0,
+    records_updated: 0,
+    records_skipped: 0,
+    errors: []
+  }
+
+  // Landlord cache: apex27Id → PG landlordId
+  const landlordCache = new Map<string, string>()
+
+  try {
+    for (const item of approvedItems) {
+      syncResult.records_processed++
+
+      if (!item.importTenancy || item.alreadyImported) {
+        syncResult.records_skipped++
+        continue
+      }
+
+      try {
+        let propertyId = item.matchedPropertyId
+
+        // Resolve property — create if needed
+        if (!propertyId && item.createProperty && item.apex27ListingId) {
+          // Fetch the listing data to create property
+          const listingResult = await apex27Fetch<any>(config.apiKey, `/listings/${item.apex27ListingId}`, { includeContacts: 1 })
+          const listing = listingResult.success ? listingResult.data : null
+
+          if (listing) {
+            const combinedAddr = [listing.address1, listing.address2].filter(Boolean).join(', ')
+            const fullAddress = listing.displayAddress || [combinedAddr, listing.city, listing.county, listing.postalCode].filter(Boolean).join(', ')
+
+            const { data: newProp, error } = await supabase
+              .from('properties')
+              .insert({
+                company_id: companyId,
+                full_address_encrypted: encrypt(fullAddress),
+                address_line1_encrypted: encrypt(combinedAddr),
+                city_encrypted: listing.city ? encrypt(listing.city) : null,
+                county_encrypted: listing.county ? encrypt(listing.county) : null,
+                postcode: listing.postalCode ? normalizePostcode(listing.postalCode) : '',
+                country: listing.country || 'GB',
+                property_type: mapPropertyType(listing.propertyType),
+                number_of_bedrooms: listing.bedrooms || null,
+                number_of_bathrooms: listing.bathrooms || null,
+                council_tax_band: listing.councilTaxBand || null,
+                furnishing_status: mapFurnishedStatus(listing.furnished),
+                management_type: item.managementType || mapRentService(listing.rentService).managementType,
+                apex27_listing_id: item.apex27ListingId,
+                apex27_last_synced_at: new Date().toISOString()
+              })
+              .select('id')
+              .single()
+
+            if (error) {
+              syncResult.errors.push({ message: `Failed to create property for listing ${item.apex27ListingId}`, detail: error.message })
+              continue
+            }
+
+            propertyId = newProp?.id || null
+          } else {
+            syncResult.errors.push({ message: `Failed to fetch listing ${item.apex27ListingId} from Apex27` })
+            continue
+          }
+        }
+
+        // Update management_type on matched property if not already set
+        if (propertyId && item.managementType) {
+          await supabase
+            .from('properties')
+            .update({ management_type: item.managementType })
+            .eq('id', propertyId)
+            .is('management_type', null)
+        }
+
+        if (!propertyId) {
+          syncResult.errors.push({ message: `No property resolved for tenancy ${item.apex27TenancyId}` })
+          syncResult.records_skipped++
+          continue
+        }
+
+        // Resolve landlord — match or create, always link to property
+        if (item.landlordContact) {
+          const lc = item.landlordContact
+          let landlordId = landlordCache.get(lc.apex27Id) || lc.matchedLandlordId || null
+
+          if (landlordId) {
+            // Already matched — just ensure cache is set
+            landlordCache.set(lc.apex27Id, landlordId)
+          } else {
+            // Try to find by apex27_contact_id
+            const { data: existingByApex } = await supabase
+              .from('landlords')
+              .select('id')
+              .eq('company_id', companyId)
+              .eq('apex27_contact_id', lc.apex27Id)
+              .limit(1)
+
+            if (existingByApex && existingByApex.length > 0) {
+              landlordId = existingByApex[0].id
+            } else if (lc.email) {
+              // Try by email
+              const { data: allLandlords } = await supabase
+                .from('landlords')
+                .select('id, email_encrypted')
+                .eq('company_id', companyId)
+
+              for (const ll of allLandlords || []) {
+                const llEmail = ll.email_encrypted ? decrypt(ll.email_encrypted) : null
+                if (llEmail && llEmail.toLowerCase() === lc.email.toLowerCase()) {
+                  landlordId = ll.id
+                  await supabase
+                    .from('landlords')
+                    .update({ apex27_contact_id: lc.apex27Id, apex27_last_synced_at: new Date().toISOString() })
+                    .eq('id', ll.id)
+                  break
+                }
+              }
+            }
+
+            // Create landlord if still not found
+            if (!landlordId) {
+              // Fetch contact details from Apex27
+              const contactResult = await apex27Fetch<any>(config.apiKey, `/contacts/${lc.apex27Id}`)
+              const contact = contactResult.success ? contactResult.data : null
+
+              const { data: newLL } = await supabase
+                .from('landlords')
+                .insert({
+                  company_id: companyId,
+                  first_name_encrypted: encrypt(contact?.firstName || lc.name.split(' ')[0] || ''),
+                  last_name_encrypted: encrypt(contact?.lastName || lc.name.split(' ').slice(1).join(' ') || ''),
+                  email_encrypted: encrypt(contact?.email || lc.email || ''),
+                  phone_encrypted: encrypt(contact?.mobile || contact?.phone || ''),
+                  residential_address_line1_encrypted: encrypt(contact?.address1 || ''),
+                  residential_postcode_encrypted: encrypt(contact?.postalCode || ''),
+                  apex27_contact_id: lc.apex27Id,
+                  apex27_last_synced_at: new Date().toISOString()
+                })
+                .select('id')
+                .single()
+
+              landlordId = newLL?.id || null
+            }
+
+            if (landlordId) {
+              landlordCache.set(lc.apex27Id, landlordId)
+            }
+          }
+
+          // Link landlord to property
+          if (landlordId) {
+            const { data: existingLink } = await supabase
+              .from('property_landlords')
+              .select('id')
+              .eq('property_id', propertyId)
+              .eq('landlord_id', landlordId)
+              .limit(1)
+
+            if (!existingLink || existingLink.length === 0) {
+              await supabase
+                .from('property_landlords')
+                .insert({
+                  property_id: propertyId,
+                  landlord_id: landlordId,
+                  is_primary_contact: true,
+                  ownership_percentage: 100
+                })
+            }
+          }
+        }
+
+        // Build tenant inputs
+        const tenants: TenancyTenantInput[] = item.tenantContacts.map((tc, idx) => ({
+          firstName: tc.firstName,
+          lastName: tc.lastName,
+          email: tc.email || undefined,
+          phone: tc.phone || undefined,
+          isLeadTenant: idx === 0,
+          residentialAddressLine1: tc.address1 || undefined,
+          residentialPostcode: tc.postcode || undefined
+        }))
+
+        // Create tenancy via tenancyService
+        const newTenancy = await createTenancy({
+          companyId,
+          propertyId,
+          tenancyType: item.tenancyType,
+          startDate: item.startDate,
+          endDate: item.endDate || undefined,
+          monthlyRent: item.monthlyRent,
+          depositAmount: item.depositAmount || undefined,
+          depositScheme: item.depositScheme || undefined,
+          depositReference: item.depositReference || undefined,
+          rentDueDay: item.rentDueDay,
+          createdBy: userId
+        }, tenants)
+
+        // Update with apex27_tenancy_id, status, and RLP flag
+        await supabase
+          .from('tenancies')
+          .update({
+            apex27_tenancy_id: item.apex27TenancyId,
+            status: 'active',
+            has_rlp: item.hasRlp || false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', newTenancy.id)
+
+        syncResult.records_created++
+      } catch (err) {
+        syncResult.errors.push({
+          message: `Error processing tenancy ${item.apex27TenancyId}`,
+          detail: err instanceof Error ? err.message : String(err)
+        })
+      }
+    }
+
+    // Update sync log
+    if (syncLogId) {
+      await supabase
+        .from('apex27_sync_logs')
+        .update({
+          status: 'completed',
+          records_processed: syncResult.records_processed,
+          records_created: syncResult.records_created,
+          records_updated: syncResult.records_updated,
+          records_skipped: syncResult.records_skipped,
+          errors: syncResult.errors.length > 0 ? syncResult.errors : null,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', syncLogId)
+    }
+
+    return { success: true, result: syncResult }
+  } catch (err) {
+    console.error('[Apex27] Confirm tenancy sync error:', err)
+
+    if (syncLogId) {
+      await supabase
+        .from('apex27_sync_logs')
+        .update({
+          status: 'failed',
+          errors: [{ message: err instanceof Error ? err.message : String(err) }],
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', syncLogId)
+    }
+
+    return { success: false, error: err instanceof Error ? err.message : 'Tenancy sync failed' }
+  }
 }

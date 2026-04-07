@@ -360,19 +360,217 @@
               {{ syncResult.errors.length }} error(s) occurred during sync.
             </div>
           </div>
+
+          <!-- ============================================================ -->
+          <!-- TENANCY SYNC SECTION -->
+          <!-- ============================================================ -->
+          <div v-if="status.lastSyncAt" class="mt-6 pt-6 border-t dark:border-slate-700">
+            <div v-if="!tenancyPreviewItems">
+              <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Sync Tenancies</h5>
+              <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                Import active tenancies from Apex27. Properties and landlords will be created if they don't already exist, and all records will be linked.
+              </p>
+              <button
+                type="button"
+                @click="handleTenancyPreview"
+                :disabled="tenancyPreviewing"
+                class="px-4 py-2 text-sm font-medium text-white bg-[#6B21A8] hover:bg-[#6B21A8]/90 rounded-md disabled:opacity-50"
+              >
+                <span v-if="tenancyPreviewing" class="flex items-center gap-2">
+                  <Loader2 class="w-4 h-4 animate-spin" />
+                  Fetching tenancies...
+                </span>
+                <span v-else>Sync Tenancies</span>
+              </button>
+            </div>
+          </div>
+
+        </div><!-- close: initial sync (L143 status.lastTestStatus) -->
+      </div><!-- close: configured && !editMode (L64) -->
+    </div><!-- close: Main Panel v-else (L38) -->
+
+      <!-- Tenancy Preview — Full Width Below Settings Panel -->
+      <div v-if="tenancyPreviewItems" class="mt-6 bg-white dark:bg-slate-800 rounded-lg shadow border dark:border-slate-700">
+        <div class="px-6 py-4 border-b dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Review Tenancy Import</h4>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
+              {{ tenancyPreviewItems.length }} active tenancies found.
+              <span class="text-green-600 dark:text-green-400 font-medium">{{ tenancyPreviewItems.filter(i => i.propertyMatchType !== 'new' && !i.alreadyImported).length }} matched</span>,
+              <span class="text-blue-600 dark:text-blue-400 font-medium">{{ tenancyPreviewItems.filter(i => i.propertyMatchType === 'new').length }} new properties</span>,
+              <span class="text-gray-500">{{ tenancyPreviewItems.filter(i => i.alreadyImported).length }} already imported</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            @click="tenancyPreviewItems = null"
+            class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-slate-400 border border-gray-300 dark:border-slate-600 rounded-md"
+          >
+            Cancel
+          </button>
         </div>
 
-        <!-- Messages -->
-        <div v-if="errorMsg" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
-          {{ errorMsg }}
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-900 sticky top-0">
+              <tr>
+                <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-slate-400">Property</th>
+                <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-slate-400">Landlord</th>
+                <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-slate-400">Tenants</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-500 dark:text-slate-400">Rent</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-500 dark:text-slate-400">Start</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-500 dark:text-slate-400">End</th>
+                <th class="px-4 py-3 text-right font-medium text-gray-500 dark:text-slate-400">Deposit</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-500 dark:text-slate-400">Management</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-500 dark:text-slate-400">Status</th>
+                <th class="px-4 py-3 text-center font-medium text-gray-500 dark:text-slate-400">Import</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+              <tr
+                v-for="item in tenancyPreviewItems"
+                :key="item.apex27TenancyId"
+                :class="item.alreadyImported ? 'bg-gray-50 dark:bg-slate-900 opacity-50' : 'bg-white dark:bg-slate-800'"
+              >
+                <td class="px-4 py-2.5">
+                  <div class="text-gray-900 dark:text-white text-sm font-medium">{{ item.apex27Address }}</div>
+                  <div class="text-xs text-gray-400">{{ item.apex27Postcode }}</div>
+                  <div v-if="item.propertyMatchType === 'new'" class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">+ New property</div>
+                </td>
+                <td class="px-4 py-2.5">
+                  <div v-if="item.landlordContact" class="text-xs">
+                    <div class="text-gray-900 dark:text-white font-medium">{{ item.landlordContact.name }}</div>
+                    <div class="text-gray-400">{{ item.landlordContact.email }}</div>
+                    <span v-if="item.landlordContact.matchedLandlordId" class="text-green-600 dark:text-green-400 text-[10px]">Matched</span>
+                    <span v-else-if="item.importLandlord" class="text-blue-600 dark:text-blue-400 text-[10px]">+ New</span>
+                  </div>
+                  <span v-else class="text-xs text-gray-400">—</span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="text-gray-900 dark:text-white text-xs">{{ item.tenantNames.join(', ') || '-' }}</div>
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <span class="text-gray-900 dark:text-white text-sm font-medium">{{ formatCurrency(item.monthlyRent) }}</span>
+                  <div class="text-[10px] text-gray-400">/month</div>
+                </td>
+                <td class="px-4 py-2.5 text-center text-xs text-gray-700 dark:text-slate-300">{{ formatDate(item.startDate) }}</td>
+                <td class="px-4 py-2.5 text-center text-xs text-gray-700 dark:text-slate-300">{{ item.endDate ? formatDate(item.endDate) : '—' }}</td>
+                <td class="px-4 py-2.5 text-right text-xs text-gray-700 dark:text-slate-300">{{ item.depositAmount ? formatCurrency(item.depositAmount) : '—' }}</td>
+                <td class="px-4 py-2.5 text-center">
+                  <select
+                    v-if="!item.alreadyImported"
+                    v-model="item.managementType"
+                    class="text-xs rounded border px-1.5 py-1 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white border-gray-200"
+                  >
+                    <option :value="null">—</option>
+                    <option value="managed">Managed</option>
+                    <option value="let_only">Let Only</option>
+                  </select>
+                  <span v-else class="text-xs text-gray-400">
+                    {{ item.managementType === 'managed' ? 'Managed' : item.managementType === 'let_only' ? 'Let Only' : '—' }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                  <span v-if="item.alreadyImported" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400">Imported</span>
+                  <span v-else-if="item.propertyMatchType !== 'new'" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Matched</span>
+                  <span v-else class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">New</span>
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                  <button
+                    v-if="!item.alreadyImported"
+                    type="button"
+                    @click="item.importTenancy = !item.importTenancy"
+                    class="text-xs font-medium px-2.5 py-1 rounded"
+                    :class="item.importTenancy
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-400 dark:bg-slate-700 dark:text-slate-500'"
+                  >
+                    {{ item.importTenancy ? 'Yes' : 'No' }}
+                  </button>
+                  <span v-else class="text-xs text-gray-300 dark:text-slate-600">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div v-if="successMsg" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
-          {{ successMsg }}
+
+        <!-- Confirm Bar -->
+        <div class="px-6 py-4 border-t dark:border-slate-700 bg-gray-50 dark:bg-slate-900 rounded-b-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-4">
+              <span class="text-sm text-gray-600 dark:text-slate-300 font-medium">Import Let Only?</span>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="importLetOnly = true"
+                  :class="['px-3 py-1 text-xs font-medium rounded-full transition-colors', importLetOnly ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400']"
+                >Yes</button>
+                <button
+                  type="button"
+                  @click="importLetOnly = false"
+                  :class="['px-3 py-1 text-xs font-medium rounded-full transition-colors', !importLetOnly ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400']"
+                >No — Managed only</button>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-500 dark:text-slate-400">
+              {{ importableCount }} of {{ tenancyPreviewItems.filter(i => !i.alreadyImported).length }} tenancies will be imported
+            </div>
+            <button
+            type="button"
+            @click="handleTenancyConfirm"
+            :disabled="tenancyConfirming || importableCount === 0"
+            class="px-6 py-2 text-sm font-medium text-white bg-[#6B21A8] hover:bg-[#6B21A8]/90 rounded-md disabled:opacity-50"
+          >
+            <span v-if="tenancyConfirming" class="flex items-center gap-2">
+              <Loader2 class="w-4 h-4 animate-spin" />
+              Importing...
+            </span>
+            <span v-else>Confirm &amp; Import</span>
+          </button>
         </div>
       </div>
 
-      <!-- Edit Form -->
-      <form v-else @submit.prevent="handleSave" class="space-y-4" data-form-type="other">
+      <!-- Tenancy Sync Results -->
+      <div v-if="tenancySyncResult" class="mt-4 p-4 bg-white dark:bg-slate-800 rounded-lg shadow border dark:border-slate-700">
+        <h6 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Tenancy Import Results</h6>
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ tenancySyncResult.records_processed }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Processed</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ tenancySyncResult.records_created }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Created</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-400">{{ tenancySyncResult.records_skipped }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Skipped</div>
+          </div>
+        </div>
+        <div v-if="tenancySyncResult.errors && tenancySyncResult.errors.length > 0" class="mt-3 text-sm text-red-600 dark:text-red-400">
+          {{ tenancySyncResult.errors.length }} error(s) occurred during tenancy import.
+        </div>
+
+        <!-- RentGoose prompt -->
+        <div v-if="tenancySyncResult.records_created > 0" class="mt-4 p-4 bg-[#fff7ed] border border-[#f97316]/20 rounded-lg flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">Set up rent collection</p>
+            <p class="text-xs text-gray-500 mt-0.5">Initialise rent schedules for your imported tenancies in RentGoose.</p>
+          </div>
+          <router-link
+            to="/rentgoose"
+            class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-4 py-2 text-sm transition-colors whitespace-nowrap"
+          >
+            Go to RentGoose →
+          </router-link>
+        </div>
+      </div>
+
+    <!-- Edit Form -->
+    <div v-if="!status?.configured || editMode" class="bg-white dark:bg-slate-800 rounded-lg border border-[#6B21A8]/30 shadow p-6">
+      <form @submit.prevent="handleSave" class="space-y-4" data-form-type="other">
         <input type="text" name="trap-username" style="display:none" tabindex="-1" autocomplete="username" />
         <input type="password" name="trap-password" style="display:none" tabindex="-1" autocomplete="current-password" />
 
@@ -422,10 +620,11 @@
       </form>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ExternalLink, Key, Loader2, CheckCircle, X } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 import { useAuthStore } from '@/stores/auth'
@@ -442,6 +641,25 @@ const syncingLandlords = ref(false)
 const previewing = ref(false)
 const confirming = ref(false)
 const previewItems = ref<any[] | null>(null)
+const tenancyPreviewing = ref(false)
+const tenancyConfirming = ref(false)
+const tenancyPreviewItems = ref<any[] | null>(null)
+const importLetOnly = ref(false)
+
+const importableCount = computed(() => {
+  if (!tenancyPreviewItems.value) return 0
+  return tenancyPreviewItems.value.filter(i => {
+    if (i.alreadyImported || !i.importTenancy) return false
+    if (!importLetOnly.value && i.managementType === 'let_only') return false
+    return true
+  }).length
+})
+const tenancySyncResult = ref<{
+  records_processed: number
+  records_created: number
+  records_skipped: number
+  errors?: any[]
+} | null>(null)
 const editMode = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
@@ -787,6 +1005,73 @@ async function handleSyncLandlords() {
     errorMsg.value = 'Landlord sync failed'
   } finally {
     syncingLandlords.value = false
+  }
+}
+
+async function handleTenancyPreview() {
+  clearMessages()
+  tenancyPreviewing.value = true
+  tenancySyncResult.value = null
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/tenancies/preview`, {
+      method: 'POST'
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Failed to fetch tenancy preview'
+      return
+    }
+
+    tenancyPreviewItems.value = data.items || []
+    if (tenancyPreviewItems.value!.length === 0) {
+      successMsg.value = 'No active tenancies found in Apex27.'
+      tenancyPreviewItems.value = null
+    }
+  } catch (err) {
+    errorMsg.value = 'Failed to fetch tenancy preview from Apex27'
+  } finally {
+    tenancyPreviewing.value = false
+  }
+}
+
+async function handleTenancyConfirm() {
+  if (!tenancyPreviewItems.value) return
+
+  clearMessages()
+  tenancyConfirming.value = true
+  tenancySyncResult.value = null
+
+  const approvedItems = tenancyPreviewItems.value.filter(item => {
+    if (!item.importTenancy || item.alreadyImported) return false
+    if (!importLetOnly.value && item.managementType === 'let_only') return false
+    return true
+  })
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/tenancies/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: approvedItems })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Tenancy import failed'
+      return
+    }
+
+    tenancySyncResult.value = data
+    successMsg.value = `Tenancy import complete: ${data.records_created} created, ${data.records_skipped} skipped.`
+    tenancyPreviewItems.value = null
+    await loadStatus()
+  } catch (err) {
+    errorMsg.value = 'Tenancy import failed'
+  } finally {
+    tenancyConfirming.value = false
   }
 }
 

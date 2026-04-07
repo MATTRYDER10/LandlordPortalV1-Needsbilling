@@ -1,0 +1,65 @@
+{
+  "id": "properties-management-fees",
+  "slug": "properties-management-fees",
+  "title": "Setting Up Management Fees on Properties",
+  "category": "properties",
+  "tags": ["management fees", "properties", "rentgoose", "vat", "landlord statements"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 10,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "Management fees can be configured per-property to track what your agency charges landlords for managing their property. These fees flow through to RentGoose for accurate landlord statements.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Set Up a Management Fee",
+        "steps": [
+          {
+            "title": "Open the Property",
+            "content": "Navigate to the Properties tab and open the property you want to configure a management fee for.",
+            "image": null
+          },
+          {
+            "title": "Click Edit or Open Property Settings",
+            "content": "Click the Edit button or access the property settings panel to enter edit mode.",
+            "image": null
+          },
+          {
+            "title": "Find the Management Fee Section",
+            "content": "Scroll to the Management Fee section within the property settings.",
+            "image": null
+          },
+          {
+            "title": "Enter the Fee",
+            "content": "Enter the management fee as a percentage (e.g. 10% of monthly rent) or as a fixed monthly amount (e.g. £80 per month). Choose whichever method your agency charges.",
+            "image": null
+          },
+          {
+            "title": "Select VAT Treatment",
+            "content": "Select whether the fee is inclusive or exclusive of VAT. If your agency is VAT registered, entering the fee exclusive of VAT allows PropertyGoose to add VAT automatically on landlord statements.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save to apply the management fee to the property.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Management Fees in RentGoose",
+        "content": "Management fees set at the property level are used by RentGoose to calculate deductions from rent receipts and produce accurate landlord statements showing gross rent, fee deductions, and net payment."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Set Fees Per Property for Variable Rates",
+        "content": "If you charge different management fees for different landlords or property types, set the fee at the property level rather than relying on a global default. This gives you full flexibility per portfolio."
+      }
+    ],
+    "relatedArticles": ["properties-setup-fees", "properties-special-clauses", "rentgoose-overview", "rentgoose-landlord-statements"]
+  }
+}

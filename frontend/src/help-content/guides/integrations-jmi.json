@@ -1,0 +1,65 @@
+{
+  "id": "integrations-jmi",
+  "slug": "integrations-jmi",
+  "title": "Just Move In Integration — Setup & Management",
+  "category": "account-settings",
+  "tags": ["jmi", "just move in", "utilities", "integration", "settings", "bills included"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 30,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "Just Move In (JMI) is PropertyGoose's recommended utility switching partner and is enabled by default for all companies. No manual setup is required to begin receiving utility notifications.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How JMI Works",
+        "steps": [
+          {
+            "title": "Enabled by Default",
+            "content": "JMI is enabled by default for all PropertyGoose companies. No API key or manual connection is needed to start receiving utility notifications.",
+            "image": null
+          },
+          {
+            "title": "Automatic Move-In Notifications",
+            "content": "When a new tenancy is created and you tick the JMI checkbox, PropertyGoose notifies JMI of the move-in. JMI then contacts relevant utility providers on your behalf.",
+            "image": null
+          },
+          {
+            "title": "Automatic Move-Out Notifications",
+            "content": "When you end a tenancy and tick the JMI checkbox, PropertyGoose sends a move-out notification to JMI. Utility providers are informed that the tenancy has ended.",
+            "image": null
+          },
+          {
+            "title": "Tenant Change Notifications",
+            "content": "Tenant changes are notified to JMI automatically as part of the tenant change workflow. No checkbox is required.",
+            "image": null
+          },
+          {
+            "title": "Bills Included Properties Excluded",
+            "content": "Properties with the Bills Included flag set in PropertyGoose are automatically excluded from all JMI notifications. No utility switching is triggered for these properties.",
+            "image": null
+          },
+          {
+            "title": "To Opt Out",
+            "content": "To disable JMI for your entire company, go to Settings → Company → Management Info and untick 'Use PropertyGoose's Partner Just Move In'.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Silent Background Notifications",
+        "content": "JMI notifications are sent silently in the background and do not interrupt the tenancy workflow. If a notification fails, it will not block any actions in PropertyGoose."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Manual Responsibility if Opted Out",
+        "content": "If you opt out of JMI, your agency becomes responsible for notifying utility providers of all tenancy changes manually. PropertyGoose will not send any utility notifications once JMI is disabled."
+      }
+    ],
+    "relatedArticles": ["tenancies-jmi", "integrations-apex27", "integrations-reposit"]
+  }
+}

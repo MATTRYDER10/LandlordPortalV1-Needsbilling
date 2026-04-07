@@ -30,6 +30,7 @@ import {
 } from '../services/tenancyStatusService'
 import { evaluateAndTransition } from '../services/verificationStateService'
 import * as tenancyService from '../services/tenancyService'
+import { cancelScheduleForTenancy, reactivateScheduleForTenancy, updateNoticeEndDate } from '../services/rentgooseService'
 import * as conversionService from '../services/tenancyConversionService'
 import * as emailService from '../services/emailService'
 
@@ -1440,32 +1441,42 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
       console.error('Failed to create tenancy started notification:', notifError)
     }
 
-    // Auto-push tenancy summary + documents to Apex27 on activation
-    try {
-      const { getCompanyApex27Config, pushDocument, apex27Fetch } = await import('../services/apex27Service')
-      const { generateTenancySummary } = await import('../services/tenancySummaryService')
-      const { normalizePostcode, normalizeAddressLine } = await import('../services/propertyMatchingService')
-      const { decrypt } = await import('../services/encryption')
+    // Fire-and-forget: push all documents to Apex27 on activation
+    const tenancyId = req.params.id
+    const tenancyPropertyId = tenancy.property_id
+    const tenancyAgreementId = tenancy.agreement_id
+    const tenancyPrimaryRefId = tenancy.primary_reference_id
+    ;(async () => {
+      try {
+        const { getCompanyApex27Config, pushDocument, apex27Fetch } = await import('../services/apex27Service')
+        const { generateTenancySummary } = await import('../services/tenancySummaryService')
+        const { normalizeAddressLine } = await import('../services/propertyMatchingService')
+        const { decrypt } = await import('../services/encryption')
 
-      const apex27Config = await getCompanyApex27Config(companyId)
-      if (apex27Config) {
-        // Resolve listing ID with fuzzy fallback
+        const apex27Config = await getCompanyApex27Config(companyId)
+        if (!apex27Config) return
+
+        // Resolve listing ID — filter by synced branch
         let listingId: string | null = null
-        if (tenancy.property_id) {
-          // Direct lookup
+        if (tenancyPropertyId) {
           const { data: prop } = await supabase
             .from('properties')
             .select('apex27_listing_id, postcode, address_line1_encrypted')
-            .eq('id', tenancy.property_id)
+            .eq('id', tenancyPropertyId)
             .single()
 
           listingId = prop?.apex27_listing_id || null
 
-          // Fuzzy fallback: search Apex27 by postcode
+          // Fuzzy fallback: search Apex27 by postcode, filtered by branch
           if (!listingId && prop?.postcode) {
-            const searchResult = await apex27Fetch<any[]>(apex27Config.apiKey, '/listings', {
+            const searchParams: Record<string, any> = {
               transactionType: 'rent', postalCode: prop.postcode, pageSize: 25
-            })
+            }
+            // Filter by synced branch to avoid matching wrong office's listings
+            if (apex27Config.branchId) {
+              searchParams.branchId = apex27Config.branchId
+            }
+            const searchResult = await apex27Fetch<any[]>(apex27Config.apiKey, '/listings', searchParams)
             if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
               const addr = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
               if (searchResult.data.length === 1) {
@@ -1479,85 +1490,140 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
                   }
                 }
               }
-              if (!listingId) listingId = String(searchResult.data[0].id)
+              // Don't blindly use first result — only match by address
+              if (!listingId && addr) {
+                console.warn('[Apex27] No branch-filtered listing matched for', addr)
+              }
             }
           }
         }
 
-        if (listingId) {
-          console.log(`[Apex27] Auto-pushing tenancy docs on activation to listing ${listingId}`)
+        if (!listingId) {
+          console.log('[Apex27] No listing ID resolved — skipping doc push')
+          return
+        }
 
-          // 1. Push tenancy summary
-          const summary = await generateTenancySummary(req.params.id, companyId)
+        console.log(`[Apex27] Fire-and-forget doc push to listing ${listingId}`)
+        let pushed = 0
+
+        // 1. Tenancy summary
+        try {
+          const summary = await generateTenancySummary(tenancyId, companyId)
           if (summary.success && summary.html) {
-            const fileName = `tenancy-summaries/${companyId}/${req.params.id}-${Date.now()}.html`
+            const fileName = `tenancy-summaries/${companyId}/${tenancyId}-${Date.now()}.html`
             const { error: uploadErr } = await supabase.storage
               .from('documents')
               .upload(fileName, Buffer.from(summary.html), { contentType: 'text/html', upsert: true })
-
             if (!uploadErr) {
-              const { data: signedData } = await supabase.storage
-                .from('documents')
-                .createSignedUrl(fileName, 3600)
-
+              const { data: signedData } = await supabase.storage.from('documents').createSignedUrl(fileName, 3600)
               if (signedData?.signedUrl) {
-                await pushDocument(apex27Config.apiKey, {
-                  listingId, name: summary.title || 'Tenancy Summary', url: signedData.signedUrl
-                })
-                console.log('[Apex27] Tenancy summary pushed on activation')
+                await pushDocument(apex27Config.apiKey, { listingId, name: summary.title || 'Tenancy Summary', url: signedData.signedUrl })
+                pushed++
               }
             }
           }
+        } catch (e) { console.error('[Apex27] Failed to push tenancy summary:', e) }
 
-          // 2. Push signed tenancy agreement
-          if (tenancy.agreement_id) {
+        // 2. Signed tenancy agreement
+        if (tenancyAgreementId) {
+          try {
             const { data: agreement } = await supabase
               .from('agreements')
               .select('id, signed_pdf_url, pdf_url')
-              .eq('id', tenancy.agreement_id)
+              .eq('id', tenancyAgreementId)
               .single()
-
             const agreementUrl = agreement?.signed_pdf_url || agreement?.pdf_url
             if (agreementUrl) {
-              await pushDocument(apex27Config.apiKey, {
-                listingId, name: 'Tenancy Agreement (Signed)', url: agreementUrl
-              })
-              console.log('[Apex27] Signed tenancy agreement pushed on activation')
+              await pushDocument(apex27Config.apiKey, { listingId, name: 'Tenancy Agreement (Signed)', url: agreementUrl })
+              pushed++
             }
-          }
+          } catch (e) { console.error('[Apex27] Failed to push agreement:', e) }
+        }
 
-          // 3. Push all property documents linked to this tenancy (notices, legal docs, etc.)
+        // 3. Reference reports (from the primary reference and any linked references)
+        if (tenancyPrimaryRefId) {
+          try {
+            // Get all references linked to this tenancy's primary reference (including guarantors)
+            const { data: refs } = await supabase
+              .from('tenant_references_v2')
+              .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, report_pdf_url')
+              .or(`id.eq.${tenancyPrimaryRefId},guarantor_reference_id.eq.${tenancyPrimaryRefId}`)
+              .eq('company_id', companyId)
+            for (const ref of refs || []) {
+              if (ref.report_pdf_url) {
+                const name = `Reference Report - ${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+                await pushDocument(apex27Config.apiKey, { listingId, name, url: ref.report_pdf_url })
+                pushed++
+              }
+            }
+          } catch (e) { console.error('[Apex27] Failed to push references:', e) }
+        }
+
+        // 4. Safety certificates (compliance records for the property)
+        if (tenancyPropertyId) {
+          try {
+            const { data: compliance } = await supabase
+              .from('compliance_records')
+              .select('id, compliance_type, file_path, status')
+              .eq('property_id', tenancyPropertyId)
+              .eq('status', 'valid')
+            for (const cert of compliance || []) {
+              if (cert.file_path) {
+                const { data: signedData } = await supabase.storage.from('documents').createSignedUrl(cert.file_path, 3600)
+                if (signedData?.signedUrl) {
+                  const typeLabel = cert.compliance_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Safety Certificate'
+                  await pushDocument(apex27Config.apiKey, { listingId, name: typeLabel, url: signedData.signedUrl })
+                  pushed++
+                }
+              }
+            }
+          } catch (e) { console.error('[Apex27] Failed to push safety certs:', e) }
+        }
+
+        // 5. Deposit certificate (if TDS/DPS registration exists)
+        try {
+          const { data: tdsReg } = await supabase
+            .from('tds_registrations')
+            .select('certificate_url')
+            .eq('tenancy_id', tenancyId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          if (tdsReg?.[0]?.certificate_url) {
+            await pushDocument(apex27Config.apiKey, { listingId, name: 'Deposit Protection Certificate', url: tdsReg[0].certificate_url })
+            pushed++
+          }
+        } catch (e) { console.error('[Apex27] Failed to push deposit cert:', e) }
+
+        // 6. All property documents linked to this tenancy
+        try {
           const { data: propDocs } = await supabase
             .from('property_documents')
             .select('id, file_name, file_path')
-            .eq('property_id', tenancy.property_id)
-            .eq('source_type', 'tenancy')
-            .eq('source_id', req.params.id)
-
-          let docsPushed = 0
+            .eq('property_id', tenancyPropertyId)
           for (const doc of propDocs || []) {
-            try {
-              const { data: signedData } = await supabase.storage
-                .from('property-documents')
-                .createSignedUrl(doc.file_path, 3600)
-
+            if (doc.file_path) {
+              const { data: signedData } = await supabase.storage.from('property-documents').createSignedUrl(doc.file_path, 3600)
               if (signedData?.signedUrl) {
-                await pushDocument(apex27Config.apiKey, {
-                  listingId, name: doc.file_name, url: signedData.signedUrl
-                })
-                docsPushed++
+                await pushDocument(apex27Config.apiKey, { listingId, name: doc.file_name, url: signedData.signedUrl })
+                pushed++
               }
-            } catch (docErr) {
-              console.error(`[Apex27] Failed to push doc ${doc.id}:`, docErr)
             }
           }
+        } catch (e) { console.error('[Apex27] Failed to push property docs:', e) }
 
-          console.log(`[Apex27] Auto-push complete: summary + agreement + ${docsPushed} documents`)
-        }
+        console.log(`[Apex27] Activation doc push complete: ${pushed} documents pushed to listing ${listingId}`)
+      } catch (apex27Error) {
+        console.error('[Apex27] Fire-and-forget doc push failed:', apex27Error)
       }
-    } catch (apex27Error) {
-      console.error('[Apex27] Auto-push on activation failed (non-blocking):', apex27Error)
-      // Non-blocking — don't fail the activation
+    })()
+
+    // Initialize RentGoose rent schedule for this tenancy
+    try {
+      const { initTenancySchedule } = await import('../services/rentgooseService')
+      await initTenancySchedule(req.params.id, companyId)
+      console.log(`[RentGoose] Schedule initialized for tenancy ${req.params.id}`)
+    } catch (rgErr: any) {
+      console.error('[RentGoose] Failed to init schedule on activation (non-blocking):', rgErr.message)
     }
 
     res.json({ tenancy })
@@ -1841,6 +1907,13 @@ router.post('/records/:id/revert-to-active', authenticateToken, async (req: Auth
       return res.status(500).json({ error: 'Failed to revert tenancy' })
     }
 
+    // Reactivate RentGoose schedule (un-cancel entries, restore pro-rata)
+    try {
+      await reactivateScheduleForTenancy(req.params.id, companyId)
+    } catch (rgErr: any) {
+      console.error('[revert-to-active] RentGoose reactivation failed (non-blocking):', rgErr.message)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'STATUS_CHANGED',
@@ -1886,13 +1959,20 @@ router.post('/records/:id/revert-to-notice-served', authenticateToken, async (re
       return res.status(400).json({ error: 'Can only revert archived tenancies to notice served status' })
     }
 
-    // Update tenancy: set status back to notice_given
+    const { actual_end_date } = req.body
+
+    // Update tenancy: set status back to notice_given, with optional new end date
+    const updateData: Record<string, any> = {
+      status: 'notice_given',
+      updated_at: new Date().toISOString()
+    }
+    if (actual_end_date) {
+      updateData.actual_end_date = actual_end_date
+    }
+
     const { data: tenancy, error } = await supabase
       .from('tenancies')
-      .update({
-        status: 'notice_given',
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', req.params.id)
       .eq('company_id', companyId)
       .select()
@@ -1903,13 +1983,25 @@ router.post('/records/:id/revert-to-notice-served', authenticateToken, async (re
       return res.status(500).json({ error: 'Failed to revert tenancy' })
     }
 
+    // Update RentGoose: reactivate schedule and apply new pro-rata end date
+    try {
+      const endDate = actual_end_date || currentTenancy.actual_end_date
+      if (endDate) {
+        await updateNoticeEndDate(req.params.id, endDate, companyId)
+      } else {
+        await reactivateScheduleForTenancy(req.params.id, companyId)
+      }
+    } catch (rgErr: any) {
+      console.error('[revert-to-notice-served] RentGoose update failed (non-blocking):', rgErr.message)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'STATUS_CHANGED',
       category: 'general',
       title: 'Tenancy Reverted to Notice Served',
-      description: `Tenancy reverted from archived back to notice given status`,
-      metadata: { previousStatus: 'archived', newStatus: 'notice_given' },
+      description: `Tenancy reverted from archived back to notice given status${actual_end_date ? ` with new end date ${actual_end_date}` : ''}`,
+      metadata: { previousStatus: 'archived', newStatus: 'notice_given', newEndDate: actual_end_date || null },
       performedBy: userId
     })
 
@@ -2118,6 +2210,13 @@ router.post('/records/:id/mark-fallen-through', authenticateToken, async (req: A
     if (updateError) {
       console.error('Error marking tenancy as fallen through:', updateError)
       return res.status(500).json({ error: `Failed to update tenancy: ${updateError.message}` })
+    }
+
+    // Cancel RentGoose schedule entries
+    try {
+      await cancelScheduleForTenancy(req.params.id)
+    } catch (rgErr: any) {
+      console.error('[mark-fallen-through] RentGoose cancellation failed (non-blocking):', rgErr.message)
     }
 
     // Log activity
@@ -3396,6 +3495,49 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       // Don't fail the whole request, just log the error
     }
 
+    // Create expected payment for initial monies
+    try {
+      const { createExpectedPayment } = await import('../services/rentgooseService')
+
+      // Get property details
+      const propForEp = tenancy?.property || {}
+      const propertyAddr = (propForEp as any).address_line1 || ''
+      const propertyPc = (propForEp as any).postcode || ''
+
+      // Build payout split
+      const payoutSplit: any[] = []
+      const rentPortion = firstMonthRent - holdingDepositPaid
+      if (rentPortion > 0) {
+        payoutSplit.push({ type: 'landlord_rent', amount: rentPortion, description: 'First month rent (less holding deposit)' })
+      }
+      if (depositAmount > 0) {
+        payoutSplit.push({ type: 'deposit_hold', amount: depositAmount, description: 'Security deposit' })
+      }
+      for (const charge of additionalCharges) {
+        payoutSplit.push({ type: 'agent_fee', amount: charge.amount, description: charge.name })
+      }
+
+      await createExpectedPayment(companyId, {
+        tenancy_id: req.params.id,
+        property_id: tenancy?.property_id || undefined,
+        payment_type: 'initial_monies',
+        source_type: 'payment_request',
+        source_id: req.params.id,
+        description: `Initial monies - ${propertyAddr || 'Property'}`,
+        amount_due: totalDue,
+        status: 'pending',
+        due_date: editedDueDate || undefined,
+        payout_type: 'mixed',
+        payout_split: payoutSplit,
+        property_address: propertyAddr || undefined,
+        property_postcode: propertyPc || undefined,
+        tenant_name: `${targetTenant.first_name} ${targetTenant.last_name}`,
+        landlord_name: undefined,
+      })
+    } catch (epError) {
+      console.error('[RentGoose] Failed to create initial monies expected payment:', epError)
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'INITIAL_MONIES_REQUESTED',
@@ -3573,6 +3715,110 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
       metadata: { amount: totalPaidAmount, manualReceipt: manualReceipt || false },
       performedBy: userId
     })
+
+    // Receipt the expected payment (creates client account entries from payout split)
+    try {
+      const { createExpectedPayment, receiptExpectedPayment } = await import('../services/rentgooseService')
+      const { supabase: sb } = await import('../config/supabase')
+
+      // Find the expected payment for this tenancy's initial monies
+      let { data: ep } = await sb
+        .from('expected_payments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('tenancy_id', req.params.id)
+        .eq('payment_type', 'initial_monies')
+        .in('status', ['pending', 'due'])
+        .limit(1)
+        .single()
+
+      // If no expected_payment exists (tenancy predates this feature), create one now
+      if (!ep) {
+        const propAddr = tenancy?.property?.address_line1 || ''
+        const propPc = tenancy?.property?.postcode || ''
+
+        // Calculate the breakdown from the tenancy data
+        const firstMonthRent = parseFloat(String(currentTenancy.monthly_rent || 0))
+        const depositAmt = parseFloat(String(currentTenancy.deposit_amount || 0))
+        let holdingDepPaid = 0
+        if (currentTenancy.primary_reference_id) {
+          const { data: offer } = await sb
+            .from('tenant_offers')
+            .select('holding_deposit_amount_paid')
+            .eq('reference_id', currentTenancy.primary_reference_id)
+            .single()
+          if (offer?.holding_deposit_amount_paid) {
+            holdingDepPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+          }
+        }
+
+        const additionalChargesAmt = (currentTenancy.additional_charges || [])
+          .filter((c: any) => c.frequency === 'one_time')
+          .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
+
+        const payoutSplit: any[] = []
+        const rentPortion = firstMonthRent - holdingDepPaid
+        if (rentPortion > 0) {
+          payoutSplit.push({ type: 'landlord_rent', amount: rentPortion, description: 'First month rent (less holding deposit)' })
+        }
+        if (depositAmt > 0) {
+          payoutSplit.push({ type: 'deposit_hold', amount: depositAmt, description: 'Security deposit' })
+        }
+        if (additionalChargesAmt > 0) {
+          payoutSplit.push({ type: 'agent_fee', amount: additionalChargesAmt, description: 'Additional charges' })
+        }
+
+        const tenantNames = (currentTenancy.tenants || [])
+          .filter((t: any) => t.status === 'active')
+          .map((t: any) => `${t.first_name || ''} ${t.last_name || ''}`.trim())
+          .join(', ')
+
+        try {
+          ep = await createExpectedPayment(companyId, {
+            tenancy_id: req.params.id,
+            property_id: currentTenancy.property_id || undefined,
+            payment_type: 'initial_monies',
+            source_type: 'payment_request',
+            source_id: req.params.id,
+            description: `Initial monies - ${propAddr || 'Property'}`,
+            amount_due: totalPaidAmount,
+            status: 'pending',
+            payout_type: 'mixed',
+            payout_split: payoutSplit,
+            property_address: propAddr || undefined,
+            property_postcode: propPc || undefined,
+            tenant_name: tenantNames || undefined,
+          })
+        } catch (createErr: any) {
+          // UNIQUE conflict means one already exists (possibly in a different status)
+          if (createErr?.code === '23505') {
+            const { data: existing } = await sb
+              .from('expected_payments')
+              .select('id')
+              .eq('company_id', companyId)
+              .eq('source_type', 'payment_request')
+              .eq('source_id', req.params.id)
+              .limit(1)
+              .single()
+            ep = existing
+          } else {
+            throw createErr
+          }
+        }
+      }
+
+      if (ep) {
+        await receiptExpectedPayment(companyId, {
+          expected_payment_id: ep.id,
+          amount: totalPaidAmount,
+          payment_method: 'bank_transfer',
+          date_received: new Date().toISOString().split('T')[0],
+          receipted_by: userId,
+        })
+      }
+    } catch (epError) {
+      console.error('[RentGoose] Failed to receipt initial monies expected payment:', epError)
+    }
 
     // Create notification
     try {
@@ -5757,7 +6003,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
       PaymentReference: `RDC-${changeRecord.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
       CompanyName: companyName,
-      AgentLogoUrl: company.logo_url || 'https://propertygoose.co.uk/logo.png',
+      AgentLogoUrl: company.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       ContactSection: contactSection
     })
 
@@ -5790,6 +6036,36 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
         totalAmount: parseFloat(totalAmount.toFixed(2))
       }
     })
+
+    // Create expected payment for rent due date change
+    try {
+      const { createExpectedPayment } = await import('../services/rentgooseService')
+
+      const payoutSplit: any[] = []
+      if (proRataAmount > 0) {
+        payoutSplit.push({ type: 'landlord_prorata', amount: parseFloat(proRataAmount.toFixed(2)), description: 'Pro-rata rent adjustment' })
+      }
+      if (adminFeeNum > 0) {
+        payoutSplit.push({ type: 'agent_fee', amount: adminFeeNum, description: 'Administration fee' })
+      }
+
+      await createExpectedPayment(companyId, {
+        tenancy_id: req.params.id,
+        property_id: propertyData?.id || undefined,
+        payment_type: 'rent_change_fee',
+        source_type: 'rent_due_date_change',
+        source_id: changeRecord.id,
+        description: `Rent due date change - ${propertyAddress || 'Property'}`,
+        amount_due: parseFloat(totalAmount.toFixed(2)),
+        status: 'pending',
+        payout_type: 'mixed',
+        payout_split: payoutSplit,
+        property_address: propertyAddress || undefined,
+        tenant_name: leadTenantName,
+      })
+    } catch (epError) {
+      console.error('[RentGoose] Failed to create rent change expected payment:', epError)
+    }
 
     res.status(201).json({
       change: {
@@ -5944,6 +6220,14 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
     if (updateTenancyError) {
       console.error('Error updating tenancy rent due day:', updateTenancyError)
       return res.status(500).json({ error: 'Failed to update tenancy' })
+    }
+
+    // Propagate new due day to future RentGoose schedule entries
+    try {
+      const { updateFutureRentDueDates } = await import('../services/rentgooseService')
+      await updateFutureRentDueDates(req.params.id, change.new_due_day)
+    } catch (err) {
+      console.error('[activate] Failed to propagate due date change to schedule:', err)
     }
 
     // Get company details for email and PDF
@@ -6144,7 +6428,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
         MonthlyRent: parseFloat(change.monthly_rent).toFixed(2),
         NextRentDueDate: nextRentDueDateStr,
         CompanyName: company?.name || 'PropertyGoose',
-        AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
+        AgentLogoUrl: company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
         ContactSection: contactSection
       })
 
@@ -6175,6 +6459,34 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
       console.log('[activate] Activity logged successfully')
     } catch (activityError) {
       console.error('[activate] Failed to log activity:', activityError)
+    }
+
+    // Receipt the expected payment for this rent change
+    try {
+      const { receiptExpectedPayment } = await import('../services/rentgooseService')
+
+      const { data: ep } = await supabase
+        .from('expected_payments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('source_type', 'rent_due_date_change')
+        .eq('source_id', req.params.changeId)
+        .in('status', ['pending', 'due'])
+        .limit(1)
+        .single()
+
+      if (ep) {
+        await receiptExpectedPayment(companyId, {
+          expected_payment_id: ep.id,
+          amount: parseFloat(change.total_amount),
+          payment_method: 'bank_transfer',
+          payment_reference: paymentReference || undefined,
+          date_received: new Date().toISOString().split('T')[0],
+          receipted_by: userId,
+        })
+      }
+    } catch (epError) {
+      console.error('[RentGoose] Failed to receipt rent change expected payment:', epError)
     }
 
     console.log('[activate] Returning success. Document ID:', noticeDocumentId)
@@ -6405,7 +6717,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
       PaymentReference: `RDC-${change.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
       CompanyName: company?.name || 'PropertyGoose',
-      AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
+      AgentLogoUrl: company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       ContactSection: contactSection
     })
 

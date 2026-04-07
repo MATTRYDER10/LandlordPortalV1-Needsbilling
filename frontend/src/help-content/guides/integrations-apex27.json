@@ -1,0 +1,59 @@
+{
+  "id": "integrations-apex27",
+  "slug": "integrations-apex27",
+  "title": "Apex27 CRM Integration",
+  "category": "account-settings",
+  "tags": ["apex27", "crm", "integration", "sync", "let agreed", "documents"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 31,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "The Apex27 CRM integration allows PropertyGoose to sync properties, landlords, tenants, and tenancy events directly with your Apex27 account, keeping both systems in step without manual duplication.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Connect Apex27",
+        "steps": [
+          {
+            "title": "Go to Settings → Integrations → Apex27 CRM",
+            "content": "Navigate to Settings, open the Integrations tab, and find the Apex27 CRM section.",
+            "image": null
+          },
+          {
+            "title": "Enter Your Apex27 API Key",
+            "content": "Enter your Apex27 API key. You can find this in your Apex27 account settings under API or Developer options.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save to connect the integration. PropertyGoose will test the API key and confirm the connection.",
+            "image": null
+          },
+          {
+            "title": "Syncing Begins Automatically",
+            "content": "Once connected, PropertyGoose begins syncing automatically: active property listings, landlord records, tenant records, and documents are pushed to and pulled from Apex27.",
+            "image": null
+          },
+          {
+            "title": "Let Agreed Status Pushed Automatically",
+            "content": "When a tenancy is created in PropertyGoose, the Let Agreed status is pushed to the matching property listing in Apex27 automatically.",
+            "image": null
+          },
+          {
+            "title": "Documents Can Be Pushed to Apex27",
+            "content": "Documents generated in PropertyGoose — including tenancy agreements and compliance packs — can be pushed to the corresponding records in Apex27.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Allow Up to 5 Minutes for Sync",
+        "content": "The Apex27 sync runs in the background. Allow up to 5 minutes for new or updated records to appear in Apex27 after a change is made in PropertyGoose."
+      }
+    ],
+    "relatedArticles": ["integrations-jmi", "integrations-reposit", "integrations-tds"]
+  }
+}

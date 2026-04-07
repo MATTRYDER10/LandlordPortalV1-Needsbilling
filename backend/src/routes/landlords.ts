@@ -184,6 +184,38 @@ router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => 
 })
 
 /**
+ * POST /api/landlords/:id/rent-hold
+ * Toggle rent hold on/off for a landlord
+ */
+router.post('/:id/rent-hold', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId!
+    const { active, note } = req.body
+
+    const updateData: Record<string, any> = {
+      rent_hold_active: !!active,
+      rent_hold_note: active ? (note || null) : null,
+      rent_hold_set_at: active ? new Date().toISOString() : null,
+      rent_hold_set_by: active ? req.user?.id : null,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('landlords')
+      .update(updateData)
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+
+    if (error) return res.status(400).json({ error: error.message })
+
+    res.json({ success: true, rent_hold_active: !!active })
+  } catch (error: any) {
+    console.error('Error toggling rent hold:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * GET /api/landlords/:id
  * Get a single landlord by ID
  */

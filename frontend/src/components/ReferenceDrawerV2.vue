@@ -319,8 +319,25 @@
               <p class="font-medium text-gray-900 dark:text-white">{{ refData?.property_address }}</p>
               <p class="text-sm text-gray-500">{{ refData?.property_city }}, {{ refData?.property_postcode }}</p>
               <div class="mt-2 flex items-center gap-4 text-sm text-gray-500">
-                <span v-if="refData?.move_in_date">
+                <span v-if="refData?.move_in_date && !editingMoveIn" class="flex items-center gap-1.5">
                   Move in: {{ formatDate(refData.move_in_date) }}
+                  <button @click="startEditMoveIn" class="text-primary hover:text-primary/80 transition-colors" title="Edit move-in date">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  </button>
+                </span>
+                <span v-else-if="editingMoveIn" class="flex items-center gap-2">
+                  <input
+                    v-model="newMoveInDate"
+                    type="date"
+                    class="text-sm border border-gray-300 dark:border-slate-600 rounded-md px-2 py-1 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-primary focus:border-primary"
+                  />
+                  <button @click="saveMoveInDate" :disabled="savingMoveIn" class="text-xs font-medium text-white bg-primary hover:bg-primary/90 px-2.5 py-1 rounded-md disabled:opacity-50">
+                    {{ savingMoveIn ? '...' : 'Save' }}
+                  </button>
+                  <button @click="editingMoveIn = false" class="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                </span>
+                <span v-else class="text-gray-400">
+                  No move-in date set
                 </span>
               </div>
             </div>
@@ -640,6 +657,39 @@ const pendingChaseField = ref<{ refereeType: string; sectionType: string } | nul
 
 // Best available reference data — fullReference (from API) takes priority over props (from list)
 const refData = computed(() => fullReference.value?.reference || props.reference)
+
+// Move-in date editing
+const editingMoveIn = ref(false)
+const newMoveInDate = ref('')
+const savingMoveIn = ref(false)
+
+function startEditMoveIn() {
+  newMoveInDate.value = refData.value?.move_in_date || ''
+  editingMoveIn.value = true
+}
+
+async function saveMoveInDate() {
+  if (!newMoveInDate.value || !props.reference?.id) return
+  savingMoveIn.value = true
+  try {
+    const token = localStorage.getItem('auth_token')
+    const response = await fetch(`${API_URL}/api/v2/references/${props.reference.id}/edit`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ field: 'move_in_date', value: newMoveInDate.value })
+    })
+    if (!response.ok) throw new Error('Failed to update')
+    // Update local data
+    if (fullReference.value?.reference) {
+      fullReference.value.reference.move_in_date = newMoveInDate.value
+    }
+    editingMoveIn.value = false
+  } catch (err) {
+    console.error('Failed to update move-in date:', err)
+  } finally {
+    savingMoveIn.value = false
+  }
+}
 
 // Check if form has been submitted (for credit refund logic)
 const formSubmitted = computed(() => {

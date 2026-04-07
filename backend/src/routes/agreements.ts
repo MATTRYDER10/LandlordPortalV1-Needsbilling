@@ -76,6 +76,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const {
       templateType,
+      agreementType,
       propertyAddress,
       landlords,
       tenants,
@@ -99,6 +100,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       breakClause,
       specialClauses,
       billsIncluded,
+      billsIncludedUtilities,
       language,
       referenceId,
       propertyId,
@@ -144,6 +146,25 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       })
     }
 
+    // Renters Rights Act 2026 — APTA date validation (English only)
+    const RRA_CUTOFF = '2026-05-01'
+    const resolvedLang = language || 'english'
+    const resolvedAgreementType = agreementType || 'ast'
+    if (resolvedLang === 'english' && tenancyStartDate && (resolvedAgreementType === 'ast' || resolvedAgreementType === 'apta')) {
+      const startDate = new Date(tenancyStartDate)
+      const cutoff = new Date(RRA_CUTOFF)
+      if (resolvedAgreementType === 'ast' && startDate >= cutoff) {
+        return res.status(400).json({
+          error: 'Tenancies starting on or after 1 May 2026 must use an Assured Periodic Tenancy Agreement (APTA) under the Renters\' Rights Act 2025'
+        })
+      }
+      if (resolvedAgreementType === 'apta' && startDate < cutoff) {
+        return res.status(400).json({
+          error: 'APTA agreements are only available for tenancies starting on or after 1 May 2026'
+        })
+      }
+    }
+
     // If propertyId is provided, check compliance status
     let hasExpiredCompliance = false
     let expiredComplianceTypes: string[] = []
@@ -183,6 +204,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const agreementData: AgreementData = {
       templateType,
+      agreementType: resolvedAgreementType as any,
       propertyAddress,
       landlords,
       tenants,
@@ -190,7 +212,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       depositAmount,
       rentAmount,
       tenancyStartDate,
-      tenancyEndDate,
+      tenancyEndDate: resolvedAgreementType === 'apta' ? undefined : tenancyEndDate,
       rentDueDay,
       depositSchemeType,
       permittedOccupiers,
@@ -203,9 +225,10 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       agentEmail: resolvedAgentEmail,
       managementType,
       agentSignsOnBehalf,
-      breakClause,
+      breakClause: resolvedAgreementType === 'apta' ? undefined : breakClause,
       specialClauses,
-      billsIncluded,
+      billsIncluded: billsIncludedUtilities?.length ? true : (billsIncluded || false),
+      billsIncludedUtilities,
       language: language || 'english'
     }
 
@@ -228,12 +251,16 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // If tenancyId was provided, link the agreement to the tenancy
     if (tenancyId) {
+      const tenancyUpdate: Record<string, any> = {
+        agreement_id: agreementId,
+        updated_at: new Date().toISOString()
+      }
+      if (resolvedAgreementType === 'apta') {
+        tenancyUpdate.tenancy_type = 'periodic'
+      }
       const { error: updateError } = await supabase
         .from('tenancies')
-        .update({
-          agreement_id: agreementId,
-          updated_at: new Date().toISOString()
-        })
+        .update(tenancyUpdate)
         .eq('id', tenancyId)
         .eq('company_id', companyId)
 
@@ -286,6 +313,19 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Fetch property special clauses to include in Schedule 1
+    let propertySpecialClauses: string[] = []
+    if (agreement.property_id) {
+      const { data: propData } = await supabase
+        .from('properties')
+        .select('special_clauses')
+        .eq('id', agreement.property_id)
+        .single()
+      if (propData?.special_clauses && Array.isArray(propData.special_clauses) && propData.special_clauses.length > 0) {
+        propertySpecialClauses = propData.special_clauses.filter((c: any) => typeof c === 'string' && c.trim())
+      }
+    }
+
     // Fetch company details (always needed for logo, address only for managed)
     let companyName: string | undefined
     let companyAddress: any | undefined
@@ -315,6 +355,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     // Prepare agreement data
     const agreementData: AgreementData = {
       templateType: agreement.template_type,
+      agreementType: agreement.agreement_type || 'ast',
       propertyAddress: agreement.property_address,
       landlords: agreement.landlords,
       tenants: agreement.tenants,
@@ -336,8 +377,12 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreement.management_type,
       agentSignsOnBehalf: agreement.agent_signs_on_behalf,
       breakClause: agreement.break_clause,
-      specialClauses: agreement.special_clauses,
+      specialClauses: [
+        agreement.special_clauses,
+        ...propertySpecialClauses
+      ].filter(Boolean).join('\n\n') || undefined,
       billsIncluded: agreement.bills_included,
+      billsIncludedUtilities: agreement.bills_included_utilities || undefined,
       language: agreement.language || 'english',
       companyName,
       companyAddress
@@ -366,6 +411,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     // Convert AgreementData to AgreementPDFData
     const pdfData: AgreementPDFData = {
       templateType: agreementData.templateType,
+      agreementType: agreementData.agreementType || 'ast',
       language: agreementData.language || 'english',
       propertyAddress: agreementData.propertyAddress,
       landlords: agreementData.landlords,
@@ -389,6 +435,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       breakClause: agreementData.breakClause,
       specialClauses: agreementData.specialClauses,
       billsIncluded: agreementData.billsIncluded,
+      billsIncludedUtilities: agreementData.billsIncludedUtilities,
       companyName: agreementData.companyName,
       companyAddress: agreementData.companyAddress,
       companyLogoUrl
@@ -398,7 +445,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     const pdfBuffer = await pdfGenerationService.generatePreviewPDF(pdfData)
 
     // Generate filename
-    const contractType = agreementData.language === 'welsh' ? 'WOC' : 'AST'
+    const contractType = agreementData.language === 'welsh' ? 'WOC' : (agreementData.agreementType === 'apta' ? 'APTA' : 'AST')
     const fileName = `${contractType}_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.pdf`
 
     // Upload to storage

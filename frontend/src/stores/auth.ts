@@ -15,7 +15,7 @@ export interface Branch {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
-  const company = ref<{ name: string, role: string, logoUrl?: string } | null>(null)
+  const company = ref<{ name: string, role: string, logoUrl?: string, jmiEnabled?: boolean } | null>(null)
   const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
   const isAdmin = ref<boolean>(false) // Admin staff privileges
   const isStaff = ref<boolean>(false) // Staff portal access
@@ -106,7 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         const data = await response.json()
         if (data.company && data.role) {
-          company.value = { name: data.company.name, role: data.role, logoUrl: data.company.logo_url || undefined }
+          company.value = { name: data.company.name, role: data.role, logoUrl: data.company.logo_url || undefined, jmiEnabled: data.company.jmi_enabled !== false }
         }
       } else if (response.status === 403) {
         // Check if token is invalid (not just permission denied)

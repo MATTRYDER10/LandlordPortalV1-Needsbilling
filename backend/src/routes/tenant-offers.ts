@@ -133,7 +133,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
                     rent_amount: rent_amount || null,
                     offer_deposit_replacement: !!offer_deposit_replacement,
                     linked_property_id: linked_property_id || null,
-                    form_ref: formRef
+                    form_ref: formRef,
+                    is_v2: true
                 })
         } catch (dbError: any) {
             console.error('Failed to store sent offer form record:', dbError)
@@ -2010,6 +2011,60 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
         if (updateError) {
             return res.status(400).json({ error: updateError.message })
+        }
+
+        // Create expected payment for holding deposit (already received)
+        try {
+          const { createExpectedPayment } = await import('../services/rentgooseService')
+          const { getCurrentBalance } = await import('../services/rentgooseService')
+
+          // Get property details for the expected payment
+          const propertyAddr = offerData.property_address_encrypted ? decrypt(offerData.property_address_encrypted) : ''
+          const propertyPc = offerData.property_postcode_encrypted ? decrypt(offerData.property_postcode_encrypted) : ''
+          const tenantName = offerData.tenant_offer_tenants?.[0]?.name_encrypted
+            ? decrypt(offerData.tenant_offer_tenants[0].name_encrypted)
+            : 'Tenant'
+
+          await createExpectedPayment(companyId, {
+            tenancy_id: offerData.tenancy_id || undefined,
+            property_id: offerData.linked_property_id || undefined,
+            payment_type: 'holding_deposit',
+            source_type: 'tenant_offer',
+            source_id: id,
+            description: `Holding deposit - ${propertyAddr || 'Property'}`,
+            amount_due: parsedAmount,
+            amount_received: parsedAmount,
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            payout_type: 'deposit_hold',
+            payout_split: [{ type: 'holding_deposit', amount: parsedAmount, description: 'Holding deposit' }],
+            property_address: propertyAddr || undefined,
+            property_postcode: propertyPc || undefined,
+            tenant_name: tenantName || undefined,
+          })
+
+          // Create holding_deposit_in client_account_entry (money already received)
+          const { supabase: sb } = await import('../config/supabase')
+          const currentBalance = await getCurrentBalance(companyId)
+          const newBalance = currentBalance + parsedAmount
+
+          await sb
+            .from('client_account_entries')
+            .insert({
+              company_id: companyId,
+              entry_type: 'holding_deposit_in',
+              amount: parsedAmount,
+              description: `Holding deposit received - ${propertyAddr || 'Property'}`,
+              reference: `HD-${id.slice(0, 8).toUpperCase()}`,
+              related_id: id,
+              related_type: 'tenant_offer',
+              balance_after: newBalance,
+              created_by: userId,
+              is_manual: false,
+            })
+        } catch (epError) {
+          console.error('[RentGoose] Failed to create holding deposit expected payment:', epError)
+          // Don't fail the whole request
         }
 
         // Use the offer data we already fetched

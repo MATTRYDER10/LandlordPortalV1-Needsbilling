@@ -368,6 +368,86 @@
       "tags": ["password", "security", "profile"],
       "relatedGuide": "settings-overview",
       "sortOrder": 6
+    },
+    {
+      "id": "faq-v2-legacy",
+      "category": "offers",
+      "question": "What's the difference between Offers V1 and Offers V2?",
+      "answer": "Offers V2 is the new RRA 2025 compliant platform. All new offers should be sent via Offers V2 (accessed from Offers in the sidebar). V1 offers and references remain visible under Legacy References in the sidebar — these will continue to complete normally but no new offers should be started there.",
+      "tags": ["offers", "v2", "legacy"],
+      "sortOrder": 10
+    },
+    {
+      "id": "faq-apta-when",
+      "category": "tenancies",
+      "question": "When does the new Periodic Tenancy Agreement apply?",
+      "answer": "From 1 May 2026 for all new English tenancies. PropertyGoose automatically selects the APTA template for any move-in date on or after this date. Welsh agreements are unaffected.",
+      "tags": ["apta", "rra", "periodic"],
+      "sortOrder": 10
+    },
+    {
+      "id": "faq-apta-break",
+      "category": "tenancies",
+      "question": "Can I still include a break clause in the agreement?",
+      "answer": "No. Break clauses are not permitted in Assured Periodic Tenancies under the Renters Rights Act 2026. You can still add other special clauses via the Properties tab.",
+      "tags": ["apta", "break clause", "rra"],
+      "sortOrder": 11
+    },
+    {
+      "id": "faq-student-conversion",
+      "category": "tenancies",
+      "question": "I have student tenancies on ASTs already signed — what do I need to do?",
+      "answer": "You must serve the compliance pack to all affected tenants before 30 May 2026. The compliance pack information sheet covers the AST to periodic conversion. Send it via the Tenancies tab.",
+      "tags": ["student", "conversion", "apta", "rra"],
+      "sortOrder": 12
+    },
+    {
+      "id": "faq-jmi-bills",
+      "category": "tenancies",
+      "question": "Will JMI notify utilities for bills-included properties?",
+      "answer": "No. Properties marked as Bills Included in PropertyGoose are automatically excluded from all JMI utility notifications. No action is needed — the system handles this automatically.",
+      "tags": ["jmi", "bills included", "utilities"],
+      "sortOrder": 13
+    },
+    {
+      "id": "faq-jmi-optout",
+      "category": "account-settings",
+      "question": "How do I opt out of Just Move In?",
+      "answer": "Go to Settings → Company → Management Info and untick the 'Use PropertyGoose's Partner Just Move In' toggle. This will disable JMI notifications for your entire company. You will then need to notify utilities manually.",
+      "tags": ["jmi", "opt out", "settings"],
+      "sortOrder": 10
+    },
+    {
+      "id": "faq-reposit-link",
+      "category": "account-settings",
+      "question": "How do I link my Reposit account?",
+      "answer": "Go to Settings → Deposits → Reposit and enter your Reposit agent credentials. Once linked, you can offer Reposit to tenants via Offers V2 and complete Reposit sales from the Tenancies tab with one click.",
+      "tags": ["reposit", "deposit", "integration"],
+      "sortOrder": 11
+    },
+    {
+      "id": "faq-management-fee-vat",
+      "category": "properties",
+      "question": "Should management fees be set inclusive or exclusive of VAT?",
+      "answer": "This depends on whether your agency is VAT registered. If you are VAT registered (set in Settings → Company), enter fees exclusive of VAT — PropertyGoose will add VAT on statements. If not VAT registered, the fee you enter is the final amount charged.",
+      "tags": ["management fee", "vat", "properties"],
+      "sortOrder": 10
+    },
+    {
+      "id": "faq-rentgoose-beta",
+      "category": "account-settings",
+      "question": "Is RentGoose available to all users?",
+      "answer": "RentGoose is currently in Beta and accessible via the sidebar beta section. All users can access it, but as a Beta product features are still being refined. Use the bug report button to flag any issues.",
+      "tags": ["rentgoose", "beta"],
+      "sortOrder": 12
+    },
+    {
+      "id": "faq-refs-v2-queue",
+      "category": "references",
+      "question": "Can I move a V1 reference into V2?",
+      "answer": "No — V1 and V2 are separate platforms. If a reference was started in V1 (Legacy References), it must be completed there. V2 references are only started from Offers V2 and cannot be manually migrated from V1.",
+      "tags": ["references", "v2", "legacy"],
+      "sortOrder": 10
     }
   ]
 }

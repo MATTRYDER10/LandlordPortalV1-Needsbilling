@@ -1,0 +1,44 @@
+{
+  "id": "references-v2-overview",
+  "slug": "references-v2-overview",
+  "title": "References V2 — Separate Work Queue",
+  "category": "references",
+  "tags": ["references", "v2", "legacy", "hmo", "group referencing"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 10,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "References V2 is a completely separate platform from Legacy References (V1). All new references initiated from Offers V2 use the V2 reference platform automatically.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "V2 vs Legacy References",
+        "content": "References V2 and Legacy References (V1) are completely independent systems. V1 will continue to process any references that were already sent or are in queue — these complete normally and should not be interfered with. All new offers sent via Offers V2 automatically use the V2 reference platform. Do not attempt to mix the two: if a reference was started in V1, continue it in Legacy References only."
+      },
+      {
+        "type": "text",
+        "title": "Key Features of V2",
+        "content": "References V2 offers faster applicant response flows, a detailed evidence view allowing agents to see all submitted documents and checks in one place, a new-format reference report, and HMO group referencing — the ability to produce a combined report for multiple applicants on the same property."
+      },
+      {
+        "type": "text",
+        "title": "How New References are Started",
+        "content": "New V2 references are always started from within Offers V2. Once an offer is approved (either by you or the landlord), click 'Start Reference' on the offer. The system creates a V2 reference automatically and sends the applicant a secure form link. You cannot manually create a standalone V2 reference outside of this flow."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Do Not Mix V1 and V2",
+        "content": "If a reference was started in Legacy References (V1), it must be completed there. V2 references are only created from Offers V2 and cannot be manually migrated from V1. Mixing the two systems will cause tracking errors."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Legacy References Remain Accessible",
+        "content": "Legacy References are still visible in the sidebar for all in-progress V1 work. They are not being removed — they simply will not receive any new references going forward."
+      }
+    ],
+    "relatedArticles": ["references-v2-how-to", "references-v2-report", "offers-v2-overview", "offers-v2-landlord-approval"]
+  }
+}

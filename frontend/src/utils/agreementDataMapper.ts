@@ -24,6 +24,8 @@ export interface Party {
 export interface AgreementFormData {
   language: 'english' | 'welsh'
   templateType: string
+  agreementType: 'ast' | 'apta' | 'company_let' | 'lodger'
+  billsIncludedUtilities: string[]
   propertyAddress: Address
   rentAmount?: number
   depositAmount?: number
@@ -82,6 +84,8 @@ export interface DatabaseAgreement {
   break_clause?: string
   special_clauses?: string
   bills_included?: boolean
+  agreement_type?: string
+  bills_included_utilities?: string[]
   pdf_url?: string
   pdf_generated_at?: string
   signing_status?: string
@@ -96,6 +100,8 @@ export function getDefaultFormData(): AgreementFormData {
   return {
     language: 'english',
     templateType: '',
+    agreementType: 'ast',
+    billsIncludedUtilities: [],
     propertyAddress: {
       line1: '',
       line2: '',
@@ -179,6 +185,8 @@ export function agreementToFormData(agreement: DatabaseAgreement): AgreementForm
   return {
     language: (agreement.language as 'english' | 'welsh') || 'english',
     templateType: agreement.template_type || '',
+    agreementType: (agreement.agreement_type as any) || 'ast',
+    billsIncludedUtilities: agreement.bills_included_utilities || [],
     propertyAddress: agreement.property_address || {
       line1: '',
       line2: '',
@@ -256,8 +264,6 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     language: formData.language,
     // Backend expects templateType to be the base deposit scheme (dps, tds, mydeposits, etc.)
     templateType: templateType,
-    // Send agreement type separately
-    agreementType: formData.templateType,
     propertyAddress: formData.propertyAddress,
     landlords: formData.landlords,
     tenants: formData.tenants,
@@ -281,7 +287,9 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     paymentReference: formData.paymentReference,
     breakClause: formData.breakClause,
     specialClauses: formData.specialClauses,
-    billsIncluded: formData.billsIncluded
+    billsIncluded: formData.billsIncluded,
+    agreementType: formData.agreementType,
+    billsIncludedUtilities: formData.billsIncludedUtilities,
   }
 }
 
@@ -291,7 +299,7 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
 export function validateStep(formData: AgreementFormData, step: number): boolean {
   switch (step) {
     case 1: // Template
-      return !!formData.templateType
+      return !!formData.templateType || !!formData.agreementType
     case 2: // Property Address
       return !!(
         formData.propertyAddress.line1 &&

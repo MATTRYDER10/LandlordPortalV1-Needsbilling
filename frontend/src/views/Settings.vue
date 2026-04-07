@@ -10,18 +10,23 @@
       <div class="flex gap-6">
         <!-- Vertical Tabs -->
         <nav class="w-64 flex-shrink-0">
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2 space-y-1">
-            <router-link
-              v-for="tab in tabs"
-              :key="tab.id"
-              :to="`/settings/${tab.id}`"
-              class="block w-full text-left px-4 py-3 rounded-md font-medium text-sm transition-colors"
-              :class="activeTab === tab.id
-                ? 'bg-primary text-white'
-                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'"
-            >
-              {{ tab.name }}
-            </router-link>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2">
+            <template v-for="group in tabs" :key="group.category">
+              <p class="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 first:pt-1">
+                {{ group.category }}
+              </p>
+              <router-link
+                v-for="tab in group.items"
+                :key="tab.id"
+                :to="`/settings/${tab.id}`"
+                class="nav-tab group flex items-center px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200"
+                :class="activeTab === tab.id
+                  ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-md shadow-primary/30'
+                  : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10'"
+              >
+                <span class="group-hover:translate-x-0.5 transition-transform duration-200">{{ tab.name }}</span>
+              </router-link>
+            </template>
           </div>
         </nav>
 
@@ -289,6 +294,22 @@
               <!-- Management Information Section -->
               <div class="border-t dark:border-slate-700 pt-6">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Management Information</h4>
+
+                <!-- Just Move In Integration Toggle -->
+                <div class="mb-5 p-4 rounded-lg border" :class="companyData.jmiEnabled ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700'">
+                  <div class="flex items-start gap-3">
+                    <input
+                      id="jmi-enabled"
+                      v-model="companyData.jmiEnabled"
+                      type="checkbox"
+                      class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label for="jmi-enabled" class="cursor-pointer">
+                      <span class="block text-sm font-medium text-gray-900 dark:text-white">Use PropertyGoose's Partner Just Move In</span>
+                      <span class="block text-xs text-gray-500 dark:text-slate-400 mt-0.5">Auto notify utilities of move ins and move outs. Automated through the PropertyGoose Tenancies Tab. Uncheck to opt out and hide all Just Move In prompts.</span>
+                    </label>
+                  </div>
+                </div>
                 <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
                   The message below will be sent to your managed tenants in the move-in pack to tell them how to report maintenance issues. Please describe your process.
                 </p>
@@ -302,6 +323,32 @@
                     placeholder="e.g. For any maintenance issues, please report them via email to maintenance@company.com or call 01onal23 456789 during office hours (Mon-Fri 9am-5pm). For emergencies outside of hours, please call our 24/7 line on 01234 567890."
                   ></textarea>
                   <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">This is only shown for managed tenancies. Let Only tenancies will show landlord contact details instead.</p>
+                </div>
+
+                <!-- VAT Registration -->
+                <div class="border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">VAT Registration</h4>
+                  <div class="flex items-center gap-3 mb-3">
+                    <input
+                      id="vat-registered"
+                      v-model="companyData.isVatRegistered"
+                      type="checkbox"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <label for="vat-registered" class="text-sm font-medium text-gray-700 dark:text-slate-300">Are you VAT registered?</label>
+                  </div>
+                  <div v-if="companyData.isVatRegistered">
+                    <label for="vat-number" class="block text-sm font-medium text-gray-700 dark:text-slate-300">VAT Number</label>
+                    <input
+                      id="vat-number"
+                      v-model="companyData.vatNumber"
+                      type="text"
+                      class="mt-1 block w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="e.g. GB123456789"
+                    />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Displayed on all statements and invoices. Fees will show + VAT.</p>
+                  </div>
+                  <p v-else class="text-sm text-gray-500 dark:text-slate-500">All fees will display as inclusive (no VAT breakdown).</p>
                 </div>
               </div>
 
@@ -849,13 +896,23 @@
         </div>
 
         <!-- Apex27 CRM Tab -->
-        <div v-else-if="activeTab === 'apex27'" class="max-w-3xl">
+        <div v-else-if="activeTab === 'apex27'">
           <Apex27IntegrationSettings />
         </div>
 
         <!-- InventoryGoose Tab -->
         <div v-else-if="activeTab === 'inventorygoose'" class="max-w-3xl">
           <IGIntegrationSettings />
+        </div>
+
+        <!-- Just Move In Tab -->
+        <div v-else-if="activeTab === 'jmi'" class="max-w-3xl">
+          <JMIIntegrationSettings />
+        </div>
+
+        <!-- Property Settings Tab -->
+        <div v-else-if="activeTab === 'property-settings'">
+          <PropertySettings />
         </div>
 
         <!-- Billing Tab -->
@@ -1040,12 +1097,14 @@ import MyDepositsIntegrationSettings from '../components/settings/MyDepositsInte
 import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
 import Apex27IntegrationSettings from '../components/settings/Apex27IntegrationSettings.vue'
 import IGIntegrationSettings from '../components/settings/IGIntegrationSettings.vue'
+import JMIIntegrationSettings from '../components/settings/JMIIntegrationSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
+import PropertySettings from '../components/settings/PropertySettings.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -1065,31 +1124,50 @@ const activeTab = computed(() => {
   if (path.includes('/settings/review-links')) return 'review-links'
   if (path.includes('/settings/apex27')) return 'apex27'
   if (path.includes('/settings/inventorygoose')) return 'inventorygoose'
+  if (path.includes('/settings/jmi')) return 'jmi'
+  if (path.includes('/settings/property-settings')) return 'property-settings'
   // Legacy route support
   if (path.includes('/settings/integrations')) return 'tds'
   return 'profile'
 })
 
 // Filter tabs based on user role
-const tabs = computed(() => {
-  const allTabs = [
-    { id: 'profile', name: 'Profile' },
-    { id: 'company', name: 'Company' },
-    { id: 'branding', name: 'Branding' },
-    { id: 'team', name: 'Team' },
-    { id: 'tds', name: 'TDS Integration' },
-    { id: 'mydeposits', name: 'mydeposits' },
-    { id: 'reposit', name: 'Reposit' },
-    { id: 'review-links', name: 'Review Links' },
-    { id: 'apex27', name: 'Apex27 CRM' },
-    { id: 'inventorygoose', name: 'InventoryGoose' },
-    { id: 'billing', name: 'Billing' },
-    { id: 'audit-logs', name: 'Audit Logs' }
-  ]
-
-  // TEMPORARY: Always show all tabs to debug the issue
-  return allTabs
-})
+const tabs = computed(() => [
+  {
+    category: 'Account',
+    items: [
+      { id: 'profile', name: 'Profile' }
+    ]
+  },
+  {
+    category: 'Company & Team',
+    items: [
+      { id: 'audit-logs', name: 'Audit Logs' },
+      { id: 'billing', name: 'Billing' },
+      { id: 'branding', name: 'Branding' },
+      { id: 'company', name: 'Company' },
+      { id: 'property-settings', name: 'Property Settings' },
+      { id: 'team', name: 'Team' }
+    ]
+  },
+  {
+    category: 'Deposits',
+    items: [
+      { id: 'mydeposits', name: 'mydeposits' },
+      { id: 'reposit', name: 'Reposit' },
+      { id: 'tds', name: 'TDS Integration' }
+    ]
+  },
+  {
+    category: 'Integrations',
+    items: [
+      { id: 'apex27', name: 'Apex27 CRM' },
+      { id: 'inventorygoose', name: 'InventoryGoose' },
+      { id: 'jmi', name: 'Just Move In' },
+      { id: 'review-links', name: 'Review Links' }
+    ]
+  }
+])
 
 // Profile data
 const profileData = ref({
@@ -1125,7 +1203,10 @@ const companyData = ref({
   bankAccountName: '',
   bankAccountNumber: '',
   bankSortCode: '',
-  managementInfo: ''
+  managementInfo: '',
+  isVatRegistered: false,
+  vatNumber: '',
+  jmiEnabled: true
 })
 
 const companyLoading = ref(false)
@@ -1400,6 +1481,9 @@ const fetchCompanyData = async () => {
         companyData.value.bankAccountNumber = data.company.bank_account_number || ''
         companyData.value.bankSortCode = data.company.bank_sort_code || ''
         companyData.value.managementInfo = data.company.management_info || ''
+        companyData.value.jmiEnabled = data.company.jmi_enabled !== false
+        companyData.value.isVatRegistered = data.company.is_vat_registered || false
+        companyData.value.vatNumber = data.company.vat_number || ''
 
         // Load branding data
         brandingData.value.logo_url = data.company.logo_url || ''
@@ -1566,7 +1650,10 @@ const handleUpdateCompany = async () => {
         bank_account_name: companyData.value.bankAccountName,
         bank_account_number: companyData.value.bankAccountNumber,
         bank_sort_code: companyData.value.bankSortCode,
-        management_info: companyData.value.managementInfo
+        management_info: companyData.value.managementInfo,
+        is_vat_registered: companyData.value.isVatRegistered,
+        vat_number: companyData.value.vatNumber,
+        jmi_enabled: companyData.value.jmiEnabled
       })
     })
 
@@ -2083,3 +2170,27 @@ const getAuditActionBadgeClass = (actionType: string) => {
   return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300'
 }
 </script>
+
+<style scoped>
+.nav-tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.15), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.nav-tab:hover::before {
+  transform: translateX(100%);
+}
+
+.nav-tab:hover {
+  transform: translateX(4px);
+}
+</style>

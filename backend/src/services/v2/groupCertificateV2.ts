@@ -176,14 +176,15 @@ async function fetchGroupCertificateData(parentReferenceId: string): Promise<Gro
     if (parentGuarantor) {
       const gName = `${decrypt(parentGuarantor.tenant_first_name_encrypted) || ''} ${decrypt(parentGuarantor.tenant_last_name_encrypted) || ''}`.trim()
       const gResult = extractIndividualDecision(parentGuarantor.final_decision_notes) || parentGuarantor.status
+      const gIncome = await getEffectiveIncome(parentGuarantor.id, parentGuarantor.annual_income)
       members.push({
         id: parentGuarantor.id,
         name: gName || 'Unknown',
         isGuarantor: true,
         guarantorFor: parentName || 'Unknown',
         individualResult: gResult,
-        annualIncome: parentGuarantor.annual_income,
-        maxAffordableRent: parentGuarantor.annual_income ? Math.round((parentGuarantor.annual_income / 32) * 100) / 100 : null,
+        annualIncome: gIncome || null,
+        maxAffordableRent: gIncome ? Math.round((gIncome / 32) * 100) / 100 : null,
         rentShare: null,
         referenceNumber: parentGuarantor.reference_number
       })
@@ -218,14 +219,15 @@ async function fetchGroupCertificateData(parentReferenceId: string): Promise<Gro
     if (childGuarantor) {
       const gName = `${decrypt(childGuarantor.tenant_first_name_encrypted) || ''} ${decrypt(childGuarantor.tenant_last_name_encrypted) || ''}`.trim()
       const gResult = extractIndividualDecision(childGuarantor.final_decision_notes) || childGuarantor.status
+      const gChildIncome = await getEffectiveIncome(childGuarantor.id, childGuarantor.annual_income)
       members.push({
         id: childGuarantor.id,
         name: gName || 'Unknown',
         isGuarantor: true,
         guarantorFor: childName || 'Unknown',
         individualResult: gResult,
-        annualIncome: childGuarantor.annual_income,
-        maxAffordableRent: childGuarantor.annual_income ? Math.round((childGuarantor.annual_income / 32) * 100) / 100 : null,
+        annualIncome: gChildIncome || null,
+        maxAffordableRent: gChildIncome ? Math.round((gChildIncome / 32) * 100) / 100 : null,
         rentShare: null,
         referenceNumber: childGuarantor.reference_number
       })

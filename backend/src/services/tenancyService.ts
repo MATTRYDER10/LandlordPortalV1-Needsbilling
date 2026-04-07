@@ -75,6 +75,7 @@ export interface UpdateTenancyInput {
   depositReference?: string
   depositProtectedAt?: string
   billsIncluded?: boolean
+  hasRlp?: boolean
   additionalCharges?: AdditionalCharge[]
   compliancePackSentAt?: string
   compliancePackSentBy?: string
@@ -136,6 +137,7 @@ export interface Tenancy {
   deposit_reference: string | null
   deposit_protected_at: string | null
   bills_included: boolean
+  has_rlp: boolean
   additional_charges: AdditionalCharge[]
   rent_due_day: number
   has_break_clause: boolean
@@ -235,12 +237,20 @@ export async function createTenancy(
   const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase()
   const referenceNumber = `TEN-${datePart}-${randomPart}`
 
+  // Auto-set tenancy type based on RRA cutoff if not explicitly periodic
+  const RRA_CUTOFF = '2026-05-01'
+  let resolvedTenancyType = tenancyType
+  if (startDate && new Date(startDate) >= new Date(RRA_CUTOFF) && tenancyType === 'ast') {
+    resolvedTenancyType = 'periodic'
+  }
+
   // Create tenancy record - using actual table column names
   const insertData: Record<string, any> = {
     company_id: companyId,
     property_id: propertyId,
     reference_number: referenceNumber,
     status: 'pending',
+    tenancy_type: resolvedTenancyType,
     tenancy_start_date: startDate,
     rent_amount: monthlyRent,
     created_by: createdBy
@@ -628,6 +638,7 @@ export async function updateTenancy(
   if (input.depositReference !== undefined) updateData.deposit_reference = input.depositReference
   if (input.depositProtectedAt !== undefined) updateData.deposit_protected_at = input.depositProtectedAt
   if (input.billsIncluded !== undefined) updateData.bills_included = input.billsIncluded
+  if (input.hasRlp !== undefined) updateData.has_rlp = input.hasRlp
   if (input.additionalCharges !== undefined) updateData.additional_charges = input.additionalCharges
   if (input.compliancePackSentAt !== undefined) {
     updateData.compliance_pack_sent_at = input.compliancePackSentAt
@@ -701,6 +712,16 @@ export async function updateTenancy(
     }
   }
 
+  // Propagate rent amount changes to future RentGoose schedule entries
+  if (input.monthlyRent !== undefined) {
+    try {
+      const { updateFutureRentAmounts } = await import('./rentgooseService')
+      await updateFutureRentAmounts(tenancyId, input.monthlyRent)
+    } catch (err) {
+      console.error('[TenancyService] Failed to propagate rent change to schedule:', err)
+    }
+  }
+
   return formatTenancy(data)
 }
 
@@ -749,6 +770,14 @@ export async function endTenancy(
     userId,
     metadata: { end_date: endDate, reason }
   })
+
+  // Automatically update RentGoose — cancel future schedule entries and pro-rate final period
+  try {
+    const { handleNotice } = await import('./rentgooseService')
+    await handleNotice(tenancyId, endDate, companyId)
+  } catch (err) {
+    console.error('Failed to update RentGoose schedule after notice:', err)
+  }
 
   return tenancy
 }
@@ -1311,6 +1340,7 @@ function formatTenancy(data: any): Tenancy {
     deposit_reference: data.deposit_reference,
     deposit_protected_at: data.deposit_protected_at,
     bills_included: data.bills_included,
+    has_rlp: data.has_rlp || false,
     additional_charges: data.additional_charges || [],
     rent_due_day: data.rent_due_day || 1,
     has_break_clause: data.has_break_clause,

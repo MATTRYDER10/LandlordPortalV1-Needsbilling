@@ -1,0 +1,54 @@
+{
+  "id": "integrations-mydeposits",
+  "slug": "integrations-mydeposits",
+  "title": "mydeposits Integration",
+  "category": "account-settings",
+  "tags": ["mydeposits", "deposit scheme", "integration", "deposit protection", "prescribed information", "insured", "custodial"],
+  "createdAt": "2026-04-06",
+  "updatedAt": "2026-04-06",
+  "sortOrder": 34,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "The mydeposits integration enables PropertyGoose to register deposits with mydeposits automatically and generate the prescribed information document for tenants.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Connect mydeposits",
+        "steps": [
+          {
+            "title": "Go to Settings → Deposits → mydeposits",
+            "content": "Navigate to Settings, open the Deposits section, and find the mydeposits integration panel.",
+            "image": null
+          },
+          {
+            "title": "Enter Your mydeposits API Credentials",
+            "content": "Enter your mydeposits API credentials. These are available from your mydeposits account portal.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click Save to store your credentials and activate the integration.",
+            "image": null
+          },
+          {
+            "title": "Select mydeposits When Setting Up Initial Monies",
+            "content": "When creating initial monies for a tenancy, select mydeposits as the deposit protection scheme from the dropdown.",
+            "image": null
+          },
+          {
+            "title": "Deposit Registered and Prescribed Information Generated",
+            "content": "PropertyGoose registers the deposit with mydeposits automatically and generates the prescribed information document, which can be sent to tenants via the compliance pack.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Insured vs Custodial Protection",
+        "content": "mydeposits supports both insured deposit protection (agent holds the deposit funds) and custodial deposit protection (mydeposits holds the deposit funds). Select the correct type to match your mydeposits account setup when configuring the integration."
+      }
+    ],
+    "relatedArticles": ["integrations-tds", "integrations-reposit", "tenancies-compliance-pack"]
+  }
+}

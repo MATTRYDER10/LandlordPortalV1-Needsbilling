@@ -1,12 +1,29 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { writeFileSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
+const appVersion = pkg.version
+
+// Plugin to write version.json into the build output
+function versionFilePlugin(): Plugin {
+  return {
+    name: 'version-file',
+    closeBundle() {
+      const versionPath = resolve(__dirname, 'dist', 'version.json')
+      writeFileSync(versionPath, JSON.stringify({ version: appVersion }))
+      console.log(`[version-file] Wrote version.json: ${appVersion}`)
+    }
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), versionFilePlugin()],
   define: {
-    __APP_VERSION__: JSON.stringify(Date.now().toString())
+    __APP_VERSION__: JSON.stringify(appVersion)
   },
   build: {
     sourcemap: false
@@ -34,6 +51,7 @@ export default defineConfig({
       '.ngrok-free.app',
       '.ngrok-free.dev',
       '.ngrok.io',
+      '.ngrok.app',
       '.ngrok.app'
     ]
   },

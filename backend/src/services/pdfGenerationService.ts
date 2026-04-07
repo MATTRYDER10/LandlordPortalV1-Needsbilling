@@ -65,9 +65,11 @@ export interface AgreementPDFData {
   landlordEmail?: string
   agentEmail?: string
   managementType?: 'managed' | 'let_only'
+  agreementType?: 'ast' | 'apta' | 'company_let' | 'lodger'
   breakClause?: string
   specialClauses?: string
   billsIncluded?: boolean
+  billsIncludedUtilities?: string[]
   companyName?: string
   companyAddress?: PropertyAddress
   companyLogoUrl?: string
@@ -128,6 +130,30 @@ const WELSH_TEMPLATE_MAP: Record<TemplateType, { standard: string; guarantor: st
   }
 }
 
+// Template file mapping for English APTA contracts (Renters' Rights Act 2025)
+const ENGLISH_APTA_TEMPLATE_MAP: Record<TemplateType, { standard: string; guarantor: string }> = {
+  dps: {
+    standard: 'PGAPTA-DPS.md',
+    guarantor: 'PGAPTA-DPS Guarantor.md'
+  },
+  mydeposits: {
+    standard: 'PGAPTA-MyDep.md',
+    guarantor: 'PGAPTA-MyDep Guarantor.md'
+  },
+  tds: {
+    standard: 'PGAPTA-TDS.md',
+    guarantor: 'PGAPTA-TDS Guarantor.md'
+  },
+  no_deposit: {
+    standard: 'PGAPTA-NoDeposit.md',
+    guarantor: 'PGAPTA-NoDeposit Guarantor.md'
+  },
+  reposit: {
+    standard: 'PGAPTA-REPOSIT.md',
+    guarantor: 'PGAPTA-REPOSIT Guarantor.md'
+  }
+}
+
 class PDFGenerationService {
   private readonly contractsDir: string
 
@@ -139,9 +165,16 @@ class PDFGenerationService {
   /**
    * Get the template file path based on language, template type, and guarantor presence
    */
-  private getTemplatePath(language: Language, templateType: TemplateType, hasGuarantor: boolean): string {
+  private getTemplatePath(language: Language, templateType: TemplateType, hasGuarantor: boolean, agreementType?: string): string {
     const langDir = language === 'welsh' ? 'Welsh Contracts Markdown' : 'English Contracts Markdown'
-    const templateMap = language === 'welsh' ? WELSH_TEMPLATE_MAP : ENGLISH_TEMPLATE_MAP
+    let templateMap: Record<TemplateType, { standard: string; guarantor: string }>
+    if (agreementType === 'apta' && language !== 'welsh') {
+      templateMap = ENGLISH_APTA_TEMPLATE_MAP
+    } else if (language === 'welsh') {
+      templateMap = WELSH_TEMPLATE_MAP
+    } else {
+      templateMap = ENGLISH_TEMPLATE_MAP
+    }
     const templateFile = hasGuarantor ? templateMap[templateType].guarantor : templateMap[templateType].standard
 
     const templatePath = path.join(this.contractsDir, langDir, templateFile)
@@ -360,12 +393,72 @@ class PDFGenerationService {
     // Permitted occupiers
     result = result.replace(/\[PERMITTED OCCUPIER NAMES\]/gi, data.permittedOccupiers || 'None')
 
+    // APTA-specific replacements
+    const utilityLabels: Record<string, string> = {
+      gas: 'Gas', electric: 'Electricity', water: 'Water',
+      council_tax: 'Council Tax', internet: 'Internet/Broadband', tv_licence: 'TV Licence'
+    }
+    const allUtilityKeys = ['gas', 'electric', 'water', 'council_tax', 'internet', 'tv_licence']
+    const billsUtilities = (data.billsIncludedUtilities || []).map(u => utilityLabels[u] || u)
+    const billsListStr = billsUtilities.length > 0 ? billsUtilities.join(', ') : 'None'
+    const hasBillsIncluded = data.billsIncluded || billsUtilities.length > 0
+
+    // Excluded utilities = all standard utilities not in billsIncludedUtilities
+    const includedKeys = data.billsIncludedUtilities || []
+    const excludedKeys = allUtilityKeys.filter(u => !includedKeys.includes(u))
+    const excludedLabels = excludedKeys.map(u => utilityLabels[u] || u)
+    const billsExcludedStr = excludedLabels.length > 0 && hasBillsIncluded
+      ? excludedLabels.join(', ')
+      : hasBillsIncluded ? 'None' : 'All utilities payable by the Tenant'
+
+    // [BILLS_STATEMENT] — legal prose replacing the old Q&A block in APTA templates
+    const billsStatement = hasBillsIncluded && billsUtilities.length > 0
+      ? `The following utilities and services are included within the monthly Rent: **${billsListStr}**. All other utilities and services are the responsibility of the Tenant and must be paid directly by the Tenant.`
+      : hasBillsIncluded
+      ? `Utility bills are included within the monthly Rent. All other utilities and services not listed are the responsibility of the Tenant.`
+      : `No utility bills or services are included within the monthly Rent. All utilities and services are the responsibility of the Tenant and must be paid directly by the Tenant.`
+    result = result.replace(/\[BILLS_STATEMENT\]/gi, billsStatement)
+
+    // Legacy individual placeholders (AST templates still use these)
+    result = result.replace(/\[BILLS_INCLUDED\]/gi, hasBillsIncluded ? 'included' : 'not included')
+    result = result.replace(/\[BILLS_INCLUDED_LIST\]/gi, billsUtilities.length > 0 ? billsListStr : 'None')
+    result = result.replace(/\[BILLS_EXCLUDED_DETAILS\]/gi, billsExcludedStr)
+
+    result = result.replace(/\[TENANCY_TYPE_LABEL\]/gi, data.agreementType === 'apta' ? 'Assured Periodic Tenancy' : 'Assured Shorthold Tenancy')
+    result = result.replace(/\[NOTICE_PERIOD\]/gi, data.agreementType === 'apta' ? '2 months' : 'As per agreement terms')
+    result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
+    result = result.replace(/\[AGENT_OR_LANDLORD\]/gi, data.managementType === 'managed' ? 'Agent' : 'Landlord')
+    result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
+
+    // Agent details block
+    const agentDetailsStr = data.managementType === 'managed' && data.companyName
+      ? `${data.companyName}${data.companyAddress ? ', ' + this.formatAddress(data.companyAddress) : ''}`
+      : data.agentEmail || ''
+    result = result.replace(/\[AGENT_DETAILS\]/gi, agentDetailsStr)
+
+    // [SIGNATORY_NAME] kept for backward compat but APTA templates now use static "THE LANDLORD(S)"
+    result = result.replace(/\[SIGNATORY_NAME\]/gi,
+      data.managementType === 'managed' ? (data.companyName || 'Agent') : (data.landlords?.[0]?.name || 'Landlord'))
+
+    // "Acting as agent..." line only appears for managed agreements
+    if (data.managementType !== 'managed') {
+      result = result.replace(/\n\nActing as agent, for and on behalf of, the Landlord\(s\)\n/g, '\n')
+      result = result.replace(/Acting as agent, for and on behalf of, the Landlord\(s\)\n/g, '')
+    }
+
+    // Guarantor address/email for APTA templates
+    const guarantorAddr = data.guarantors?.[0]?.address ? this.formatAddress(data.guarantors[0].address) : 'N/A'
+    result = result.replace(/\[GUARANTOR_ADDRESS\]/gi, guarantorAddr)
+    result = result.replace(/\[GUARANTOR_EMAIL\]/gi, data.guarantors?.[0]?.email || 'N/A')
+
     // Financial details
     // Some templates have £[amount] (need just the number), others have [amount] alone (need £ + number)
     // Add "(bills included)" suffix if bills are included in rent
-    const rentAmountStr = data.billsIncluded
-      ? `£${this.formatCurrency(data.rentAmount)} (bills included)`
-      : `£${this.formatCurrency(data.rentAmount)}`
+    const hasBills = data.billsIncluded || billsUtilities.length > 0
+    const billsSuffix = hasBills
+      ? (billsUtilities.length > 0 ? ` (${billsListStr} included)` : ' (bills included)')
+      : ''
+    const rentAmountStr = `£${this.formatCurrency(data.rentAmount)}${billsSuffix}`
     // First replace £[amount] with just the number to avoid ££
     result = result.replace(/£\[RENT_AMOUNT\]|£\[rent_amount\]/gi, rentAmountStr)
     result = result.replace(/£\[DEPOSIT_?\s*AMOUNT\]|£\[deposit_amount\]/gi, `£${this.formatCurrency(data.depositAmount)}`)
@@ -376,7 +469,10 @@ class PDFGenerationService {
 
     // Dates - handle multiple variants including malformed ones like [tenancy_end_date)
     result = result.replace(/\[tenancy_start_date\]|\[TENANCY_START_DATE\]/gi, this.formatDate(data.tenancyStartDate))
-    result = result.replace(/\[tenancy_end_date\)|\[tenancy_end_date\]/gi, this.formatDate(data.tenancyEndDate))
+    const endDateStr = (data.agreementType === 'apta' && !data.tenancyEndDate)
+      ? 'Rolling periodic — no fixed end date'
+      : this.formatDate(data.tenancyEndDate)
+    result = result.replace(/\[tenancy_end_date\)|\[tenancy_end_date\]/gi, endDateStr)
     // [date] is when the contract is made - use current date
     result = result.replace(/\[date\]/gi, this.formatDate(new Date().toISOString()))
 
@@ -1052,7 +1148,8 @@ class PDFGenerationService {
       const templatePath = this.getTemplatePath(
         agreementData.language || 'english',
         agreementData.templateType,
-        hasGuarantor
+        hasGuarantor,
+        agreementData.agreementType
       )
       console.log(`Loading template: ${templatePath}`)
 
