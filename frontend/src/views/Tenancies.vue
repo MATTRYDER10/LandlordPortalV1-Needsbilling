@@ -848,7 +848,17 @@ const router = useRouter()
 const toast = useToast()
 const authStore = useAuthStore()
 
-// Watch for query params
+// State (must be declared before the route query watcher which uses immediate: true)
+const loading = ref(false)
+const tenancies = ref<any[]>([])
+const archivedTenanciesData = ref<any[]>([])
+const search = ref('')
+const activeSection = ref<'draft' | 'active' | 'notice_served' | 'archived'>('draft')
+const drawerOpen = ref(false)
+const selectedTenancy = ref<any | null>(null)
+const showCreateModal = ref(false)
+const loadingArchived = ref(false)
+
 // Active filter state
 const activeFilter = ref<string | null>(null)
 const managementFilter = ref<'let_only' | 'managed' | null>(null)
@@ -914,17 +924,6 @@ watch(() => route.query, (query) => {
     activeSection.value = 'draft'
   }
 }, { immediate: true })
-
-// State
-const loading = ref(false)
-const tenancies = ref<any[]>([])
-const archivedTenanciesData = ref<any[]>([])
-const search = ref('')
-const activeSection = ref<'draft' | 'active' | 'notice_served' | 'archived'>('draft')
-const drawerOpen = ref(false)
-const selectedTenancy = ref<any | null>(null)
-const showCreateModal = ref(false)
-const loadingArchived = ref(false)
 
 // Action modals state
 const actionTenancy = ref<any | null>(null)

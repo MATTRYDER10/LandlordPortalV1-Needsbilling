@@ -334,12 +334,12 @@
                   <button
                     v-if="!hasAgreement"
                     @click="generateAgreement"
-                    :disabled="generatingAgreement"
+                    :disabled="generatingAgreement || !fullTenancyData"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Loader2 v-if="generatingAgreement" class="w-4 h-4 text-amber-600 animate-spin" />
+                    <Loader2 v-if="generatingAgreement || !fullTenancyData" class="w-4 h-4 text-amber-600 animate-spin" />
                     <FileSignature v-else class="w-4 h-4 text-amber-600" />
-                    {{ generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
+                    {{ !fullTenancyData ? 'Loading...' : generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
                   </button>
 
                   <!-- Draft Agreement: View/Edit -->
@@ -386,10 +386,12 @@
                   <button
                     v-else-if="agreementData?.signing_status === 'cancelled'"
                     @click="showAgreementModal = true"
-                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300"
+                    :disabled="!fullTenancyData"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FileSignature class="w-4 h-4 text-gray-600" />
-                    Regenerate Agreement
+                    <Loader2 v-if="!fullTenancyData" class="w-4 h-4 text-gray-600 animate-spin" />
+                    <FileSignature v-else class="w-4 h-4 text-gray-600" />
+                    {{ !fullTenancyData ? 'Loading...' : 'Regenerate Agreement' }}
                   </button>
 
                   <!-- Status label -->

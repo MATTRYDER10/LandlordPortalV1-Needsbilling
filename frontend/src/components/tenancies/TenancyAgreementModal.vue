@@ -548,7 +548,7 @@
                         :class="!guarantor.name ? 'border-red-300 bg-red-50' : 'border-gray-300'"
                       />
                       <input
-                        v-model="guarantor.email"
+                        v-model.trim="guarantor.email"
                         type="email"
                         placeholder="Email (required)"
                         class="px-3 py-2 text-sm border rounded-lg focus:ring-primary focus:border-primary"
@@ -706,7 +706,7 @@
                       </div>
                       <div class="ml-6">
                         <input
-                          v-model="guarantor.email"
+                          v-model.trim="guarantor.email"
                           type="email"
                           placeholder="Enter email address"
                           class="w-full text-xs px-2 py-1 border border-transparent hover:border-gray-300 dark:hover:border-slate-600 focus:border-primary focus:ring-1 focus:ring-primary rounded bg-transparent dark:bg-transparent text-gray-600 dark:text-slate-400 focus:text-gray-900 dark:focus:text-white"
