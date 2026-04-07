@@ -599,7 +599,7 @@ const legacyNavigation = [
 ]
 
 // Companies permitted to see RentGoose (UI-only gate — name substring match)
-const RENTGOOSE_ALLOWED = ['rg property', 'propertygoose']
+const RENTGOOSE_ALLOWED = ['rg property', 'propertygoose', 'pearl lettings']
 
 const showRentGoose = computed(() => {
   const name = (authStore.company?.name || '').toLowerCase()
