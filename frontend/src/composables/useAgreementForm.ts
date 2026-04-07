@@ -271,8 +271,8 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   // Validation
   const isValidEmail = (email: string): boolean => {
     if (!email) return false
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email.trim())
+    const trimmed = email.trim()
+    return trimmed.includes('@') && trimmed.indexOf('@') > 0 && trimmed.indexOf('@') < trimmed.length - 1
   }
 
   const validatePropertyAddress = computed(() => {
@@ -322,20 +322,18 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   const validateTenants = computed(() => {
     if (formData.value.tenants.length === 0) return false
     return formData.value.tenants.every(t =>
-      t.name &&
-      t.address.line1 &&
-      t.address.city &&
-      t.address.postcode
+      t.name?.trim() &&
+      t.address?.line1?.trim()
     )
   })
 
   const validateGuarantors = computed(() => {
-    // Guarantors are optional, but if present, need name and valid email
+    // Guarantors are optional, but if present need name, email with @, and some address
     if (formData.value.guarantors.length === 0) return true
     return formData.value.guarantors.every(g =>
-      g.name &&
-      g.email &&
-      isValidEmail(g.email)
+      g.name?.trim() &&
+      g.email?.includes('@') &&
+      g.address?.line1?.trim()
     )
   })
 
