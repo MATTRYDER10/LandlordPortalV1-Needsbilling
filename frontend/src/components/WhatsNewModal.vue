@@ -51,8 +51,8 @@
                     <ul class="mt-2 space-y-1.5 text-sm text-gray-700 dark:text-slate-300 leading-snug">
                       <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Move-in dates from 1 May 2026 onwards will automatically use the new monthly rolling Periodic Assured Tenancy Agreement — no fixed term, no break clauses.</span></li>
                       <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Special clauses can still be added via the Properties tab. Break clauses are no longer permitted.</span></li>
-                      <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Tenancies starting before May 2026 will be served a Conversion PDF via the compliance pack send in the Tenancies tab.</span></li>
-                      <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Student tenancies already signed must have this PDF served before 30 May 2026 in line with the Renters Rights Act.</span></li>
+                      <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Tenancies starting before May 2026 will be covered by the compliance pack information sheet sent via the Tenancies tab.</span></li>
+                      <li class="flex gap-2"><span class="text-amber-500 flex-shrink-0">›</span><span>Student tenancies already signed must have the compliance pack served before 30 May 2026 in line with the Renters Rights Act.</span></li>
                     </ul>
                   </div>
                 </div>
