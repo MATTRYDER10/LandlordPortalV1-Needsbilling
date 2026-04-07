@@ -254,9 +254,14 @@ router.post('/receipt', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'schedule_entry_id and amount required' })
     }
 
+    const parsedAmount = parseFloat(amount)
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' })
+    }
+
     const result = await rentgooseService.receiptPayment(companyId, {
       schedule_entry_id,
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       payment_method: payment_method || 'bank_transfer',
       date_received: date_received || new Date().toISOString().split('T')[0],
       reference,

@@ -76,6 +76,24 @@ export const getV2FrontendUrl = (): string => {
     return PROD_FRONTEND_URL
   }
 
-  // In development, use FRONTEND_URL if set (e.g. ngrok), otherwise localhost
-  return process.env.FRONTEND_URL || LOCALHOST_URL
+  // In development, only use local URLs if explicitly enabled
+  if (process.env.USE_LOCAL_EMAIL_LINKS === 'true') {
+    return process.env.LOCAL_FRONTEND_URL || LOCALHOST_URL
+  }
+
+  const rawUrl = process.env.FRONTEND_URL
+  if (!rawUrl) {
+    return PROD_FRONTEND_URL
+  }
+
+  try {
+    const parsed = new URL(rawUrl)
+    if (isLocalOrPrivateHost(parsed.hostname)) {
+      console.warn(`[getV2FrontendUrl] Blocked local/private URL "${rawUrl}", using production URL`)
+      return PROD_FRONTEND_URL
+    }
+    return rawUrl
+  } catch {
+    return PROD_FRONTEND_URL
+  }
 }

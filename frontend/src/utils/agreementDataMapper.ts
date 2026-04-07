@@ -264,8 +264,6 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     language: formData.language,
     // Backend expects templateType to be the base deposit scheme (dps, tds, mydeposits, etc.)
     templateType: templateType,
-    // Send agreement type separately
-    agreementType: formData.templateType,
     propertyAddress: formData.propertyAddress,
     landlords: formData.landlords,
     tenants: formData.tenants,
