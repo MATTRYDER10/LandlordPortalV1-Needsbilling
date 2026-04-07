@@ -3242,19 +3242,25 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
     const leadTenant = (tenancy.tenants || []).find(t => t.is_lead_tenant && t.email && t.status === 'active')
     const targetTenant = leadTenant || (tenancy.tenants || []).find(t => t.email && t.status === 'active')
 
-    // Get holding deposit paid from tenant_offers (if reference exists)
+    // Get holding deposit from tenant_offers (if reference exists)
     let holdingDepositPaid = 0
     if (tenancy.primary_reference_id) {
       const { data: offer } = await supabase
         .from('tenant_offers')
-        .select('holding_deposit_amount_paid')
+        .select('holding_deposit_amount_paid, holding_deposit_amount')
         .eq('reference_id', tenancy.primary_reference_id)
         .single()
 
       if (offer?.holding_deposit_amount_paid) {
         holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+      } else if (offer?.holding_deposit_amount) {
+        // Fall back to the requested amount if not yet confirmed
+        holdingDepositPaid = parseFloat(offer.holding_deposit_amount) || 0
       }
     }
+
+    // If deposit scheme is reposit, deposit amount should be 0 (no cash deposit)
+    const isReposit = tenancy.deposit_scheme === 'reposit'
 
     // Format property address
     const propertyAddress = [
@@ -3316,7 +3322,8 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
       recipientEmail: targetTenant?.email || '',
       monthlyRent,
       firstMonthRent,
-      depositAmount: tenancy.deposit_amount || 0,
+      depositAmount: isReposit ? 0 : (tenancy.deposit_amount || 0),
+      depositScheme: tenancy.deposit_scheme || null,
       holdingDepositPaid,
       additionalCharges: (tenancy.additional_charges || [])
         .filter(c => c.frequency === 'one_time')

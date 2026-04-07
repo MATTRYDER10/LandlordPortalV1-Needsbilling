@@ -113,7 +113,10 @@
 
                 <!-- Deposit -->
                 <div class="flex items-center justify-between gap-4">
-                  <label class="text-sm text-gray-700 dark:text-slate-300">Security Deposit</label>
+                  <div>
+                    <label class="text-sm text-gray-700 dark:text-slate-300">Security Deposit</label>
+                    <p v-if="depositScheme === 'reposit'" class="text-xs text-green-600 dark:text-green-400">Reposit — no cash deposit required</p>
+                  </div>
                   <div class="relative">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400">&pound;</span>
                     <input
@@ -263,6 +266,7 @@ const propertyAddress = ref('')
 const recipientName = ref('')
 const recipientEmail = ref('')
 const dueDate = ref('')
+const depositScheme = ref<string | null>(null)
 
 const editableAmounts = ref({
   firstMonthRent: 0,
@@ -360,13 +364,14 @@ const loadInitialData = async () => {
       rentDueDay.value = data.rentDueDay || props.tenancy.rent_due_day || 1
       proRataAmount.value = data.proRataAmount || 0
       hasProRata.value = data.hasProRata || false
+      depositScheme.value = data.depositScheme || props.tenancy?.deposit_scheme || null
 
       // First month rent includes pro-rata if applicable
       const firstMonthWithProRata = monthlyRent.value + (proRataAmount.value || 0)
 
       editableAmounts.value = {
         firstMonthRent: data.firstMonthRent || firstMonthWithProRata,
-        deposit: data.depositAmount || props.tenancy.deposit_amount || 0,
+        deposit: data.depositAmount ?? props.tenancy.deposit_amount ?? 0,
         holdingDeposit: data.holdingDepositPaid || 0,
         additionalCharges: (data.additionalCharges || []).map((c: any) => ({
           name: c.name,
@@ -387,6 +392,8 @@ const loadInitialData = async () => {
       recipientName.value = leadTenant ? `${leadTenant.first_name} ${leadTenant.last_name}`.trim() : ''
       recipientEmail.value = leadTenant?.email || ''
       dueDate.value = getDefaultDueDate()
+
+      depositScheme.value = props.tenancy?.deposit_scheme || null
 
       // Calculate term months from dates
       const rent = props.tenancy.monthly_rent || props.tenancy.rent_amount || 0
