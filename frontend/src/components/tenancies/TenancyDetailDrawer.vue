@@ -330,17 +330,24 @@
 
                 <!-- Generate/View Agreement - Context-aware based on signing status -->
                 <div class="flex flex-col">
-                  <!-- No Agreement: Generate -->
+                  <!-- No Agreement: Generate (hidden until full data loaded) -->
                   <button
-                    v-if="!hasAgreement"
+                    v-if="!hasAgreement && fullTenancyData"
                     @click="generateAgreement"
-                    :disabled="generatingAgreement || !fullTenancyData"
+                    :disabled="generatingAgreement"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Loader2 v-if="generatingAgreement || !fullTenancyData" class="w-4 h-4 text-amber-600 animate-spin" />
+                    <Loader2 v-if="generatingAgreement" class="w-4 h-4 text-amber-600 animate-spin" />
                     <FileSignature v-else class="w-4 h-4 text-amber-600" />
-                    {{ !fullTenancyData ? 'Loading...' : generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
+                    {{ generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
                   </button>
+                  <div
+                    v-else-if="!hasAgreement && !fullTenancyData"
+                    class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500"
+                  >
+                    <Loader2 class="w-4 h-4 animate-spin" />
+                    Loading tenant data...
+                  </div>
 
                   <!-- Draft Agreement: View/Edit -->
                   <button
@@ -384,14 +391,12 @@
 
                   <!-- Cancelled: Regenerate -->
                   <button
-                    v-else-if="agreementData?.signing_status === 'cancelled'"
+                    v-else-if="agreementData?.signing_status === 'cancelled' && fullTenancyData"
                     @click="showAgreementModal = true"
-                    :disabled="!fullTenancyData"
-                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300"
                   >
-                    <Loader2 v-if="!fullTenancyData" class="w-4 h-4 text-gray-600 animate-spin" />
-                    <FileSignature v-else class="w-4 h-4 text-gray-600" />
-                    {{ !fullTenancyData ? 'Loading...' : 'Regenerate Agreement' }}
+                    <FileSignature class="w-4 h-4 text-gray-600" />
+                    Regenerate Agreement
                   </button>
 
                   <!-- Status label -->
