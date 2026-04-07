@@ -3575,6 +3575,27 @@ watch(() => props.open, async (isOpen) => {
     // Reset tenant change state
     activeTenantChange.value = null
     showTenantChangeModal.value = false
+
+    // Immediately populate tenant addresses from props (no async wait)
+    const propTenants = props.tenancy?.tenants || []
+    if (propTenants.length > 0) {
+      const immediateMap = new Map<string, any>()
+      for (const t of propTenants) {
+        const name = `${t.first_name || ''} ${t.last_name || ''}`.trim()
+        if (name && (t.residential_address_line1 || t.residential_city || t.residential_postcode)) {
+          immediateMap.set(name.toLowerCase(), {
+            line1: t.residential_address_line1 || '',
+            line2: t.residential_address_line2 || '',
+            city: t.residential_city || '',
+            postcode: t.residential_postcode || ''
+          })
+        }
+      }
+      if (immediateMap.size > 0) {
+        tenantAddressMap.value = immediateMap
+      }
+    }
+
     // Always load full tenancy data to ensure we have latest info
     await loadFullTenancyData()
     // Load additional data, agreement status, agent settings, guarantors, notes, activity, and rent changes in parallel
