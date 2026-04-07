@@ -1388,7 +1388,7 @@ router.post('/landlord/:id/annual-statement/email', authenticateToken, async (re
       .single()
 
     const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
-    const companyLogo = company?.logo_url || 'https://www.propertygoose.co.uk/pg-logo.png'
+    const companyLogo = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
     const companyEmail = (company?.email_encrypted ? decrypt(company.email_encrypted) : null) || ''
     const companyPhone = (company?.phone_encrypted ? decrypt(company.phone_encrypted) : null) || ''
 

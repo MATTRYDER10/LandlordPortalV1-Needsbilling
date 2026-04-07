@@ -1199,7 +1199,7 @@ router.post('/:id/report-issue', authenticateStaff, async (req: StaffAuthRequest
 
     const co = company as any
     const companyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'PropertyGoose'
-    const agentLogoUrl = company?.logo_url || 'https://www.rgproperty.co.uk/images/propertygoose-logo.png'
+    const agentLogoUrl = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
     // Send tenant email
     if (reqType === 'document') {

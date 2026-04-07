@@ -87,7 +87,7 @@ async function sendReportForCompany(companyId: string, rangeStart: string, weekR
   const recipientEmail = company.offer_notification_email || companyEmail
   if (!recipientEmail) return
 
-  const logoUrl = company.logo_url || 'https://www.propertygoose.co.uk/logo.png'
+  const logoUrl = company.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
   // Get negotiators
   const { data: negotiators } = await supabase

@@ -196,7 +196,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
               PropertyAddress: property_address,
               RentAmount: rent_amount ? `£${Number(rent_amount).toLocaleString()}` : 'TBC',
               CompanyName: companyName,
-              AgentLogoUrl: companyLogoUrl || 'https://www.propertygoose.co.uk/logo.png'
+              AgentLogoUrl: companyLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
             })
 
             await sendEmail({

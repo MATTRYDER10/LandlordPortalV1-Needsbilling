@@ -6003,7 +6003,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
       PaymentReference: `RDC-${changeRecord.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
       CompanyName: companyName,
-      AgentLogoUrl: company.logo_url || 'https://propertygoose.co.uk/logo.png',
+      AgentLogoUrl: company.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       ContactSection: contactSection
     })
 
@@ -6428,7 +6428,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
         MonthlyRent: parseFloat(change.monthly_rent).toFixed(2),
         NextRentDueDate: nextRentDueDateStr,
         CompanyName: company?.name || 'PropertyGoose',
-        AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
+        AgentLogoUrl: company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
         ContactSection: contactSection
       })
 
@@ -6717,7 +6717,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
       PaymentReference: `RDC-${change.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
       CompanyName: company?.name || 'PropertyGoose',
-      AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
+      AgentLogoUrl: company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       ContactSection: contactSection
     })
 

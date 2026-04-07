@@ -133,7 +133,7 @@ router.post('/confirm', authenticateToken, async (req: AuthRequest, res) => {
           PropertiesSkipped: String(r.records_skipped),
           TotalProcessed: String(r.records_processed),
           ErrorCount: String(r.errors.length),
-          DashboardLink: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/properties`
+          DashboardLink: `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/properties`
         })
 
         await sendEmail({

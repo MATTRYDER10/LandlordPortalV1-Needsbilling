@@ -1884,7 +1884,7 @@ export async function sendVerificationCompleteNotification(
       DashboardLink: dashboardLink,
       GroupStatusSection: groupStatusHtml,
       PdfAttachmentNotice: pdfNoticeHtml,
-      AgentLogoUrl: groupStatus.agentLogoUrl || 'https://app.propertygoose.co.uk/logo.png',
+      AgentLogoUrl: groupStatus.agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       CompanyName: groupStatus.agentName || 'Property Goose'
     })
 

@@ -180,7 +180,7 @@ export async function sendCertificateToTenants(
       DepositAmount: `£${depositAmount.toLocaleString('en-GB')}`,
       ProtectionDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
       PropertyAddress: propertyAddress || 'Your property',
-      AgentLogoUrl: logoUrl || 'https://www.propertygoose.co.uk/logo.png'
+      AgentLogoUrl: logoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
     })
 
     await sendEmail({
