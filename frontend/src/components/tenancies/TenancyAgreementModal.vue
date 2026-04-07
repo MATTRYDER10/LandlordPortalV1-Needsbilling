@@ -142,13 +142,16 @@
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
                 </div>
-                <div>
+                <div v-if="!isAPTA">
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tenancy End Date</label>
                   <input
                     v-model="formData.tenancyEndDate"
                     type="date"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
+                </div>
+                <div v-if="isAPTA" class="flex items-center text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                  Rolling periodic — no fixed end date
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monthly Rent *</label>
@@ -188,8 +191,8 @@
                 </select>
               </div>
 
-              <!-- Break Clause -->
-              <div class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+              <!-- Break Clause (not available for APTA) -->
+              <div v-if="!isAPTA" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                 <label class="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
