@@ -10,13 +10,22 @@
           </h1>
           <p :class="['text-sm mt-1', isDark ? 'text-slate-400' : 'text-gray-500']">Rent collection, payouts & client account management</p>
         </div>
-        <button
-          v-if="['collection', 'payouts', 'fees', 'contractors'].includes(store.activeTab)"
-          @click="showRaiseCharge = true"
-          class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors"
-        >
-          Raise Invoice / Charge / Credit
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            @click="handleRefresh"
+            :disabled="refreshing"
+            :class="['flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors', isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-gray-600 hover:bg-gray-100']"
+          >
+            <RefreshCcw :class="{ 'animate-spin': refreshing }" class="w-4 h-4" />
+          </button>
+          <button
+            v-if="['collection', 'payouts', 'fees', 'contractors'].includes(store.activeTab)"
+            @click="showRaiseCharge = true"
+            class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors"
+          >
+            Raise Invoice / Charge / Credit
+          </button>
+        </div>
       </div>
 
       <!-- Sub-tab navigation -->
@@ -71,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { RefreshCcw } from 'lucide-vue-next'
 import { useDarkMode } from '../composables/useDarkMode'
 import { useRentGooseStore } from '../stores/rentgoose'
 import Sidebar from '../components/Sidebar.vue'
@@ -85,6 +95,21 @@ import RaiseChargeModal from '../components/rentgoose/RaiseChargeModal.vue'
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
 const showRaiseCharge = ref(false)
+const refreshing = ref(false)
+
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    switch (store.activeTab) {
+      case 'collection': await store.fetchUnifiedSchedule(); break
+      case 'payouts': await store.fetchPayouts(); break
+      case 'client-account': await store.fetchClientAccount(); break
+      default: await store.fetchUnifiedSchedule()
+    }
+  } finally {
+    refreshing.value = false
+  }
+}
 
 const tabs = computed(() => [
   { id: 'collection', name: 'Payments', count: store.categoryCounts.arrears || 0 },
