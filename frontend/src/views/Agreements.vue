@@ -287,9 +287,9 @@
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Select Agreement Template</h3>
           <p class="text-sm text-gray-600 mb-6">Choose the contract language and deposit protection scheme for this tenancy</p>
 
-          <!-- Language Selection -->
+          <!-- Legislative Region Selection -->
           <div class="mb-8">
-            <label class="block text-sm font-medium text-gray-700 mb-3">Contract Language *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-3">Legislative Region *</label>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
               <button
                 type="button"
