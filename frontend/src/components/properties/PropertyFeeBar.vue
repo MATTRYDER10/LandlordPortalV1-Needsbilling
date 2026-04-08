@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useApi } from '../../composables/useApi'
 import AddChargeModal from './AddChargeModal.vue'
 
@@ -144,6 +144,12 @@ const localServiceTypeId = ref(props.serviceTypeId || '')
 const localFeePercent = ref(props.feePercent)
 const localFeeType = ref(props.managementFeeType || 'percentage')
 const localLettingFeeAmount = ref(props.lettingFeeAmount)
+
+// Keep local state in sync when property reloads (e.g. after compliance upload)
+watch(() => props.serviceTypeId, (v) => { if (v !== undefined) localServiceTypeId.value = v || '' })
+watch(() => props.feePercent, (v) => { if (v !== undefined) localFeePercent.value = v })
+watch(() => props.managementFeeType, (v) => { if (v !== undefined) localFeeType.value = v || 'percentage' })
+watch(() => props.lettingFeeAmount, (v) => { if (v !== undefined) localLettingFeeAmount.value = v })
 
 async function fetchServiceTypes() {
   try {
