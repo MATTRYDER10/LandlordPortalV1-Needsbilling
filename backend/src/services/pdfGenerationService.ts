@@ -66,6 +66,7 @@ export interface AgreementPDFData {
   agentEmail?: string
   managementType?: 'managed' | 'let_only'
   agreementType?: 'ast' | 'apta' | 'company_let' | 'lodger'
+  tenancyTerm?: number
   breakClause?: string
   specialClauses?: string
   billsIncluded?: boolean
@@ -73,6 +74,24 @@ export interface AgreementPDFData {
   companyName?: string
   companyAddress?: PropertyAddress
   companyLogoUrl?: string
+  // Lodger-specific
+  roomDescription?: string
+  sharedAreas?: string
+  billsContribution?: number
+  depositReturnDays?: number
+  landlordNoticeDays?: number
+  lodgerNoticeDays?: number
+  // Company let-specific
+  tenantCompanyName?: string
+  tenantCompanyNumber?: string
+  tenantSignatoryName?: string
+  tenantSignatoryPosition?: string
+  noticePeriodMonths?: number
+  rentArrearsDays?: number
+  interestRate?: number
+  forfeitureDays?: number
+  breakNoticeMonths?: number
+  breakEarliestMonth?: number
 }
 
 export interface PDFGenerationOptions {
@@ -167,6 +186,28 @@ class PDFGenerationService {
    */
   private getTemplatePath(language: Language, templateType: TemplateType, hasGuarantor: boolean, agreementType?: string): string {
     const langDir = language === 'welsh' ? 'Welsh Contracts Markdown' : 'English Contracts Markdown'
+
+    // Lodger and Company Let use single templates (no deposit scheme variants)
+    if (agreementType === 'lodger') {
+      const templateFile = 'PG-Lodger.md'
+      const templatePath = path.join(this.contractsDir, langDir, templateFile)
+      if (!fs.existsSync(templatePath)) {
+        console.error(`Template not found: ${templatePath}`)
+        throw new Error(`Template file not found: ${templateFile}`)
+      }
+      return templatePath
+    }
+
+    if (agreementType === 'company_let') {
+      const templateFile = 'PG-CompanyLet.md'
+      const templatePath = path.join(this.contractsDir, langDir, templateFile)
+      if (!fs.existsSync(templatePath)) {
+        console.error(`Template not found: ${templatePath}`)
+        throw new Error(`Template file not found: ${templateFile}`)
+      }
+      return templatePath
+    }
+
     let templateMap: Record<TemplateType, { standard: string; guarantor: string }>
     if (agreementType === 'apta' && language !== 'welsh') {
       templateMap = ENGLISH_APTA_TEMPLATE_MAP
@@ -631,6 +672,100 @@ class PDFGenerationService {
     // Replace the logo placeholder with an image tag
     const logoHtml = `<img src="${logoUrl}" alt="Logo" style="max-height: 80px; max-width: 200px; object-fit: contain;" />`
     result = result.replace(/\[AGREEMENT_LOGO\]/gi, logoHtml)
+
+    // Lodger-specific replacements
+    if (data.agreementType === 'lodger') {
+      const termType = data.tenancyEndDate ? `Fixed Term (${data.tenancyTerm || 12} months)` : 'Monthly Rolling (Periodic)'
+      result = result.replace(/\[TERM_TYPE\]/gi, termType)
+      result = result.replace(/\[ROOM_DESCRIPTION\]/gi, data.roomDescription || 'the room')
+      result = result.replace(/\[SHARED_AREAS\]/gi, data.sharedAreas || 'the kitchen, bathroom and living areas')
+      result = result.replace(/\[DEPOSIT_RETURN_DAYS\]/gi, String(data.depositReturnDays || 14))
+      result = result.replace(/\[LANDLORD_NOTICE_DAYS\]/gi, String(data.landlordNoticeDays || 28))
+      result = result.replace(/\[LODGER_NOTICE_DAYS\]/gi, String(data.lodgerNoticeDays || 28))
+      result = result.replace(/\[BILLS_CONTRIBUTION\]/gi, data.billsContribution ? `£${data.billsContribution}` : '£0')
+
+      // Bills section
+      const billsInc = data.billsIncluded || (data.billsIncludedUtilities && data.billsIncludedUtilities.length > 0)
+      const billsSection = billsInc
+        ? `The monthly rent of £${this.formatCurrency(data.rentAmount)} is inclusive of all household bills, including but not limited to gas, electricity, water, council tax and broadband/internet. The Landlord shall not be liable for any temporary interruption to services caused by circumstances beyond the Landlord's reasonable control. The Lodger shall use utilities responsibly and shall not cause excessive or wasteful consumption.`
+        : `The Lodger shall contribute ${data.billsContribution ? '£' + data.billsContribution : 'a fair share'} per month towards household bills. The Landlord shall be responsible for paying all household bills directly. The Landlord reserves the right to review the Lodger's contribution to bills on reasonable notice if costs increase significantly.`
+      result = result.replace(/\[BILLS_SECTION\]/gi, billsSection)
+    }
+
+    // Company Let specific replacements
+    if (data.agreementType === 'company_let') {
+      const termType = data.tenancyEndDate ? `Fixed Term of ${data.tenancyTerm || 12} months` : 'Monthly Rolling (Periodic)'
+      result = result.replace(/\[TERM_TYPE\]/gi, termType)
+      result = result.replace(/\[TENANT_COMPANY_NAME\]/gi, data.tenantCompanyName || data.tenants[0]?.name || '________')
+      result = result.replace(/\[TENANT_COMPANY_NUMBER\]/gi, data.tenantCompanyNumber || '________')
+      result = result.replace(/\[TENANT_SIGNATORY_NAME\]/gi, data.tenantSignatoryName || data.tenants[0]?.name || '________')
+      result = result.replace(/\[TENANT_SIGNATORY_POSITION\]/gi, data.tenantSignatoryPosition || 'Director')
+      result = result.replace(/\[AGENT_NAME\]/gi, data.companyName || '')
+      result = result.replace(/\[AGENT_ADDRESS\]/gi, data.companyAddress ? this.formatAddress(data.companyAddress) : '')
+      result = result.replace(/\[AGENT_EMAIL\]/gi, data.agentEmail || '')
+      result = result.replace(/\[AGENT_PHONE\]/gi, '')
+      result = result.replace(/\[FIRST_RENT_DATE\]/gi, this.formatDate(data.tenancyStartDate))
+      result = result.replace(/\[PAYMENT_REFERENCE\]/gi, data.paymentReference || this.formatAddress(data.propertyAddress))
+      result = result.replace(/\[NOTICE_PERIOD_MONTHS\]/gi, String(data.noticePeriodMonths || 2))
+      result = result.replace(/\[RENT_ARREARS_DAYS\]/gi, String(data.rentArrearsDays || 14))
+      result = result.replace(/\[INTEREST_RATE\]/gi, String(data.interestRate || 3))
+      result = result.replace(/\[FORFEITURE_DAYS\]/gi, String(data.forfeitureDays || 21))
+      result = result.replace(/\[DEPOSIT_RETURN_DAYS\]/gi, String(data.depositReturnDays || 14))
+      result = result.replace(/\[BREAK_NOTICE_MONTHS\]/gi, String(data.breakNoticeMonths || 2))
+      result = result.replace(/\[BREAK_EARLIEST_MONTH\]/gi, String(data.breakEarliestMonth || 6))
+      result = result.replace(/\[GUARANTOR_NAME\]/gi, data.guarantors?.[0]?.name || '')
+      result = result.replace(/\[GUARANTOR_ADDRESS\]/gi, data.guarantors?.[0]?.address ? this.formatAddress(data.guarantors[0].address) : '')
+
+      // Term section
+      const isFixed = !!data.tenancyEndDate
+      const termSection = isFixed
+        ? `The fixed term shall expire on ${this.formatDate(data.tenancyEndDate)}. At the end of the fixed term, the tenancy shall continue as a contractual periodic tenancy on a monthly basis, subject to termination by either party under clause 11.`
+        : 'This tenancy is a periodic tenancy running from month to month and may be terminated by either party in accordance with clause 11.'
+      result = result.replace(/\[TERM_SECTION\]/gi, termSection)
+
+      // Break clause section
+      const breakSection = data.breakClause
+        ? `Either party may terminate this agreement during the fixed term by giving not less than ${data.breakNoticeMonths || 2} months' written notice to the other party, such notice to expire on or after the date falling ${data.breakEarliestMonth || 6} months from the commencement date.`
+        : ''
+      result = result.replace(/\[BREAK_CLAUSE_SECTION\]/gi, breakSection)
+
+      // Bills section
+      const billsInc = data.billsIncluded || (data.billsIncludedUtilities && data.billsIncludedUtilities.length > 0)
+      const cBillsSection = billsInc
+        ? 'The Landlord shall be responsible for all utility costs. The rent is inclusive of gas, electricity, water, broadband and council tax.'
+        : 'The Tenant shall pay for all gas, electricity, water and sewerage charges, telephone, broadband and television licence at the Property during the term. The Tenant shall also pay council tax for the Property during the term.'
+      result = result.replace(/\[BILLS_SECTION\]/gi, cBillsSection)
+
+      // Deposit section
+      const depSection = depositSchemeName !== 'N/A' && depositSchemeName !== 'Reposit'
+        ? `However, the Landlord has elected to protect the deposit with ${depositSchemeName} ${depositType} as a matter of good practice.`
+        : 'The deposit will be held by the Landlord (or the Landlord\'s agent) directly.'
+      result = result.replace(/\[DEPOSIT_SECTION\]/gi, depSection)
+
+      // Termination section
+      const termTermSection = isFixed
+        ? `During the fixed term, the Landlord may terminate this agreement by giving not less than ${data.noticePeriodMonths || 2} months' written notice in the event of a breach of the Tenant's obligations. After expiry of the fixed term (during the periodic phase), either party may terminate by giving not less than ${data.noticePeriodMonths || 2} months' written notice to expire at the end of a rental period.`
+        : `Either party may terminate this agreement by giving not less than ${data.noticePeriodMonths || 2} months' written notice to expire at the end of a rental period.`
+      result = result.replace(/\[TERMINATION_SECTION\]/gi, termTermSection)
+
+      // Guarantor section
+      const guarantorSection = data.guarantors && data.guarantors.length > 0
+        ? `## GUARANTOR\n\nThe Guarantor hereby guarantees to the Landlord the performance of the Tenant's obligations under this agreement including (but not limited to) the payment of rent and the repair of any damage caused to the Property.\n\nName: ${data.guarantors[0].name}\n\nAddress: ${this.formatAddress(data.guarantors[0].address)}`
+        : ''
+      result = result.replace(/\[GUARANTOR_SECTION\]/gi, guarantorSection)
+    }
+
+    // Generic [TERM_TYPE] fallback
+    result = result.replace(/\[TERM_TYPE\]/gi, data.tenancyEndDate ? `Fixed Term (${data.tenancyTerm || 12} months)` : 'Periodic')
+
+    // Special clauses and permitted occupiers for lodger/company let templates
+    result = result.replace(/\[SPECIAL_CLAUSES\]/gi, data.specialClauses?.trim() || '')
+    result = result.replace(/\[PERMITTED_OCCUPIERS\]/gi, data.permittedOccupiers || 'None')
+
+    // Bank details (lodger/company let use these names)
+    result = result.replace(/\[BANK_ACCOUNT_NAME\]/gi, data.bankAccountName || '________')
+    result = result.replace(/\[BANK_SORT_CODE\]/gi, data.bankSortCode || '________')
+    result = result.replace(/\[BANK_ACCOUNT_NUMBER\]/gi, data.bankAccountNumber || '________')
 
     // Remove handlebars conditionals (they're for the old system) - logo is always shown
     result = result.replace(/\{\{#if.*?\}\}/gi, '')

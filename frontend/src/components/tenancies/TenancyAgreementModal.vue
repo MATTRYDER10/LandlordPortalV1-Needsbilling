@@ -96,7 +96,7 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Language</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Legislative Region</label>
                 <div class="flex gap-3">
                   <button
                     @click="formData.language = 'english'"
