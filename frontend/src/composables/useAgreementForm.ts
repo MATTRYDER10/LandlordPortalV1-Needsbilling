@@ -421,6 +421,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       formData.value.landlords = landlordsList.map((ll: any) => ({
         name: ll.full_name || ll.name || '',
         email: ll.email || '',
+        phone: ll.phone || ll.phone_number || '',
         address: {
           line1: ll.address_line1 || ll.address?.line1 || '',
           line2: ll.address_line2 || ll.address?.line2 || '',
