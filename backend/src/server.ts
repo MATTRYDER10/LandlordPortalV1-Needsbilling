@@ -60,6 +60,8 @@ import rentgooseRoutes from './routes/rentgoose'
 import contractorsRoutes from './routes/contractors'
 import jmiSettingsRoutes from './routes/jmi-settings'
 import jmiRoutes from './routes/jmi'
+import errorLogsRoutes from './routes/errorLogs'
+import { logError } from './utils/logError'
 
 // V2 Reference System Routes
 import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, uploadLinkRouter as v2UploadLinkRouter, groupAssessmentRouter as v2GroupAssessmentRouter, negotiatorsRouter as v2NegotiatorsRouter } from './routes/v2'
@@ -69,6 +71,19 @@ import { startArrearsChaseScheduler } from './services/arrearsChaseScheduler'
 import { startWeeklyReportScheduler } from './services/weeklyReportService'
 
 dotenv.config()
+
+// Process-level error handlers -- log to error_logs before crash
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[Process] Unhandled rejection:', reason)
+  logError(reason instanceof Error ? reason : new Error(String(reason)))
+})
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('[Process] Uncaught exception:', error)
+  logError(error)
+  // Give the error log time to write before crashing
+  setTimeout(() => process.exit(1), 1000)
+})
 
 const app = express()
 const PORT = parseInt(process.env.PORT || '3001', 10)
@@ -269,6 +284,17 @@ app.use('/api/v2/mobile-capture', v2MobileCaptureRouter)
 app.use('/api/v2/upload-link', v2UploadLinkRouter)
 app.use('/api/v2/group-assessment', v2GroupAssessmentRouter)
 app.use('/api/v2/staff/group-assessment', v2GroupAssessmentRouter)
+
+// Error logs (POST is unauthenticated for frontend ingestion, GET is admin-only)
+app.use('/api/error-logs', errorLogsRoutes)
+
+// Global error handler -- catches unhandled errors from routes/middleware
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logError(err, req)
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({ error: 'Internal server error' })
+  }
+})
 
 // Start server - listen on all interfaces for local network access
 app.listen(PORT, '0.0.0.0', () => {

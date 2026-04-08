@@ -126,6 +126,7 @@ import {
   ClipboardList,
   UserCog,
   Plug,
+  AlertTriangle,
   Menu,
   X
 } from 'lucide-vue-next'
@@ -182,6 +183,11 @@ const navigationItems = [
     name: 'Integrations',
     path: '/admin/integrations',
     icon: markRaw(Plug)
+  },
+  {
+    name: 'Error Logs',
+    path: '/admin/error-logs',
+    icon: markRaw(AlertTriangle)
   }
 ]
 
