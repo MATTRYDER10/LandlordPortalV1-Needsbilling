@@ -294,10 +294,10 @@
             <h4 class="text-xs font-semibold text-red-600 uppercase tracking-wider">CCJ Details</h4>
             <div v-for="(ccj, idx) in creditResponseData.countyCourtJudgments" :key="idx" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm">
               <div class="grid grid-cols-2 gap-2">
-                <div><span class="text-gray-500">Court:</span> <span class="font-medium">{{ ccj.courtName || 'Unknown' }}</span></div>
-                <div><span class="text-gray-500">Amount:</span> <span class="font-medium">£{{ ccj.amount || 'Unknown' }}</span></div>
-                <div><span class="text-gray-500">Date:</span> <span class="font-medium">{{ ccj.dateOfJudgment || ccj.registrationDate || 'Unknown' }}</span></div>
-                <div><span class="text-gray-500">Status:</span> <span class="font-medium" :class="ccj.caseStatus === 'Satisfied' ? 'text-green-600' : 'text-red-600'">{{ ccj.caseStatus || 'Unknown' }}</span></div>
+                <div><span class="text-gray-500">Court:</span> <span class="font-medium">{{ ccj.court || ccj.courtName || ccj.courtCode || 'Unknown' }}</span></div>
+                <div><span class="text-gray-500">Amount:</span> <span class="font-medium">{{ formatCcjAmount(ccj.amount) }}</span></div>
+                <div><span class="text-gray-500">Date:</span> <span class="font-medium">{{ ccj.date || ccj.dateOfJudgment || ccj.registrationDate || 'Unknown' }}</span></div>
+                <div><span class="text-gray-500">Status:</span> <span class="font-medium" :class="(ccj.status || ccj.caseStatus || '').toLowerCase().includes('satisfied') ? 'text-green-600' : 'text-red-600'">{{ ccj.status || ccj.caseStatus || (ccj.paidDate ? 'Satisfied' : 'Outstanding') }}</span></div>
               </div>
             </div>
           </div>
@@ -800,6 +800,17 @@ function formatValue(value: any): string {
   if (valueMap[str]) return valueMap[str]
   if (str.includes('_')) return str.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
   return str
+}
+
+function formatCcjAmount(amount: any): string {
+  if (!amount) return 'Unknown'
+  // Creditsafe returns amount as { currency: "GBP", value: 7882 }
+  if (typeof amount === 'object' && amount.value !== undefined) {
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: amount.currency || 'GBP', minimumFractionDigits: 0 }).format(amount.value)
+  }
+  // Fallback for plain number or string
+  const num = parseFloat(String(amount))
+  return isNaN(num) ? String(amount) : `£${num.toLocaleString('en-GB')}`
 }
 
 function formatUKDateTime(dateStr: string): string {

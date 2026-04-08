@@ -11,6 +11,7 @@ export interface Party {
   id?: string
   name: string
   email?: string
+  phone?: string
   address: {
     line1: string
     line2?: string
@@ -64,6 +65,7 @@ export interface AgreementPDFData {
   tenantEmail?: string
   landlordEmail?: string
   agentEmail?: string
+  agentPhone?: string
   managementType?: 'managed' | 'let_only'
   agreementType?: 'ast' | 'apta' | 'company_let' | 'lodger'
   tenancyTerm?: number
@@ -596,8 +598,11 @@ class PDFGenerationService {
       : (data.landlordEmail || '________')
     result = result.replace(/\[LANDLORD\/AGENT_EMAIL\]|\[Landlord\/Agent Email\]/gi, noticeEmail)
 
-    // Phone numbers (leave empty for cleaner look in tables)
-    result = result.replace(/\[LANDLORD\/AGENT_Phone_Number\]/gi, '')
+    // Phone numbers
+    const noticePhone = data.managementType === 'managed'
+      ? (data.agentPhone || '')
+      : (data.landlords?.[0]?.phone || '')
+    result = result.replace(/\[LANDLORD\/AGENT_PHONE\]|\[LANDLORD\/AGENT_Phone_Number\]/gi, noticePhone)
 
     // Landlord/Agent address (for notices)
     const noticeAddress = data.managementType === 'managed' && data.companyAddress

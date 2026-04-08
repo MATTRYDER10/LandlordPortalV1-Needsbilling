@@ -119,10 +119,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { referrerToken, apiKey, supplierId, environment, defaultAgentId } = req.body
+    const { supplierId, apiKey, environment, defaultAgentId } = req.body
+
+    // Referrer Token is always PropertyGoose's — hardcoded, not user-configurable
+    const referrerToken = 'propertygoose_live_c5RzPdoy0D6dnPN'
 
     if (!supplierId) {
-      return res.status(400).json({ error: 'Supplier ID is required' })
+      return res.status(400).json({ error: 'Account ID is required' })
     }
 
     if (environment && !['sandbox', 'live'].includes(environment)) {
@@ -142,21 +145,19 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // Check if config already exists
     const existingConfig = await getCompanyRepositConfig(companyData.companyId)
 
-    // If no credentials provided and no existing config, require them
-    if ((!referrerToken || !apiKey) && !existingConfig) {
-      return res.status(400).json({ error: 'Referrer Token and API Key are required for new configuration' })
+    // API Key required for new config, can keep existing on update
+    if (!apiKey && !existingConfig) {
+      return res.status(400).json({ error: 'Account ID and API Key are required' })
     }
 
-    // Use existing credentials if not provided in request
-    const finalReferrerToken = referrerToken ? referrerToken.trim() : existingConfig?.referrerToken
     const finalApiKey = apiKey ? apiKey.trim() : existingConfig?.apiKey
 
-    if (!finalReferrerToken || !finalApiKey) {
-      return res.status(400).json({ error: 'Referrer Token and API Key are required' })
+    if (!finalApiKey) {
+      return res.status(400).json({ error: 'API Key is required' })
     }
 
     const result = await saveRepositConfig(companyData.companyId, {
-      referrerToken: finalReferrerToken,
+      referrerToken,
       apiKey: finalApiKey,
       supplierId: supplierId.trim(),
       environment: environment || 'sandbox',
