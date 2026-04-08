@@ -330,9 +330,10 @@
 
                 <!-- Generate/View Agreement - Context-aware based on signing status -->
                 <div class="flex flex-col">
-                  <!-- No Agreement: Generate — visible instantly when props have tenant addresses -->
+                  <!-- No Agreement: Generate -->
+                  <!-- Show immediately if props have addresses; show after full load if ref-sourced -->
                   <button
-                    v-if="!hasAgreement && propsTenantAddressMap.size > 0"
+                    v-if="!hasAgreement && tenantAddressMap.size > 0"
                     @click="generateAgreement"
                     :disabled="generatingAgreement"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -342,7 +343,14 @@
                     {{ generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
                   </button>
                   <div
-                    v-else-if="!hasAgreement && propsTenantAddressMap.size === 0"
+                    v-else-if="!hasAgreement && !fullTenancyData"
+                    class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500"
+                  >
+                    <Loader2 class="w-4 h-4 animate-spin" />
+                    Loading...
+                  </div>
+                  <div
+                    v-else-if="!hasAgreement && fullTenancyData && tenantAddressMap.size === 0"
                     class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500 cursor-not-allowed"
                   >
                     <AlertTriangle class="w-4 h-4" />
@@ -391,7 +399,7 @@
 
                   <!-- Cancelled: Regenerate -->
                   <button
-                    v-else-if="agreementData?.signing_status === 'cancelled' && propsTenantAddressMap.size > 0"
+                    v-else-if="agreementData?.signing_status === 'cancelled' && tenantAddressMap.size > 0"
                     @click="showAgreementModal = true"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300"
                   >
@@ -4760,13 +4768,29 @@ const loadAdditionalData = async () => {
 
           // Merge with existing addresses (don't overwrite instant-loaded data)
           const existing = tenantAddressMap.value
+          const newAddresses: Array<{ name: string; address: any }> = []
           for (const [key, val] of addressMap) {
             if (!existing.has(key)) {
               existing.set(key, val)
+              newAddresses.push({ name: key, address: val })
             }
           }
           refTenantAddressMap.value = new Map(existing)
           console.log('[TenancyDrawer] Merged tenant addresses from reference, total:', tenantAddressMap.value.size)
+
+          // Backfill newly-found addresses to tenancy_tenants so they load instantly next time
+          if (newAddresses.length > 0 && props.tenancy?.id) {
+            try {
+              await authFetch(`${API_URL}/api/tenancies/records/${props.tenancy.id}/backfill-addresses`, {
+                method: 'POST',
+                token,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ addresses: newAddresses })
+              })
+            } catch {
+              // Silent — backfill is best-effort, doesn't affect current session
+            }
+          }
 
           // Guarantors can come from multiple places:
           // 1. guarantorReferences array (new system - for standalone references)

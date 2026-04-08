@@ -790,6 +790,7 @@ class SignatureService {
     // Build AgreementPDFData
     const pdfData: AgreementPDFData = {
       templateType: agreement.template_type,
+      agreementType: (agreement.agreement_type || 'ast') as any,
       language: agreement.language || 'english',
       propertyAddress: agreement.property_address,
       landlords: agreement.landlords,

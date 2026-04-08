@@ -313,18 +313,9 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Fetch property special clauses to include in Schedule 1
-    let propertySpecialClauses: string[] = []
-    if (agreement.property_id) {
-      const { data: propData } = await supabase
-        .from('properties')
-        .select('special_clauses')
-        .eq('id', agreement.property_id)
-        .single()
-      if (propData?.special_clauses && Array.isArray(propData.special_clauses) && propData.special_clauses.length > 0) {
-        propertySpecialClauses = propData.special_clauses.filter((c: any) => typeof c === 'string' && c.trim())
-      }
-    }
+    // Special clauses are already stored in agreement.special_clauses at creation/edit time.
+    // Do NOT re-fetch from the property here — that risks pulling clauses from the wrong
+    // property if property_id is stale, and causes duplication if clauses were already merged.
 
     // Fetch company details (always needed for logo, address only for managed)
     let companyName: string | undefined
@@ -377,10 +368,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreement.management_type,
       agentSignsOnBehalf: agreement.agent_signs_on_behalf,
       breakClause: agreement.break_clause,
-      specialClauses: [
-        agreement.special_clauses,
-        ...propertySpecialClauses
-      ].filter(Boolean).join('\n\n') || undefined,
+      specialClauses: agreement.special_clauses || undefined,
       billsIncluded: agreement.bills_included,
       billsIncludedUtilities: agreement.bills_included_utilities || undefined,
       language: agreement.language || 'english',
@@ -629,12 +617,14 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       breakClause,
       specialClauses,
       billsIncluded,
-      language
+      language,
+      agreementType
     }: AgreementData = req.body
 
     // Update the agreement
     const updatePayload: Record<string, any> = {
         template_type: templateType,
+        agreement_type: agreementType || agreement.agreement_type || 'ast',
         property_address: propertyAddress,
         landlords,
         tenants,

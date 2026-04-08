@@ -2360,6 +2360,66 @@ router.post('/records/:id/tenants', authenticateToken, async (req: AuthRequest, 
  * PATCH /api/tenancies/records/:id/tenants/:tenantId
  * Update a tenant's details
  */
+/**
+ * POST /api/tenancies/records/:id/backfill-addresses
+ * Persists reference-sourced tenant addresses to tenancy_tenants so they load instantly next time.
+ * Only writes rows that are currently missing an address — never overwrites existing data.
+ */
+router.post('/records/:id/backfill-addresses', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const { addresses } = req.body // [{ name: string (lowercase), address: { line1, line2, city, postcode } }]
+    if (!Array.isArray(addresses) || addresses.length === 0) return res.json({ updated: 0 })
+
+    // Verify tenancy belongs to company
+    const { data: tenancy } = await supabase
+      .from('tenancies')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+      .single()
+    if (!tenancy) return res.status(404).json({ error: 'Tenancy not found' })
+
+    // Fetch tenant rows that need addresses
+    const { data: tenantRows } = await supabase
+      .from('tenancy_tenants')
+      .select('id, first_name_encrypted, last_name_encrypted, residential_address_line1_encrypted')
+      .eq('tenancy_id', req.params.id)
+
+    let updated = 0
+    for (const row of (tenantRows || [])) {
+      // Only backfill if no address stored yet
+      if (row.residential_address_line1_encrypted) continue
+
+      const firstName = decrypt(row.first_name_encrypted) || ''
+      const lastName = decrypt(row.last_name_encrypted) || ''
+      const fullName = `${firstName} ${lastName}`.trim().toLowerCase()
+
+      const match = addresses.find((a: any) => a.name === fullName)
+      if (!match?.address?.line1) continue
+
+      await supabase
+        .from('tenancy_tenants')
+        .update({
+          residential_address_line1_encrypted: match.address.line1 ? encrypt(match.address.line1) : null,
+          residential_address_line2_encrypted: match.address.line2 ? encrypt(match.address.line2) : null,
+          residential_city_encrypted: match.address.city ? encrypt(match.address.city) : null,
+          residential_postcode_encrypted: match.address.postcode ? encrypt(match.address.postcode) : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', row.id)
+      updated++
+    }
+
+    res.json({ updated })
+  } catch (err: any) {
+    console.error('[backfill-addresses] Error:', err.message)
+    res.status(500).json({ error: 'Failed to backfill addresses' })
+  }
+})
+
 router.patch('/records/:id/tenants/:tenantId', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
