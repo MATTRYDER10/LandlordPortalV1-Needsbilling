@@ -445,7 +445,8 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     const pdfBuffer = await pdfGenerationService.generatePreviewPDF(pdfData)
 
     // Generate filename
-    const contractType = agreementData.language === 'welsh' ? 'WOC' : (agreementData.agreementType === 'apta' ? 'APTA' : 'AST')
+    const contractTypeMap: Record<string, string> = { apta: 'APTA', company_let: 'CompanyLet', lodger: 'Lodger' }
+    const contractType = agreementData.language === 'welsh' ? 'WOC' : (contractTypeMap[agreementData.agreementType || ''] || 'AST')
     const fileName = `${contractType}_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.pdf`
 
     // Upload to storage
