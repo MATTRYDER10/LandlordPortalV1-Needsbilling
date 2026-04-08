@@ -443,10 +443,10 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       }
     }
 
-    // Special clauses - from property
-    if (options?.specialClauses && options.specialClauses.length > 0) {
-      formData.value.specialClauses = options.specialClauses.join('\n\n')
-    }
+    // Special clauses - always set (even to empty) so stale clauses from a previous tenancy are cleared
+    formData.value.specialClauses = (options?.specialClauses && options.specialClauses.length > 0)
+      ? options.specialClauses.join('\n\n')
+      : ''
 
     // Tenants - use tenantAddresses map from reference data if available
     const tenantAddressMap = options?.tenantAddresses
