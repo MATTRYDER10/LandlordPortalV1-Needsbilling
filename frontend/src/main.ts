@@ -8,6 +8,7 @@ import router from './router'
 // Initialize interceptors for admin company override
 import './lib/axios'
 import './lib/fetchInterceptor'
+import { initErrorLogger } from './services/errorLogger'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -31,5 +32,6 @@ const toastOptions = {
 app.use(pinia)
 app.use(router)
 app.use(Toast, toastOptions)
+initErrorLogger(app, router)
 
 app.mount('#app')
