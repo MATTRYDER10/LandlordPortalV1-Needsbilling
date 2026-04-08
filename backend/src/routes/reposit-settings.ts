@@ -119,11 +119,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { referrerToken, apiKey, supplierId, environment, defaultAgentId } = req.body
+    const { referrerToken, apiKey, environment, defaultAgentId } = req.body
 
-    if (!supplierId) {
-      return res.status(400).json({ error: 'Supplier ID is required' })
-    }
+    // Supplier ID is hardcoded for PropertyGoose
+    const supplierId = 'propertygoose_live_c5RzPdoy0D6dnPN'
 
     if (environment && !['sandbox', 'live'].includes(environment)) {
       return res.status(400).json({ error: 'Environment must be sandbox or live' })

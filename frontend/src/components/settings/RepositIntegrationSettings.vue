@@ -100,27 +100,9 @@
               </div>
             </div>
 
-            <div>
-              <label for="reposit-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Supplier ID</label>
-              <div class="mt-1">
-                <input
-                  id="reposit-supplier-id"
-                  v-model="form.supplierId"
-                  name="reposit-supplier-id"
-                  type="text"
-                  required
-                  autocomplete="off"
-                  data-lpignore="true"
-                  data-1p-ignore
-                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-                  placeholder="e.g. sup_abc123 or org_abc123"
-                />
-              </div>
-            </div>
-
             <button
               type="submit"
-              :disabled="saving || !form.apiKey || !form.referrerToken || !form.supplierId"
+              :disabled="saving || !form.apiKey || !form.referrerToken"
               class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Connect' }}

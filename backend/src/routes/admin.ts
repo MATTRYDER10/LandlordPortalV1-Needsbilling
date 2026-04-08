@@ -1860,14 +1860,13 @@ router.get('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthReques
 router.post('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
   try {
     const { companyId } = req.params
-    const { supplierId, referrerToken, apiKey, environment } = req.body
+    const { referrerToken, apiKey, environment } = req.body
 
-    if (!supplierId) {
-      return res.status(400).json({ error: 'Supplier ID is required' })
-    }
+    // Supplier ID hardcoded for PropertyGoose
+    const supplierId = 'propertygoose_live_c5RzPdoy0D6dnPN'
 
     const updateData: any = {
-      reposit_supplier_id: supplierId.trim(),
+      reposit_supplier_id: supplierId,
       reposit_environment: environment || 'live',
       updated_at: new Date().toISOString()
     }
