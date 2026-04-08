@@ -1860,20 +1860,18 @@ router.get('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthReques
 router.post('/reposit/:companyId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
   try {
     const { companyId } = req.params
-    const { referrerToken, apiKey, environment } = req.body
+    const { supplierId, apiKey, environment } = req.body
 
-    // Supplier ID hardcoded for PropertyGoose
-    const supplierId = 'propertygoose_live_c5RzPdoy0D6dnPN'
+    // Referrer Token is always PropertyGoose's — hardcoded
+    const referrerToken = 'propertygoose_live_c5RzPdoy0D6dnPN'
 
     const updateData: any = {
-      reposit_supplier_id: supplierId,
+      reposit_supplier_id: supplierId?.trim(),
+      reposit_referrer_token_encrypted: encrypt(referrerToken),
       reposit_environment: environment || 'live',
       updated_at: new Date().toISOString()
     }
 
-    if (referrerToken) {
-      updateData.reposit_referrer_token_encrypted = encrypt(referrerToken.trim())
-    }
     if (apiKey) {
       updateData.reposit_api_key_encrypted = encrypt(apiKey.trim())
     }

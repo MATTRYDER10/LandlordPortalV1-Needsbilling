@@ -57,20 +57,20 @@
             <input type="password" name="trap-password" style="display:none" tabindex="-1" autocomplete="current-password" />
 
             <div>
-              <label for="reposit-referrer-token" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Referrer Token</label>
+              <label for="reposit-account-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account ID</label>
               <div class="mt-1">
                 <input
-                  id="reposit-referrer-token"
-                  v-model="form.referrerToken"
-                  name="reposit-referrer-token"
+                  id="reposit-account-id"
+                  v-model="form.supplierId"
+                  name="reposit-account-id"
                   type="text"
-                  required
                   autocomplete="off"
                   data-lpignore="true"
                   data-1p-ignore
                   class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-                  placeholder="Enter your Referrer Token"
+                  placeholder="e.g. org_abc123"
                 />
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">The org ID for the agent from Reposit</p>
               </div>
             </div>
 
@@ -102,7 +102,7 @@
 
             <button
               type="submit"
-              :disabled="saving || !form.apiKey || !form.referrerToken"
+              :disabled="saving || !form.apiKey || !form.supplierId"
               class="w-full px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Connect' }}
@@ -450,7 +450,7 @@ const saveCredentials = async () => {
       defaultAgentId: form.value.defaultAgentId || undefined
     }
 
-    if (form.value.referrerToken) payload.referrerToken = form.value.referrerToken
+    // Referrer Token is hardcoded server-side — not sent from frontend
     if (form.value.apiKey) payload.apiKey = form.value.apiKey
     if (form.value.supplierId) payload.supplierId = form.value.supplierId
     else if (status.value?.supplierId) payload.supplierId = status.value.supplierId
