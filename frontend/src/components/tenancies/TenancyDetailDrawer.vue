@@ -330,9 +330,9 @@
 
                 <!-- Generate/View Agreement - Context-aware based on signing status -->
                 <div class="flex flex-col">
-                  <!-- No Agreement: Generate (hidden until full data loaded) -->
+                  <!-- No Agreement: Generate — visible instantly when props have tenant addresses -->
                   <button
-                    v-if="!hasAgreement && fullTenancyData"
+                    v-if="!hasAgreement && propsTenantAddressMap.size > 0"
                     @click="generateAgreement"
                     :disabled="generatingAgreement"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -342,11 +342,11 @@
                     {{ generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
                   </button>
                   <div
-                    v-else-if="!hasAgreement && !fullTenancyData"
-                    class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500"
+                    v-else-if="!hasAgreement && propsTenantAddressMap.size === 0"
+                    class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500 cursor-not-allowed"
                   >
-                    <Loader2 class="w-4 h-4 animate-spin" />
-                    Loading tenant data...
+                    <AlertTriangle class="w-4 h-4" />
+                    No tenant address on record
                   </div>
 
                   <!-- Draft Agreement: View/Edit -->
@@ -391,7 +391,7 @@
 
                   <!-- Cancelled: Regenerate -->
                   <button
-                    v-else-if="agreementData?.signing_status === 'cancelled' && fullTenancyData"
+                    v-else-if="agreementData?.signing_status === 'cancelled' && propsTenantAddressMap.size > 0"
                     @click="showAgreementModal = true"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300"
                   >
@@ -3430,7 +3430,33 @@ const propertySpecialClauses = ref<string[]>([]) // From property
 const guarantors = ref<any[]>([]) // From references
 const tenancyGuarantors = ref<any[]>([]) // From tenancy_guarantors table
 const complianceDocuments = ref<any[]>([])
-const tenantAddressMap = ref<Map<string, any>>(new Map()) // Map of tenant name -> address from reference
+// Computed from props.tenancy.tenants — available INSTANTLY when drawer opens, no async wait
+const propsTenantAddressMap = computed(() => {
+  const map = new Map<string, any>()
+  const tenants = props.tenancy?.tenants || []
+  for (const t of tenants) {
+    const name = `${t.first_name || ''} ${t.last_name || ''}`.trim()
+    if (name && (t.residential_address_line1 || t.residential_city || t.residential_postcode)) {
+      map.set(name.toLowerCase(), {
+        line1: t.residential_address_line1 || '',
+        line2: t.residential_address_line2 || '',
+        city: t.residential_city || '',
+        postcode: t.residential_postcode || ''
+      })
+    }
+  }
+  return map
+})
+
+// Supplemental map from reference/async data (merges on top of props data)
+const refTenantAddressMap = ref<Map<string, any>>(new Map())
+
+// Combined map — props data available instantly, ref data added as it loads
+const tenantAddressMap = computed(() => {
+  const merged = new Map<string, any>(propsTenantAddressMap.value)
+  refTenantAddressMap.value.forEach((v, k) => merged.set(k, v))
+  return merged
+})
 
 // Add guarantor form state
 const showAddGuarantorForm = ref(false)
@@ -3581,25 +3607,7 @@ watch(() => props.open, async (isOpen) => {
     activeTenantChange.value = null
     showTenantChangeModal.value = false
 
-    // Immediately populate tenant addresses from props (no async wait)
-    const propTenants = props.tenancy?.tenants || []
-    if (propTenants.length > 0) {
-      const immediateMap = new Map<string, any>()
-      for (const t of propTenants) {
-        const name = `${t.first_name || ''} ${t.last_name || ''}`.trim()
-        if (name && (t.residential_address_line1 || t.residential_city || t.residential_postcode)) {
-          immediateMap.set(name.toLowerCase(), {
-            line1: t.residential_address_line1 || '',
-            line2: t.residential_address_line2 || '',
-            city: t.residential_city || '',
-            postcode: t.residential_postcode || ''
-          })
-        }
-      }
-      if (immediateMap.size > 0) {
-        tenantAddressMap.value = immediateMap
-      }
-    }
+    // propsTenantAddressMap computed handles instant population from props — no manual copy needed
 
     // Always load full tenancy data to ensure we have latest info
     await loadFullTenancyData()
@@ -4700,7 +4708,7 @@ const loadAdditionalData = async () => {
         }
       }
       if (addressMap.size > 0) {
-        tenantAddressMap.value = addressMap
+        refTenantAddressMap.value = addressMap
         console.log('[TenancyDrawer] Loaded tenant addresses from tenancy data (instant):', addressMap.size)
       }
     }
@@ -4757,7 +4765,7 @@ const loadAdditionalData = async () => {
               existing.set(key, val)
             }
           }
-          tenantAddressMap.value = new Map(existing)
+          refTenantAddressMap.value = new Map(existing)
           console.log('[TenancyDrawer] Merged tenant addresses from reference, total:', tenantAddressMap.value.size)
 
           // Guarantors can come from multiple places:
@@ -4899,7 +4907,7 @@ const loadAdditionalData = async () => {
           existing.set(key, val)
         }
       }
-      tenantAddressMap.value = new Map(existing)
+      refTenantAddressMap.value = new Map(existing)
       guarantors.value = allGuarantors
       console.log('[TenancyDrawer] Merged tenant addresses from individual refs, total:', tenantAddressMap.value.size)
     }
