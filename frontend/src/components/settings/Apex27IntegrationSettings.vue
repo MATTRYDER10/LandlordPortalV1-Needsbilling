@@ -567,6 +567,7 @@
           </router-link>
         </div>
       </div>
+    </div>
 
     <!-- Edit Form -->
     <div v-if="!status?.configured || editMode" class="bg-white dark:bg-slate-800 rounded-lg border border-[#6B21A8]/30 shadow p-6">
@@ -619,7 +620,6 @@
         </div>
       </form>
     </div>
-  </div>
   </div>
 </template>
 

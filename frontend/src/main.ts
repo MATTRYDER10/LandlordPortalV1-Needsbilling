@@ -1,3 +1,10 @@
+// Polyfill Promise.try for older Safari (used by pdfjs-dist)
+if (typeof (Promise as any).try !== 'function') {
+  (Promise as any).try = function(fn: Function, ...args: any[]) {
+    return new Promise((resolve) => resolve(fn(...args)))
+  }
+}
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import Toast from 'vue-toastification'

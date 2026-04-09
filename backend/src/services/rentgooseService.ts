@@ -90,6 +90,22 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     return
   }
 
+  // Only import if property has fee information filled out
+  let isLetOnly = false
+  if (tenancy.property_id) {
+    const { data: prop } = await supabase
+      .from('properties')
+      .select('fee_percent, management_fee_type, management_type')
+      .eq('id', tenancy.property_id)
+      .single()
+    const hasFee = (prop?.fee_percent && parseFloat(prop.fee_percent) > 0) || prop?.management_fee_type === 'fixed'
+    if (!hasFee) {
+      console.log(`[RentGoose] Skipping tenancy ${tenancyId} — property has no fee information`)
+      return
+    }
+    isLetOnly = prop?.management_type === 'let_only'
+  }
+
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
   const startDate = new Date(tenancy.tenancy_start_date)
@@ -112,10 +128,10 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     ? new Date(startDate.getFullYear(), startDate.getMonth(), 1)
     : new Date(today.getFullYear(), today.getMonth(), 1)
 
-  const monthsToGenerate = [
-    firstMonth,
-    new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1),
-  ]
+  // Let only: month 1 only (initial monies + first rent). Managed: current + next month.
+  const monthsToGenerate = isLetOnly
+    ? [firstMonth]
+    : [firstMonth, new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1)]
 
   const entries: any[] = []
 
@@ -253,16 +269,40 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 // ============================================================================
 
 export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
-  // Get all active managed tenancies
-  const { data: tenancies, error } = await supabase
+  // Get all active tenancies (both managed and let_only)
+  const { data: allTenancies, error } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id')
     .eq('company_id', companyId)
     .eq('status', 'active')
-    .eq('management_type', 'managed')
     .is('deleted_at', null)
 
-  if (error || !tenancies || tenancies.length === 0) return { synced: 0, extended: 0 }
+  if (error || !allTenancies || allTenancies.length === 0) return { synced: 0, extended: 0 }
+
+  // Filter to only tenancies where property has fee information, and exclude let_only from recurring
+  const propertyIds = [...new Set(allTenancies.map(t => t.property_id).filter(Boolean))]
+  let propsWithFees = new Set<string>()
+  let letOnlyProps = new Set<string>()
+  if (propertyIds.length > 0) {
+    const { data: props } = await supabase
+      .from('properties')
+      .select('id, fee_percent, management_fee_type, management_type')
+      .in('id', propertyIds)
+    for (const p of (props || [])) {
+      const hasFee = (p.fee_percent && parseFloat(p.fee_percent) > 0) || p.management_fee_type === 'fixed'
+      if (hasFee) propsWithFees.add(p.id)
+      if (p.management_type === 'let_only') letOnlyProps.add(p.id)
+    }
+  }
+
+  // Only sync managed properties for recurring — let_only gets month 1 via initTenancySchedule only
+  const tenancies = allTenancies.filter(t => {
+    if (!t.property_id) return true
+    if (!propsWithFees.has(t.property_id)) return false
+    if (letOnlyProps.has(t.property_id)) return false // No recurring for let_only
+    return true
+  })
+  if (tenancies.length === 0) return { synced: 0, extended: 0 }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -389,7 +429,7 @@ export async function getRentSchedule(companyId: string, filters: {
 
   const { data: properties } = await supabase
     .from('properties')
-    .select('id, address_line1_encrypted, postcode, fee_percent, management_type')
+    .select('id, address_line1_encrypted, postcode, fee_percent, management_type, management_fee_type')
     .in('id', propertyIds)
 
   // Get landlord links
@@ -432,6 +472,10 @@ export async function getRentSchedule(companyId: string, filters: {
 
     const property = propertyMap.get(tenancy.property_id)
     if (!property) continue
+
+    // Skip properties without fee information
+    const hasFee = (property.fee_percent && parseFloat(property.fee_percent) > 0) || property.management_fee_type === 'fixed'
+    if (!hasFee) continue
 
     if (filters.property_id && tenancy.property_id !== filters.property_id) continue
 

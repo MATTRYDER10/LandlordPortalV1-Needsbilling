@@ -24,7 +24,7 @@ export interface Party {
 export interface AgreementFormData {
   language: 'english' | 'welsh'
   templateType: string
-  agreementType: 'ast' | 'apta' | 'company_let' | 'lodger'
+  agreementType: 'ast' | 'apta' | 'company_let' | 'lodger' | 'holiday_let'
   billsIncludedUtilities: string[]
   propertyAddress: Address
   rentAmount?: number
@@ -50,6 +50,17 @@ export interface AgreementFormData {
   breakClause?: string
   specialClauses?: string
   billsIncluded: boolean
+  // NHA / Company Let specific
+  tenantCompanyNumber?: string
+  nhaNoticePeriodMonths?: number
+  nhaBreakNoticePeriod?: number
+  nhaBreakEarliestMonth?: number
+  // Holiday Let specific (check-in/out dates use tenancyStartDate/tenancyEndDate)
+  checkInTime?: string
+  checkOutTime?: string
+  numberOfGuests?: number
+  maxOccupancy?: number
+  securityDepositAmount?: number
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
@@ -132,6 +143,15 @@ export function getDefaultFormData(): AgreementFormData {
     breakClause: '',
     specialClauses: '',
     billsIncluded: false,
+    tenantCompanyNumber: '',
+    nhaNoticePeriodMonths: undefined,
+    nhaBreakNoticePeriod: undefined,
+    nhaBreakEarliestMonth: undefined,
+    checkInTime: '3:00 PM',
+    checkOutTime: '10:00 AM',
+    numberOfGuests: undefined,
+    maxOccupancy: undefined,
+    securityDepositAmount: undefined,
     landlords: [
       {
         name: '',
@@ -290,6 +310,17 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     billsIncluded: formData.billsIncluded,
     agreementType: formData.agreementType,
     billsIncludedUtilities: formData.billsIncludedUtilities,
+    // NHA / Company Let specific
+    tenantCompanyNumber: formData.tenantCompanyNumber || undefined,
+    nhaNoticePeriodMonths: formData.nhaNoticePeriodMonths,
+    nhaBreakNoticePeriod: formData.nhaBreakNoticePeriod,
+    nhaBreakEarliestMonth: formData.nhaBreakEarliestMonth,
+    // Holiday Let specific
+    checkInTime: formData.checkInTime || undefined,
+    checkOutTime: formData.checkOutTime || undefined,
+    numberOfGuests: formData.numberOfGuests,
+    maxOccupancy: formData.maxOccupancy,
+    securityDepositAmount: formData.securityDepositAmount,
   }
 }
 

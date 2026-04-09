@@ -96,7 +96,7 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Legislative Region</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Country of Residence</label>
                 <div class="flex gap-3">
                   <button
                     @click="formData.language = 'english'"
@@ -225,6 +225,79 @@
                   <div v-if="generatedBreakClause" class="col-span-2 bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
                     <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Generated clause:</p>
                     <p class="text-sm text-gray-700 dark:text-slate-300">{{ generatedBreakClause }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NHA / Company Let specific fields -->
+              <div v-if="isCompanyLet" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-4">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300">Company Let Details</h4>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Company Number (optional)</label>
+                  <input
+                    v-model="formData.tenantCompanyNumber"
+                    type="text"
+                    placeholder="e.g. 12345678"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">Only include if tenant is a registered company</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Termination notice (months)</label>
+                    <input
+                      v-model.number="formData.nhaNoticePeriodMonths"
+                      type="number"
+                      min="1"
+                      max="12"
+                      placeholder="e.g. 2"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Break notice (months)</label>
+                    <input
+                      v-model.number="formData.nhaBreakNoticePeriod"
+                      type="number"
+                      min="1"
+                      max="12"
+                      placeholder="e.g. 2"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Break earliest after (months)</label>
+                    <input
+                      v-model.number="formData.nhaBreakEarliestMonth"
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 6"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Holiday Let specific fields -->
+              <div v-if="isHolidayLet" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-4">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300">Holiday Let Booking Details</h4>
+                <p class="text-xs text-gray-500 dark:text-slate-400">Check-in/out dates use the Tenancy Start and End dates above.</p>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Check-in Time</label>
+                    <input v-model="formData.checkInTime" type="text" placeholder="3:00 PM" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Check-out Time</label>
+                    <input v-model="formData.checkOutTime" type="text" placeholder="10:00 AM" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Number of Guests</label>
+                    <input v-model.number="formData.numberOfGuests" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Maximum Occupancy</label>
+                    <input v-model.number="formData.maxOccupancy" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
                   </div>
                 </div>
               </div>
@@ -865,6 +938,8 @@ const {
   agreementTypeOptions,
   utilityOptions,
   isAPTA,
+  isCompanyLet,
+  isHolidayLet,
   depositSchemeOptions,
   rentDueDayOptions,
   generatedBreakClause,
@@ -879,7 +954,8 @@ const {
   addGuarantor,
   removeGuarantor,
   getRequestData,
-  prefillFromTenancy
+  prefillFromTenancy,
+  resetForm
 } = useAgreementForm()
 
 // Company details for managed properties (includes name, address, and bank details)
@@ -1286,9 +1362,13 @@ const sendForSigning = async () => {
 
 // Close handler
 const handleClose = () => {
+  resetForm()
   currentStep.value = 'template'
   error.value = null
   generatedAgreement.value = null
+  showComplianceOverrideModal.value = false
+  expiredComplianceTypes.value = []
+  complianceOverrideReason.value = null
   emit('close')
 }
 
@@ -1302,6 +1382,7 @@ const handleBackdropClick = () => {
 // Prefill from tenancy when modal opens
 watch(() => props.show, async (show) => {
   if (show && props.tenancy) {
+    resetForm()
     prefillFromTenancy(props.tenancy, {
       landlords: props.landlords,
       specialClauses: props.specialClauses,

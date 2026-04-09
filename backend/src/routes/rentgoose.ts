@@ -447,6 +447,75 @@ router.post('/arrears/resolve', authenticateToken, async (req: AuthRequest, res)
   }
 })
 
+// POST /api/rentgoose/arrears/silence — Silence arrears emails for 30 days
+router.post('/arrears/silence', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    const silencedUntil = new Date()
+    silencedUntil.setDate(silencedUntil.getDate() + 30)
+
+    // Find and silence the active chase for this schedule entry
+    const { supabase } = await import('../config/supabase')
+    const { error } = await supabase
+      .from('arrears_chases')
+      .update({ silenced_until: silencedUntil.toISOString() })
+      .eq('schedule_entry_id', schedule_entry_id)
+      .eq('status', 'active')
+
+    if (error) throw error
+    res.json({ success: true, silenced_until: silencedUntil.toISOString() })
+  } catch (err: any) {
+    console.error('Error silencing arrears:', err)
+    res.status(500).json({ error: 'Failed to silence arrears' })
+  }
+})
+
+// POST /api/rentgoose/schedule/remove — Remove a schedule entry (cancel + resolve arrears)
+router.post('/schedule/remove', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    // Cancel the schedule entry
+    const { supabase } = await import('../config/supabase')
+    const { error: entryError } = await supabase
+      .from('rent_schedule_entries')
+      .update({ status: 'cancelled' })
+      .eq('id', schedule_entry_id)
+      .eq('company_id', companyId)
+
+    if (entryError) throw entryError
+
+    // Resolve any associated arrears chase
+    const { data: chase } = await supabase
+      .from('arrears_chases')
+      .select('id')
+      .eq('schedule_entry_id', schedule_entry_id)
+      .eq('status', 'active')
+      .single()
+
+    if (chase) {
+      await supabase
+        .from('arrears_chases')
+        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+        .eq('id', chase.id)
+    }
+
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error removing schedule entry:', err)
+    res.status(500).json({ error: 'Failed to remove from list' })
+  }
+})
+
 // GET /api/rentgoose/client-account
 router.get('/client-account', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -1034,28 +1103,30 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
 
     if (error) throw error
 
-    // Filter to only managed properties
+    // Filter to only properties with fee information
     const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
-    let managedPropertyIds = new Set<string>()
+    let propsWithFees = new Set<string>()
     if (propertyIds.length > 0) {
       const { data: props } = await supabase
         .from('properties')
-        .select('id, management_type')
+        .select('id, fee_percent, management_fee_type')
         .in('id', propertyIds)
-        .neq('management_type', 'let_only')
-      managedPropertyIds = new Set((props || []).map(p => p.id))
+      for (const p of (props || [])) {
+        const hasFee = (p.fee_percent && parseFloat(p.fee_percent) > 0) || p.management_fee_type === 'fixed'
+        if (hasFee) propsWithFees.add(p.id)
+      }
     }
 
-    const managedTenancies = (tenancies || []).filter(t => !t.property_id || managedPropertyIds.has(t.property_id))
+    const eligibleTenancies = (tenancies || []).filter(t => !t.property_id || propsWithFees.has(t.property_id))
 
-    if (managedTenancies.length === 0) {
-      return res.json({ message: 'No managed active tenancies found', count: 0 })
+    if (eligibleTenancies.length === 0) {
+      return res.json({ message: 'No active tenancies with fee information found', count: 0 })
     }
 
     let successCount = 0
     const errors: string[] = []
 
-    for (const tenancy of managedTenancies) {
+    for (const tenancy of eligibleTenancies) {
       try {
         await rentgooseService.initTenancySchedule(tenancy.id, companyId)
         successCount++
@@ -1065,9 +1136,9 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
     }
 
     res.json({
-      message: `Initialised ${successCount} of ${managedTenancies.length} managed tenancies (${(tenancies || []).length - managedTenancies.length} let-only excluded)`,
+      message: `Initialised ${successCount} of ${eligibleTenancies.length} tenancies with fees (${(tenancies || []).length - eligibleTenancies.length} without fees excluded)`,
       count: successCount,
-      total: managedTenancies.length,
+      total: eligibleTenancies.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err: any) {

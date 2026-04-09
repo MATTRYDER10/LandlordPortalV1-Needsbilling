@@ -320,7 +320,7 @@
               <p class="text-sm text-gray-500">{{ refData?.property_city }}, {{ refData?.property_postcode }}</p>
               <div class="mt-2 flex items-center gap-4 text-sm text-gray-500">
                 <span v-if="refData?.move_in_date && !editingMoveIn" class="flex items-center gap-1.5">
-                  Move in: {{ formatDate(refData.move_in_date) }}
+                  Move in: {{ formatDateOnly(refData.move_in_date) }}
                   <button @click="startEditMoveIn" class="text-primary hover:text-primary/80 transition-colors" title="Edit move-in date">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
@@ -672,10 +672,9 @@ async function saveMoveInDate() {
   if (!newMoveInDate.value || !props.reference?.id) return
   savingMoveIn.value = true
   try {
-    const token = localStorage.getItem('auth_token')
     const response = await fetch(`${API_URL}/api/v2/references/${props.reference.id}/edit`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authStore.session?.access_token}` },
       body: JSON.stringify({ field: 'move_in_date', value: newMoveInDate.value })
     })
     if (!response.ok) throw new Error('Failed to update')
@@ -1560,6 +1559,16 @@ function formatDate(dateStr: string) {
     minute: '2-digit',
     timeZone: 'Europe/London'
   }) + ' GMT'
+}
+
+function formatDateOnly(dateStr: string) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/London'
+  })
 }
 
 async function resendReferenceEmail() {

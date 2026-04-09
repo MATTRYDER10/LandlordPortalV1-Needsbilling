@@ -556,7 +556,7 @@
                   <div
                     v-for="activity in activities"
                     :key="activity.id"
-                    class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
                   >
                     <div class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-primary"></div>
                     <div class="flex-1 min-w-0">
@@ -915,9 +915,9 @@ const documentTags = [
 
 const displayAddress = computed(() => {
   if (!property.value) return ''
-  if (property.value.address.formatted) return property.value.address.formatted
-  if (property.value.address.full_address) return property.value.address.full_address
-  return property.value.address.line1 || property.value.address.postcode
+  const addr = property.value.address
+  const parts = [addr.line1, addr.line2, addr.city, addr.county].filter(Boolean)
+  return parts.join(', ') || addr.formatted || addr.full_address || addr.postcode
 })
 
 const totalOwnership = computed(() => {

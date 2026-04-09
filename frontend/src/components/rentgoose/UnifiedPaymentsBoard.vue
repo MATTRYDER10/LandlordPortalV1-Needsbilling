@@ -150,6 +150,21 @@
                 </td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-1.5">
+                    <!-- Silence Arrears Emails — before chase, only for arrears/overdue rent -->
+                    <button
+                      v-if="item.item_type === 'rent' && (item.status === 'arrears' || item.status === 'overdue')"
+                      @click="silenceArrears(item)"
+                      :disabled="silenceState[item.id] === 'done'"
+                      :class="[
+                        'rounded-lg font-semibold px-3 py-2 text-xs transition-all',
+                        silenceState[item.id] === 'done'
+                          ? 'bg-blue-100 text-blue-600 cursor-default dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40'
+                      ]"
+                      :title="silenceState[item.id] === 'done' ? 'Silenced for 30 days' : 'Silence arrears emails for 30 days'"
+                    >
+                      {{ silenceState[item.id] === 'done' ? 'Silenced' : 'Silence' }}
+                    </button>
                     <!-- Chase button — only for rent items in arrears -->
                     <template v-if="item.item_type === 'rent' && (item.status === 'arrears' || item.status === 'overdue')">
                       <button
@@ -182,6 +197,15 @@
                       class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-3 py-2 text-xs transition-colors"
                     >
                       Receipt
+                    </button>
+                    <!-- Remove from list -->
+                    <button
+                      v-if="item.status !== 'paid' && item.status !== 'cancelled'"
+                      @click="removeFromList(item)"
+                      class="rounded-lg font-semibold px-3 py-2 text-xs bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                      title="Remove from rent queue"
+                    >
+                      Remove
                     </button>
                   </div>
                 </td>
@@ -229,6 +253,7 @@ const selectedExpectedItem = ref<UnifiedPaymentItem | null>(null)
 
 // Chase button state: itemId -> 'confirm' (first click) | 'sending' | 'sent'
 const chaseState = ref<Record<string, 'confirm' | 'sending' | 'sent'>>({})
+const silenceState = ref<Record<string, 'done'>>({})
 
 async function handleChase(item: UnifiedPaymentItem) {
   if (chaseState.value[item.id] === 'sent') return
@@ -312,6 +337,24 @@ function setCategory(value: string) {
 function setStatusFilter(value: string) {
   store.statusFilter = value
   // No refetch — filtered in memory so summary cards stay static
+}
+
+async function silenceArrears(item: UnifiedPaymentItem) {
+  try {
+    await store.silenceArrears(item.id)
+    silenceState.value[item.id] = 'done'
+  } catch (err) {
+    console.error('Failed to silence arrears:', err)
+  }
+}
+
+async function removeFromList(item: UnifiedPaymentItem) {
+  if (!confirm('Remove this entry from the rent queue? This will cancel the schedule entry and resolve any arrears chase.')) return
+  try {
+    await store.removeScheduleEntry(item.id)
+  } catch (err) {
+    console.error('Failed to remove entry:', err)
+  }
 }
 
 function isOverdue(item: UnifiedPaymentItem) {

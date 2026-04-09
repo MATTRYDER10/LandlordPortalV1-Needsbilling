@@ -23,6 +23,9 @@ async function processArrearsChases(): Promise<void> {
     const today = new Date()
 
     for (const chase of activeChases) {
+      // Skip silenced chases
+      if (chase.silenced_until && new Date(chase.silenced_until) > today) continue
+
       const dueDate = new Date(chase.rent_schedule_entries.due_date)
       const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 

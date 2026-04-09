@@ -289,7 +289,7 @@
 
           <!-- Legislative Region Selection -->
           <div class="mb-8">
-            <label class="block text-sm font-medium text-gray-700 mb-3">Legislative Region *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-3">Country of Residence *</label>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
               <button
                 type="button"
@@ -1580,6 +1580,7 @@ const agreementTypeOptions = computed(() => {
     options.push({ value: 'ast', label: 'Welsh Occupation Contract' })
   }
   options.push({ value: 'company_let', label: 'Company Let' })
+  options.push({ value: 'holiday_let', label: 'Holiday Let' })
   options.push({ value: 'lodger', label: 'Lodger Agreement' })
   return options
 })
@@ -2839,6 +2840,12 @@ async function selectProperty(property: any) {
     city: property.city || '',
     county: property.county || '',
     postcode: property.postcode || ''
+  }
+
+  // Auto-detect Welsh postcode and default language
+  const pc = (property.postcode || '').toUpperCase().trim()
+  if (pc.startsWith('CF') || pc.startsWith('NP') || pc.startsWith('SA')) {
+    formData.value.language = 'welsh'
   }
 
   // Auto-fill bills included from property

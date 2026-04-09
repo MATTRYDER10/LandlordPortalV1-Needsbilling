@@ -105,7 +105,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       referenceId,
       propertyId,
       complianceOverride,
-      tenancyId
+      tenancyId,
+      tenantCompanyNumber,
+      nhaNoticePeriodMonths,
+      nhaBreakNoticePeriod,
+      nhaBreakEarliestMonth,
+      checkInDate,
+      checkOutDate,
+      checkInTime,
+      checkOutTime,
+      numberOfGuests,
+      maxOccupancy,
+      securityDepositAmount,
+      balanceDueDate,
+      cancellationFullRefundDays,
+      cancellationPartialRefundDays
     }: AgreementData & {
       referenceId?: string
       propertyId?: string
@@ -229,7 +243,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       specialClauses,
       billsIncluded: billsIncludedUtilities?.length ? true : (billsIncluded || false),
       billsIncludedUtilities,
-      language: language || 'english'
+      language: language || 'english',
+      tenantCompanyNumber,
+      nhaNoticePeriodMonths,
+      nhaBreakNoticePeriod,
+      nhaBreakEarliestMonth,
+      checkInDate,
+      checkOutDate,
+      checkInTime,
+      checkOutTime,
+      numberOfGuests,
+      maxOccupancy,
+      securityDepositAmount,
+      balanceDueDate,
+      cancellationFullRefundDays,
+      cancellationPartialRefundDays
     }
 
     // Save to database with optional property integration
@@ -373,7 +401,11 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       billsIncludedUtilities: agreement.bills_included_utilities || undefined,
       language: agreement.language || 'english',
       companyName,
-      companyAddress
+      companyAddress,
+      tenantCompanyNumber: agreement.tenant_company_number,
+      nhaNoticePeriodMonths: agreement.nha_notice_period_months,
+      nhaBreakNoticePeriod: agreement.nha_break_notice_period,
+      nhaBreakEarliestMonth: agreement.nha_break_earliest_month
     }
 
     // Charge 0.25 credits for agreement generation BEFORE generating the PDF
@@ -426,14 +458,30 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       billsIncludedUtilities: agreementData.billsIncludedUtilities,
       companyName: agreementData.companyName,
       companyAddress: agreementData.companyAddress,
-      companyLogoUrl
+      companyLogoUrl,
+      // NHA / Company Let specific
+      tenantCompanyNumber: agreementData.tenantCompanyNumber,
+      noticePeriodMonths: agreementData.nhaNoticePeriodMonths,
+      breakNoticeMonths: agreementData.nhaBreakNoticePeriod,
+      breakEarliestMonth: agreementData.nhaBreakEarliestMonth,
+      // Holiday Let specific
+      checkInDate: agreementData.checkInDate,
+      checkOutDate: agreementData.checkOutDate,
+      checkInTime: agreementData.checkInTime,
+      checkOutTime: agreementData.checkOutTime,
+      numberOfGuests: agreementData.numberOfGuests,
+      maxOccupancy: agreementData.maxOccupancy,
+      securityDepositAmount: agreementData.securityDepositAmount,
+      balanceDueDate: agreementData.balanceDueDate,
+      cancellationFullRefundDays: agreementData.cancellationFullRefundDays,
+      cancellationPartialRefundDays: agreementData.cancellationPartialRefundDays,
     }
 
     // Generate PDF (only after successful payment)
     const pdfBuffer = await pdfGenerationService.generatePreviewPDF(pdfData)
 
     // Generate filename
-    const contractTypeMap: Record<string, string> = { apta: 'APTA', company_let: 'CompanyLet', lodger: 'Lodger' }
+    const contractTypeMap: Record<string, string> = { apta: 'APTA', company_let: 'CompanyLet', lodger: 'Lodger', holiday_let: 'HolidayLet' }
     const contractType = agreementData.language === 'welsh' ? 'WOC' : (contractTypeMap[agreementData.agreementType || ''] || 'AST')
     const fileName = `${contractType}_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.pdf`
 

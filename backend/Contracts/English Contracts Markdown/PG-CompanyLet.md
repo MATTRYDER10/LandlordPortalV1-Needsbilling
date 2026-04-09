@@ -48,11 +48,9 @@ This Agreement is a non-housing act tenancy. As the Tenant is a company, this te
 | Field | Value |
 | :---- | :---- |
 | Landlord(s) | \[ALL\_LANDLORD\_NAMES\_AND\_ADDRESSES\] |
-| Tenant Company | \[TENANT\_COMPANY\_NAME\] |
-| Company Number | \[TENANT\_COMPANY\_NUMBER\] |
+| Tenant | \[TENANT\_COMPANY\_NAME\] |
 | Authorised Signatory | \[TENANT\_SIGNATORY\_NAME\] |
 | Signatory Position | \[TENANT\_SIGNATORY\_POSITION\] |
-| Agent | \[AGENT\_NAME\] |
 | Property | \[PROPERTY ADDRESS\] |
 | Commencement Date | \[tenancy\_start\_date\] |
 | Term | \[TERM\_TYPE\] |

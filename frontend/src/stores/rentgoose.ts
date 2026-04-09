@@ -321,6 +321,16 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     return await post<any>('/api/rentgoose/chase-email', { schedule_entry_id: scheduleEntryId })
   }
 
+  async function silenceArrears(scheduleEntryId: string) {
+    return await post<any>('/api/rentgoose/arrears/silence', { schedule_entry_id: scheduleEntryId })
+  }
+
+  async function removeScheduleEntry(scheduleEntryId: string) {
+    await post<any>('/api/rentgoose/schedule/remove', { schedule_entry_id: scheduleEntryId })
+    // Refresh the list
+    await fetchUnifiedSchedule({ status: statusFilter.value })
+  }
+
   async function syncTenancies() {
     try {
       await post<any>('/api/rentgoose/sync-tenancies', {})
@@ -377,6 +387,8 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     reconcile,
     fetchAgentFees,
     sendChaseEmail,
+    silenceArrears,
+    removeScheduleEntry,
     syncTenancies,
     fetchContractors,
     uploadContractorInvoice,
