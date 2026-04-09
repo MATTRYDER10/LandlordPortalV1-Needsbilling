@@ -184,6 +184,34 @@ All changes from April 9th session. 14 modified files, 2 new files, ~570 lines c
 
 ---
 
+## 15. Payout UX — Smooth Removal
+
+**What changed:** Optimistic removal, double-click prevention, await before emit
+
+- [ ] Click "Mark Paid" on a landlord payout → button shows "Processing..."
+- [ ] Item disappears from list smoothly (no page reload)
+- [ ] Next payout slides up into its place
+- [ ] Split landlords (50%/50%) → each has its own "Mark Paid" button, paying one does NOT pay the other
+- [ ] If API fails, item reappears in the list at the same position
+
+---
+
+## 16. FIXES NEEDED BEFORE MERGE — Held Rent Agent Fee
+
+**Bug:** When a landlord payout is "Held", the agent's fee for that rent should still be deducted from the client account balance and remain payable. Currently the hold blocks the entire payout including the agent's fee.
+
+**Expected:** Hold = landlord's net payout is held, but agent fee is still extracted and appears in Agent Payouts tab.
+
+---
+
+## 17. FIXES NEEDED BEFORE MERGE — Contractor Commission Fee Ledger
+
+**Bug:** The fee ledger "Commission" row for contractor invoices shows the ENTIRE invoice value (£210.00) instead of the agent's commission % + VAT (their cut).
+
+**Expected:** Should show only the agent's commission on that invoice (e.g. if 10% commission on £210 invoice → net £21.00, VAT £4.20, gross £25.20).
+
+---
+
 ## Quick Smoke Tests
 
 - [ ] Frontend builds: `cd frontend && npm run build` ✓
