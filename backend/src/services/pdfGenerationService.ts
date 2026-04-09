@@ -802,7 +802,16 @@ class PDFGenerationService {
       result = result.replace(/\[TENANT_NAME\]/gi, data.tenants[0]?.name || '________')
       result = result.replace(/\[TENANT_ADDRESS\]/gi, data.tenants[0]?.address ? this.formatAddress(data.tenants[0].address) : '')
       result = result.replace(/\[TENANT_EMAIL\]/gi, data.tenantEmail || '')
-      result = result.replace(/\[TENANT_PHONE\]/gi, '')
+      result = result.replace(/\[TENANT_PHONE\]/gi, data.tenants[0]?.phone || '')
+      // Landlord email and phone for holiday let
+      const holidayLandlordEmail = data.managementType === 'managed'
+        ? (data.agentEmail || '')
+        : (data.landlordEmail || '')
+      result = result.replace(/\[landlord_email\]/gi, holidayLandlordEmail)
+      const holidayLandlordPhone = data.managementType === 'managed'
+        ? (data.agentPhone || '')
+        : (data.landlords?.[0]?.phone || '')
+      result = result.replace(/\[landlord_phone\]/gi, holidayLandlordPhone)
       // Special clauses
       if (data.specialClauses) {
         result = result.replace(/\[SPECIAL_CLAUSES_SECTION\]/gi, `## SPECIAL CLAUSES\n\n${data.specialClauses}`)

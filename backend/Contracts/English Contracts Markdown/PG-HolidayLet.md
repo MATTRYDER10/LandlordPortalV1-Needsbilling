@@ -16,6 +16,7 @@
 |-------|-------|
 | Name | [ALL_LANDLORD_NAMES_AND_ADDRESSES] |
 | Email | [landlord_email] |
+| Phone | [landlord_phone] |
 
 **The Guest ("the Guest"):**
 

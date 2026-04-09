@@ -642,6 +642,32 @@ export async function convertV2ReferenceToTenancy(
       // Non-blocking
     }
 
+    // Link holding deposit expected_payment to the new tenancy
+    try {
+      // Find the offer linked to this reference
+      const { data: offer } = await supabase
+        .from('tenant_offers')
+        .select('id')
+        .eq('reference_id', refData.referenceId)
+        .limit(1)
+        .maybeSingle()
+
+      if (offer) {
+        // Update any holding deposit expected_payments to link to this tenancy
+        await supabase
+          .from('expected_payments')
+          .update({ tenancy_id: tenancy.id })
+          .eq('company_id', companyId)
+          .eq('payment_type', 'holding_deposit')
+          .or(`source_id.eq.${offer.id},related_id.eq.${offer.id}`)
+          .is('tenancy_id', null)
+
+        console.log(`[V2 Conversion] Linked holding deposit expected_payments to tenancy ${tenancy.id}`)
+      }
+    } catch (hdError) {
+      console.error('[V2 Conversion] Failed to link holding deposit (non-blocking):', hdError)
+    }
+
     // Log conversion event
     await logTenancyEvent('CONVERTED', {
       companyId,

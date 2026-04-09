@@ -159,6 +159,8 @@ export interface Tenancy {
   move_in_time_tenant_notes?: string | null
   move_in_time_confirmed?: string | null
   move_in_time_confirmed_at?: string | null
+  // Holding deposit
+  holding_deposit_amount: string | null
   // Management type (overrides property setting if set)
   management_type: 'managed' | 'let_only' | null
   notes: string | null
@@ -668,6 +670,14 @@ export async function updateTenancy(
   if (error) {
     console.error('[TenancyService] Failed to update tenancy:', error)
     throw new Error(`Failed to update tenancy: ${error.message}`)
+  }
+
+  // Sync management_type to the property — single source of truth on tenancy, mirrored globally
+  if (input.managementType !== undefined && data.property_id) {
+    await supabase
+      .from('properties')
+      .update({ management_type: input.managementType })
+      .eq('id', data.property_id)
   }
 
   // Log audit event
@@ -1362,6 +1372,8 @@ function formatTenancy(data: any): Tenancy {
     move_in_time_tenant_notes: data.move_in_time_tenant_notes,
     move_in_time_confirmed: data.move_in_time_confirmed,
     move_in_time_confirmed_at: data.move_in_time_confirmed_at,
+    // Holding deposit
+    holding_deposit_amount: data.holding_deposit_amount || null,
     // Management type
     management_type: data.management_type,
     notes: data.notes_encrypted ? decrypt(data.notes_encrypted) : null,

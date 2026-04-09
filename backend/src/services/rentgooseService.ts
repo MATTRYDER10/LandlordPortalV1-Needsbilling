@@ -78,10 +78,10 @@ export interface AgentChargeItem {
 // ============================================================================
 
 export async function initTenancySchedule(tenancyId: string, companyId: string): Promise<void> {
-  // Get tenancy details
+  // Get tenancy details — management_type on tenancy is the single source of truth
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id, management_type')
     .eq('id', tenancyId)
     .single()
 
@@ -90,21 +90,24 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     return
   }
 
-  // Only import if property has fee information filled out
-  let isLetOnly = false
-  if (tenancy.property_id) {
+  // management_type on the tenancy gates RentGoose entry — must be explicitly set
+  // If null, fall back to property for backwards compat
+  let managementType = tenancy.management_type
+  if (!managementType && tenancy.property_id) {
     const { data: prop } = await supabase
       .from('properties')
-      .select('fee_percent, management_fee_type, management_type')
+      .select('management_type')
       .eq('id', tenancy.property_id)
       .single()
-    const hasFee = (prop?.fee_percent && parseFloat(prop.fee_percent) > 0) || prop?.management_fee_type === 'fixed'
-    if (!hasFee) {
-      console.log(`[RentGoose] Skipping tenancy ${tenancyId} — property has no fee information`)
-      return
-    }
-    isLetOnly = prop?.management_type === 'let_only'
+    managementType = prop?.management_type || null
   }
+
+  if (!managementType) {
+    console.log(`[RentGoose] Skipping tenancy ${tenancyId} — no management type set`)
+    return
+  }
+
+  const isLetOnly = managementType === 'let_only'
 
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
@@ -171,6 +174,80 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
 
   // Create rent share allocations for HMO tenancies
   await initRentShareAllocations(tenancyId, companyId)
+
+  // Auto-receipt month 1 if initial monies already confirmed
+  await autoReceiptMonth1FromInitialMonies(tenancyId, companyId)
+}
+
+/**
+ * Bridges initial monies → month 1 rent schedule entry.
+ * If initial monies have been receipted and a month 1 entry exists unpaid,
+ * auto-marks it as paid so it moves straight to the payout queue.
+ * Idempotent — returns false if nothing to do.
+ */
+export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, companyId: string): Promise<boolean> {
+  // 1. Find paid initial monies expected_payment
+  const { data: ep } = await supabase
+    .from('expected_payments')
+    .select('id, payout_split')
+    .eq('tenancy_id', tenancyId)
+    .eq('payment_type', 'initial_monies')
+    .eq('status', 'paid')
+    .limit(1)
+    .single()
+
+  if (!ep || !ep.payout_split) return false
+
+  // 2. Extract rent portion from payout_split
+  const splits = (ep.payout_split as any[]) || []
+  const rentSplits = splits.filter((s: any) => s.type === 'landlord_rent' || s.type === 'landlord_prorata')
+  const rentPortion = rentSplits.reduce((sum: number, s: any) => sum + parseFloat(s.amount || 0), 0)
+  if (rentPortion <= 0) return false
+
+  // 3. Find earliest unpaid month 1 rent_schedule_entry
+  const { data: entry } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, amount_due, amount_received, status')
+    .eq('tenancy_id', tenancyId)
+    .eq('company_id', companyId)
+    .not('status', 'in', '("paid","cancelled")')
+    .order('period_start', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!entry) return false
+
+  // 4. Mark the entry as paid
+  const amountDue = parseFloat(entry.amount_due)
+  const receiptAmount = Math.min(rentPortion, amountDue)
+
+  const { error: updateErr } = await supabase
+    .from('rent_schedule_entries')
+    .update({
+      amount_received: receiptAmount,
+      status: receiptAmount >= amountDue ? 'paid' : 'partial',
+    })
+    .eq('id', entry.id)
+
+  if (updateErr) {
+    console.error('[RentGoose] Failed to auto-receipt month 1:', updateErr)
+    return false
+  }
+
+  // 5. Create rent_payments record (no client_account_entry — money already posted)
+  await supabase
+    .from('rent_payments')
+    .insert({
+      company_id: companyId,
+      schedule_entry_id: entry.id,
+      amount: receiptAmount,
+      payment_method: 'initial_monies',
+      date_received: new Date().toISOString().split('T')[0],
+      reference: `Auto-receipted from initial monies (EP: ${ep.id.slice(0, 8)})`,
+    })
+
+  console.log(`[RentGoose] Auto-receipted month 1 for tenancy ${tenancyId}: £${receiptAmount}`)
+  return true
 }
 
 async function initRentShareAllocations(tenancyId: string, companyId: string): Promise<void> {
@@ -269,37 +346,20 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 // ============================================================================
 
 export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
-  // Get all active tenancies (both managed and let_only)
+  // Get all active tenancies with management_type — tenancy is the source of truth
   const { data: allTenancies, error } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id, management_type')
     .eq('company_id', companyId)
     .eq('status', 'active')
     .is('deleted_at', null)
 
   if (error || !allTenancies || allTenancies.length === 0) return { synced: 0, extended: 0 }
 
-  // Filter to only tenancies where property has fee information, and exclude let_only from recurring
-  const propertyIds = [...new Set(allTenancies.map(t => t.property_id).filter(Boolean))]
-  let propsWithFees = new Set<string>()
-  let letOnlyProps = new Set<string>()
-  if (propertyIds.length > 0) {
-    const { data: props } = await supabase
-      .from('properties')
-      .select('id, fee_percent, management_fee_type, management_type')
-      .in('id', propertyIds)
-    for (const p of (props || [])) {
-      const hasFee = (p.fee_percent && parseFloat(p.fee_percent) > 0) || p.management_fee_type === 'fixed'
-      if (hasFee) propsWithFees.add(p.id)
-      if (p.management_type === 'let_only') letOnlyProps.add(p.id)
-    }
-  }
-
-  // Only sync managed properties for recurring — let_only gets month 1 via initTenancySchedule only
+  // Only extend rolling schedules for managed tenancies — let_only gets month 1 only via initTenancySchedule
   const tenancies = allTenancies.filter(t => {
-    if (!t.property_id) return true
-    if (!propsWithFees.has(t.property_id)) return false
-    if (letOnlyProps.has(t.property_id)) return false // No recurring for let_only
+    if (!t.management_type) return false // No management type set = not in RentGoose
+    if (t.management_type === 'let_only') return false // No recurring for let_only
     return true
   })
   if (tenancies.length === 0) return { synced: 0, extended: 0 }

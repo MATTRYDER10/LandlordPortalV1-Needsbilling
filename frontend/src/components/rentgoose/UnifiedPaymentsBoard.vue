@@ -191,6 +191,24 @@
                       </button>
                     </template>
 
+                    <!-- Payment History -->
+                    <button
+                      v-if="item.item_type === 'rent'"
+                      @click="paymentHistoryEntry = item; showPaymentHistory = true"
+                      :class="['rounded-lg font-semibold px-3 py-2 text-xs transition-colors', isDark ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
+                      title="View payment history"
+                    >
+                      History
+                    </button>
+                    <!-- Edit Agency Fees -->
+                    <button
+                      v-if="item.item_type === 'rent'"
+                      @click="editFeesEntry = item; showEditFees = true"
+                      :class="['rounded-lg font-semibold px-3 py-2 text-xs transition-colors', isDark ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
+                      title="Edit agency fees for this property"
+                    >
+                      Fees
+                    </button>
                     <button
                       v-if="item.status !== 'paid' && item.status !== 'cancelled'"
                       @click="openReceipt(item)"
@@ -233,6 +251,22 @@
       @close="showExpectedReceipt = false"
       @receipted="onReceipted"
     />
+
+    <!-- Edit Agency Fees Modal -->
+    <EditAgencyFeesModal
+      v-if="showEditFees && editFeesEntry"
+      :entry="editFeesEntry"
+      @close="showEditFees = false"
+      @saved="store.fetchUnifiedSchedule()"
+    />
+
+    <!-- Payment History Modal -->
+    <PaymentHistoryModal
+      v-if="showPaymentHistory && paymentHistoryEntry"
+      :entry="paymentHistoryEntry"
+      @close="showPaymentHistory = false"
+      @updated="store.fetchUnifiedSchedule()"
+    />
   </div>
 </template>
 
@@ -242,6 +276,8 @@ import { useDarkMode } from '../../composables/useDarkMode'
 import { useRentGooseStore, type ScheduleEntry, type UnifiedPaymentItem } from '../../stores/rentgoose'
 import ReceiptModal from './ReceiptModal.vue'
 import ExpectedPaymentReceiptModal from './ExpectedPaymentReceiptModal.vue'
+import EditAgencyFeesModal from './EditAgencyFeesModal.vue'
+import PaymentHistoryModal from './PaymentHistoryModal.vue'
 
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
@@ -250,6 +286,14 @@ const showRentReceipt = ref(false)
 const showExpectedReceipt = ref(false)
 const selectedRentEntry = ref<ScheduleEntry | null>(null)
 const selectedExpectedItem = ref<UnifiedPaymentItem | null>(null)
+
+// Edit Agency Fees modal
+const showEditFees = ref(false)
+const editFeesEntry = ref<any>(null)
+
+// Payment History modal
+const showPaymentHistory = ref(false)
+const paymentHistoryEntry = ref<any>(null)
 
 // Chase button state: itemId -> 'confirm' (first click) | 'sending' | 'sent'
 const chaseState = ref<Record<string, 'confirm' | 'sending' | 'sent'>>({})

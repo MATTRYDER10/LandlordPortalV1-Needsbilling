@@ -223,6 +223,37 @@ class PropertyService {
       created_by: userId
     }
 
+    // Copy fees from landlord's existing property if not explicitly provided
+    if (data.landlords && data.landlords.length > 0 && !data.fee_percent) {
+      const existingLandlordId = data.landlords.find(l => l.landlord_id)?.landlord_id
+      if (existingLandlordId) {
+        // Find another property this landlord is linked to that has fees set
+        const { data: existingLink } = await supabase
+          .from('property_landlords')
+          .select('property_id')
+          .eq('landlord_id', existingLandlordId)
+          .limit(1)
+          .single()
+
+        if (existingLink) {
+          const { data: existingProp } = await supabase
+            .from('properties')
+            .select('fee_percent, management_fee_type, letting_fee_amount, letting_fee_type, service_type_id')
+            .eq('id', existingLink.property_id)
+            .single()
+
+          if (existingProp?.fee_percent && parseFloat(existingProp.fee_percent) > 0) {
+            ;(propertyData as any).fee_percent = existingProp.fee_percent
+            ;(propertyData as any).management_fee_type = existingProp.management_fee_type
+            ;(propertyData as any).letting_fee_amount = existingProp.letting_fee_amount
+            ;(propertyData as any).letting_fee_type = existingProp.letting_fee_type
+            ;(propertyData as any).service_type_id = existingProp.service_type_id
+            console.log(`[Property] Copied fees from landlord's existing property ${existingLink.property_id}`)
+          }
+        }
+      }
+    }
+
     const { data: property, error } = await supabase
       .from('properties')
       .insert(propertyData)

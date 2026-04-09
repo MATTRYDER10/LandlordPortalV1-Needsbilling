@@ -6,7 +6,7 @@
         <!-- Header -->
         <div :class="['px-6 py-4 border-b flex items-center justify-between', isDark ? 'border-slate-700' : 'border-gray-200']">
           <div>
-            <h2 class="text-lg font-semibold">Receipt Payment</h2>
+            <h2 class="text-lg font-semibold dark:text-white">Receipt Payment</h2>
             <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">{{ entry.property_address }}, {{ entry.property_postcode }}</p>
           </div>
           <button @click="$emit('close')" :class="['p-1 rounded-lg', isDark ? 'hover:bg-slate-800' : 'hover:bg-gray-100']">
@@ -20,11 +20,11 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label :class="labelClass">Tenant</label>
-              <p class="text-sm font-medium">{{ entry.tenant_names }}</p>
+              <p class="text-sm font-medium dark:text-white">{{ entry.tenant_names }}</p>
             </div>
             <div>
               <label :class="labelClass">Tenancy Ref</label>
-              <p class="text-sm font-medium">{{ entry.tenancy_ref }}</p>
+              <p class="text-sm font-medium dark:text-white">{{ entry.tenancy_ref }}</p>
             </div>
           </div>
 
@@ -80,11 +80,11 @@
             <div class="flex gap-3">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="radio" v-model="form.partial_action" value="hold" class="text-primary" />
-                <span class="text-sm">Hold &amp; wait for remainder</span>
+                <span class="text-sm dark:text-slate-200">Hold &amp; wait for remainder</span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="radio" v-model="form.partial_action" value="payout_now" class="text-primary" />
-                <span class="text-sm">Pay out now (partial)</span>
+                <span class="text-sm dark:text-slate-200">Pay out now (partial)</span>
               </label>
             </div>
           </div>
@@ -96,9 +96,9 @@
               <div v-for="(charge, i) in charges" :key="i" class="flex items-center justify-between px-4 py-3">
                 <label class="flex items-center gap-3 cursor-pointer flex-1">
                   <input type="checkbox" v-model="charge.included" class="rounded text-primary" />
-                  <span class="text-sm">{{ charge.description }}</span>
+                  <span class="text-sm dark:text-slate-200">{{ charge.description }}</span>
                 </label>
-                <span class="text-sm font-medium">&pound;{{ formatMoney(charge.gross_amount) }}</span>
+                <span class="text-sm font-medium dark:text-white">&pound;{{ formatMoney(charge.gross_amount) }}</span>
               </div>
               <!-- Add ad hoc charge -->
               <div class="px-4 py-3">
@@ -118,15 +118,15 @@
           <!-- Live summary -->
           <div :class="['rounded-xl p-4 border', isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200']">
             <div class="flex justify-between text-sm mb-2">
-              <span>Rent received</span>
-              <span class="font-medium">&pound;{{ formatMoney(form.amount || 0) }}</span>
+              <span class="dark:text-slate-200">Rent received</span>
+              <span class="font-medium dark:text-white">&pound;{{ formatMoney(form.amount || 0) }}</span>
             </div>
             <div class="flex justify-between text-sm mb-2">
-              <span>Agent charges</span>
+              <span class="dark:text-slate-200">Agent charges</span>
               <span class="font-medium text-red-500">-&pound;{{ formatMoney(totalCharges) }}</span>
             </div>
             <div :class="['flex justify-between text-sm font-bold pt-2 border-t', isDark ? 'border-slate-600' : 'border-gray-300']">
-              <span>Landlord payout</span>
+              <span class="dark:text-slate-200">Landlord payout</span>
               <span class="text-emerald-500">&pound;{{ formatMoney(netPayout) }}</span>
             </div>
           </div>
