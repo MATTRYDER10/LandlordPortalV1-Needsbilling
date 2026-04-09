@@ -1635,6 +1635,15 @@ const authStore = useAuthStore()
 const router = useRouter()
 const toast = useToast()
 
+function handleFetchError(response: Response, fallbackMessage: string): string | null {
+  if (response.status === 403 || response.status === 401) {
+    toast.error('Your session has expired. Please log in again.')
+    router.push('/login')
+    return null
+  }
+  return fallbackMessage
+}
+
 const loading = ref(false)
 const sending = ref(false)
 const searchQuery = ref('')
@@ -1677,6 +1686,7 @@ async function saveTenantName(tenant: any) {
       body: JSON.stringify({ first_name: editFirstName.value.trim(), last_name: editLastName.value.trim() })
     })
     if (!response.ok) {
+      if (handleFetchError(response, '') === null) return
       const data = await response.json()
       throw new Error(data.error || 'Failed to update name')
     }
@@ -2219,6 +2229,7 @@ async function submitAcceptWithChanges() {
       closeDetailModal()
       refreshData()
     } else {
+      if (handleFetchError(response, '') === null) return
       const error = await response.json()
       toast.error(error.error || 'Failed to accept offer with changes')
     }
@@ -2252,6 +2263,7 @@ async function approveOffer() {
       closeDetailModal()
       refreshData()
     } else {
+      if (handleFetchError(response, '') === null) return
       const error = await response.json()
       toast.error(error.error || 'Failed to approve offer')
     }
@@ -2367,6 +2379,7 @@ async function sendToReferencing() {
       await refreshData()
       toast.success(`${data.count} reference(s) created and sent to tenant(s)`)
     } else {
+      if (handleFetchError(response, '') === null) return
       const error = await response.json()
       toast.error(error.error || 'Failed to create references')
     }
@@ -2448,6 +2461,7 @@ async function sendOffersToLandlord() {
     const data = await response.json()
 
     if (!response.ok) {
+      if (handleFetchError(response, '') === null) return
       sendToLandlordError.value = data.error || 'Failed to send to landlord'
       return
     }
@@ -2539,6 +2553,7 @@ async function sendOffer() {
       refreshData()
       toast.success('Offer sent successfully!')
     } else {
+      if (handleFetchError(response, '') === null) return
       const error = await response.json()
       toast.error(error.error || 'Failed to send offer')
     }
@@ -2568,6 +2583,7 @@ async function resendOffer(offer: any) {
     if (response.ok) {
       toast.success('Offer email resent successfully!')
     } else {
+      if (handleFetchError(response, '') === null) return
       const error = await response.json()
       toast.error(error.error || 'Failed to resend offer')
     }
@@ -2696,6 +2712,14 @@ async function fetchOffers() {
         }
       })
     ])
+
+    // Handle auth errors on page load
+    if (formsResponse.status === 403 || formsResponse.status === 401 ||
+        offersResponse.status === 403 || offersResponse.status === 401) {
+      toast.error('Your session has expired. Please log in again.')
+      router.push('/login')
+      return
+    }
 
     const allOffers: any[] = []
 

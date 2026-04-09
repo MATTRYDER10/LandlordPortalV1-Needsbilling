@@ -59,7 +59,7 @@ onMounted(async () => {
 
   // Refresh balance every 30 seconds
   refreshInterval = window.setInterval(() => {
-    billingStore.fetchCreditBalance()
+    billingStore.fetchCreditBalance().catch(() => {})
   }, 30000)
 })
 
