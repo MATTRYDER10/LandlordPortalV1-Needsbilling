@@ -195,15 +195,24 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
   }
 
   async function markPaid(payload: any) {
-    // Await the payout record creation (PDF/email still runs in background on backend)
+    // Optimistic removal — item leaves the list immediately for smooth UX
+    const removedIndex = payouts.value.findIndex(p => p.id === payload.payout_id)
+    const removed = removedIndex >= 0 ? payouts.value[removedIndex] : null
+    if (removedIndex >= 0) {
+      payouts.value.splice(removedIndex, 1)
+    }
+
     try {
       await post<any>('/api/rentgoose/payout', payload)
-      // Remove from local list only after backend confirms
-      payouts.value = payouts.value.filter(p => p.id !== payload.payout_id)
     } catch (err) {
       console.error('Payout failed:', err)
+      // Restore on failure so user can retry
+      if (removed && removedIndex >= 0) {
+        payouts.value.splice(removedIndex, 0, removed)
+      }
+      throw err
     }
-    // Refresh to get accurate counts
+    // Background refresh for accurate counts
     fetchPayouts()
     fetchUnifiedSchedule()
   }
