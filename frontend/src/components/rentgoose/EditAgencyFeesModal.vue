@@ -49,7 +49,6 @@
             <div>
               <label :class="labelClass">Letting/Setup Fee (one-off)</label>
               <div class="flex items-center gap-2">
-                <span :class="['text-sm', isDark ? 'text-slate-500' : 'text-gray-400']">£</span>
                 <input
                   v-model.number="lettingFeeAmount"
                   type="number"
@@ -59,7 +58,16 @@
                   class="flex-1"
                   placeholder="0.00"
                 />
+                <button
+                  @click="lettingFeeType = lettingFeeType === 'percentage' ? 'fixed' : 'percentage'"
+                  class="px-3 py-2 text-sm font-medium border rounded-lg transition-colors bg-primary/10 border-primary text-primary"
+                >
+                  {{ lettingFeeType === 'percentage' ? '%' : '£' }}
+                </button>
               </div>
+              <p :class="['text-xs mt-1', isDark ? 'text-slate-500' : 'text-gray-400']">
+                {{ lettingFeeType === 'percentage' ? 'Percentage of monthly rent' : 'Fixed amount' }}
+              </p>
             </div>
 
             <!-- Current charges info -->
@@ -118,6 +126,7 @@ const saving = ref(false)
 const feePercent = ref<number | null>(null)
 const feeType = ref('percentage')
 const lettingFeeAmount = ref<number | null>(null)
+const lettingFeeType = ref('fixed')
 
 const labelClass = computed(() => `block text-xs font-medium uppercase tracking-wide mb-1 ${isDark.value ? 'text-slate-400' : 'text-gray-500'}`)
 const inputClass = computed(() => `px-3 py-2 text-sm rounded-lg border ${isDark.value ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-primary/50 focus:border-primary`)
@@ -129,6 +138,7 @@ async function loadCurrentFees() {
     feePercent.value = data.fee_percent != null ? parseFloat(data.fee_percent) : null
     feeType.value = data.management_fee_type || 'percentage'
     lettingFeeAmount.value = data.letting_fee_amount != null ? parseFloat(data.letting_fee_amount) : null
+    lettingFeeType.value = data.letting_fee_type || 'fixed'
   } catch (err) {
     console.error('Failed to load property fees:', err)
   } finally {
@@ -143,7 +153,7 @@ async function saveFees() {
       fee_percent: feePercent.value,
       management_fee_type: feeType.value,
       letting_fee_amount: lettingFeeAmount.value,
-      letting_fee_type: 'fixed'
+      letting_fee_type: lettingFeeType.value
     })
     emit('saved')
     emit('close')
