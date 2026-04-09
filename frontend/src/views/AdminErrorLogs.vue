@@ -322,6 +322,12 @@
                     </div>
                     <div class="flex items-center gap-2">
                       <button
+                        @click="copyErrorDetails(err)"
+                        class="px-3 py-1 text-xs bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-slate-300 rounded hover:bg-gray-200 dark:hover:bg-slate-500 transition-colors"
+                      >
+                        Copy All
+                      </button>
+                      <button
                         v-if="!err.resolved_at"
                         @click="resolveByFingerprint(err.fingerprint)"
                         class="px-3 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
@@ -549,6 +555,46 @@ async function resolveByFingerprint(fingerprint: string) {
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text)
+}
+
+function copyErrorDetails(err: ErrorLog) {
+  const lines: string[] = [
+    `Error: ${err.message}`,
+    `Source: ${err.source} | Level: ${err.level} | Type: ${err.error_type || 'N/A'}`,
+    `Time: ${new Date(err.created_at).toLocaleString()}`,
+  ]
+
+  if (err.route_name || err.route_path) {
+    lines.push(`Route: ${err.route_name || ''} (${err.route_path || ''})`)
+  }
+  if (err.route_params) lines.push(`Params: ${JSON.stringify(err.route_params)}`)
+  if (err.component_name) lines.push(`Component: ${err.component_name}`)
+
+  if (err.request_method) {
+    lines.push(`Request: ${err.request_method} ${err.request_url}`)
+    if (err.response_status_code) lines.push(`Status: ${err.response_status_code}`)
+    if (err.request_query) lines.push(`Query: ${JSON.stringify(err.request_query)}`)
+    if (err.request_body) lines.push(`Body: ${JSON.stringify(err.request_body, null, 2)}`)
+  }
+
+  if (err.user_email) lines.push(`User: ${err.user_email} (${err.user_id || 'N/A'})`)
+  if (err.company_id) lines.push(`Company: ${err.company_id}`)
+  if (err.branch_id) lines.push(`Branch: ${err.branch_id}`)
+  if (err.ip_address) lines.push(`IP: ${err.ip_address}`)
+
+  if (err.browser_info) {
+    lines.push(`Browser: ${err.browser_info.userAgent || 'N/A'}`)
+    lines.push(`Screen: ${err.browser_info.screenWidth}x${err.browser_info.screenHeight} | Viewport: ${err.browser_info.viewportWidth}x${err.browser_info.viewportHeight}`)
+  } else if (err.user_agent) {
+    lines.push(`UA: ${err.user_agent}`)
+  }
+
+  if (err.stack_trace) lines.push(`\nStack Trace:\n${err.stack_trace}`)
+  if (err.metadata && Object.keys(err.metadata).length > 0) lines.push(`\nMetadata: ${JSON.stringify(err.metadata, null, 2)}`)
+
+  lines.push(`\nFingerprint: ${err.fingerprint}`)
+
+  navigator.clipboard.writeText(lines.join('\n'))
 }
 
 function formatTime(dateStr: string) {
