@@ -87,6 +87,9 @@ function getBrowserInfo() {
 // ── Error sending ────────────────────────────────────────────────────
 function sendError(payload: Record<string, any>) {
   try {
+    // Only send errors in production
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return
+
     const fingerprint = makeFingerprint(payload.message, payload.stackTrace)
 
     if (isRateLimited()) return
