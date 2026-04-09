@@ -90,6 +90,9 @@ export const useBillingStore = defineStore('billing', () => {
 
   // Actions
   async function fetchCreditBalance() {
+    const authStore = useAuthStore()
+    if (!authStore.company || !authStore.session?.access_token) return null
+
     try {
       loading.value = true
       error.value = null
@@ -101,6 +104,8 @@ export const useBillingStore = defineStore('billing', () => {
       creditBalance.value = response.data
       return response.data
     } catch (err: any) {
+      // Don't throw on auth errors -- token may have expired
+      if (err.response?.status === 403 || err.response?.status === 401) return null
       error.value = err.response?.data?.error || 'Failed to fetch credit balance'
       console.error('Error fetching credit balance:', err)
       throw err
