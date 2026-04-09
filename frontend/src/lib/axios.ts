@@ -28,4 +28,20 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
+// Handle expired/invalid tokens globally -- redirect to login on 403 "Invalid token"
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.error === 'Invalid token' &&
+      window.location.pathname !== '/login' &&
+      window.location.pathname !== '/staff/login'
+    ) {
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default axios
