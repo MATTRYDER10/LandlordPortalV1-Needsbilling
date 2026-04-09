@@ -331,9 +331,9 @@
                 <!-- Generate/View Agreement - Context-aware based on signing status -->
                 <div class="flex flex-col">
                   <!-- No Agreement: Generate -->
-                  <!-- Show immediately if props have addresses; show after full load if ref-sourced -->
+                  <!-- Wait for propertyDetails so special clauses are loaded before modal opens -->
                   <button
-                    v-if="!hasAgreement && tenantAddressMap.size > 0"
+                    v-if="!hasAgreement && tenantAddressMap.size > 0 && propertyDetails"
                     @click="generateAgreement"
                     :disabled="generatingAgreement"
                     class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -343,7 +343,7 @@
                     {{ generatingAgreement ? 'Generating...' : 'Generate Agreement' }}
                   </button>
                   <div
-                    v-else-if="!hasAgreement && !fullTenancyData"
+                    v-else-if="!hasAgreement && (!fullTenancyData || !propertyDetails)"
                     class="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-400 dark:text-slate-500"
                   >
                     <Loader2 class="w-4 h-4 animate-spin" />

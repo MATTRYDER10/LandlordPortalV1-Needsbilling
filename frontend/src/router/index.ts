@@ -672,6 +672,12 @@ const router = createRouter({
       name: 'AdminIntegrations',
       component: () => import('../views/AdminIntegrations.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/error-logs',
+      name: 'AdminErrorLogs',
+      component: () => import('../views/AdminErrorLogs.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
