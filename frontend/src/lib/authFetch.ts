@@ -3,8 +3,40 @@
  * Use this instead of raw fetch() for API calls to ensure proper multi-branch isolation
  */
 
+import { supabase } from './supabase'
+
 const SESSION_STORAGE_KEY = 'adminCompanyOverride'
 const ACTIVE_BRANCH_KEY = 'activeBranchId'
+
+// Singleton in-flight refresh promise — prevents thundering herd on concurrent 403s
+let _refreshPromise: Promise<string | null> | null = null
+
+/**
+ * Attempts a Supabase token refresh. Returns the new access_token, or null if refresh fails.
+ * Concurrent callers share the same in-flight promise.
+ */
+export async function refreshAndGetToken(): Promise<string | null> {
+  if (!_refreshPromise) {
+    _refreshPromise = (async () => {
+      try {
+        const { data, error } = await supabase.auth.refreshSession()
+        if (error || !data.session) return null
+
+        // Lazy import avoids circular dependency
+        const { useAuthStore } = await import('../stores/auth')
+        const authStore = useAuthStore()
+        authStore.session = data.session
+
+        return data.session.access_token
+      } catch {
+        return null
+      } finally {
+        _refreshPromise = null
+      }
+    })()
+  }
+  return _refreshPromise
+}
 
 export function getAuthHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {}
@@ -65,10 +97,27 @@ export async function authFetch(
     'X-Branch-Id': mergedHeaders['X-Branch-Id']
   })
 
-  return fetch(url, {
-    ...restOptions,
-    headers: mergedHeaders
-  })
+  const response = await fetch(url, { ...restOptions, headers: mergedHeaders })
+
+  // If 403 "Invalid token", attempt one refresh + retry
+  if (response.status === 403) {
+    let body: any
+    try { body = await response.clone().json() } catch { body = {} }
+
+    if (body?.error === 'Invalid token') {
+      const newToken = await refreshAndGetToken()
+      if (!newToken) {
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/staff/login') {
+          window.location.href = '/login'
+        }
+        return response
+      }
+      const retryHeaders = { ...mergedHeaders, Authorization: `Bearer ${newToken}` }
+      return fetch(url, { ...restOptions, headers: retryHeaders })
+    }
+  }
+
+  return response
 }
 
 export default authFetch

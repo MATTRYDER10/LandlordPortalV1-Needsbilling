@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { refreshAndGetToken } from './authFetch'
 
 const SESSION_STORAGE_KEY = 'adminCompanyOverride'
 const ACTIVE_BRANCH_KEY = 'activeBranchId'
@@ -28,17 +29,27 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-// Handle expired/invalid tokens globally -- redirect to login on 403 "Invalid token"
+// Handle expired/invalid tokens globally -- refresh + retry on 403 "Invalid token"
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config
     if (
       error.response?.status === 403 &&
       error.response?.data?.error === 'Invalid token' &&
-      window.location.pathname !== '/login' &&
-      window.location.pathname !== '/staff/login'
+      !config._retried
     ) {
-      window.location.href = '/login'
+      config._retried = true
+      const newToken = await refreshAndGetToken()
+      if (newToken) {
+        config.headers['Authorization'] = `Bearer ${newToken}`
+        return axios(config)
+      }
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/staff/login') {
+        window.location.href = '/login'
+      }
+      // Resolve instead of reject to avoid UnhandledRejection
+      return Promise.resolve({ data: null, status: 403, _authRedirected: true })
     }
     return Promise.reject(error)
   }
