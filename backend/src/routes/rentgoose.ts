@@ -475,15 +475,54 @@ router.post('/arrears/silence', authenticateToken, async (req: AuthRequest, res)
     const silencedUntil = new Date()
     silencedUntil.setDate(silencedUntil.getDate() + 30)
 
-    // Find and silence the active chase for this schedule entry
     const { supabase } = await import('../config/supabase')
-    const { error } = await supabase
+
+    // Try to find an existing active chase for this schedule entry and update it.
+    // If none exists (e.g. the schedule entry is in arrears but the arrears-chase
+    // scheduler hasn't created a chase row for it yet), create a silenced row so
+    // the silence persists across refreshes.
+    const { data: existing, error: findErr } = await supabase
       .from('arrears_chases')
-      .update({ silenced_until: silencedUntil.toISOString() })
+      .select('id')
       .eq('schedule_entry_id', schedule_entry_id)
       .eq('status', 'active')
+      .maybeSingle()
 
-    if (error) throw error
+    if (findErr) throw findErr
+
+    if (existing) {
+      const { error: updateErr } = await supabase
+        .from('arrears_chases')
+        .update({ silenced_until: silencedUntil.toISOString() })
+        .eq('id', existing.id)
+      if (updateErr) throw updateErr
+    } else {
+      // Look up the schedule entry so we can populate the new chase row
+      const { data: entry, error: entryErr } = await supabase
+        .from('rent_schedule_entries')
+        .select('id, company_id, amount_due, amount_received')
+        .eq('id', schedule_entry_id)
+        .eq('company_id', companyId)
+        .single()
+
+      if (entryErr || !entry) {
+        return res.status(404).json({ error: 'Schedule entry not found' })
+      }
+
+      const outstanding = Number(entry.amount_due || 0) - Number(entry.amount_received || 0)
+
+      const { error: insertErr } = await supabase
+        .from('arrears_chases')
+        .insert({
+          company_id: entry.company_id,
+          schedule_entry_id: entry.id,
+          amount_outstanding: outstanding > 0 ? outstanding : 0,
+          status: 'active',
+          silenced_until: silencedUntil.toISOString()
+        })
+      if (insertErr) throw insertErr
+    }
+
     res.json({ success: true, silenced_until: silencedUntil.toISOString() })
   } catch (err: any) {
     console.error('Error silencing arrears:', err)
