@@ -125,6 +125,7 @@ interface Tenancy {
   rent_amount?: number
   property?: {
     address_line1: string
+    address_line2?: string | null
     city: string
     postcode: string
   }

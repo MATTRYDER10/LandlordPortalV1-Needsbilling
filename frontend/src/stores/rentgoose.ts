@@ -118,6 +118,10 @@ export interface ClientAccountEntry {
   created_by: string | null
   is_manual: boolean
   created_at: string
+  property_address?: string | null
+  tenant_name?: string | null
+  related_id?: string | null
+  related_type?: string | null
 }
 
 export interface Contractor {

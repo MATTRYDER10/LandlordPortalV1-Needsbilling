@@ -222,9 +222,14 @@ interface Tenancy {
   compliance_pack_sent_at?: string | null
   property?: {
     address_line1: string
+    address_line2?: string | null
     city: string
     postcode: string
   }
+  deposit_replacement_offered?: boolean
+  deposit_replacement_requested?: boolean
+  offer_unihomes?: boolean
+  unihomes_interested?: boolean
   tenants?: TenancyTenant[]
 }
 
