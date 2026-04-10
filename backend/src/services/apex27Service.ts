@@ -2198,8 +2198,8 @@ const FEE_TYPE_LABELS: Record<number, string> = {
 }
 
 /**
- * Preview fees sync — fetches all linked Apex27 listings, parses their fees,
- * and returns what would be imported. No DB writes.
+ * Preview fees sync — fetches all Apex27 listings in one batch, parses fees,
+ * and matches against linked PG properties. No DB writes.
  */
 export async function previewFeesSync(companyId: string): Promise<FeesPreviewItem[]> {
   const config = await getCompanyApex27Config(companyId)
@@ -2214,14 +2214,30 @@ export async function previewFeesSync(companyId: string): Promise<FeesPreviewIte
 
   if (!properties || properties.length === 0) return []
 
+  // Fetch ALL Apex27 listings in one paginated batch (much faster than per-property lookups)
+  const listingsResult = await fetchAllListings(config.apiKey, { branchId: config.branchId })
+  if (!listingsResult.success || !listingsResult.listings) {
+    throw new Error(listingsResult.error || 'Failed to fetch listings from Apex27')
+  }
+
+  // Index by listing ID for fast lookup
+  const listingsById = new Map<string, Apex27Listing>()
+  for (const l of listingsResult.listings) {
+    listingsById.set(String(l.id), l)
+  }
+
+  console.log(`[Apex27 Fees] Matching ${properties.length} PG properties against ${listingsResult.listings.length} Apex27 listings`)
+
   const items: FeesPreviewItem[] = []
 
   for (const prop of properties) {
     try {
-      const result = await apex27Fetch<Apex27Listing>(config.apiKey, `/listings/${prop.apex27_listing_id}`)
-      if (!result.success || !result.data) continue
+      const listing = listingsById.get(String(prop.apex27_listing_id))
+      if (!listing) {
+        console.log(`[Apex27 Fees] No listing found for property ${prop.id} (apex27 id: ${prop.apex27_listing_id})`)
+        continue
+      }
 
-      const listing = result.data
       const fees: Apex27Fee[] = listing.fees || []
 
       // Find management fee: type 3 (Managed) or type 2 (Rent Collect), frequency 0 (Ongoing)

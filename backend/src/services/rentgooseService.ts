@@ -2639,6 +2639,11 @@ async function sendTenantReceipt(companyId: string, scheduleEntryId: string): Pr
 // ============================================================================
 
 export async function updateScheduleStatuses(): Promise<void> {
+  // SAFETY: only operate on companies that have RentGoose enabled.
+  const { getRentGooseEnabledCompanyIds } = await import('./rentgooseAccess')
+  const enabledIds = await getRentGooseEnabledCompanyIds()
+  if (enabledIds.length === 0) return
+
   const today = new Date().toISOString().split('T')[0]
 
   // Mark 'upcoming' as 'due' if due_date = today
@@ -2647,6 +2652,7 @@ export async function updateScheduleStatuses(): Promise<void> {
     .update({ status: 'due', updated_at: new Date().toISOString() })
     .eq('status', 'upcoming')
     .eq('due_date', today)
+    .in('company_id', enabledIds)
 
   // Find 'due' entries that are now past due — capture them before updating
   const { data: newlyOverdue } = await supabase
@@ -2654,6 +2660,7 @@ export async function updateScheduleStatuses(): Promise<void> {
     .select('id, tenancy_id, company_id, amount_due, due_date')
     .eq('status', 'due')
     .lt('due_date', today)
+    .in('company_id', enabledIds)
 
   if (newlyOverdue && newlyOverdue.length > 0) {
     // Mark as overdue
