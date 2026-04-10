@@ -3316,7 +3316,7 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
         .from('tenant_offers')
         .select('holding_deposit_amount_paid, holding_deposit_amount')
         .eq('reference_id', tenancy.primary_reference_id)
-        .single()
+        .maybeSingle()
 
       if (offer?.holding_deposit_amount_paid) {
         holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
@@ -3331,7 +3331,7 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
         .from('tenant_references_v2')
         .select('holding_deposit_amount, offer_id')
         .eq('id', tenancy.primary_reference_id)
-        .single()
+        .maybeSingle()
 
       if (v2ref?.holding_deposit_amount) {
         holdingDepositPaid = parseFloat(v2ref.holding_deposit_amount) || 0
@@ -3340,7 +3340,7 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
           .from('tenant_offers')
           .select('holding_deposit_amount_paid, holding_deposit_amount')
           .eq('id', v2ref.offer_id)
-          .single()
+          .maybeSingle()
 
         if (v2offer?.holding_deposit_amount_paid) {
           holdingDepositPaid = parseFloat(v2offer.holding_deposit_amount_paid) || 0
@@ -3511,7 +3511,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
           .from('tenant_offers')
           .select('holding_deposit_amount_paid')
           .eq('reference_id', tenancy.primary_reference_id)
-          .single()
+          .maybeSingle()
 
         if (offer?.holding_deposit_amount_paid) {
           holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
@@ -3524,7 +3524,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
           .from('tenant_references_v2')
           .select('holding_deposit_amount, offer_id')
           .eq('id', tenancy.primary_reference_id)
-          .single()
+          .maybeSingle()
 
         if (v2ref?.holding_deposit_amount) {
           holdingDepositPaid = parseFloat(v2ref.holding_deposit_amount) || 0
@@ -3533,7 +3533,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
             .from('tenant_offers')
             .select('holding_deposit_amount_paid')
             .eq('id', v2ref.offer_id)
-            .single()
+            .maybeSingle()
 
           if (v2offer?.holding_deposit_amount_paid) {
             holdingDepositPaid = parseFloat(v2offer.holding_deposit_amount_paid) || 0
@@ -3723,7 +3723,7 @@ router.get('/records/:id/payment-request', authenticateToken, async (req: AuthRe
       .eq('type', 'initial_monies')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     // Calculate amounts
     const firstMonthRent = paymentRequest?.first_month_rent || tenancy.monthly_rent || 0

@@ -417,7 +417,7 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
     .neq('status', 'cancelled')
     .order('period_end', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!latest) return
 
@@ -2081,7 +2081,7 @@ export async function getCurrentBalance(companyId: string): Promise<number> {
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   return data ? parseFloat(data.balance_after) : 0
 }
@@ -3262,7 +3262,7 @@ export async function getHoldingDepositCredit(companyId: string, tenancyId: stri
     .eq('payment_type', 'holding_deposit')
     .eq('status', 'paid')
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (data && parseFloat(data.amount_received) > 0) {
     return {
