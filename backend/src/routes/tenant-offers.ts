@@ -2532,33 +2532,73 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
                     if (prop?.apex27_listing_id) {
                         listingId = prop.apex27_listing_id
+                        console.log(`[HoldingDeposit→Apex27] Using linked listing ${listingId}`)
                     } else if (prop?.postcode) {
-                        // Fuzzy match via Apex27 API by postcode + address
-                        const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', {
-                            transactionType: 'rent',
+                        // Backup search: find listing by postcode + address with branch filter
+                        const address = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
+                        const normAddr = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+                        const targetAddr = normAddr(address || '')
+                        const targetPostcode = prop.postcode.toLowerCase().replace(/\s/g, '')
+
+                        // Search params — include branch and don't filter by transactionType
+                        // (listings may be in any status, we want to find them regardless)
+                        const searchParams: Record<string, any> = {
                             postalCode: prop.postcode,
-                            pageSize: 25
-                        })
-                        if (searchResult.success && Array.isArray(searchResult.data) && searchResult.data.length > 0) {
-                            const listings = searchResult.data
-                            const address = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
-                            if (listings.length === 1) {
-                                listingId = String(listings[0].id)
-                            } else if (address) {
-                                const normAddr = address.toLowerCase().replace(/[^a-z0-9]/g, '')
-                                const match = listings.find((l: any) =>
-                                    l.address1 && l.address1.toLowerCase().replace(/[^a-z0-9]/g, '') === normAddr
-                                )
-                                listingId = match ? String(match.id) : String(listings[0].id)
-                            } else {
-                                listingId = String(listings[0].id)
+                            pageSize: 100
+                        }
+                        if (config.branchId) searchParams.branchId = config.branchId
+
+                        console.log(`[HoldingDeposit→Apex27] Backup search: postcode=${prop.postcode}, branch=${config.branchId}, addr=${address}`)
+
+                        const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', searchParams)
+                        const listings = (searchResult.success && Array.isArray(searchResult.data)) ? searchResult.data : []
+
+                        if (listings.length > 0) {
+                            // Try exact address match first
+                            let match = targetAddr
+                                ? listings.find((l: any) => l.address1 && normAddr(l.address1) === targetAddr)
+                                : null
+
+                            // Try partial address match (line1 contains target or vice versa)
+                            if (!match && targetAddr) {
+                                match = listings.find((l: any) => {
+                                    const la = normAddr(l.address1 || '')
+                                    return la && (la.includes(targetAddr) || targetAddr.includes(la))
+                                })
                             }
+
+                            // Try postcode-only match if there's exactly one listing for this postcode
+                            if (!match) {
+                                const samePostcode = listings.filter((l: any) =>
+                                    (l.postalCode || '').toLowerCase().replace(/\s/g, '') === targetPostcode
+                                )
+                                if (samePostcode.length === 1) match = samePostcode[0]
+                            }
+
+                            if (match) {
+                                listingId = String(match.id)
+                                console.log(`[HoldingDeposit→Apex27] Backup search matched listing ${listingId} (${match.address1})`)
+                                // Self-heal: persist the match for future
+                                await supabase
+                                    .from('properties')
+                                    .update({ apex27_listing_id: listingId })
+                                    .eq('id', propertyId)
+                            } else {
+                                console.log(`[HoldingDeposit→Apex27] Backup search returned ${listings.length} listings but none matched address "${address}"`)
+                            }
+                        } else {
+                            console.log(`[HoldingDeposit→Apex27] Backup search returned 0 listings for postcode ${prop.postcode}`)
                         }
                     }
                 }
 
                 if (listingId) {
-                    await updateListingStatus(config.apiKey, listingId, 'Let Agreed')
+                    const updateResult = await updateListingStatus(config.apiKey, listingId, 'Let Agreed')
+                    if (!updateResult.success) {
+                        console.error(`[HoldingDeposit→Apex27] Status update failed: ${updateResult.error}`)
+                    }
+                } else {
+                    console.log(`[HoldingDeposit→Apex27] No listing ID resolved for offer ${id} — status not updated`)
                 }
             }
         } catch (apex27Error: any) {

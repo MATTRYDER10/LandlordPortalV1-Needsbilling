@@ -2143,12 +2143,183 @@ export async function getClientAccount(companyId: string, filters?: {
 
   const current_balance = await getCurrentBalance(companyId)
 
+  // Enrich entries with property address + lead tenant via related_id chain.
+  // Mappings:
+  //   related_type='expected_payment' → expected_payments → tenancy/property
+  //   related_type='rent_payment' → rent_payments → schedule_entry → tenancy → property
+  //   related_type='payout_record' / 'agent_payout' → payout_records → schedule_entry → tenancy → property
+  //   related_type='tenant_offer' → tenant_offers → linked_property
+  const allEntries = entries || []
+  const tenancyIdByEntry = new Map<string, string>() // client_account_entry.id → tenancy_id
+
+  // Bucket related_ids by type for batched lookups
+  const epIds = new Set<string>()
+  const rentPaymentIds = new Set<string>()
+  const payoutRecordIds = new Set<string>()
+  const agentPayoutIds = new Set<string>()
+  const tenantOfferIds = new Set<string>()
+  for (const e of allEntries) {
+    if (!e.related_id) continue
+    if (e.related_type === 'expected_payment') epIds.add(e.related_id)
+    else if (e.related_type === 'rent_payment') rentPaymentIds.add(e.related_id)
+    else if (e.related_type === 'payout_record') payoutRecordIds.add(e.related_id)
+    else if (e.related_type === 'agent_payout') agentPayoutIds.add(e.related_id)
+    else if (e.related_type === 'tenant_offer') tenantOfferIds.add(e.related_id)
+  }
+
+  // Fetch expected_payments (already have tenancy_id + property_id)
+  const epToTenancy = new Map<string, string>()
+  const epToProperty = new Map<string, string>()
+  if (epIds.size > 0) {
+    const { data } = await supabase
+      .from('expected_payments')
+      .select('id, tenancy_id, property_id')
+      .in('id', Array.from(epIds))
+    for (const r of (data || [])) {
+      if (r.tenancy_id) epToTenancy.set(r.id, r.tenancy_id)
+      if (r.property_id) epToProperty.set(r.id, r.property_id)
+    }
+  }
+
+  // Fetch rent_payments → schedule_entry_id → tenancy
+  const rpToScheduleEntry = new Map<string, string>()
+  if (rentPaymentIds.size > 0) {
+    const { data } = await supabase
+      .from('rent_payments')
+      .select('id, schedule_entry_id')
+      .in('id', Array.from(rentPaymentIds))
+    for (const r of (data || [])) rpToScheduleEntry.set(r.id, r.schedule_entry_id)
+  }
+
+  // Fetch payout_records → schedule_entry_id
+  const prToScheduleEntry = new Map<string, string>()
+  if (payoutRecordIds.size > 0) {
+    const { data } = await supabase
+      .from('payout_records')
+      .select('id, schedule_entry_id')
+      .in('id', Array.from(payoutRecordIds))
+    for (const r of (data || [])) prToScheduleEntry.set(r.id, r.schedule_entry_id)
+  }
+
+  // Resolve all schedule_entry_ids → tenancy_id
+  const allScheduleEntryIds = new Set<string>()
+  for (const id of rpToScheduleEntry.values()) allScheduleEntryIds.add(id)
+  for (const id of prToScheduleEntry.values()) allScheduleEntryIds.add(id)
+  const scheduleEntryToTenancy = new Map<string, string>()
+  if (allScheduleEntryIds.size > 0) {
+    const { data } = await supabase
+      .from('rent_schedule_entries')
+      .select('id, tenancy_id')
+      .in('id', Array.from(allScheduleEntryIds))
+    for (const r of (data || [])) scheduleEntryToTenancy.set(r.id, r.tenancy_id)
+  }
+
+  // Fetch tenant_offers → linked_property_id (no tenancy yet at offer stage)
+  const offerToProperty = new Map<string, string>()
+  if (tenantOfferIds.size > 0) {
+    const { data } = await supabase
+      .from('tenant_offers')
+      .select('id, linked_property_id')
+      .in('id', Array.from(tenantOfferIds))
+    for (const r of (data || [])) {
+      if (r.linked_property_id) offerToProperty.set(r.id, r.linked_property_id)
+    }
+  }
+
+  // Build entry → tenancy_id map
+  for (const e of allEntries) {
+    if (!e.related_id) continue
+    if (e.related_type === 'expected_payment') {
+      const tid = epToTenancy.get(e.related_id)
+      if (tid) tenancyIdByEntry.set(e.id, tid)
+    } else if (e.related_type === 'rent_payment') {
+      const seId = rpToScheduleEntry.get(e.related_id)
+      if (seId) {
+        const tid = scheduleEntryToTenancy.get(seId)
+        if (tid) tenancyIdByEntry.set(e.id, tid)
+      }
+    } else if (e.related_type === 'payout_record') {
+      const seId = prToScheduleEntry.get(e.related_id)
+      if (seId) {
+        const tid = scheduleEntryToTenancy.get(seId)
+        if (tid) tenancyIdByEntry.set(e.id, tid)
+      }
+    }
+  }
+
+  // Now resolve tenancy_id → property_id + lead tenant
+  const tenancyIds = [...new Set(tenancyIdByEntry.values())]
+  const tenancyToProperty = new Map<string, string>()
+  if (tenancyIds.length > 0) {
+    const { data } = await supabase
+      .from('tenancies')
+      .select('id, property_id')
+      .in('id', tenancyIds)
+    for (const r of (data || [])) {
+      if (r.property_id) tenancyToProperty.set(r.id, r.property_id)
+    }
+  }
+
+  // Lead tenants for those tenancies
+  const tenancyToLeadTenant = new Map<string, string>()
+  if (tenancyIds.length > 0) {
+    const { data } = await supabase
+      .from('tenancy_tenants')
+      .select('tenancy_id, first_name_encrypted, last_name_encrypted, is_lead_tenant')
+      .in('tenancy_id', tenancyIds)
+      .order('is_lead_tenant', { ascending: false })
+    for (const r of (data || [])) {
+      if (tenancyToLeadTenant.has(r.tenancy_id)) continue
+      const first = r.first_name_encrypted ? decrypt(r.first_name_encrypted) || '' : ''
+      const last = r.last_name_encrypted ? decrypt(r.last_name_encrypted) || '' : ''
+      const name = `${first} ${last}`.trim()
+      if (name) tenancyToLeadTenant.set(r.tenancy_id, name)
+    }
+  }
+
+  // Collect all property IDs we need (from tenancies, expected_payments, tenant_offers)
+  const allPropertyIds = new Set<string>()
+  for (const pid of tenancyToProperty.values()) allPropertyIds.add(pid)
+  for (const pid of epToProperty.values()) allPropertyIds.add(pid)
+  for (const pid of offerToProperty.values()) allPropertyIds.add(pid)
+
+  // Fetch property addresses
+  const propertyAddresses = new Map<string, string>()
+  if (allPropertyIds.size > 0) {
+    const { data } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, postcode')
+      .in('id', Array.from(allPropertyIds))
+    for (const r of (data || [])) {
+      const line1 = r.address_line1_encrypted ? decrypt(r.address_line1_encrypted) || '' : ''
+      const addr = [line1, r.postcode].filter(Boolean).join(', ')
+      if (addr) propertyAddresses.set(r.id, addr)
+    }
+  }
+
   return {
-    entries: (entries || []).map(e => ({
-      ...e,
-      amount: parseFloat(e.amount),
-      balance_after: parseFloat(e.balance_after),
-    })),
+    entries: allEntries.map(e => {
+      // Resolve property_id + tenant_name for this entry
+      let propertyId: string | null = null
+      let tenantName: string | null = null
+      const tid = tenancyIdByEntry.get(e.id)
+      if (tid) {
+        propertyId = tenancyToProperty.get(tid) || null
+        tenantName = tenancyToLeadTenant.get(tid) || null
+      } else if (e.related_type === 'expected_payment' && e.related_id) {
+        propertyId = epToProperty.get(e.related_id) || null
+      } else if (e.related_type === 'tenant_offer' && e.related_id) {
+        propertyId = offerToProperty.get(e.related_id) || null
+      }
+      const propertyAddress = propertyId ? propertyAddresses.get(propertyId) || null : null
+      return {
+        ...e,
+        amount: parseFloat(e.amount),
+        balance_after: parseFloat(e.balance_after),
+        property_address: propertyAddress,
+        tenant_name: tenantName,
+      }
+    }),
     current_balance,
   }
 }
@@ -3260,17 +3431,29 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     return da.localeCompare(db)
   })
 
-  // Calculate category counts
+  // Calculate category counts — match the same filter the visible list uses
+  // (excludes paid + cancelled by default unless a specific status filter is active)
+  const isVisible = (item: UnifiedPaymentItem) => {
+    if (filters?.status && filters.status !== 'all') {
+      const s = filters.status
+      if (s === 'arrears') return item.status === 'arrears' || item.status === 'overdue'
+      if (s === 'paid') return item.status === 'paid'
+      return item.status === s
+    }
+    return item.status !== 'paid' && item.status !== 'cancelled'
+  }
+  const visibleRent = rentItems.filter(isVisible)
+  const visibleExpected = expectedItems.filter(isVisible)
   const categoryCounts = {
-    all: rentItems.length + expectedItems.length,
-    rent: rentItems.length,
-    pre_tenancy: expectedItems.filter(ep =>
+    all: visibleRent.length + visibleExpected.length,
+    rent: visibleRent.length,
+    pre_tenancy: visibleExpected.filter(ep =>
       ['holding_deposit', 'initial_monies', 'deposit'].includes(ep.payment_type)
     ).length,
-    invoices: expectedItems.filter(ep =>
+    invoices: visibleExpected.filter(ep =>
       ['tenant_change_fee', 'rent_change_fee', 'invoice'].includes(ep.payment_type)
     ).length,
-    arrears: [...rentItems, ...expectedItems].filter(item =>
+    arrears: [...visibleRent, ...visibleExpected].filter(item =>
       item.status === 'arrears' || item.status === 'overdue'
     ).length,
   }

@@ -81,7 +81,7 @@ interface SyncResult {
 // ============================================================================
 
 const requestTimestamps: number[] = []
-const MAX_REQUESTS_PER_MINUTE = 95 // 5 buffer from 100 limit
+const MAX_REQUESTS_PER_MINUTE = 75 // Conservative — Apex27 returns 429s well before 100/min in practice
 
 async function waitForRateLimit(): Promise<void> {
   const now = Date.now()
@@ -1864,7 +1864,8 @@ export async function previewTenancySync(companyId: string): Promise<{ success: 
         managementType,
         hasRlp,
         alreadyImported,
-        importTenancy: !alreadyImported && (isMatched || true),
+        // Default to import for both new and existing — existing get updated, new get created
+        importTenancy: true,
         createProperty: !isMatched,
         importLandlord: !!landlordContact && !landlordContact.matchedLandlordId
       })
@@ -1921,12 +1922,60 @@ export async function confirmTenancySync(
     for (const item of approvedItems) {
       syncResult.records_processed++
 
-      if (!item.importTenancy || item.alreadyImported) {
+      if (!item.importTenancy) {
         syncResult.records_skipped++
         continue
       }
 
       try {
+        // If already imported, UPDATE the existing tenancy with latest Apex27 data
+        if (item.alreadyImported) {
+          const { data: existing } = await supabase
+            .from('tenancies')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('apex27_tenancy_id', item.apex27TenancyId)
+            .maybeSingle()
+
+          if (existing) {
+            const updatePayload: any = {
+              tenancy_start_date: item.startDate,
+              tenancy_end_date: item.endDate || null,
+              rent_amount: item.monthlyRent,
+              monthly_rent: item.monthlyRent,
+              rent_due_day: item.rentDueDay,
+              has_rlp: item.hasRlp || false,
+              updated_at: new Date().toISOString(),
+            }
+            if (item.depositAmount != null) updatePayload.deposit_amount = item.depositAmount
+            if (item.depositScheme) updatePayload.deposit_scheme = item.depositScheme
+            if (item.depositReference) updatePayload.deposit_reference = item.depositReference
+            if (item.managementType) updatePayload.management_type = item.managementType
+
+            const { error: updateErr } = await supabase
+              .from('tenancies')
+              .update(updatePayload)
+              .eq('id', existing.id)
+
+            if (updateErr) {
+              syncResult.errors.push({ message: `Failed to update tenancy ${item.apex27TenancyId}`, detail: updateErr.message })
+              continue
+            }
+
+            // Also propagate management_type to the property if set
+            if (item.matchedPropertyId && item.managementType) {
+              await supabase
+                .from('properties')
+                .update({ management_type: item.managementType })
+                .eq('id', item.matchedPropertyId)
+            }
+
+            syncResult.records_updated++
+            continue
+          }
+          // If not found, fall through and create
+        }
+
         let propertyId = item.matchedPropertyId
 
         // Resolve property — create if needed
@@ -2198,30 +2247,77 @@ const FEE_TYPE_LABELS: Record<number, string> = {
 }
 
 /**
- * Preview fees sync — fetches all Apex27 listings in one batch, parses fees,
- * and matches against linked PG properties. No DB writes.
+ * Preview fees sync — fetches Apex27 listings for properties without fee data,
+ * parses fees, and matches against linked PG properties. No DB writes.
+ *
+ * To respect Apex27's 100 req/min rate limit, this processes a max of 80
+ * properties per call, prioritising those without existing fee data. Re-run
+ * to process the remainder. Set forceRefresh=true to re-process properties
+ * that already have fees set.
  */
-export async function previewFeesSync(companyId: string): Promise<FeesPreviewItem[]> {
+export async function previewFeesSync(
+  companyId: string,
+  options?: { forceRefresh?: boolean; limit?: number }
+): Promise<{ items: FeesPreviewItem[]; total: number; processed: number; remaining: number }> {
   const config = await getCompanyApex27Config(companyId)
   if (!config) throw new Error('Apex27 not configured for this company')
 
-  // Get all PG properties that have an Apex27 listing ID linked
-  const { data: properties } = await supabase
+  // Only fetch fees for properties linked to ACTIVE tenancies — no point pulling fees
+  // for old/withdrawn properties that aren't generating rent.
+  const { data: activeTenancies } = await supabase
+    .from('tenancies')
+    .select('property_id')
+    .eq('company_id', companyId)
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .not('property_id', 'is', null)
+
+  const activePropertyIds = new Set((activeTenancies || []).map(t => t.property_id))
+  if (activePropertyIds.size === 0) {
+    return { items: [], total: 0, processed: 0, remaining: 0 }
+  }
+
+  // Get only the properties that are linked to active tenancies AND have an Apex27 listing
+  const { data: allProperties } = await supabase
     .from('properties')
     .select('id, address_line1_encrypted, postcode, apex27_listing_id, fee_percent, management_fee_type, letting_fee_amount, letting_fee_type')
     .eq('company_id', companyId)
     .not('apex27_listing_id', 'is', null)
+    .in('id', Array.from(activePropertyIds))
 
-  if (!properties || properties.length === 0) return []
+  if (!allProperties || allProperties.length === 0) {
+    return { items: [], total: 0, processed: 0, remaining: 0 }
+  }
+
+  // Sort: properties without fees first, then ones with fees
+  const sorted = [...allProperties].sort((a, b) => {
+    const aHasFees = a.fee_percent != null
+    const bHasFees = b.fee_percent != null
+    if (aHasFees === bHasFees) return 0
+    return aHasFees ? 1 : -1
+  })
+
+  // Filter out properties that already have fees unless forceRefresh
+  const candidates = options?.forceRefresh
+    ? sorted
+    : sorted.filter(p => p.fee_percent == null)
+
+  // Cap at 60 per request to stay comfortably under Apex27's rate limit and avoid timeouts
+  const limit = options?.limit ?? 60
+  const properties = candidates.slice(0, limit)
+  const remaining = candidates.length - properties.length
 
   // Fetch each listing individually — the bulk /listings endpoint doesn't return the fees array,
-  // only the per-listing /listings/:id endpoint does. Parallel batches respect rate limits.
+  // only the per-listing /listings/:id endpoint does. Small parallel batches keep us under the limit.
   const listingsById = new Map<string, Apex27Listing>()
   const allIds = properties.map(p => String(p.apex27_listing_id)).filter(Boolean)
 
-  console.log(`[Apex27 Fees] Fetching ${allIds.length} listings individually for fee data`)
+  console.log(`[Apex27 Fees] Fetching ${allIds.length} listings (of ${candidates.length} candidates, ${remaining} remaining for next run)`)
 
-  const BATCH_SIZE = 8
+  // Small parallel batches with explicit pacing — Apex27 returns 429s well before
+  // the documented 100/min limit, so we play conservative.
+  const BATCH_SIZE = 2
+  const BATCH_DELAY_MS = 900
   for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
     const batch = allIds.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
@@ -2233,8 +2329,8 @@ export async function previewFeesSync(companyId: string): Promise<FeesPreviewIte
         listingsById.set(batch[j], r.data)
       }
     }
-    if ((i + BATCH_SIZE) % 40 === 0) {
-      console.log(`[Apex27 Fees] Fetched ${Math.min(i + BATCH_SIZE, allIds.length)}/${allIds.length} listings`)
+    if (i + BATCH_SIZE < allIds.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
     }
   }
 
@@ -2334,7 +2430,12 @@ export async function previewFeesSync(companyId: string): Promise<FeesPreviewIte
     }
   }
 
-  return items
+  return {
+    items,
+    total: candidates.length,
+    processed: properties.length,
+    remaining,
+  }
 }
 
 /**

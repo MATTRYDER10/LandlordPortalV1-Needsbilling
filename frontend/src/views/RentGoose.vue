@@ -112,7 +112,7 @@ const handleRefresh = async () => {
 }
 
 const tabs = computed(() => [
-  { id: 'collection', name: 'Payments', count: store.categoryCounts.arrears || 0 },
+  { id: 'collection', name: 'Payments', count: store.categoryCounts.all || 0 },
   { id: 'payouts', name: 'Payouts', count: store.payouts.length },
   { id: 'fees', name: 'Fee Ledger' },
   { id: 'landlords', name: 'Landlords' },

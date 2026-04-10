@@ -72,7 +72,14 @@
             <tbody>
               <tr v-for="(e, idx) in categoryEntries" :key="e.id" :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']">
                 <td class="px-4 py-3 text-sm">{{ formatDateTime(e.created_at) }}</td>
-                <td class="px-4 py-3 text-sm">{{ e.description }}</td>
+                <td class="px-4 py-3 text-sm">
+                  <div>{{ e.description }}</div>
+                  <div v-if="e.property_address || e.tenant_name" :class="['text-[11px] mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+                    <span v-if="e.property_address">{{ e.property_address }}</span>
+                    <span v-if="e.property_address && e.tenant_name"> &middot; </span>
+                    <span v-if="e.tenant_name">{{ e.tenant_name }}</span>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-400' : 'text-gray-500'">{{ e.reference || '---' }}</td>
                 <td :class="['px-4 py-3 text-sm text-right font-bold tabular-nums', isCredit(e.entry_type) ? 'text-[#15803d]' : 'text-[#dc2626]']">
                   {{ isCredit(e.entry_type) ? '' : '-' }}&pound;{{ formatMoney(e.amount) }}
@@ -144,7 +151,14 @@
               </span>
               <span v-if="entry.is_manual" class="ml-1 text-xs text-purple-500">M</span>
             </td>
-            <td class="px-4 py-3 text-sm">{{ entry.description }}</td>
+            <td class="px-4 py-3 text-sm">
+              <div>{{ entry.description }}</div>
+              <div v-if="entry.property_address || entry.tenant_name" :class="['text-[11px] mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+                <span v-if="entry.property_address">{{ entry.property_address }}</span>
+                <span v-if="entry.property_address && entry.tenant_name"> &middot; </span>
+                <span v-if="entry.tenant_name">{{ entry.tenant_name }}</span>
+              </div>
+            </td>
             <td class="px-4 py-3 text-sm text-right font-bold text-[#15803d] tabular-nums">
               {{ isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
             </td>

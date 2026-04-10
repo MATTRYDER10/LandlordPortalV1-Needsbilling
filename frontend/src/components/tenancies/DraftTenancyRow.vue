@@ -23,7 +23,7 @@
         <!-- Address & Tenant Info -->
         <div class="flex-1 min-w-0">
           <h3 class="text-base font-semibold text-slate-900 dark:text-white truncate leading-tight">
-            {{ tenancy.property?.address_line1 || 'Unknown Address' }}
+            {{ [tenancy.property?.address_line1, tenancy.property?.address_line2].filter(Boolean).join(', ') || 'Unknown Address' }}
           </h3>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {{ tenancy.property?.city }}{{ tenancy.property?.postcode ? `, ${tenancy.property.postcode}` : '' }}

@@ -1383,12 +1383,41 @@ const handleBackdropClick = () => {
 watch(() => props.show, async (show) => {
   if (show && props.tenancy) {
     resetForm()
+    // Defensive: explicitly clear special clauses BEFORE prefill to guarantee no
+    // stale state leaks across modal re-opens (e.g. when recalling an agreement)
+    formData.value.specialClauses = ''
     prefillFromTenancy(props.tenancy, {
       landlords: props.landlords,
       specialClauses: props.specialClauses,
       tenantAddresses: props.tenantAddresses,
       guarantorsData: props.guarantorsData
     })
+
+    // Authoritative re-fetch of special clauses directly from the property,
+    // overriding whatever the parent passed via props. This avoids the bug where
+    // a stale parent ref or cached agreement record could leak clauses from a
+    // previous tenancy into this modal.
+    const propertyId = props.tenancy?.property_id || props.tenancy?.property?.id
+    if (propertyId) {
+      try {
+        const token = authStore.session?.access_token
+        if (token) {
+          const clausesResp = await authFetch(
+            `${API_URL}/api/properties/${propertyId}/special-clauses`,
+            { token }
+          )
+          if (clausesResp.ok) {
+            const { clauses } = await clausesResp.json()
+            formData.value.specialClauses = (Array.isArray(clauses) && clauses.length > 0)
+              ? clauses.join('\n\n')
+              : ''
+            console.log('[TenancyAgreementModal] Fresh property special clauses loaded:', clauses?.length || 0)
+          }
+        }
+      } catch (err) {
+        console.error('[TenancyAgreementModal] Failed to fetch fresh special clauses:', err)
+      }
+    }
 
     // Store landlord bank details as backup for let_only mode
     const primaryLandlord = formData.value.landlords[0]

@@ -302,8 +302,9 @@ router.post('/fees/preview', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Only admins and owners can sync fees' })
     }
 
-    const items = await previewFeesSync(companyData.companyId)
-    res.json({ success: true, items })
+    const { forceRefresh } = req.body || {}
+    const result = await previewFeesSync(companyData.companyId, { forceRefresh: !!forceRefresh })
+    res.json({ success: true, ...result })
   } catch (error) {
     console.error('[Apex27] Error previewing fees sync:', error)
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
