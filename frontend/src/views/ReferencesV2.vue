@@ -171,6 +171,14 @@
                   >
                     {{ getSectionLabel(section.section_type) }}
                   </div>
+                  <button
+                    v-if="canDeleteRef(ref)"
+                    @click.stop="confirmDeleteReference(ref)"
+                    class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    title="Delete reference"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
                   <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
                     <ChevronRight class="w-4 h-4 text-gray-400" />
                   </div>
@@ -239,6 +247,14 @@
                   >
                     {{ getSectionLabel(section.section_type) }}
                   </div>
+                  <button
+                    v-if="canDeleteRef(ref)"
+                    @click.stop="confirmDeleteReference(ref)"
+                    class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    title="Delete reference"
+                  >
+                    <Trash2 class="w-4 h-4" />
+                  </button>
                   <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
                     <ChevronRight class="w-5 h-5 text-gray-400" />
                   </div>
@@ -257,6 +273,49 @@
         @close="drawerOpen = false"
         @updated="refreshData"
       />
+
+      <!-- Delete Confirmation Modal -->
+      <div v-if="referenceToDelete" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black/50" @click="referenceToDelete = null"></div>
+        <div class="relative bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Reference</h3>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+            Are you sure you want to delete the reference for
+            <strong>{{ referenceToDelete.tenant_first_name }} {{ referenceToDelete.tenant_last_name }}</strong>?
+          </p>
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+            <p class="text-xs text-amber-800 dark:text-amber-300">
+              <span v-if="!referenceToDelete.form_submitted_at">
+                The tenant has not yet submitted the form — the credit will be refunded.
+              </span>
+              <span v-else>
+                The tenant has already submitted the form — the credit will NOT be refunded.
+              </span>
+            </p>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-slate-500 mb-4">
+            This will permanently remove the reference, all sections, uploaded documents, and referee data. This action cannot be undone.
+          </p>
+          <div class="flex gap-3 justify-end">
+            <button
+              @click="referenceToDelete = null"
+              :disabled="deleting"
+              class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              @click="deleteReferenceConfirmed"
+              :disabled="deleting"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              <Loader2 v-if="deleting" class="w-4 h-4 animate-spin" />
+              <Trash2 v-else class="w-4 h-4" />
+              {{ deleting ? 'Deleting...' : 'Delete Reference' }}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Create Reference Modal -->
       <Transition
@@ -738,12 +797,15 @@ import {
   Loader2,
   Zap,
   Sparkles,
-  ArrowRightCircle
+  ArrowRightCircle,
+  Trash2
 } from 'lucide-vue-next'
+import { useToast } from 'vue-toastification'
 import ConversionModalV2 from '@/components/references/ConversionModalV2.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const authStore = useAuthStore()
+const toast = useToast()
 
 const loading = ref(false)
 const searchQuery = ref('')
@@ -751,6 +813,57 @@ const activeStatus = ref('all')
 const references = ref<any[]>([])
 const selectedReference = ref<any>(null)
 const drawerOpen = ref(false)
+
+// Delete confirmation state
+const referenceToDelete = ref<any>(null)
+const deleting = ref(false)
+
+// Statuses where a reference is still considered "in progress" — i.e. not yet
+// completed/accepted/rejected. Deletion is allowed in these states.
+const NON_COMPLETED_STATUSES = [
+  'SENT',
+  'COLLECTING_EVIDENCE',
+  'READY_FOR_REVIEW',
+  'IN_REVIEW',
+  'INDIVIDUAL_COMPLETE',
+  'GROUP_ASSESSMENT'
+]
+
+function canDeleteRef(ref: any): boolean {
+  if (!ref?.status) return false
+  return NON_COMPLETED_STATUSES.includes(ref.status)
+}
+
+function confirmDeleteReference(ref: any) {
+  referenceToDelete.value = ref
+}
+
+async function deleteReferenceConfirmed() {
+  if (!referenceToDelete.value) return
+  deleting.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/references/${referenceToDelete.value.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      }
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      toast.error(data.error || 'Failed to delete reference')
+      return
+    }
+    toast.success(data.creditRefunded ? 'Reference deleted and credit refunded' : 'Reference deleted')
+    referenceToDelete.value = null
+    await fetchReferences()
+  } catch (err: any) {
+    console.error('Error deleting reference:', err)
+    toast.error(err.message || 'Failed to delete reference')
+  } finally {
+    deleting.value = false
+  }
+}
 
 // Conversion Modal State
 const showConversionModal = ref(false)
