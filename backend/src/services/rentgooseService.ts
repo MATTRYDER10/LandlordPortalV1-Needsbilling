@@ -81,7 +81,7 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
   // Get tenancy details — management_type on tenancy is the single source of truth
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id, management_type')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id, management_type, additional_charges')
     .eq('id', tenancyId)
     .single()
 
@@ -93,13 +93,27 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
   // management_type on the tenancy gates RentGoose entry — must be explicitly set
   // If null, fall back to property for backwards compat
   let managementType = tenancy.management_type
-  if (!managementType && tenancy.property_id) {
+  let propertyFees: { fee_percent: number | null; management_fee_type: string | null; letting_fee_amount: number | null; letting_fee_type: string | null } = {
+    fee_percent: null,
+    management_fee_type: null,
+    letting_fee_amount: null,
+    letting_fee_type: null,
+  }
+  if (tenancy.property_id) {
     const { data: prop } = await supabase
       .from('properties')
-      .select('management_type')
+      .select('management_type, fee_percent, management_fee_type, letting_fee_amount, letting_fee_type')
       .eq('id', tenancy.property_id)
       .single()
-    managementType = prop?.management_type || null
+    if (!managementType) managementType = prop?.management_type || null
+    if (prop) {
+      propertyFees = {
+        fee_percent: prop.fee_percent != null ? parseFloat(prop.fee_percent) : null,
+        management_fee_type: prop.management_fee_type || null,
+        letting_fee_amount: prop.letting_fee_amount != null ? parseFloat(prop.letting_fee_amount) : null,
+        letting_fee_type: prop.letting_fee_type || null,
+      }
+    }
   }
 
   if (!managementType) {
@@ -162,13 +176,85 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     })
   }
 
+  let month1EntryId: string | null = null
+
   if (entries.length > 0) {
-    const { error } = await supabase
+    const { data: insertedEntries, error } = await supabase
       .from('rent_schedule_entries')
       .insert(entries)
+      .select('id, period_start')
 
     if (error) {
       console.error('Failed to create rent schedule:', error)
+    } else if (insertedEntries && insertedEntries.length > 0) {
+      // Identify month 1 (earliest period) for new-tenancy charges
+      const sorted = [...insertedEntries].sort((a, b) => a.period_start.localeCompare(b.period_start))
+      month1EntryId = sorted[0].id
+    }
+  }
+
+  // Create month 1 agent charges: management fee, letting/setup fee, additional one-off charges
+  // These are the deductions taken from the first month's rent on a new tenancy.
+  if (month1EntryId) {
+    const month1Charges: any[] = []
+
+    // Management fee (recurring — applied every month, but we create it on month 1 here;
+    // getPayoutsQueue auto-creates for subsequent months if missing)
+    if (propertyFees.fee_percent && propertyFees.fee_percent > 0) {
+      let netFee: number
+      if (propertyFees.management_fee_type === 'fixed') {
+        netFee = propertyFees.fee_percent
+      } else {
+        netFee = Math.round((propertyFees.fee_percent / 100) * monthlyRent * 100) / 100
+      }
+      const vatFee = Math.round(netFee * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'management_fee',
+        description: propertyFees.management_fee_type === 'fixed'
+          ? `Management fee (£${netFee.toFixed(2)}/month)`
+          : `Management fee at ${propertyFees.fee_percent}%`,
+        net_amount: netFee,
+        vat_amount: vatFee,
+        gross_amount: Math.round((netFee + vatFee) * 100) / 100,
+        included: true,
+      })
+    }
+
+    // Letting/setup fee (one-off, only on month 1)
+    if (propertyFees.letting_fee_amount && propertyFees.letting_fee_amount > 0) {
+      let netLet: number
+      if (propertyFees.letting_fee_type === 'percentage') {
+        netLet = Math.round((propertyFees.letting_fee_amount / 100) * monthlyRent * 100) / 100
+      } else {
+        netLet = propertyFees.letting_fee_amount
+      }
+      const vatLet = Math.round(netLet * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'letting_fee',
+        description: propertyFees.letting_fee_type === 'percentage'
+          ? `Letting/setup fee at ${propertyFees.letting_fee_amount}%`
+          : `Letting/setup fee (£${propertyFees.letting_fee_amount.toFixed(2)})`,
+        net_amount: netLet,
+        vat_amount: vatLet,
+        gross_amount: Math.round((netLet + vatLet) * 100) / 100,
+        included: true,
+      })
+    }
+    // NOTE: Additional one-off charges (tenancy.additional_charges) are NOT added here.
+    // They're collected via initial monies (request-initial-monies adds them to the
+    // expected_payment payout_split), so adding them here would double-count.
+
+    if (month1Charges.length > 0) {
+      const { error: chargesErr } = await supabase
+        .from('agent_charges')
+        .insert(month1Charges)
+      if (chargesErr) {
+        console.error('[RentGoose] Failed to create month 1 agent_charges:', chargesErr)
+      }
     }
   }
 
