@@ -1061,19 +1061,8 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
 
     if (!charges || charges.length === 0) return res.json([])
 
-    // Only show charges where the landlord payout has been completed
-    const entryIds = [...new Set(charges.map(c => c.schedule_entry_id))]
-    const { data: landlordPayouts } = await supabase
-      .from('payout_records')
-      .select('schedule_entry_id')
-      .eq('company_id', companyId)
-      .eq('payout_type', 'landlord')
-      .in('schedule_entry_id', entryIds)
-
-    const paidOutEntryIds = new Set((landlordPayouts || []).map(p => p.schedule_entry_id))
-    const readyCharges = charges.filter(c => paidOutEntryIds.has(c.schedule_entry_id))
-
-    res.json(readyCharges.map(c => ({
+    // Show all unpaid charges — agent can collect their fee independently of landlord payout
+    res.json(charges.map(c => ({
       ...c,
       net_amount: parseFloat(c.net_amount),
       vat_amount: parseFloat(c.vat_amount),
@@ -1082,6 +1071,56 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
   } catch (err: any) {
     console.error('Error fetching pending agent charges:', err)
     res.status(500).json({ error: 'Failed to fetch agent charges' })
+  }
+})
+
+// POST /api/rentgoose/agent-payout — process pending agent charges into a payout
+router.post('/agent-payout', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { charge_ids } = req.body || {}
+
+    const result = await rentgooseService.processAgentPayout(companyId, {
+      charge_ids: Array.isArray(charge_ids) && charge_ids.length > 0 ? charge_ids : undefined,
+      paid_by: req.user?.id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error processing agent payout:', err)
+    res.status(500).json({ error: err.message || 'Failed to process agent payout' })
+  }
+})
+
+// GET /api/rentgoose/agent-payouts — history of agent payouts
+router.get('/agent-payouts', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const history = await rentgooseService.getAgentPayoutHistory(companyId)
+    res.json({ payouts: history })
+  } catch (err: any) {
+    console.error('Error fetching agent payout history:', err)
+    res.status(500).json({ error: 'Failed to fetch agent payout history' })
+  }
+})
+
+// GET /api/rentgoose/agent-payout/:id — details of a single agent payout
+router.get('/agent-payout/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const details = await rentgooseService.getAgentPayoutDetails(companyId, req.params.id)
+    if (!details) return res.status(404).json({ error: 'Agent payout not found' })
+
+    res.json(details)
+  } catch (err: any) {
+    console.error('Error fetching agent payout details:', err)
+    res.status(500).json({ error: 'Failed to fetch agent payout details' })
   }
 })
 

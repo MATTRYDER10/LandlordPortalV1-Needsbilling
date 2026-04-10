@@ -1311,46 +1311,11 @@ export async function holdPayout(companyId: string, input: {
     .update({ statement_pdf_path: 'HELD' })
     .eq('id', payoutRecord.id)
 
-  // Extract the agent fee from the client account on hold.
-  // The fee is the agent's money on receipt — it should not be held with the landlord's portion.
-  // For split landlords, only extract once per schedule entry (the first hold takes the full fee).
-  const { data: unpaidCharges } = await supabase
-    .from('agent_charges')
-    .select('id, gross_amount')
-    .eq('schedule_entry_id', input.schedule_entry_id)
-    .eq('included', true)
-    .is('agent_paid_at', null)
+  // Create client_account_entry — rent_held_in with the actual amount
+  // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold.
+  // The agent fee remains in the client account until the agent explicitly processes their payout.
+  const currentBalance = await getCurrentBalance(companyId)
 
-  const totalFeeToExtract = (unpaidCharges || []).reduce((sum, c) => sum + parseFloat(c.gross_amount), 0)
-
-  let balanceAfterFee = await getCurrentBalance(companyId)
-
-  if (totalFeeToExtract > 0) {
-    balanceAfterFee = balanceAfterFee - totalFeeToExtract
-
-    // Move the fee out of the client account (paid out to agent)
-    await supabase.from('client_account_entries').insert({
-      company_id: companyId,
-      entry_type: 'payout_out',
-      amount: totalFeeToExtract,
-      description: `Agent fee paid out — landlord payout held for ${payout.property_address}`,
-      reference: `FEE-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
-      related_id: payoutRecord.id,
-      related_type: 'payout_record',
-      balance_after: balanceAfterFee,
-      created_by: input.held_by || null,
-      is_manual: false,
-    })
-
-    // Mark all unpaid charges for this entry as collected via this hold
-    await supabase
-      .from('agent_charges')
-      .update({ agent_paid_at: new Date().toISOString() })
-      .eq('schedule_entry_id', input.schedule_entry_id)
-      .is('agent_paid_at', null)
-  }
-
-  // Create rent_held_in entry — tracks the held landlord portion (balance unchanged from this entry)
   await supabase.from('client_account_entries').insert({
     company_id: companyId,
     entry_type: 'rent_held_in',
@@ -1359,7 +1324,7 @@ export async function holdPayout(companyId: string, input: {
     reference: `HELD-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
     related_id: payoutRecord.id,
     related_type: 'payout_record',
-    balance_after: balanceAfterFee,
+    balance_after: currentBalance,
     created_by: input.held_by || null,
     is_manual: false,
   })
@@ -1506,6 +1471,204 @@ export async function batchPayout(companyId: string, input: {
 // ============================================================================
 // AGENT FEES
 // ============================================================================
+
+/**
+ * Process an agent payout — collects pending agent charges, creates a payout
+ * record, marks charges as paid, and debits the client account.
+ * If chargeIds is omitted, processes ALL pending agent charges.
+ */
+export async function processAgentPayout(companyId: string, input: {
+  charge_ids?: string[]
+  paid_by?: string
+}): Promise<{ payout_id: string; total_gross: number; charge_count: number }> {
+  // Get pending charges (filtered by IDs if provided)
+  let chargeQuery = supabase
+    .from('agent_charges')
+    .select('id, net_amount, vat_amount, gross_amount')
+    .eq('company_id', companyId)
+    .eq('included', true)
+    .is('agent_paid_at', null)
+
+  if (input.charge_ids && input.charge_ids.length > 0) {
+    chargeQuery = chargeQuery.in('id', input.charge_ids)
+  }
+
+  const { data: charges, error: chargesErr } = await chargeQuery
+  if (chargesErr) throw chargesErr
+  if (!charges || charges.length === 0) {
+    throw new Error('No pending agent charges to pay out')
+  }
+
+  // Sum totals
+  const totalNet = charges.reduce((s, c) => s + parseFloat(c.net_amount), 0)
+  const totalVat = charges.reduce((s, c) => s + parseFloat(c.vat_amount), 0)
+  const totalGross = charges.reduce((s, c) => s + parseFloat(c.gross_amount), 0)
+
+  // Create the agent_payouts record
+  const { data: payoutRecord, error: payoutErr } = await supabase
+    .from('agent_payouts')
+    .insert({
+      company_id: companyId,
+      total_gross: totalGross,
+      total_net: totalNet,
+      total_vat: totalVat,
+      charge_count: charges.length,
+      paid_by: input.paid_by || null,
+    })
+    .select()
+    .single()
+
+  if (payoutErr) throw payoutErr
+
+  // Debit the client account
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - totalGross
+
+  const { data: clientEntry } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'payout_out',
+      amount: totalGross,
+      description: `Agent payout — ${charges.length} charge${charges.length !== 1 ? 's' : ''} (£${totalGross.toFixed(2)})`,
+      reference: `AGENT-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
+      related_id: payoutRecord.id,
+      related_type: 'agent_payout',
+      balance_after: newBalance,
+      created_by: input.paid_by || null,
+      is_manual: false,
+    })
+    .select()
+    .single()
+
+  if (clientEntry) {
+    await supabase
+      .from('agent_payouts')
+      .update({ client_account_entry_id: clientEntry.id })
+      .eq('id', payoutRecord.id)
+  }
+
+  // Link charges to this payout and mark as paid
+  await supabase
+    .from('agent_charges')
+    .update({
+      agent_payout_id: payoutRecord.id,
+      agent_paid_at: new Date().toISOString(),
+    })
+    .in('id', charges.map(c => c.id))
+
+  return {
+    payout_id: payoutRecord.id,
+    total_gross: totalGross,
+    charge_count: charges.length,
+  }
+}
+
+/**
+ * Get history of agent payouts (for the ledger view).
+ */
+export async function getAgentPayoutHistory(companyId: string): Promise<Array<{
+  id: string
+  total_gross: number
+  total_net: number
+  total_vat: number
+  charge_count: number
+  created_at: string
+}>> {
+  const { data } = await supabase
+    .from('agent_payouts')
+    .select('id, total_gross, total_net, total_vat, charge_count, created_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+
+  return (data || []).map(p => ({
+    id: p.id,
+    total_gross: parseFloat(p.total_gross),
+    total_net: parseFloat(p.total_net),
+    total_vat: parseFloat(p.total_vat),
+    charge_count: p.charge_count,
+    created_at: p.created_at,
+  }))
+}
+
+/**
+ * Get details of a single agent payout including all linked charges with property info.
+ */
+export async function getAgentPayoutDetails(companyId: string, payoutId: string): Promise<{
+  payout: any
+  charges: Array<{
+    id: string
+    description: string
+    property_address: string
+    property_id: string | null
+    net_amount: number
+    vat_amount: number
+    gross_amount: number
+  }>
+} | null> {
+  const { data: payout } = await supabase
+    .from('agent_payouts')
+    .select('*')
+    .eq('id', payoutId)
+    .eq('company_id', companyId)
+    .single()
+
+  if (!payout) return null
+
+  const { data: charges } = await supabase
+    .from('agent_charges')
+    .select('id, schedule_entry_id, description, net_amount, vat_amount, gross_amount')
+    .eq('agent_payout_id', payoutId)
+
+  // Look up properties via schedule entries → tenancies → properties
+  const entryIds = [...new Set((charges || []).map(c => c.schedule_entry_id))]
+  const { data: entries } = entryIds.length > 0
+    ? await supabase.from('rent_schedule_entries').select('id, tenancy_id').in('id', entryIds)
+    : { data: [] }
+
+  const tenancyIds = [...new Set((entries || []).map(e => e.tenancy_id))]
+  const { data: tenancies } = tenancyIds.length > 0
+    ? await supabase.from('tenancies').select('id, property_id').in('id', tenancyIds)
+    : { data: [] }
+
+  const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+  const { data: properties } = propertyIds.length > 0
+    ? await supabase.from('properties').select('id, address_line1_encrypted, postcode').in('id', propertyIds)
+    : { data: [] }
+
+  const propMap = new Map(
+    (properties || []).map(p => [p.id, {
+      id: p.id,
+      address: `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`,
+    }])
+  )
+  const tenancyToPropMap = new Map((tenancies || []).map(t => [t.id, t.property_id]))
+  const entryToPropMap = new Map(
+    (entries || []).map(e => [e.id, tenancyToPropMap.get(e.tenancy_id)])
+  )
+
+  return {
+    payout: {
+      ...payout,
+      total_gross: parseFloat(payout.total_gross),
+      total_net: parseFloat(payout.total_net),
+      total_vat: parseFloat(payout.total_vat),
+    },
+    charges: (charges || []).map(c => {
+      const propId = entryToPropMap.get(c.schedule_entry_id)
+      const prop = propId ? propMap.get(propId) : null
+      return {
+        id: c.id,
+        description: c.description,
+        property_address: prop?.address || 'Unknown property',
+        property_id: prop?.id || null,
+        net_amount: parseFloat(c.net_amount),
+        vat_amount: parseFloat(c.vat_amount),
+        gross_amount: parseFloat(c.gross_amount),
+      }
+    }),
+  }
+}
 
 export async function getAgentFees(companyId: string, fromDate?: string, toDate?: string): Promise<{
   fees: Array<{
