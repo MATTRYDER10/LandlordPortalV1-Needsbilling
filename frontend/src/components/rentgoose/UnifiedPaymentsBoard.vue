@@ -154,16 +154,16 @@
                     <button
                       v-if="item.item_type === 'rent' && (item.status === 'arrears' || item.status === 'overdue')"
                       @click="silenceArrears(item)"
-                      :disabled="silenceState[item.id] === 'done'"
+                      :disabled="isSilenced(item)"
                       :class="[
                         'rounded-lg font-semibold px-3 py-2 text-xs transition-all',
-                        silenceState[item.id] === 'done'
+                        isSilenced(item)
                           ? 'bg-blue-100 text-blue-600 cursor-default dark:bg-blue-900/30 dark:text-blue-400'
                           : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40'
                       ]"
-                      :title="silenceState[item.id] === 'done' ? 'Silenced for 30 days' : 'Silence arrears emails for 30 days'"
+                      :title="isSilenced(item) ? `Silenced until ${formatSilencedUntil(item)}` : 'Silence arrears emails for 30 days'"
                     >
-                      {{ silenceState[item.id] === 'done' ? 'Silenced' : 'Silence' }}
+                      {{ isSilenced(item) ? 'Silenced' : 'Silence' }}
                     </button>
                     <!-- Chase button — only for rent items in arrears -->
                     <template v-if="item.item_type === 'rent' && (item.status === 'arrears' || item.status === 'overdue')">
@@ -297,7 +297,22 @@ const paymentHistoryEntry = ref<any>(null)
 
 // Chase button state: itemId -> 'confirm' (first click) | 'sending' | 'sent'
 const chaseState = ref<Record<string, 'confirm' | 'sending' | 'sent'>>({})
+// Local optimistic silence state — overrides item.silenced_until until next refresh
 const silenceState = ref<Record<string, 'done'>>({})
+
+function isSilenced(item: UnifiedPaymentItem): boolean {
+  if (silenceState.value[item.id] === 'done') return true
+  if (item.silenced_until) {
+    return new Date(item.silenced_until) > new Date()
+  }
+  return false
+}
+
+function formatSilencedUntil(item: UnifiedPaymentItem): string {
+  if (!item.silenced_until) return '30 days'
+  const d = new Date(item.silenced_until)
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 async function handleChase(item: UnifiedPaymentItem) {
   if (chaseState.value[item.id] === 'sent') return

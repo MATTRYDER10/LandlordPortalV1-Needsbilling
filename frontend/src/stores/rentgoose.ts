@@ -105,6 +105,7 @@ export interface UnifiedPaymentItem {
   payout_sent_at?: string
   total_charges?: number
   has_rlp?: boolean
+  silenced_until?: string | null
 }
 
 export interface ClientAccountEntry {

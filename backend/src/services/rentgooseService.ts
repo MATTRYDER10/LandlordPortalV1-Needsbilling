@@ -3112,6 +3112,22 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     date_to: filters?.date_to,
   })
 
+  // Fetch active arrears chases with silenced_until — used to mark silenced rent entries
+  const entryIds = rentEntries.map(e => e.id)
+  const silencedMap = new Map<string, string>()
+  if (entryIds.length > 0) {
+    const nowIso = new Date().toISOString()
+    const { data: chases } = await supabase
+      .from('arrears_chases')
+      .select('schedule_entry_id, silenced_until')
+      .in('schedule_entry_id', entryIds)
+      .not('silenced_until', 'is', null)
+      .gt('silenced_until', nowIso)
+    for (const c of (chases || [])) {
+      silencedMap.set(c.schedule_entry_id, c.silenced_until)
+    }
+  }
+
   // Map rent entries to unified format
   const rentItems: UnifiedPaymentItem[] = rentEntries.map(e => ({
     id: e.id,
@@ -3139,6 +3155,7 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     payout_sent_at: e.payout_sent_at,
     total_charges: e.total_charges,
     has_rlp: e.has_rlp,
+    silenced_until: silencedMap.get(e.id) || null,
   }))
 
   // Map expected payments to unified format
