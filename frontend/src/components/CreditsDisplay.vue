@@ -54,8 +54,8 @@ const { isDark } = useDarkMode()
 
 let refreshInterval: number | null = null
 
-onMounted(async () => {
-  await billingStore.fetchCreditBalance()
+onMounted(() => {
+  billingStore.fetchCreditBalance().catch(() => {})
 
   // Refresh balance every 30 seconds
   refreshInterval = window.setInterval(() => {
