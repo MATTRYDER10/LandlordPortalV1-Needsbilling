@@ -795,7 +795,11 @@ const allTenants = computed<TenantView[]>(() => {
 const groupAffordability = computed(() => {
   const tenants = allTenants.value
   const totalAnnualIncome = tenants.reduce((sum, t) => sum + t.annual_income, 0)
-  const totalMonthlyRent = referenceData.value?.reference?.monthly_rent || 0
+  // Sum of tenant rent shares — final review should ALWAYS use the share set on group assessment
+  let totalMonthlyRent = tenants.reduce((sum, t) => sum + (t.rent_share || 0), 0)
+  if (totalMonthlyRent === 0 && referenceData.value?.reference?.monthly_rent) {
+    totalMonthlyRent = referenceData.value.reference.monthly_rent
+  }
   const totalAnnualRent = totalMonthlyRent * 12
   const ratio = totalAnnualRent > 0 ? totalAnnualIncome / totalAnnualRent : 0
   const pass = ratio >= 2.5

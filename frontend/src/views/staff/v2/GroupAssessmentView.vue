@@ -540,7 +540,13 @@ const combinedAffordability = computed(() => {
     }
     return sum + t.annual_income
   }, 0)
-  const totalMonthlyRent = groupData.value?.monthly_rent || 0
+  // Use sum of tenant rent shares, not the full property rent.
+  // Rent shares are the source of truth for affordability — they reflect what each
+  // tenant is actually liable for. Falls back to splitting full rent equally if shares unset.
+  let totalMonthlyRent = tenants.reduce((sum, t) => sum + (rentShares[t.id] || 0), 0)
+  if (totalMonthlyRent === 0 && tenants.length > 0 && groupData.value?.monthly_rent) {
+    totalMonthlyRent = groupData.value.monthly_rent
+  }
   const totalAnnualRent = totalMonthlyRent * 12
   const ratio = totalAnnualRent > 0 ? totalAnnualIncome / totalAnnualRent : 0
   const pass = ratio >= 2.5
