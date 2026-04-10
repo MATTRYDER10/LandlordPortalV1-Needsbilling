@@ -1311,10 +1311,46 @@ export async function holdPayout(companyId: string, input: {
     .update({ statement_pdf_path: 'HELD' })
     .eq('id', payoutRecord.id)
 
-  // Create client_account_entry — rent_held_in with the actual amount
-  // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold
-  const currentBalance = await getCurrentBalance(companyId)
+  // Extract the agent fee from the client account on hold.
+  // The fee is the agent's money on receipt — it should not be held with the landlord's portion.
+  // For split landlords, only extract once per schedule entry (the first hold takes the full fee).
+  const { data: unpaidCharges } = await supabase
+    .from('agent_charges')
+    .select('id, gross_amount')
+    .eq('schedule_entry_id', input.schedule_entry_id)
+    .eq('included', true)
+    .is('agent_paid_at', null)
 
+  const totalFeeToExtract = (unpaidCharges || []).reduce((sum, c) => sum + parseFloat(c.gross_amount), 0)
+
+  let balanceAfterFee = await getCurrentBalance(companyId)
+
+  if (totalFeeToExtract > 0) {
+    balanceAfterFee = balanceAfterFee - totalFeeToExtract
+
+    // Move the fee out of the client account (paid out to agent)
+    await supabase.from('client_account_entries').insert({
+      company_id: companyId,
+      entry_type: 'payout_out',
+      amount: totalFeeToExtract,
+      description: `Agent fee paid out — landlord payout held for ${payout.property_address}`,
+      reference: `FEE-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
+      related_id: payoutRecord.id,
+      related_type: 'payout_record',
+      balance_after: balanceAfterFee,
+      created_by: input.held_by || null,
+      is_manual: false,
+    })
+
+    // Mark all unpaid charges for this entry as collected via this hold
+    await supabase
+      .from('agent_charges')
+      .update({ agent_paid_at: new Date().toISOString() })
+      .eq('schedule_entry_id', input.schedule_entry_id)
+      .is('agent_paid_at', null)
+  }
+
+  // Create rent_held_in entry — tracks the held landlord portion (balance unchanged from this entry)
   await supabase.from('client_account_entries').insert({
     company_id: companyId,
     entry_type: 'rent_held_in',
@@ -1323,7 +1359,7 @@ export async function holdPayout(companyId: string, input: {
     reference: `HELD-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
     related_id: payoutRecord.id,
     related_type: 'payout_record',
-    balance_after: currentBalance,
+    balance_after: balanceAfterFee,
     created_by: input.held_by || null,
     is_manual: false,
   })
