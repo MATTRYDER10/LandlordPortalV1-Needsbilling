@@ -2214,19 +2214,31 @@ export async function previewFeesSync(companyId: string): Promise<FeesPreviewIte
 
   if (!properties || properties.length === 0) return []
 
-  // Fetch ALL Apex27 listings in one paginated batch (much faster than per-property lookups)
-  const listingsResult = await fetchAllListings(config.apiKey, { branchId: config.branchId })
-  if (!listingsResult.success || !listingsResult.listings) {
-    throw new Error(listingsResult.error || 'Failed to fetch listings from Apex27')
-  }
-
-  // Index by listing ID for fast lookup
+  // Fetch each listing individually — the bulk /listings endpoint doesn't return the fees array,
+  // only the per-listing /listings/:id endpoint does. Parallel batches respect rate limits.
   const listingsById = new Map<string, Apex27Listing>()
-  for (const l of listingsResult.listings) {
-    listingsById.set(String(l.id), l)
+  const allIds = properties.map(p => String(p.apex27_listing_id)).filter(Boolean)
+
+  console.log(`[Apex27 Fees] Fetching ${allIds.length} listings individually for fee data`)
+
+  const BATCH_SIZE = 8
+  for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
+    const batch = allIds.slice(i, i + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(id => apex27Fetch<Apex27Listing>(config.apiKey, `/listings/${id}`).catch(() => null))
+    )
+    for (let j = 0; j < batch.length; j++) {
+      const r = results[j]
+      if (r && r.success && r.data) {
+        listingsById.set(batch[j], r.data)
+      }
+    }
+    if ((i + BATCH_SIZE) % 40 === 0) {
+      console.log(`[Apex27 Fees] Fetched ${Math.min(i + BATCH_SIZE, allIds.length)}/${allIds.length} listings`)
+    }
   }
 
-  console.log(`[Apex27 Fees] Matching ${properties.length} PG properties against ${listingsResult.listings.length} Apex27 listings`)
+  console.log(`[Apex27 Fees] Done — got ${listingsById.size}/${allIds.length} listings`)
 
   const items: FeesPreviewItem[] = []
 
@@ -2234,7 +2246,26 @@ export async function previewFeesSync(companyId: string): Promise<FeesPreviewIte
     try {
       const listing = listingsById.get(String(prop.apex27_listing_id))
       if (!listing) {
-        console.log(`[Apex27 Fees] No listing found for property ${prop.id} (apex27 id: ${prop.apex27_listing_id})`)
+        // Still missing — couldn't fetch even individually
+        const propAddress = (prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : '') || ''
+        items.push({
+          apex27ListingId: String(prop.apex27_listing_id),
+          apex27Address: '(listing not found in Apex27)',
+          apex27Postcode: '',
+          matchedPropertyId: prop.id,
+          matchedPropertyAddress: `${propAddress}, ${prop.postcode || ''}`.trim(),
+          managementFeePercent: null,
+          managementFeeFixed: null,
+          managementFeeType: null,
+          lettingFeeAmount: null,
+          lettingFeeType: null,
+          rawFees: [],
+          currentFeePercent: prop.fee_percent != null ? parseFloat(prop.fee_percent) : null,
+          currentManagementFeeType: prop.management_fee_type || null,
+          currentLettingFeeAmount: prop.letting_fee_amount != null ? parseFloat(prop.letting_fee_amount) : null,
+          currentLettingFeeType: prop.letting_fee_type || null,
+          importFees: false,
+        })
         continue
       }
 
