@@ -118,6 +118,21 @@ export async function getCompanyIGConfig(companyId: string): Promise<IGConfig | 
   return { apiKey }
 }
 
+export function hashIGApiKey(apiKey: string): string {
+  return crypto.createHash('sha256').update(apiKey).digest('hex')
+}
+
+export async function findCompanyIdByIgApiKeyHash(hash: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('company_integrations')
+    .select('company_id')
+    .eq('ig_api_key_hash', hash)
+    .single()
+
+  if (error || !data) return null
+  return data.company_id
+}
+
 export async function saveIGConfig(
   companyId: string,
   apiKey: string
@@ -125,6 +140,7 @@ export async function saveIGConfig(
   console.log('[IG] Saving config for companyId:', companyId)
 
   const encryptedApiKey = encrypt(apiKey)
+  const apiKeyHash = hashIGApiKey(apiKey)
 
   const { data: existing } = await supabase
     .from('company_integrations')
@@ -137,6 +153,7 @@ export async function saveIGConfig(
       .from('company_integrations')
       .update({
         ig_api_key_encrypted: encryptedApiKey,
+        ig_api_key_hash: apiKeyHash,
         ig_connected_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -152,6 +169,7 @@ export async function saveIGConfig(
       .insert({
         company_id: companyId,
         ig_api_key_encrypted: encryptedApiKey,
+        ig_api_key_hash: apiKeyHash,
         ig_connected_at: new Date().toISOString()
       })
 
@@ -169,6 +187,7 @@ export async function removeIGConfig(companyId: string): Promise<{ success: bool
     .from('company_integrations')
     .update({
       ig_api_key_encrypted: null,
+      ig_api_key_hash: null,
       ig_connected_at: null,
       ig_last_tested_at: null,
       ig_last_test_status: null,

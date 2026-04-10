@@ -1,6 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { supabase } from '../config/supabase'
-import { verifyWebhookSignature, getCompanyIGConfig } from '../services/inventoryGooseService'
+import {
+  verifyWebhookSignature,
+  getCompanyIGConfig,
+  hashIGApiKey,
+  findCompanyIdByIgApiKeyHash
+} from '../services/inventoryGooseService'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -214,6 +220,54 @@ router.post('/report-complete', async (req: Request, res: Response) => {
     res.json({ received: true })
   } catch (error) {
     console.error('[IG Report] Error processing report delivery:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * GET /api/integrations/ig/properties
+ * Authenticates by the IG-issued API key and returns all properties for that company.
+ * Used by IG to pull its full property list from PG in one request (manual sync).
+ */
+router.get('/properties', async (req: Request, res: Response) => {
+  try {
+    const apiKey = req.headers['x-pg-api-key'] as string | undefined
+    if (!apiKey) {
+      return res.status(401).json({ error: 'Missing x-pg-api-key header' })
+    }
+
+    const hash = hashIGApiKey(apiKey)
+    const companyId = await findCompanyIdByIgApiKeyHash(hash)
+    if (!companyId) {
+      return res.status(401).json({ error: 'Invalid API key' })
+    }
+
+    const { data: properties, error } = await supabase
+      .from('properties')
+      .select('id, postcode, property_type, number_of_bedrooms, address_line1_encrypted, address_line2_encrypted, city_encrypted, updated_at')
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+
+    if (error) {
+      console.error('[IG Properties] Query error:', error)
+      return res.status(500).json({ error: 'Failed to load properties' })
+    }
+
+    const payload = (properties || []).map((p: any) => ({
+      pg_property_id: p.id,
+      address_line_1: decrypt(p.address_line1_encrypted) || '',
+      address_line_2: decrypt(p.address_line2_encrypted) || '',
+      city: decrypt(p.city_encrypted) || '',
+      postcode: p.postcode || '',
+      property_type: p.property_type || 'flat',
+      bedrooms: p.number_of_bedrooms || 0,
+      updated_at: p.updated_at
+    }))
+
+    res.json({ properties: payload })
+  } catch (error) {
+    console.error('[IG Properties] Error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
