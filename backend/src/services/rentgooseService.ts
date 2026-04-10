@@ -2112,16 +2112,121 @@ export async function resolveArrears(id: string, companyId: string): Promise<voi
 // CLIENT ACCOUNT
 // ============================================================================
 
-export async function getCurrentBalance(companyId: string): Promise<number> {
-  const { data } = await supabase
-    .from('client_account_entries')
-    .select('balance_after')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+// Entry types that CREDIT the client account (money in)
+const CREDIT_ENTRY_TYPES = new Set([
+  'rent_in',
+  'initial_monies_rent_in',
+  'deposit_in',
+  'holding_deposit_in',
+  'invoice_fee_in',
+  'manual_credit',
+  'opening_balance',
+])
 
-  return data ? parseFloat(data.balance_after) : 0
+// Entry types that are INFORMATIONAL ONLY — they appear in the ledger but
+// do NOT affect the running balance. Used to mark earmarked money (e.g.
+// held rent) without double-counting. The underlying money has already
+// been credited via a real `rent_in` entry; the hold just tags it.
+const INFORMATIONAL_ENTRY_TYPES = new Set([
+  'rent_held_in',
+])
+
+// Entry types that DEBIT the client account (money out). Anything not in
+// CREDIT_ENTRY_TYPES or INFORMATIONAL_ENTRY_TYPES is treated as a debit.
+function isCreditEntry(entryType: string): boolean {
+  return CREDIT_ENTRY_TYPES.has(entryType)
+}
+
+function isInformationalEntry(entryType: string): boolean {
+  return INFORMATIONAL_ENTRY_TYPES.has(entryType)
+}
+
+/**
+ * Compute the current client-account balance as the chronological running
+ * sum of all credit entries minus all debit entries for the company.
+ *
+ * This is the single source of truth for the balance. We used to read the
+ * `balance_after` column on the most recent row, but that's a stored snapshot
+ * that goes stale whenever entries are retroactively inserted, deleted, or
+ * added out of order — which is how the ledger drifted in the past. The
+ * deltas (credit/debit amounts) are the actual facts; the balance is derived.
+ */
+export async function getCurrentBalance(companyId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('client_account_entries')
+    .select('entry_type, amount')
+    .eq('company_id', companyId)
+
+  if (error) {
+    console.error('[RentGoose] getCurrentBalance query error:', error)
+    return 0
+  }
+
+  let balance = 0
+  for (const row of (data || [])) {
+    if (isInformationalEntry(row.entry_type)) continue
+    const amt = parseFloat(row.amount)
+    if (isCreditEntry(row.entry_type)) {
+      balance += amt
+    } else {
+      balance -= amt
+    }
+  }
+  // Round to 2dp to avoid floating-point drift from accumulated arithmetic
+  return Math.round(balance * 100) / 100
+}
+
+/**
+ * Repair stored `balance_after` snapshots for a company by recomputing each
+ * row's running balance from credits/debits in chronological order. Safe to
+ * run repeatedly — it's idempotent and only updates rows whose stored
+ * balance_after differs from the computed value.
+ *
+ * Returns the number of rows that were corrected.
+ */
+export async function reconcileClientAccountBalances(companyId: string): Promise<{
+  rowsScanned: number
+  rowsFixed: number
+  finalBalance: number
+}> {
+  const { data: rows, error } = await supabase
+    .from('client_account_entries')
+    .select('id, entry_type, amount, balance_after, created_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  let running = 0
+  let fixed = 0
+  for (const row of (rows || [])) {
+    if (!isInformationalEntry(row.entry_type)) {
+      const amt = parseFloat(row.amount)
+      running += isCreditEntry(row.entry_type) ? amt : -amt
+      running = Math.round(running * 100) / 100
+    }
+    // Informational rows (e.g. rent_held_in) inherit the running balance
+    // at their point in time without shifting it.
+
+    const stored = parseFloat(row.balance_after)
+    if (Math.abs(stored - running) > 0.01) {
+      const { error: updErr } = await supabase
+        .from('client_account_entries')
+        .update({ balance_after: running })
+        .eq('id', row.id)
+      if (updErr) {
+        console.error(`[RentGoose] reconcile: failed to update row ${row.id}:`, updErr)
+        continue
+      }
+      fixed++
+    }
+  }
+
+  return {
+    rowsScanned: rows?.length || 0,
+    rowsFixed: fixed,
+    finalBalance: running,
+  }
 }
 
 export async function getClientAccount(companyId: string, filters?: {
@@ -2143,7 +2248,52 @@ export async function getClientAccount(companyId: string, filters?: {
   const { data: entries, error } = await query
   if (error) throw error
 
-  const current_balance = await getCurrentBalance(companyId)
+  // Compute the authoritative balance_after for EACH row on the fly from the
+  // credit/debit deltas in chronological order. We deliberately ignore the
+  // stored `balance_after` column here because it's a snapshot that can go
+  // stale if entries are inserted, deleted, or added out of order. The credits
+  // and debits are the source of truth — the running balance is derived.
+  // This guarantees the displayed ledger is mathematically consistent 100%
+  // of the time, regardless of what's stored.
+  const chronological = [...(entries || [])].sort((a: any, b: any) => {
+    const at = new Date(a.created_at).getTime()
+    const bt = new Date(b.created_at).getTime()
+    if (at !== bt) return at - bt
+    // Tie-break on id so ordering is deterministic when timestamps collide
+    return String(a.id).localeCompare(String(b.id))
+  })
+  const computedBalanceByEntryId = new Map<string, number>()
+  let running = 0
+  let driftDetected = false
+  for (const row of chronological) {
+    if (!isInformationalEntry(row.entry_type)) {
+      const amt = parseFloat(row.amount)
+      running += isCreditEntry(row.entry_type) ? amt : -amt
+      running = Math.round(running * 100) / 100
+    }
+    // Informational rows (e.g. rent_held_in) inherit the running balance
+    // at their point in time without shifting it.
+    computedBalanceByEntryId.set(row.id, running)
+
+    // Detect stored-vs-computed drift so we can self-heal the legacy snapshots
+    const stored = parseFloat(row.balance_after)
+    if (Math.abs(stored - running) > 0.01) {
+      driftDetected = true
+    }
+  }
+  const current_balance = running
+
+  // Self-heal: if any row has a stale stored balance_after, fix the stored
+  // snapshots in the background. Non-blocking so the response is fast.
+  // This eventually converges stored state to match the computed truth.
+  if (driftDetected) {
+    console.warn(`[RentGoose] Client account snapshot drift detected for company ${companyId} — running background reconcile`)
+    reconcileClientAccountBalances(companyId).then(r => {
+      console.log(`[RentGoose] Background reconcile complete for ${companyId}: scanned=${r.rowsScanned} fixed=${r.rowsFixed} final=${r.finalBalance}`)
+    }).catch(err => {
+      console.error(`[RentGoose] Background reconcile failed for ${companyId}:`, err)
+    })
+  }
 
   // Enrich entries with property address + lead tenant via related_id chain.
   // Mappings:
@@ -2317,7 +2467,10 @@ export async function getClientAccount(companyId: string, filters?: {
       return {
         ...e,
         amount: parseFloat(e.amount),
-        balance_after: parseFloat(e.balance_after),
+        // Authoritative: computed from chronological running sum, NOT the
+        // stored snapshot (which may be stale due to out-of-order inserts,
+        // deletions, or race conditions on concurrent payouts).
+        balance_after: computedBalanceByEntryId.get(e.id) ?? parseFloat(e.balance_after),
         property_address: propertyAddress,
         tenant_name: tenantName,
       }
