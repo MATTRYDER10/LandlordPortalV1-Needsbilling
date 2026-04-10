@@ -379,12 +379,9 @@
                   <div v-if="monthData.entries.filter(e => e.type !== 'move_out').length > 0" class="mt-3 space-y-1.5">
                     <div
                       v-for="entry in monthData.entries.filter(e => e.type !== 'move_out')"
-                      :key="entry.tenancyId"
-                      class="flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-                      :class="entry.allActionsComplete
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'"
-                      @click="navigateToTenancy(entry.tenancyId)"
+                      :key="entry.referenceId || entry.tenancyId"
+                      class="flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      @click="navigateToReference(entry.referenceId || entry.tenancyId)"
                     >
                       <div
                         class="w-7 h-7 rounded bg-slate-900 dark:bg-slate-700 text-white flex flex-col items-center justify-center flex-shrink-0"
@@ -393,9 +390,9 @@
                         <span class="text-xs font-bold leading-none">{{ getDay(entry.moveInDate) }}</span>
                       </div>
                       <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-slate-900 dark:text-white truncate">{{ entry.property.address }}</p>
+                        <p class="text-xs font-medium text-slate-900 dark:text-white truncate">{{ entry.property.address || 'No property' }}</p>
                         <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                          {{ entry.tenants.length }} tenant{{ entry.tenants.length > 1 ? 's' : '' }}
+                          {{ entry.tenants[0]?.name || 'Tenant' }}{{ entry.tenants.length > 1 ? ` + ${entry.tenants.length - 1} other${entry.tenants.length > 2 ? 's' : ''}` : '' }}
                           {{ entry.rentAmount ? `• ${formatCurrency(entry.rentAmount)}/mo` : '' }}
                         </p>
                       </div>
@@ -442,7 +439,12 @@ import {
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface CalendarEntry {
-  tenancyId: string
+  // V2 reference id — the calendar is now driven by references, not
+  // tenancies. tenancyId is kept for backwards compat with move-out entries
+  // which still come from the tenancies table.
+  referenceId?: string | null
+  referenceNumber?: string | null
+  tenancyId?: string | null
   moveInDate: string
   property: {
     address: string
@@ -454,6 +456,8 @@ interface CalendarEntry {
     id: string
     name: string
   }>
+  groupSize?: number
+  status?: string
   allActionsComplete: boolean
   type?: 'move_in' | 'move_out'
 }
@@ -736,13 +740,29 @@ const fetchCalendarData = async () => {
     if (!token) return
 
     calendarLoading.value = true
-    const response = await authFetch(`${API_URL}/api/tenancies/records/calendar`, { token })
 
-    if (response.ok) {
-      const data = await response.json()
-      calendarEntries.value = data.entries || []
-      complianceExpiries.value = data.complianceExpiries || []
+    // Pull move-in calendar data from V2 references (source of truth for
+    // the move-in pipeline) and merge with move-out + compliance data
+    // from the tenancies calendar endpoint.
+    const [moveInResp, tenancyResp] = await Promise.all([
+      authFetch(`${API_URL}/api/v2/references/calendar`, { token }),
+      authFetch(`${API_URL}/api/tenancies/records/calendar`, { token }),
+    ])
+
+    const moveInEntries = moveInResp.ok ? ((await moveInResp.json()).entries || []) : []
+
+    let moveOutEntries: any[] = []
+    let compliance: any[] = []
+    if (tenancyResp.ok) {
+      const tenancyData = await tenancyResp.json()
+      // Keep only move_out entries from the tenancy calendar — move_ins now
+      // come from references
+      moveOutEntries = (tenancyData.entries || []).filter((e: any) => e.type === 'move_out')
+      compliance = tenancyData.complianceExpiries || []
     }
+
+    calendarEntries.value = [...moveInEntries, ...moveOutEntries]
+    complianceExpiries.value = compliance
   } catch (error) {
     console.error('Failed to fetch calendar data:', error)
   } finally {
@@ -753,6 +773,13 @@ const fetchCalendarData = async () => {
 // Navigation
 const navigateToTenancy = (tenancyId: string) => {
   router.push(`/tenancies?tenancy=${tenancyId}`)
+}
+
+// Navigate to a V2 reference from the move-in calendar. ReferencesV2.vue
+// reads ?ref=<id> on mount and opens that reference in the drawer.
+const navigateToReference = (referenceId: string | null | undefined) => {
+  if (!referenceId) return
+  router.push(`/references-v2?ref=${referenceId}`)
 }
 
 const navigateToDeposits = () => {
