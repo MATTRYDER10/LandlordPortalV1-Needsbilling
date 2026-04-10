@@ -78,6 +78,16 @@ export interface AgentChargeItem {
 // ============================================================================
 
 export async function initTenancySchedule(tenancyId: string, companyId: string): Promise<void> {
+  // SAFETY: skip entirely if this company isn't on the RentGoose whitelist.
+  // Otherwise we'd silently create rent_schedule_entries that the arrears
+  // scheduler would later process — sending arrears emails to tenants whose
+  // agent never opted into RentGoose.
+  const { isRentGooseEnabled } = await import('./rentgooseAccess')
+  if (!await isRentGooseEnabled(companyId)) {
+    console.log(`[RentGoose] Skipping initTenancySchedule for tenancy ${tenancyId} — company not RentGoose-enabled`)
+    return
+  }
+
   // Get tenancy details — management_type on tenancy is the single source of truth
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
@@ -453,7 +463,11 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 // ============================================================================
 
 export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
-  // Get all active tenancies with management_type — tenancy is the source of truth
+  // SAFETY: skip entirely if this company isn't on the RentGoose whitelist.
+  const { isRentGooseEnabled } = await import('./rentgooseAccess')
+  if (!await isRentGooseEnabled(companyId)) return { synced: 0, extended: 0 }
+
+  // Get all active tenancies — management_type is the gate (tenancy field, falls back to property)
   const { data: allTenancies, error } = await supabase
     .from('tenancies')
     .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id, management_type')
@@ -463,12 +477,34 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
 
   if (error || !allTenancies || allTenancies.length === 0) return { synced: 0, extended: 0 }
 
-  // Only extend rolling schedules for managed tenancies — let_only gets month 1 only via initTenancySchedule
-  const tenancies = allTenancies.filter(t => {
-    if (!t.management_type) return false // No management type set = not in RentGoose
-    if (t.management_type === 'let_only') return false // No recurring for let_only
-    return true
-  })
+  // Fall back to property management_type for tenancies that don't have it set
+  // (e.g. imported via Apex which writes management_type to the property only).
+  const propIds = [...new Set(allTenancies.map(t => t.property_id).filter(Boolean))]
+  const propManagementMap = new Map<string, string | null>()
+  if (propIds.length > 0) {
+    const { data: props } = await supabase
+      .from('properties')
+      .select('id, management_type')
+      .in('id', propIds)
+    for (const p of (props || [])) {
+      propManagementMap.set(p.id, p.management_type || null)
+    }
+  }
+
+  // Resolve effective management_type for each tenancy + filter
+  const tenancies = allTenancies
+    .map(t => ({
+      ...t,
+      effective_management_type: t.management_type || propManagementMap.get(t.property_id) || null,
+    }))
+    .filter(t => {
+      if (!t.effective_management_type) return false // No management type anywhere = not in RentGoose
+      if (t.effective_management_type === 'let_only') return false // No recurring for let_only
+      return true
+    })
+
+  console.log(`[RentGoose] syncActiveManagedTenancies: ${allTenancies.length} active tenancies, ${tenancies.length} managed (after fallback)`)
+
   if (tenancies.length === 0) return { synced: 0, extended: 0 }
 
   const today = new Date()
@@ -1269,6 +1305,9 @@ export async function markPayoutPaid(companyId: string, input: {
   if (!payout) throw new Error('Payout not found in queue')
 
   // Create payout record (synchronous — must succeed before returning)
+  // Note: deposit tracking is handled via separate client_account_entries +
+  // expected_payments updates below; payout_records itself does not store a
+  // deposit_amount column.
   const { data: payoutRecord, error: payoutErr } = await supabase
     .from('payout_records')
     .insert({
@@ -1279,7 +1318,6 @@ export async function markPayoutPaid(companyId: string, input: {
       gross_rent: payout.gross_rent,
       total_charges: payout.total_charges,
       net_payout: payout.net_payout,
-      deposit_amount: payout.deposit_amount || 0,
       paid_by: input.paid_by || null,
     })
     .select()
@@ -2074,16 +2112,121 @@ export async function resolveArrears(id: string, companyId: string): Promise<voi
 // CLIENT ACCOUNT
 // ============================================================================
 
-export async function getCurrentBalance(companyId: string): Promise<number> {
-  const { data } = await supabase
-    .from('client_account_entries')
-    .select('balance_after')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+// Entry types that CREDIT the client account (money in)
+const CREDIT_ENTRY_TYPES = new Set([
+  'rent_in',
+  'initial_monies_rent_in',
+  'deposit_in',
+  'holding_deposit_in',
+  'invoice_fee_in',
+  'manual_credit',
+  'opening_balance',
+])
 
-  return data ? parseFloat(data.balance_after) : 0
+// Entry types that are INFORMATIONAL ONLY — they appear in the ledger but
+// do NOT affect the running balance. Used to mark earmarked money (e.g.
+// held rent) without double-counting. The underlying money has already
+// been credited via a real `rent_in` entry; the hold just tags it.
+const INFORMATIONAL_ENTRY_TYPES = new Set([
+  'rent_held_in',
+])
+
+// Entry types that DEBIT the client account (money out). Anything not in
+// CREDIT_ENTRY_TYPES or INFORMATIONAL_ENTRY_TYPES is treated as a debit.
+function isCreditEntry(entryType: string): boolean {
+  return CREDIT_ENTRY_TYPES.has(entryType)
+}
+
+function isInformationalEntry(entryType: string): boolean {
+  return INFORMATIONAL_ENTRY_TYPES.has(entryType)
+}
+
+/**
+ * Compute the current client-account balance as the chronological running
+ * sum of all credit entries minus all debit entries for the company.
+ *
+ * This is the single source of truth for the balance. We used to read the
+ * `balance_after` column on the most recent row, but that's a stored snapshot
+ * that goes stale whenever entries are retroactively inserted, deleted, or
+ * added out of order — which is how the ledger drifted in the past. The
+ * deltas (credit/debit amounts) are the actual facts; the balance is derived.
+ */
+export async function getCurrentBalance(companyId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('client_account_entries')
+    .select('entry_type, amount')
+    .eq('company_id', companyId)
+
+  if (error) {
+    console.error('[RentGoose] getCurrentBalance query error:', error)
+    return 0
+  }
+
+  let balance = 0
+  for (const row of (data || [])) {
+    if (isInformationalEntry(row.entry_type)) continue
+    const amt = parseFloat(row.amount)
+    if (isCreditEntry(row.entry_type)) {
+      balance += amt
+    } else {
+      balance -= amt
+    }
+  }
+  // Round to 2dp to avoid floating-point drift from accumulated arithmetic
+  return Math.round(balance * 100) / 100
+}
+
+/**
+ * Repair stored `balance_after` snapshots for a company by recomputing each
+ * row's running balance from credits/debits in chronological order. Safe to
+ * run repeatedly — it's idempotent and only updates rows whose stored
+ * balance_after differs from the computed value.
+ *
+ * Returns the number of rows that were corrected.
+ */
+export async function reconcileClientAccountBalances(companyId: string): Promise<{
+  rowsScanned: number
+  rowsFixed: number
+  finalBalance: number
+}> {
+  const { data: rows, error } = await supabase
+    .from('client_account_entries')
+    .select('id, entry_type, amount, balance_after, created_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  let running = 0
+  let fixed = 0
+  for (const row of (rows || [])) {
+    if (!isInformationalEntry(row.entry_type)) {
+      const amt = parseFloat(row.amount)
+      running += isCreditEntry(row.entry_type) ? amt : -amt
+      running = Math.round(running * 100) / 100
+    }
+    // Informational rows (e.g. rent_held_in) inherit the running balance
+    // at their point in time without shifting it.
+
+    const stored = parseFloat(row.balance_after)
+    if (Math.abs(stored - running) > 0.01) {
+      const { error: updErr } = await supabase
+        .from('client_account_entries')
+        .update({ balance_after: running })
+        .eq('id', row.id)
+      if (updErr) {
+        console.error(`[RentGoose] reconcile: failed to update row ${row.id}:`, updErr)
+        continue
+      }
+      fixed++
+    }
+  }
+
+  return {
+    rowsScanned: rows?.length || 0,
+    rowsFixed: fixed,
+    finalBalance: running,
+  }
 }
 
 export async function getClientAccount(companyId: string, filters?: {
@@ -2105,14 +2248,233 @@ export async function getClientAccount(companyId: string, filters?: {
   const { data: entries, error } = await query
   if (error) throw error
 
-  const current_balance = await getCurrentBalance(companyId)
+  // Compute the authoritative balance_after for EACH row on the fly from the
+  // credit/debit deltas in chronological order. We deliberately ignore the
+  // stored `balance_after` column here because it's a snapshot that can go
+  // stale if entries are inserted, deleted, or added out of order. The credits
+  // and debits are the source of truth — the running balance is derived.
+  // This guarantees the displayed ledger is mathematically consistent 100%
+  // of the time, regardless of what's stored.
+  const chronological = [...(entries || [])].sort((a: any, b: any) => {
+    const at = new Date(a.created_at).getTime()
+    const bt = new Date(b.created_at).getTime()
+    if (at !== bt) return at - bt
+    // Tie-break on id so ordering is deterministic when timestamps collide
+    return String(a.id).localeCompare(String(b.id))
+  })
+  const computedBalanceByEntryId = new Map<string, number>()
+  let running = 0
+  let driftDetected = false
+  for (const row of chronological) {
+    if (!isInformationalEntry(row.entry_type)) {
+      const amt = parseFloat(row.amount)
+      running += isCreditEntry(row.entry_type) ? amt : -amt
+      running = Math.round(running * 100) / 100
+    }
+    // Informational rows (e.g. rent_held_in) inherit the running balance
+    // at their point in time without shifting it.
+    computedBalanceByEntryId.set(row.id, running)
+
+    // Detect stored-vs-computed drift so we can self-heal the legacy snapshots
+    const stored = parseFloat(row.balance_after)
+    if (Math.abs(stored - running) > 0.01) {
+      driftDetected = true
+    }
+  }
+  const current_balance = running
+
+  // Self-heal: if any row has a stale stored balance_after, fix the stored
+  // snapshots in the background. Non-blocking so the response is fast.
+  // This eventually converges stored state to match the computed truth.
+  if (driftDetected) {
+    console.warn(`[RentGoose] Client account snapshot drift detected for company ${companyId} — running background reconcile`)
+    reconcileClientAccountBalances(companyId).then(r => {
+      console.log(`[RentGoose] Background reconcile complete for ${companyId}: scanned=${r.rowsScanned} fixed=${r.rowsFixed} final=${r.finalBalance}`)
+    }).catch(err => {
+      console.error(`[RentGoose] Background reconcile failed for ${companyId}:`, err)
+    })
+  }
+
+  // Enrich entries with property address + lead tenant via related_id chain.
+  // Mappings:
+  //   related_type='expected_payment' → expected_payments → tenancy/property
+  //   related_type='rent_payment' → rent_payments → schedule_entry → tenancy → property
+  //   related_type='payout_record' / 'agent_payout' → payout_records → schedule_entry → tenancy → property
+  //   related_type='tenant_offer' → tenant_offers → linked_property
+  const allEntries = entries || []
+  const tenancyIdByEntry = new Map<string, string>() // client_account_entry.id → tenancy_id
+
+  // Bucket related_ids by type for batched lookups
+  const epIds = new Set<string>()
+  const rentPaymentIds = new Set<string>()
+  const payoutRecordIds = new Set<string>()
+  const agentPayoutIds = new Set<string>()
+  const tenantOfferIds = new Set<string>()
+  for (const e of allEntries) {
+    if (!e.related_id) continue
+    if (e.related_type === 'expected_payment') epIds.add(e.related_id)
+    else if (e.related_type === 'rent_payment') rentPaymentIds.add(e.related_id)
+    else if (e.related_type === 'payout_record') payoutRecordIds.add(e.related_id)
+    else if (e.related_type === 'agent_payout') agentPayoutIds.add(e.related_id)
+    else if (e.related_type === 'tenant_offer') tenantOfferIds.add(e.related_id)
+  }
+
+  // Fetch expected_payments (already have tenancy_id + property_id)
+  const epToTenancy = new Map<string, string>()
+  const epToProperty = new Map<string, string>()
+  if (epIds.size > 0) {
+    const { data } = await supabase
+      .from('expected_payments')
+      .select('id, tenancy_id, property_id')
+      .in('id', Array.from(epIds))
+    for (const r of (data || [])) {
+      if (r.tenancy_id) epToTenancy.set(r.id, r.tenancy_id)
+      if (r.property_id) epToProperty.set(r.id, r.property_id)
+    }
+  }
+
+  // Fetch rent_payments → schedule_entry_id → tenancy
+  const rpToScheduleEntry = new Map<string, string>()
+  if (rentPaymentIds.size > 0) {
+    const { data } = await supabase
+      .from('rent_payments')
+      .select('id, schedule_entry_id')
+      .in('id', Array.from(rentPaymentIds))
+    for (const r of (data || [])) rpToScheduleEntry.set(r.id, r.schedule_entry_id)
+  }
+
+  // Fetch payout_records → schedule_entry_id
+  const prToScheduleEntry = new Map<string, string>()
+  if (payoutRecordIds.size > 0) {
+    const { data } = await supabase
+      .from('payout_records')
+      .select('id, schedule_entry_id')
+      .in('id', Array.from(payoutRecordIds))
+    for (const r of (data || [])) prToScheduleEntry.set(r.id, r.schedule_entry_id)
+  }
+
+  // Resolve all schedule_entry_ids → tenancy_id
+  const allScheduleEntryIds = new Set<string>()
+  for (const id of rpToScheduleEntry.values()) allScheduleEntryIds.add(id)
+  for (const id of prToScheduleEntry.values()) allScheduleEntryIds.add(id)
+  const scheduleEntryToTenancy = new Map<string, string>()
+  if (allScheduleEntryIds.size > 0) {
+    const { data } = await supabase
+      .from('rent_schedule_entries')
+      .select('id, tenancy_id')
+      .in('id', Array.from(allScheduleEntryIds))
+    for (const r of (data || [])) scheduleEntryToTenancy.set(r.id, r.tenancy_id)
+  }
+
+  // Fetch tenant_offers → linked_property_id (no tenancy yet at offer stage)
+  const offerToProperty = new Map<string, string>()
+  if (tenantOfferIds.size > 0) {
+    const { data } = await supabase
+      .from('tenant_offers')
+      .select('id, linked_property_id')
+      .in('id', Array.from(tenantOfferIds))
+    for (const r of (data || [])) {
+      if (r.linked_property_id) offerToProperty.set(r.id, r.linked_property_id)
+    }
+  }
+
+  // Build entry → tenancy_id map
+  for (const e of allEntries) {
+    if (!e.related_id) continue
+    if (e.related_type === 'expected_payment') {
+      const tid = epToTenancy.get(e.related_id)
+      if (tid) tenancyIdByEntry.set(e.id, tid)
+    } else if (e.related_type === 'rent_payment') {
+      const seId = rpToScheduleEntry.get(e.related_id)
+      if (seId) {
+        const tid = scheduleEntryToTenancy.get(seId)
+        if (tid) tenancyIdByEntry.set(e.id, tid)
+      }
+    } else if (e.related_type === 'payout_record') {
+      const seId = prToScheduleEntry.get(e.related_id)
+      if (seId) {
+        const tid = scheduleEntryToTenancy.get(seId)
+        if (tid) tenancyIdByEntry.set(e.id, tid)
+      }
+    }
+  }
+
+  // Now resolve tenancy_id → property_id + lead tenant
+  const tenancyIds = [...new Set(tenancyIdByEntry.values())]
+  const tenancyToProperty = new Map<string, string>()
+  if (tenancyIds.length > 0) {
+    const { data } = await supabase
+      .from('tenancies')
+      .select('id, property_id')
+      .in('id', tenancyIds)
+    for (const r of (data || [])) {
+      if (r.property_id) tenancyToProperty.set(r.id, r.property_id)
+    }
+  }
+
+  // Lead tenants for those tenancies
+  const tenancyToLeadTenant = new Map<string, string>()
+  if (tenancyIds.length > 0) {
+    const { data } = await supabase
+      .from('tenancy_tenants')
+      .select('tenancy_id, first_name_encrypted, last_name_encrypted, is_lead_tenant')
+      .in('tenancy_id', tenancyIds)
+      .order('is_lead_tenant', { ascending: false })
+    for (const r of (data || [])) {
+      if (tenancyToLeadTenant.has(r.tenancy_id)) continue
+      const first = r.first_name_encrypted ? decrypt(r.first_name_encrypted) || '' : ''
+      const last = r.last_name_encrypted ? decrypt(r.last_name_encrypted) || '' : ''
+      const name = `${first} ${last}`.trim()
+      if (name) tenancyToLeadTenant.set(r.tenancy_id, name)
+    }
+  }
+
+  // Collect all property IDs we need (from tenancies, expected_payments, tenant_offers)
+  const allPropertyIds = new Set<string>()
+  for (const pid of tenancyToProperty.values()) allPropertyIds.add(pid)
+  for (const pid of epToProperty.values()) allPropertyIds.add(pid)
+  for (const pid of offerToProperty.values()) allPropertyIds.add(pid)
+
+  // Fetch property addresses
+  const propertyAddresses = new Map<string, string>()
+  if (allPropertyIds.size > 0) {
+    const { data } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, postcode')
+      .in('id', Array.from(allPropertyIds))
+    for (const r of (data || [])) {
+      const line1 = r.address_line1_encrypted ? decrypt(r.address_line1_encrypted) || '' : ''
+      const addr = [line1, r.postcode].filter(Boolean).join(', ')
+      if (addr) propertyAddresses.set(r.id, addr)
+    }
+  }
 
   return {
-    entries: (entries || []).map(e => ({
-      ...e,
-      amount: parseFloat(e.amount),
-      balance_after: parseFloat(e.balance_after),
-    })),
+    entries: allEntries.map(e => {
+      // Resolve property_id + tenant_name for this entry
+      let propertyId: string | null = null
+      let tenantName: string | null = null
+      const tid = tenancyIdByEntry.get(e.id)
+      if (tid) {
+        propertyId = tenancyToProperty.get(tid) || null
+        tenantName = tenancyToLeadTenant.get(tid) || null
+      } else if (e.related_type === 'expected_payment' && e.related_id) {
+        propertyId = epToProperty.get(e.related_id) || null
+      } else if (e.related_type === 'tenant_offer' && e.related_id) {
+        propertyId = offerToProperty.get(e.related_id) || null
+      }
+      const propertyAddress = propertyId ? propertyAddresses.get(propertyId) || null : null
+      return {
+        ...e,
+        amount: parseFloat(e.amount),
+        // Authoritative: computed from chronological running sum, NOT the
+        // stored snapshot (which may be stale due to out-of-order inserts,
+        // deletions, or race conditions on concurrent payouts).
+        balance_after: computedBalanceByEntryId.get(e.id) ?? parseFloat(e.balance_after),
+        property_address: propertyAddress,
+        tenant_name: tenantName,
+      }
+    }),
     current_balance,
   }
 }
@@ -2625,6 +2987,11 @@ async function sendTenantReceipt(companyId: string, scheduleEntryId: string): Pr
 // ============================================================================
 
 export async function updateScheduleStatuses(): Promise<void> {
+  // SAFETY: only operate on companies that have RentGoose enabled.
+  const { getRentGooseEnabledCompanyIds } = await import('./rentgooseAccess')
+  const enabledIds = await getRentGooseEnabledCompanyIds()
+  if (enabledIds.length === 0) return
+
   const today = new Date().toISOString().split('T')[0]
 
   // Mark 'upcoming' as 'due' if due_date = today
@@ -2633,6 +3000,7 @@ export async function updateScheduleStatuses(): Promise<void> {
     .update({ status: 'due', updated_at: new Date().toISOString() })
     .eq('status', 'upcoming')
     .eq('due_date', today)
+    .in('company_id', enabledIds)
 
   // Find 'due' entries that are now past due — capture them before updating
   const { data: newlyOverdue } = await supabase
@@ -2640,6 +3008,7 @@ export async function updateScheduleStatuses(): Promise<void> {
     .select('id, tenancy_id, company_id, amount_due, due_date')
     .eq('status', 'due')
     .lt('due_date', today)
+    .in('company_id', enabledIds)
 
   if (newlyOverdue && newlyOverdue.length > 0) {
     // Mark as overdue
@@ -3098,6 +3467,22 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     date_to: filters?.date_to,
   })
 
+  // Fetch active arrears chases with silenced_until — used to mark silenced rent entries
+  const entryIds = rentEntries.map(e => e.id)
+  const silencedMap = new Map<string, string>()
+  if (entryIds.length > 0) {
+    const nowIso = new Date().toISOString()
+    const { data: chases } = await supabase
+      .from('arrears_chases')
+      .select('schedule_entry_id, silenced_until')
+      .in('schedule_entry_id', entryIds)
+      .not('silenced_until', 'is', null)
+      .gt('silenced_until', nowIso)
+    for (const c of (chases || [])) {
+      silencedMap.set(c.schedule_entry_id, c.silenced_until)
+    }
+  }
+
   // Map rent entries to unified format
   const rentItems: UnifiedPaymentItem[] = rentEntries.map(e => ({
     id: e.id,
@@ -3125,6 +3510,7 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     payout_sent_at: e.payout_sent_at,
     total_charges: e.total_charges,
     has_rlp: e.has_rlp,
+    silenced_until: silencedMap.get(e.id) || null,
   }))
 
   // Map expected payments to unified format
@@ -3200,17 +3586,29 @@ export async function getUnifiedSchedule(companyId: string, filters?: {
     return da.localeCompare(db)
   })
 
-  // Calculate category counts
+  // Calculate category counts — match the same filter the visible list uses
+  // (excludes paid + cancelled by default unless a specific status filter is active)
+  const isVisible = (item: UnifiedPaymentItem) => {
+    if (filters?.status && filters.status !== 'all') {
+      const s = filters.status
+      if (s === 'arrears') return item.status === 'arrears' || item.status === 'overdue'
+      if (s === 'paid') return item.status === 'paid'
+      return item.status === s
+    }
+    return item.status !== 'paid' && item.status !== 'cancelled'
+  }
+  const visibleRent = rentItems.filter(isVisible)
+  const visibleExpected = expectedItems.filter(isVisible)
   const categoryCounts = {
-    all: rentItems.length + expectedItems.length,
-    rent: rentItems.length,
-    pre_tenancy: expectedItems.filter(ep =>
+    all: visibleRent.length + visibleExpected.length,
+    rent: visibleRent.length,
+    pre_tenancy: visibleExpected.filter(ep =>
       ['holding_deposit', 'initial_monies', 'deposit'].includes(ep.payment_type)
     ).length,
-    invoices: expectedItems.filter(ep =>
+    invoices: visibleExpected.filter(ep =>
       ['tenant_change_fee', 'rent_change_fee', 'invoice'].includes(ep.payment_type)
     ).length,
-    arrears: [...rentItems, ...expectedItems].filter(item =>
+    arrears: [...visibleRent, ...visibleExpected].filter(item =>
       item.status === 'arrears' || item.status === 'overdue'
     ).length,
   }

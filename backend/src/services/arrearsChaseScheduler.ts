@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import { sendEmail, loadEmailTemplate } from './emailService'
+import { getRentGooseEnabledCompanyIds } from './rentgooseAccess'
 
 const CHASE_INTERVAL = 60 * 60 * 1000 // Check every hour
 
@@ -13,10 +14,17 @@ export function startArrearsChaseScheduler(): void {
 
 async function processArrearsChases(): Promise<void> {
   try {
+    // SAFETY: only process arrears for companies that have RentGoose enabled.
+    // Without this gate, ANY tenant in the system could receive arrears emails
+    // from a company that never opted into RentGoose.
+    const enabledCompanyIds = await getRentGooseEnabledCompanyIds()
+    if (enabledCompanyIds.length === 0) return
+
     const { data: activeChases } = await supabase
       .from('arrears_chases')
       .select('*, rent_schedule_entries!inner(tenancy_id, due_date)')
       .eq('status', 'active')
+      .in('company_id', enabledCompanyIds)
 
     if (!activeChases || activeChases.length === 0) return
 

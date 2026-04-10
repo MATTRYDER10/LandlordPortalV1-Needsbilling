@@ -386,6 +386,15 @@
           </div>
 
         </div><!-- close: initial sync (L143 status.lastTestStatus) -->
+
+        <!-- Inline messages for sync actions (visible in configured mode) -->
+        <div v-if="errorMsg" class="mt-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
+          {{ errorMsg }}
+        </div>
+        <div v-if="successMsg" class="mt-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
+          {{ successMsg }}
+        </div>
+
       </div><!-- close: configured && !editMode (L64) -->
     </div><!-- close: Main Panel v-else (L38) -->
 
@@ -430,7 +439,7 @@
               <tr
                 v-for="item in tenancyPreviewItems"
                 :key="item.apex27TenancyId"
-                :class="item.alreadyImported ? 'bg-gray-50 dark:bg-slate-900 opacity-50' : 'bg-white dark:bg-slate-800'"
+                :class="item.alreadyImported ? 'bg-amber-50/30 dark:bg-amber-950/10' : 'bg-white dark:bg-slate-800'"
               >
                 <td class="px-4 py-2.5">
                   <div class="text-gray-900 dark:text-white text-sm font-medium">{{ item.apex27Address }}</div>
@@ -458,7 +467,6 @@
                 <td class="px-4 py-2.5 text-right text-xs text-gray-700 dark:text-slate-300">{{ item.depositAmount ? formatCurrency(item.depositAmount) : '—' }}</td>
                 <td class="px-4 py-2.5 text-center">
                   <select
-                    v-if="!item.alreadyImported"
                     v-model="item.managementType"
                     class="text-xs rounded border px-1.5 py-1 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white border-gray-200"
                   >
@@ -466,18 +474,14 @@
                     <option value="managed">Managed</option>
                     <option value="let_only">Let Only</option>
                   </select>
-                  <span v-else class="text-xs text-gray-400">
-                    {{ item.managementType === 'managed' ? 'Managed' : item.managementType === 'let_only' ? 'Let Only' : '—' }}
-                  </span>
                 </td>
                 <td class="px-4 py-2.5 text-center">
-                  <span v-if="item.alreadyImported" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400">Imported</span>
+                  <span v-if="item.alreadyImported" class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Update</span>
                   <span v-else-if="item.propertyMatchType !== 'new'" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Matched</span>
                   <span v-else class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">New</span>
                 </td>
                 <td class="px-4 py-2.5 text-center">
                   <button
-                    v-if="!item.alreadyImported"
                     type="button"
                     @click="item.importTenancy = !item.importTenancy"
                     class="text-xs font-medium px-2.5 py-1 rounded"
@@ -487,7 +491,6 @@
                   >
                     {{ item.importTenancy ? 'Yes' : 'No' }}
                   </button>
-                  <span v-else class="text-xs text-gray-300 dark:text-slate-600">—</span>
                 </td>
               </tr>
             </tbody>
@@ -515,7 +518,7 @@
           </div>
           <div class="flex items-center justify-between">
             <div class="text-sm text-gray-500 dark:text-slate-400">
-              {{ importableCount }} of {{ tenancyPreviewItems.filter(i => !i.alreadyImported).length }} tenancies will be imported
+              {{ importableCount }} of {{ tenancyPreviewItems.length }} tenancies will be imported / updated
             </div>
             <button
             type="button"
@@ -567,6 +570,7 @@
           </router-link>
         </div>
       </div>
+
     </div>
 
     <!-- Edit Form -->
@@ -649,7 +653,7 @@ const importLetOnly = ref(false)
 const importableCount = computed(() => {
   if (!tenancyPreviewItems.value) return 0
   return tenancyPreviewItems.value.filter(i => {
-    if (i.alreadyImported || !i.importTenancy) return false
+    if (!i.importTenancy) return false
     if (!importLetOnly.value && i.managementType === 'let_only') return false
     return true
   }).length
@@ -660,6 +664,7 @@ const tenancySyncResult = ref<{
   records_skipped: number
   errors?: any[]
 } | null>(null)
+
 const editMode = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
@@ -1045,7 +1050,7 @@ async function handleTenancyConfirm() {
   tenancySyncResult.value = null
 
   const approvedItems = tenancyPreviewItems.value.filter(item => {
-    if (!item.importTenancy || item.alreadyImported) return false
+    if (!item.importTenancy) return false
     if (!importLetOnly.value && item.managementType === 'let_only') return false
     return true
   })

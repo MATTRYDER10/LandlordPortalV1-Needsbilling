@@ -77,6 +77,18 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     { value: 'tv_licence', label: 'TV Licence' },
   ]
 
+  // Compute the first-period end date for an APTA (assured periodic tenancy):
+  // one month after the start date, minus one day (UK tenancy convention).
+  // e.g. start 10 Feb 2026 → end 9 Mar 2026.
+  const computeAptaFirstPeriodEnd = (startDateStr: string | null | undefined): string => {
+    if (!startDateStr) return ''
+    const d = new Date(startDateStr)
+    if (isNaN(d.getTime())) return ''
+    d.setMonth(d.getMonth() + 1)
+    d.setDate(d.getDate() - 1)
+    return d.toISOString().split('T')[0]
+  }
+
   // Computed: is the current agreement type APTA
   const isAPTA = computed(() => formData.value.agreementType === 'apta')
   const isCompanyLet = computed(() => formData.value.agreementType === 'company_let')
@@ -115,15 +127,26 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     }
   })
 
-  // Clear APTA-incompatible fields when switching to APTA
+  // Clear APTA-incompatible fields when switching to APTA.
+  // For APTA (assured periodic tenancy), there is no fixed term — but the
+  // first rental period still needs an end date on the agreement. That end
+  // date is one month after the start date, minus one day (UK convention).
   watch(() => formData.value.agreementType, (newType) => {
     if (newType === 'apta') {
       formData.value.tenancyTerm = 0
-      formData.value.tenancyEndDate = ''
+      formData.value.tenancyEndDate = computeAptaFirstPeriodEnd(formData.value.tenancyStartDate)
+      endDateManuallyEdited.value = false
       formData.value.breakClauseEnabled = false
       formData.value.breakClause = ''
       formData.value.breakClauseMonths = null
       formData.value.breakClauseNoticePeriod = null
+    }
+  })
+
+  // Also recompute APTA end date when the start date changes (while on APTA)
+  watch(() => formData.value.tenancyStartDate, (newStart) => {
+    if (formData.value.agreementType === 'apta' && newStart) {
+      formData.value.tenancyEndDate = computeAptaFirstPeriodEnd(newStart)
     }
   })
 
@@ -415,7 +438,24 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     // Dates and financials
     if (tenancy.start_date) formData.value.tenancyStartDate = tenancy.start_date
     if (tenancy.end_date) {
-      formData.value.tenancyEndDate = tenancy.end_date
+      // Self-heal: if the stored end date lands on the exact anniversary of the
+      // start date (i.e. it was saved without the -1 day convention), shift it
+      // back one day before populating the form. Fixes legacy tenancies created
+      // by older conversion paths that did not subtract the day.
+      let computedEndDate = tenancy.end_date
+      if (tenancy.start_date) {
+        const start = new Date(tenancy.start_date)
+        const end = new Date(tenancy.end_date)
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          // Is the end date on the exact calendar anniversary of the start date?
+          if (end.getDate() === start.getDate() &&
+              ((end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())) > 0) {
+            end.setDate(end.getDate() - 1)
+            computedEndDate = end.toISOString().split('T')[0]
+          }
+        }
+      }
+      formData.value.tenancyEndDate = computedEndDate
       endDateManuallyEdited.value = true
     }
     if (tenancy.monthly_rent) formData.value.rentAmount = tenancy.monthly_rent

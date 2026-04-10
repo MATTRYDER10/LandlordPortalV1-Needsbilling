@@ -424,7 +424,7 @@ export async function getTenancy(
     .from('tenancies')
     .select(`
       *,
-      properties(id, postcode, address_line1_encrypted, city_encrypted, status, management_type),
+      properties(id, postcode, address_line1_encrypted, address_line2_encrypted, city_encrypted, full_address_encrypted, status, management_type),
       tenancy_tenants(*)
     `)
     .eq('id', tenancyId)
@@ -483,7 +483,7 @@ export async function listTenancies(
     .from('tenancies')
     .select(`
       *,
-      properties(id, postcode, address_line1_encrypted, city_encrypted, status, management_type),
+      properties(id, postcode, address_line1_encrypted, address_line2_encrypted, city_encrypted, full_address_encrypted, status, management_type),
       tenancy_tenants(*),
       agreements:agreement_id(id, signing_status)
     `, { count: 'exact' })
@@ -1388,11 +1388,20 @@ function formatTenancyWithRelations(data: any): Tenancy {
 
   // Format property
   if (data.properties) {
+    const line1 = decrypt(data.properties.address_line1_encrypted) || ''
+    const line2 = decrypt(data.properties.address_line2_encrypted) || ''
+    const city = decrypt(data.properties.city_encrypted) || ''
+    const fullStored = decrypt(data.properties.full_address_encrypted) || ''
+    // Compose a display string that always has the most complete address available
+    const composedFromParts = [line1, line2, city].filter(Boolean).join(', ')
+    // Prefer composed (with line1+line2+city) but fall back to stored full if line1 is missing
+    const displayAddress = composedFromParts || fullStored
     tenancy.property = {
       id: data.properties.id,
       postcode: data.properties.postcode,
-      address_line1: decrypt(data.properties.address_line1_encrypted),
-      city: decrypt(data.properties.city_encrypted),
+      address_line1: line1 || displayAddress,
+      address_line2: line2 || null,
+      city: city || null,
       status: data.properties.status,
       management_type: data.properties.management_type || null
     }

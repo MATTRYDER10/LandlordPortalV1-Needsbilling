@@ -1125,27 +1125,68 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // Check if tenant has submitted the form
     const formSubmitted = !!reference.form_submitted_at
 
-    // Delete associated sections first
+    // Find any guarantor children — a guarantor reference is its own row in
+    // tenant_references_v2 with guarantor_for_reference_id pointing at this one.
+    // The FK tenant_references_v2_guarantor_for_reference_id_fkey is NOT
+    // ON DELETE CASCADE on all environments, so we must manually remove the
+    // child (and its dependents) before the parent, otherwise the parent
+    // delete fails with a 23503 FK violation.
+    const { data: guarantorChildren, error: guarantorFetchError } = await supabase
+      .from('tenant_references_v2')
+      .select('id')
+      .eq('guarantor_for_reference_id', id)
+
+    if (guarantorFetchError) {
+      console.error('[V2 References] Error fetching guarantor children:', guarantorFetchError)
+      return res.status(500).json({ error: 'Failed to check guarantor children' })
+    }
+
+    const childIds = (guarantorChildren || []).map(c => c.id)
+    const allIds = [...childIds, id]
+
+    // Null the parent's pointer to the guarantor so the other FK direction is
+    // also safe (it's SET NULL on most envs but be explicit).
+    if (childIds.length > 0) {
+      await supabase
+        .from('tenant_references_v2')
+        .update({ guarantor_reference_id: null })
+        .eq('id', id)
+    }
+
+    // Delete dependent rows for BOTH the parent and any guarantor children.
     const { error: sectionsError } = await supabase
       .from('reference_sections_v2')
       .delete()
-      .eq('reference_id', id)
+      .in('reference_id', allIds)
 
     if (sectionsError) {
       console.error('[V2 References] Error deleting sections:', sectionsError)
     }
 
-    // Delete any referees
     const { error: refereesError } = await supabase
       .from('referees_v2')
       .delete()
-      .eq('reference_id', id)
+      .in('reference_id', allIds)
 
     if (refereesError) {
       console.error('[V2 References] Error deleting referees:', refereesError)
     }
 
-    // Delete the reference
+    // Delete guarantor children first so the parent's FK constraint is released.
+    if (childIds.length > 0) {
+      const { error: childDeleteError } = await supabase
+        .from('tenant_references_v2')
+        .delete()
+        .in('id', childIds)
+
+      if (childDeleteError) {
+        console.error('[V2 References] Error deleting guarantor children:', childDeleteError)
+        return res.status(500).json({ error: 'Failed to delete guarantor children' })
+      }
+      console.log(`[V2 References] Deleted ${childIds.length} guarantor child reference(s) for parent ${id}`)
+    }
+
+    // Delete the parent reference
     const { error: deleteError } = await supabase
       .from('tenant_references_v2')
       .delete()
@@ -1153,7 +1194,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     if (deleteError) {
       console.error('[V2 References] Error deleting reference:', deleteError)
-      return res.status(500).json({ error: 'Failed to delete reference' })
+      return res.status(500).json({ error: 'Failed to delete reference', details: deleteError.message })
     }
 
     // Refund credit if form was NOT submitted

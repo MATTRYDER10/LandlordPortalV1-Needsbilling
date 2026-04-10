@@ -1878,6 +1878,27 @@
               <p class="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{{ propertyDetails.notes }}</p>
             </div>
 
+            <!-- Agency Fees & Services — mirror of property fee bar; saves to property -->
+            <div v-if="tenancy?.property_id && propertyDetails" class="border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+              <div class="px-4 py-3 bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Building class="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                  Agency Fees &amp; Services
+                </h3>
+                <span class="text-[10px] text-gray-500 dark:text-slate-400">Saves to property &middot; updates RentGoose</span>
+              </div>
+              <div class="p-4">
+                <PropertyFeeBar
+                  :key="`feebar-${tenancy.property_id}`"
+                  :property-id="tenancy.property_id"
+                  :service-type-id="propertyDetails.service_type_id || null"
+                  :fee-percent="propertyDetails.fee_percent != null ? Number(propertyDetails.fee_percent) : null"
+                  :management-fee-type="propertyDetails.management_fee_type || null"
+                  :letting-fee-amount="propertyDetails.letting_fee_amount != null ? Number(propertyDetails.letting_fee_amount) : null"
+                />
+              </div>
+            </div>
+
             <!-- Special Clauses (from Property) -->
             <div class="border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
               <div class="px-4 py-3 bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
@@ -3077,6 +3098,7 @@ import JMIUtilitiesTab from './JMIUtilitiesTab.vue'
 import TenancyAgreementStatus from './TenancyAgreementStatus.vue'
 import MoveInPackModal from './MoveInPackModal.vue'
 import LandlordMoveInPackModal from '../properties/LandlordMoveInPackModal.vue'
+import PropertyFeeBar from '../properties/PropertyFeeBar.vue'
 import EditableTenantCard from './EditableTenantCard.vue'
 import EditableGuarantorCard from './EditableGuarantorCard.vue'
 import EditableField from './EditableField.vue'

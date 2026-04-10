@@ -194,6 +194,37 @@
           </p>
         </div>
 
+        <!-- Feature Toggles -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Feature Access</h3>
+          <div class="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-gray-900">RentGoose</span>
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-orange-100 text-orange-700">Beta</span>
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-purple-100 text-purple-700">£28pcm + VAT</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">Rent &amp; invoice management — rent reminders, landlord statements, contractor remittances, agency fee tracking.</p>
+            </div>
+            <button
+              @click="toggleRentGoose"
+              :disabled="togglingRentGoose"
+              :class="[
+                'relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0',
+                selectedCompanyDetails.company.rentgoose_enabled ? 'bg-primary' : 'bg-gray-300',
+                togglingRentGoose && 'opacity-50 cursor-not-allowed'
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow',
+                  selectedCompanyDetails.company.rentgoose_enabled ? 'translate-x-6' : 'translate-x-1'
+                ]"
+              ></span>
+            </button>
+          </div>
+        </div>
+
         <!-- Tabs -->
         <div class="bg-white rounded-lg shadow">
           <div class="border-b border-gray-200">
@@ -385,6 +416,7 @@ const activeTab = ref<'credits' | 'references' | 'team'>('credits')
 const creditAdjustment = ref<number | null>(null)
 const creditReason = ref('')
 const adjustingCredits = ref(false)
+const togglingRentGoose = ref(false)
 
 // Delete user functionality
 const showDeleteUserModal = ref(false)
@@ -481,6 +513,26 @@ const adjustCredits = async () => {
     alert(error.response?.data?.error || 'Failed to adjust credits')
   } finally {
     adjustingCredits.value = false
+  }
+}
+
+const toggleRentGoose = async () => {
+  if (!selectedCompanyDetails.value || togglingRentGoose.value) return
+  const newValue = !selectedCompanyDetails.value.company.rentgoose_enabled
+  togglingRentGoose.value = true
+  try {
+    const token = authStore.session?.access_token
+    await axios.patch(
+      `${API_URL}/api/admin/companies/${selectedCompanyDetails.value.company.id}/rentgoose`,
+      { enabled: newValue },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    selectedCompanyDetails.value.company.rentgoose_enabled = newValue
+  } catch (error: any) {
+    console.error('Error toggling RentGoose:', error)
+    alert(error.response?.data?.error || 'Failed to toggle RentGoose')
+  } finally {
+    togglingRentGoose.value = false
   }
 }
 

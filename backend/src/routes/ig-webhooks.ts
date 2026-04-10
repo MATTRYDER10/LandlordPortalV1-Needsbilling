@@ -1,8 +1,51 @@
 import { Router, Request, Response } from 'express'
 import { supabase } from '../config/supabase'
-import { verifyWebhookSignature, getCompanyIGConfig } from '../services/inventoryGooseService'
+import {
+  verifyWebhookSignature,
+  getCompanyIGConfig,
+  hashIGApiKey,
+  findCompanyIdByIgApiKeyHash
+} from '../services/inventoryGooseService'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
+
+// ── Rate limiter for the IG properties pull endpoint ────────────────────────
+// Keyed by client IP. IG is expected to call this on manual syncs only; a
+// legitimate caller will stay well under this limit. The cap exists to
+// blunt brute-force attempts against x-pg-api-key.
+const igPropertiesRateMap = new Map<string, { count: number; resetAt: number }>()
+const IG_PROPERTIES_RATE_MAX = 30
+const IG_PROPERTIES_RATE_WINDOW_MS = 60_000
+
+function isIgPropertiesRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = igPropertiesRateMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    igPropertiesRateMap.set(ip, { count: 1, resetAt: now + IG_PROPERTIES_RATE_WINDOW_MS })
+    return false
+  }
+  entry.count++
+  return entry.count > IG_PROPERTIES_RATE_MAX
+}
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, entry] of igPropertiesRateMap) {
+    if (now > entry.resetAt) igPropertiesRateMap.delete(ip)
+  }
+}, 60_000)
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for']
+  if (forwarded) {
+    const ips = (typeof forwarded === 'string' ? forwarded : forwarded[0]).split(',')
+    return ips[0].trim()
+  }
+  const realIp = req.headers['x-real-ip']
+  if (realIp) return typeof realIp === 'string' ? realIp : realIp[0]
+  return req.ip || req.socket?.remoteAddress || '0.0.0.0'
+}
 
 // ============================================================================
 // HELPER: Verify webhook and find appointment
@@ -214,6 +257,65 @@ router.post('/report-complete', async (req: Request, res: Response) => {
     res.json({ received: true })
   } catch (error) {
     console.error('[IG Report] Error processing report delivery:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * GET /api/integrations/ig/properties
+ * Authenticates by the IG-issued API key and returns all properties for that company.
+ * Used by IG to pull its full property list from PG in one request (manual sync).
+ */
+router.get('/properties', async (req: Request, res: Response) => {
+  const clientIp = getClientIp(req)
+
+  // Rate limit BEFORE any DB work so brute-force attempts are cheap to reject
+  if (isIgPropertiesRateLimited(clientIp)) {
+    console.warn(`[IG Properties] Rate limited ip=${clientIp}`)
+    return res.status(429).json({ error: 'Too many requests' })
+  }
+
+  try {
+    const rawKey = req.headers['x-pg-api-key']
+    const apiKey = typeof rawKey === 'string' ? rawKey.trim() : ''
+    if (!apiKey) {
+      return res.status(401).json({ error: 'Missing x-pg-api-key header' })
+    }
+
+    const hash = hashIGApiKey(apiKey)
+    const companyId = await findCompanyIdByIgApiKeyHash(hash)
+    if (!companyId) {
+      console.warn(`[IG Properties] Auth failed ip=${clientIp}`)
+      return res.status(401).json({ error: 'Invalid API key' })
+    }
+
+    const { data: properties, error } = await supabase
+      .from('properties')
+      .select('id, postcode, property_type, number_of_bedrooms, address_line1_encrypted, address_line2_encrypted, city_encrypted, updated_at')
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+
+    if (error) {
+      console.error('[IG Properties] Query error:', error)
+      return res.status(500).json({ error: 'Failed to load properties' })
+    }
+
+    const payload = (properties || []).map((p: any) => ({
+      pg_property_id: p.id,
+      address_line_1: decrypt(p.address_line1_encrypted) || '',
+      address_line_2: decrypt(p.address_line2_encrypted) || '',
+      city: decrypt(p.city_encrypted) || '',
+      postcode: p.postcode || '',
+      property_type: p.property_type || 'flat',
+      bedrooms: p.number_of_bedrooms || 0,
+      updated_at: p.updated_at
+    }))
+
+    console.log(`[IG Properties] Served ${payload.length} properties company=${companyId} ip=${clientIp}`)
+    res.json({ properties: payload })
+  } catch (error) {
+    console.error('[IG Properties] Error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

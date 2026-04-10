@@ -33,7 +33,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <h3 class="text-base font-semibold text-slate-900 dark:text-white truncate leading-tight">
-                {{ tenancy.property?.address_line1 || 'Unknown Address' }}
+                {{ [tenancy.property?.address_line1, tenancy.property?.address_line2].filter(Boolean).join(', ') || 'Unknown Address' }}
               </h3>
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {{ tenancy.property?.city }}{{ tenancy.property?.postcode ? `, ${tenancy.property.postcode}` : '' }}
@@ -222,9 +222,14 @@ interface Tenancy {
   compliance_pack_sent_at?: string | null
   property?: {
     address_line1: string
+    address_line2?: string | null
     city: string
     postcode: string
   }
+  deposit_replacement_offered?: boolean
+  deposit_replacement_requested?: boolean
+  offer_unihomes?: boolean
+  unihomes_interested?: boolean
   tenants?: TenancyTenant[]
 }
 

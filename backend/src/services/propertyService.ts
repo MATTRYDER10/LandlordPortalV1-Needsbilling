@@ -971,11 +971,17 @@ class PropertyService {
     const addressLine2 = decrypt(property.address_line2_encrypted) || property.address_line2 || null
     const city = decrypt(property.city_encrypted) || property.city || null
     const county = decrypt(property.county_encrypted) || property.county || null
-    const fullAddress = decrypt(property.full_address_encrypted) || property.full_address || null
+    const fullAddressStored = decrypt(property.full_address_encrypted) || property.full_address || null
+
+    // Compose a display address that always includes the house number/name from line1.
+    // Prefer line1 + city (most reliable). Fall back to stored full address only if no line1.
+    const composedDisplay = addressLine1
+      ? [addressLine1, city].filter(Boolean).join(', ')
+      : fullAddressStored
 
     return {
       id: property.id,
-      address: fullAddress || addressLine1,
+      address: composedDisplay,
       address_line1: addressLine1,
       address_line2: addressLine2,
       city: city,

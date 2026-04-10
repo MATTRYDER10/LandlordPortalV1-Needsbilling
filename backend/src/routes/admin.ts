@@ -1085,7 +1085,8 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
         onboarding_completed: company.onboarding_completed,
         auto_recharge_enabled: company.auto_recharge_enabled,
         auto_recharge_threshold: company.auto_recharge_threshold,
-        auto_recharge_pack_size: company.auto_recharge_pack_size
+        auto_recharge_pack_size: company.auto_recharge_pack_size,
+        rentgoose_enabled: company.rentgoose_enabled === true
       },
       stats: {
         totalReferences: referencesResult.count || 0,
@@ -1104,6 +1105,41 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
   } catch (error) {
     console.error('Error fetching customer details:', error)
     res.status(500).json({ error: 'Failed to fetch customer details' })
+  }
+})
+
+/**
+ * PATCH /api/admin/companies/:companyId/rentgoose
+ * Toggle RentGoose access for a company.
+ * Body: { enabled: boolean }
+ */
+router.patch('/companies/:companyId/rentgoose', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+    const { enabled } = req.body
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled must be a boolean' })
+    }
+
+    const { error } = await supabase
+      .from('companies')
+      .update({ rentgoose_enabled: enabled })
+      .eq('id', companyId)
+
+    if (error) {
+      console.error('Failed to toggle rentgoose_enabled:', error)
+      return res.status(500).json({ error: 'Failed to update RentGoose access' })
+    }
+
+    // Invalidate access cache so the change takes effect immediately
+    const { invalidateRentGooseAccessCache } = await import('../services/rentgooseAccess')
+    invalidateRentGooseAccessCache(companyId)
+
+    res.json({ success: true, rentgoose_enabled: enabled })
+  } catch (err: any) {
+    console.error('Error toggling RentGoose access:', err)
+    res.status(500).json({ error: 'Failed to update RentGoose access' })
   }
 })
 

@@ -10,6 +10,8 @@ import {
   confirmSync,
   previewTenancySync,
   confirmTenancySync,
+  previewFeesSync,
+  confirmFeesSync,
   apex27Fetch
 } from '../services/apex27Service'
 import { decrypt } from '../services/encryption'
@@ -284,6 +286,52 @@ router.post('/tenancies/confirm', authenticateToken, async (req: AuthRequest, re
     res.json({ success: true, ...result.result })
   } catch (error) {
     console.error('[Apex27] Error confirming tenancy sync:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/apex27/fees/preview
+ * Preview fee data from Apex27 listings without writing
+ */
+router.post('/fees/preview', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyData = await getUserCompanyAndRole(req)
+    if (!companyData) return res.status(404).json({ error: 'Company not found' })
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync fees' })
+    }
+
+    const { forceRefresh } = req.body || {}
+    const result = await previewFeesSync(companyData.companyId, { forceRefresh: !!forceRefresh })
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('[Apex27] Error previewing fees sync:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/apex27/fees/confirm
+ * Apply approved fee data to PG properties
+ */
+router.post('/fees/confirm', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { items } = req.body
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'items array is required' })
+    }
+
+    const companyData = await getUserCompanyAndRole(req)
+    if (!companyData) return res.status(404).json({ error: 'Company not found' })
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can sync fees' })
+    }
+
+    const result = await confirmFeesSync(companyData.companyId, companyData.userId, items)
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('[Apex27] Error confirming fees sync:', error)
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
   }
 })

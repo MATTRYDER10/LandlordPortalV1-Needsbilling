@@ -373,12 +373,15 @@ export async function convertV2ReferenceToTenancy(
   const refData = validation.referenceData!
 
   try {
-    // Calculate end date
+    // Calculate end date — UK tenancy convention: last day of the term
+    // is the day BEFORE the anniversary of the start date. e.g. a 12-month
+    // tenancy starting 10 Feb 2026 ends 9 Feb 2027, not 10 Feb 2027.
     let endDate: string | undefined
     if (refData.termYears || refData.termMonths) {
       const startDate = new Date(refData.moveInDate)
       startDate.setFullYear(startDate.getFullYear() + refData.termYears)
       startDate.setMonth(startDate.getMonth() + refData.termMonths)
+      startDate.setDate(startDate.getDate() - 1)
       endDate = startDate.toISOString().split('T')[0]
     }
 

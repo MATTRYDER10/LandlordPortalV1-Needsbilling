@@ -2,22 +2,37 @@
   <div>
     <!-- Summary bar -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <!-- Current Balance = PRIMARY -->
+      <!-- Total Balance = PRIMARY (all cash in the client account) -->
       <div class="bg-[#fff7ed] dark:bg-orange-950/30 border border-gray-200 dark:border-slate-700 border-l-[3px] border-l-[#f97316] rounded-[10px] px-5 py-4">
-        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Current Balance</p>
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Total Balance</p>
         <p class="text-[22px] font-bold text-gray-900 dark:text-white mt-1">&pound;{{ formatMoney(store.clientAccount.current_balance) }}</p>
+        <p class="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">Cash in client account</p>
       </div>
+      <!-- Rent Held = sum of all rent_held_in markers (matches Held Rents tab) -->
       <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
         <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Rent Held</p>
         <p class="text-[22px] font-bold text-[#15803d] mt-1">&pound;{{ formatMoney(rentHeld) }}</p>
+        <p class="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">Earmarked for landlords</p>
+      </div>
+      <!-- Available for Payout = total balance - rent held - deposits held -->
+      <div
+        class="border rounded-[10px] px-5 py-4"
+        :class="availableForPayout >= 0
+          ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+          : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/60'"
+      >
+        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Available for Payout</p>
+        <p
+          class="text-[22px] font-bold mt-1"
+          :class="availableForPayout >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'"
+        >&pound;{{ formatMoney(availableForPayout) }}</p>
+        <p v-if="availableForPayout < 0" class="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">Account over-committed</p>
+        <p v-else class="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">Balance − held − deposits</p>
       </div>
       <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
         <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposits Held</p>
         <p class="text-[22px] font-bold text-[#3b82f6] mt-1">&pound;{{ formatMoney(depositsHeld) }}</p>
-      </div>
-      <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-[10px] px-5 py-4">
-        <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Last Updated</p>
-        <p class="text-sm font-medium mt-2">{{ lastUpdated }}</p>
+        <p class="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">{{ lastUpdated }}</p>
       </div>
     </div>
 
@@ -72,7 +87,14 @@
             <tbody>
               <tr v-for="(e, idx) in categoryEntries" :key="e.id" :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']">
                 <td class="px-4 py-3 text-sm">{{ formatDateTime(e.created_at) }}</td>
-                <td class="px-4 py-3 text-sm">{{ e.description }}</td>
+                <td class="px-4 py-3 text-sm">
+                  <div>{{ e.description }}</div>
+                  <div v-if="e.property_address || e.tenant_name" :class="['text-[11px] mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+                    <span v-if="e.property_address">{{ e.property_address }}</span>
+                    <span v-if="e.property_address && e.tenant_name"> &middot; </span>
+                    <span v-if="e.tenant_name">{{ e.tenant_name }}</span>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-400' : 'text-gray-500'">{{ e.reference || '---' }}</td>
                 <td :class="['px-4 py-3 text-sm text-right font-bold tabular-nums', isCredit(e.entry_type) ? 'text-[#15803d]' : 'text-[#dc2626]']">
                   {{ isCredit(e.entry_type) ? '' : '-' }}&pound;{{ formatMoney(e.amount) }}
@@ -135,7 +157,12 @@
           <tr
             v-for="(entry, idx) in filteredEntries"
             :key="entry.id"
-            :class="['border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50', idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '']"
+            :class="[
+              'border-b border-[#f3f4f6] dark:border-slate-700 min-h-[52px] transition-colors hover:bg-[#fff7ed] dark:hover:bg-slate-700/50',
+              isInformational(entry.entry_type)
+                ? 'bg-amber-50/60 dark:bg-amber-900/10 italic'
+                : (idx % 2 === 1 ? 'bg-[#f9fafb] dark:bg-slate-800/50' : '')
+            ]"
           >
             <td class="px-4 py-3 text-sm" :class="isDark ? 'text-slate-300' : 'text-gray-700'">{{ formatDateTime(entry.created_at) }}</td>
             <td class="px-4 py-3">
@@ -144,17 +171,35 @@
               </span>
               <span v-if="entry.is_manual" class="ml-1 text-xs text-purple-500">M</span>
             </td>
-            <td class="px-4 py-3 text-sm">{{ entry.description }}</td>
-            <td class="px-4 py-3 text-sm text-right font-bold text-[#15803d] tabular-nums">
-              {{ isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
+            <td class="px-4 py-3 text-sm">
+              <div>
+                {{ entry.description }}
+                <span v-if="isInformational(entry.entry_type)" class="ml-1 text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400 font-semibold not-italic">· earmark</span>
+              </div>
+              <div v-if="entry.property_address || entry.tenant_name" :class="['text-[11px] mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+                <span v-if="entry.property_address">{{ entry.property_address }}</span>
+                <span v-if="entry.property_address && entry.tenant_name"> &middot; </span>
+                <span v-if="entry.tenant_name">{{ entry.tenant_name }}</span>
+              </div>
             </td>
+            <!-- Credit column: empty for informational rows (no money movement) -->
+            <td class="px-4 py-3 text-sm text-right font-bold text-[#15803d] tabular-nums">
+              {{ !isInformational(entry.entry_type) && isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
+            </td>
+            <!-- Debit column: empty for informational rows -->
             <td class="px-4 py-3 text-sm text-right font-bold text-[#dc2626] tabular-nums">
-              {{ !isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
+              {{ !isInformational(entry.entry_type) && !isCredit(entry.entry_type) ? `£${formatMoney(entry.amount)}` : '' }}
             </td>
             <td class="px-4 py-3 text-sm text-right font-semibold tabular-nums">
-              &pound;{{ formatMoney(entry.balance_after) }}
-              <span v-if="idx < filteredEntries.length - 1 && entry.balance_after > filteredEntries[idx + 1].balance_after" class="text-[#15803d] text-xs ml-1">&uarr;</span>
-              <span v-else-if="idx < filteredEntries.length - 1 && entry.balance_after < filteredEntries[idx + 1].balance_after" class="text-[#dc2626] text-xs ml-1">&darr;</span>
+              <!-- Informational rows show the earmarked amount in amber instead of a balance change -->
+              <template v-if="isInformational(entry.entry_type)">
+                <span class="text-amber-600 dark:text-amber-400">&pound;{{ formatMoney(entry.amount) }} held</span>
+              </template>
+              <template v-else>
+                &pound;{{ formatMoney(entry.balance_after) }}
+                <span v-if="idx < filteredEntries.length - 1 && entry.balance_after > filteredEntries[idx + 1].balance_after" class="text-[#15803d] text-xs ml-1">&uarr;</span>
+                <span v-else-if="idx < filteredEntries.length - 1 && entry.balance_after < filteredEntries[idx + 1].balance_after" class="text-[#dc2626] text-xs ml-1">&darr;</span>
+              </template>
             </td>
           </tr>
           <tr v-if="filteredEntries.length === 0">
@@ -216,16 +261,27 @@ const filteredEntries = computed(() => {
   return entries.filter(e => e.entry_type === selectedType.value)
 })
 
+// Rent Held = sum of rent_held_in marker entries. These are informational
+// ledger rows created when a payout is held — the money was already counted
+// as rent_in on receipt, so the hold doesn't change the running balance, it
+// just earmarks a portion of it.
 const rentHeld = computed(() => {
-  const rentIn = store.clientAccount.entries.filter(e => e.entry_type === 'rent_in').reduce((s, e) => s + e.amount, 0)
-  const payoutsOut = store.clientAccount.entries.filter(e => e.entry_type === 'payout_out').reduce((s, e) => s + e.amount, 0)
-  return Math.max(0, rentIn - payoutsOut)
+  return store.clientAccount.entries
+    .filter(e => e.entry_type === 'rent_held_in')
+    .reduce((s, e) => s + e.amount, 0)
 })
 
 const depositsHeld = computed(() => {
   const depIn = store.clientAccount.entries.filter(e => e.entry_type === 'deposit_in' || e.entry_type === 'holding_deposit_in').reduce((s, e) => s + e.amount, 0)
   const depOut = store.clientAccount.entries.filter(e => e.entry_type === 'deposit_out').reduce((s, e) => s + e.amount, 0)
   return Math.max(0, depIn - depOut)
+})
+
+// What's free to pay out = total cash minus everything earmarked.
+// If this goes negative the account is over-committed (more has been held
+// than the account can cover) and the UI surfaces it in red.
+const availableForPayout = computed(() => {
+  return store.clientAccount.current_balance - rentHeld.value - depositsHeld.value
 })
 
 const lastUpdated = computed(() => {
@@ -237,11 +293,11 @@ const lastUpdated = computed(() => {
 const accountCategories = computed(() => {
   const entries = store.clientAccount.entries
   const categories = [
-    { type: 'rent', label: 'Rent Held', creditTypes: ['rent_in', 'initial_monies_rent_in'], debitTypes: ['payout_out'], dotClass: 'bg-emerald-500', amountClass: 'text-emerald-500' },
+    { type: 'rent', label: 'Rent Flow', creditTypes: ['rent_in', 'initial_monies_rent_in'], debitTypes: ['payout_out'], dotClass: 'bg-emerald-500', amountClass: 'text-emerald-500' },
+    { type: 'rent_held', label: 'Rent Held', creditTypes: ['rent_held_in'], debitTypes: [], dotClass: 'bg-amber-500', amountClass: 'text-amber-500' },
     { type: 'holding_deposit', label: 'Holding Deposits', creditTypes: ['holding_deposit_in'], debitTypes: [], dotClass: 'bg-purple-500', amountClass: 'text-purple-500' },
     { type: 'deposit', label: 'Security Deposits', creditTypes: ['deposit_in'], debitTypes: ['deposit_out'], dotClass: 'bg-blue-500', amountClass: 'text-blue-500' },
     { type: 'fees', label: 'Agent Fees', creditTypes: ['invoice_fee_in'], debitTypes: [], dotClass: 'bg-orange-500', amountClass: 'text-orange-500' },
-    { type: 'contractor', label: 'Contractor Payouts', creditTypes: [], debitTypes: ['contractor_payout_out'], dotClass: 'bg-red-400', amountClass: 'text-red-400' },
     { type: 'manual', label: 'Manual / Opening', creditTypes: ['manual_credit', 'opening_balance'], debitTypes: ['manual_debit'], dotClass: 'bg-gray-400', amountClass: isDark.value ? 'text-slate-300' : 'text-gray-700' },
   ]
 
@@ -274,6 +330,7 @@ const highestBalanceType = computed(() => {
 function categoryBorderColor(type: string) {
   switch (type) {
     case 'rent': return '#22c55e'
+    case 'rent_held': return '#f59e0b'
     case 'holding_deposit': return '#8b5cf6'
     case 'deposit': return '#3b82f6'
     case 'fees': return '#f97316'
@@ -298,7 +355,15 @@ function onSaved() {
 }
 
 function isCredit(type: string) {
-  return ['rent_in', 'rent_held_in', 'deposit_in', 'manual_credit', 'opening_balance', 'holding_deposit_in', 'initial_monies_rent_in', 'invoice_fee_in'].includes(type)
+  return ['rent_in', 'deposit_in', 'manual_credit', 'opening_balance', 'holding_deposit_in', 'initial_monies_rent_in', 'invoice_fee_in'].includes(type)
+}
+
+// Informational-only rows — appear in the ledger for visibility but do NOT
+// affect the running balance (they earmark money that was already credited
+// via a real rent_in/deposit_in entry). Must match the backend's
+// INFORMATIONAL_ENTRY_TYPES set in rentgooseService.ts.
+function isInformational(type: string) {
+  return type === 'rent_held_in'
 }
 
 function typeClass(type: string) {
