@@ -3,6 +3,19 @@ import type { Router } from 'vue-router'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+// ── Known noise patterns to ignore ──────────────────────────────────
+// These are browser extension or browser-internal errors that are not
+// actionable and pollute the error log.
+const IGNORED_PATTERNS = [
+  // Password manager / autofill extensions (LastPass, 1Password, Dashlane, etc.)
+  // trying to update a form field that Vue has already removed from the DOM.
+  /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
+]
+
+function isIgnoredError(message: string): boolean {
+  return IGNORED_PATTERNS.some(pattern => pattern.test(message))
+}
+
 // ── Rate limiting ────────────────────────────────────────────────────
 const MAX_ERRORS_PER_WINDOW = 5
 const RATE_LIMIT_WINDOW_MS = 10_000
@@ -92,6 +105,7 @@ function sendError(payload: Record<string, any>) {
 
     const fingerprint = makeFingerprint(payload.message, payload.stackTrace)
 
+    if (isIgnoredError(payload.message)) return
     if (isRateLimited()) return
     if (isDuplicate(fingerprint)) return
 
