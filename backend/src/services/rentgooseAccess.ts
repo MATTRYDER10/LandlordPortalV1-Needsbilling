@@ -1,20 +1,21 @@
 /**
- * RentGoose access control — must mirror frontend whitelist in Sidebar.vue
+ * RentGoose access control — single source of truth.
  *
- * RentGoose is gated by company name substring match. If a company is not on
- * this list, no RentGoose endpoints, schedulers, or background jobs may
- * process their data — otherwise their tenants would receive arrears emails
- * for a system the agent never opted into.
+ * RentGoose is gated per company by the `companies.rentgoose_enabled` flag,
+ * toggled by staff admin. If a company is not enabled, no RentGoose endpoints,
+ * schedulers, or background jobs may process their data.
  */
 
 import { supabase } from '../config/supabase'
-import { decrypt } from './encryption'
-
-const RENTGOOSE_ALLOWED_NAME_SUBSTRINGS = ['rg property', 'propertygoose', 'pearl lettings']
 
 // Cache to avoid hammering the DB on every check (5 min TTL)
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { allowed: boolean; ts: number }>()
+
+export function invalidateRentGooseAccessCache(companyId?: string): void {
+  if (companyId) cache.delete(companyId)
+  else cache.clear()
+}
 
 /**
  * Returns true if the given company is allowed to use RentGoose.
@@ -25,13 +26,11 @@ export async function isRentGooseEnabled(companyId: string): Promise<boolean> {
 
   const { data } = await supabase
     .from('companies')
-    .select('name_encrypted')
+    .select('rentgoose_enabled')
     .eq('id', companyId)
     .maybeSingle()
 
-  const name = data?.name_encrypted ? (decrypt(data.name_encrypted) || '').toLowerCase() : ''
-  const allowed = RENTGOOSE_ALLOWED_NAME_SUBSTRINGS.some(s => name.includes(s))
-
+  const allowed = data?.rentgoose_enabled === true
   cache.set(companyId, { allowed, ts: Date.now() })
   return allowed
 }
@@ -43,18 +42,10 @@ export async function isRentGooseEnabled(companyId: string): Promise<boolean> {
 export async function getRentGooseEnabledCompanyIds(): Promise<string[]> {
   const { data } = await supabase
     .from('companies')
-    .select('id, name_encrypted')
+    .select('id')
+    .eq('rentgoose_enabled', true)
 
-  const enabled: string[] = []
-  for (const c of (data || [])) {
-    const name = c.name_encrypted ? (decrypt(c.name_encrypted) || '').toLowerCase() : ''
-    if (RENTGOOSE_ALLOWED_NAME_SUBSTRINGS.some(s => name.includes(s))) {
-      enabled.push(c.id)
-      cache.set(c.id, { allowed: true, ts: Date.now() })
-    } else {
-      cache.set(c.id, { allowed: false, ts: Date.now() })
-    }
-  }
-
-  return enabled
+  const ids = (data || []).map(c => c.id)
+  for (const id of ids) cache.set(id, { allowed: true, ts: Date.now() })
+  return ids
 }

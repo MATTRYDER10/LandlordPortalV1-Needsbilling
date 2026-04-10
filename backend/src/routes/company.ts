@@ -6,8 +6,77 @@ import crypto from 'crypto'
 import { createAuditLog, formatUserName } from '../services/auditLog'
 import { encrypt, decrypt } from '../services/encryption'
 import { DEFAULT_BRANDING } from '../config/colors'
+import { sendEmail } from '../services/emailService'
 
 const router = Router()
+
+/**
+ * POST /api/company/rentgoose-interest
+ * Records that a company is interested in RentGoose and emails info@propertygoose.co.uk
+ */
+router.post('/rentgoose-interest', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id, role, companies(id, name_encrypted, email_encrypted, phone_encrypted)')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle()
+
+    if (!companyUser) return res.status(404).json({ error: 'Company not found' })
+
+    const company = companyUser.companies as any
+    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'Unknown' : 'Unknown'
+    const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
+    const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
+
+    // Get user details
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId)
+    const userEmail = user?.email || ''
+    const userName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '') as string
+
+    const subject = `RentGoose Interest — ${companyName}`
+    const html = `
+      <h2>RentGoose Interest Request</h2>
+      <p>A user has expressed interest in enabling RentGoose for their company. Please arrange a call to discuss.</p>
+      <h3>Company</h3>
+      <ul>
+        <li><strong>Name:</strong> ${companyName}</li>
+        <li><strong>Email:</strong> ${companyEmail}</li>
+        <li><strong>Phone:</strong> ${companyPhone}</li>
+        <li><strong>Company ID:</strong> ${company?.id || ''}</li>
+      </ul>
+      <h3>Requested by</h3>
+      <ul>
+        <li><strong>Name:</strong> ${userName || '(not set)'}</li>
+        <li><strong>Email:</strong> ${userEmail}</li>
+        <li><strong>Role:</strong> ${companyUser.role}</li>
+      </ul>
+      <p style="margin-top: 24px;"><em>Sent from PropertyGoose RentGoose interest button.</em></p>
+    `
+
+    try {
+      await sendEmail({
+        to: 'info@propertygoose.co.uk',
+        subject,
+        html,
+        replyTo: userEmail || undefined,
+      })
+    } catch (emailErr) {
+      console.error('Failed to send RentGoose interest email:', emailErr)
+      return res.status(500).json({ error: 'Failed to send interest email' })
+    }
+
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error processing RentGoose interest:', err)
+    res.status(500).json({ error: 'Failed to process request' })
+  }
+})
 
 // Get all branches (companies) for the authenticated user
 router.get('/branches', authenticateToken, async (req: AuthRequest, res) => {

@@ -275,6 +275,27 @@
               <span class="flex-1 text-xs">{{ item.name }}</span>
               <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-primary/10 text-primary">Beta</span>
             </a>
+            <!-- RentGoose: greyed-out button when disabled, opens info modal -->
+            <button
+              v-else-if="item.name === 'RentGoose' && !rentgooseEnabled"
+              @click="showRentGooseInfoModal = true"
+              class="nav-item group flex items-center w-full px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300 cursor-pointer"
+              :class="isDark
+                ? 'text-white/30 hover:text-white/50 hover:bg-white/5'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'"
+              title="RentGoose is not enabled for your account — click to learn more"
+            >
+              <component
+                :is="item.icon"
+                class="w-5 h-5 mr-3 transition-all duration-300 opacity-50"
+                :class="isDark ? 'text-white/30' : 'text-gray-400'"
+              />
+              <span class="flex-1 text-xs">{{ item.name }}</span>
+              <svg class="w-3 h-3 mr-1" :class="isDark ? 'text-white/30' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/40">Beta</span>
+            </button>
             <!-- Internal router link (V2 items) -->
             <router-link
               v-else
@@ -386,6 +407,9 @@
     <main class="flex-1 overflow-auto pt-14 md:pt-0 dark:bg-slate-950 transition-colors duration-300">
       <slot />
     </main>
+
+    <!-- RentGoose Info Modal (shown when greyed-out RentGoose is clicked) -->
+    <RentGooseInfoModal v-if="showRentGooseInfoModal" @close="showRentGooseInfoModal = false" />
   </div>
 </template>
 
@@ -399,6 +423,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import CreditsDisplay from './CreditsDisplay.vue'
 import NotificationBell from './NotificationBell.vue'
 import AdminCompanySwitcher from './AdminCompanySwitcher.vue'
+import RentGooseInfoModal from './RentGooseInfoModal.vue'
 import { Plus, ChevronDown, Menu, LogOut, X } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -598,20 +623,14 @@ const legacyNavigation = [
   { name: 'References', path: '/references', icon: GooseClipboard }
 ]
 
-// Companies permitted to see RentGoose (UI-only gate — name substring match)
-const RENTGOOSE_ALLOWED = ['rg property', 'propertygoose', 'pearl lettings']
+// RentGoose is always visible — gated by company.rentgoose_enabled flag (set per-company by staff admin)
+const rentgooseEnabled = computed(() => authStore.company?.rentgooseEnabled === true)
+const showRentGooseInfoModal = ref(false)
 
-const showRentGoose = computed(() => {
-  const name = (authStore.company?.name || '').toLowerCase()
-  return RENTGOOSE_ALLOWED.some(s => name.includes(s))
-})
-
-// Beta navigation items (bottom of sidebar)
+// Beta navigation items (bottom of sidebar) — RentGoose always shown, greyed out if not enabled
 const betaNavigation = computed(() => {
   const items: { name: string; path: string; icon: any; isExternal: boolean; isInventoryGoose: boolean }[] = []
-  if (showRentGoose.value) {
-    items.push({ name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose, isExternal: false, isInventoryGoose: false })
-  }
+  items.push({ name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose, isExternal: false, isInventoryGoose: false })
   items.push({ name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true })
   return items
 })
