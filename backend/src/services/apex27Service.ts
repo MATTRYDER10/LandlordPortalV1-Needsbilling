@@ -16,6 +16,18 @@ export interface Apex27Config {
   branchId?: string | null
 }
 
+// Apex27 Fee enums (from API docs)
+// Type:      0=Sale, 1=Rent, 2=Rent Collect, 3=Managed, 4=Guaranteed Rent, 5=Marketing, 6=Maintenance Admin
+// AmountType: 0=Fixed, 1=Percentage
+// Frequency: 0=Ongoing, 1=One-off
+interface Apex27Fee {
+  type?: number
+  amount?: number
+  amountType?: number
+  frequency?: number
+  [key: string]: any
+}
+
 interface Apex27Listing {
   id: number | string
   branchId?: number
@@ -35,6 +47,7 @@ interface Apex27Listing {
   price?: number
   propertyType?: string
   contacts?: any[]
+  fees?: Apex27Fee[]
   [key: string]: any
 }
 
@@ -2145,4 +2158,228 @@ export async function confirmTenancySync(
 
     return { success: false, error: err instanceof Error ? err.message : 'Tenancy sync failed' }
   }
+}
+
+// ============================================================================
+// FEES SYNC — pull management/letting fees from Apex27 listings
+// ============================================================================
+
+export interface FeesPreviewItem {
+  apex27ListingId: string
+  apex27Address: string
+  apex27Postcode: string
+  matchedPropertyId: string | null
+  matchedPropertyAddress: string | null
+  // What we found in Apex27 (the "raw" mapping)
+  managementFeePercent: number | null   // % of rent
+  managementFeeFixed: number | null     // £ fixed
+  managementFeeType: 'percentage' | 'fixed' | null
+  lettingFeeAmount: number | null       // either £ or % based on lettingFeeType
+  lettingFeeType: 'percentage' | 'fixed' | null
+  // Raw fees array (for display + audit)
+  rawFees: Array<{ typeLabel: string; amount: number; amountType: 'fixed' | 'percentage'; frequencyLabel: string }>
+  // Existing PG fees (so user can see what's there now)
+  currentFeePercent: number | null
+  currentManagementFeeType: string | null
+  currentLettingFeeAmount: number | null
+  currentLettingFeeType: string | null
+  // User toggles
+  importFees: boolean
+}
+
+const FEE_TYPE_LABELS: Record<number, string> = {
+  0: 'Sale Fee',
+  1: 'Rent Fee',
+  2: 'Rent Collect Fee',
+  3: 'Managed Fee',
+  4: 'Guaranteed Rent Fee',
+  5: 'Marketing Fee',
+  6: 'Maintenance Admin Fee',
+}
+
+/**
+ * Preview fees sync — fetches all linked Apex27 listings, parses their fees,
+ * and returns what would be imported. No DB writes.
+ */
+export async function previewFeesSync(companyId: string): Promise<FeesPreviewItem[]> {
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) throw new Error('Apex27 not configured for this company')
+
+  // Get all PG properties that have an Apex27 listing ID linked
+  const { data: properties } = await supabase
+    .from('properties')
+    .select('id, address_line1_encrypted, postcode, apex27_listing_id, fee_percent, management_fee_type, letting_fee_amount, letting_fee_type')
+    .eq('company_id', companyId)
+    .not('apex27_listing_id', 'is', null)
+
+  if (!properties || properties.length === 0) return []
+
+  const items: FeesPreviewItem[] = []
+
+  for (const prop of properties) {
+    try {
+      const result = await apex27Fetch<Apex27Listing>(config.apiKey, `/listings/${prop.apex27_listing_id}`)
+      if (!result.success || !result.data) continue
+
+      const listing = result.data
+      const fees: Apex27Fee[] = listing.fees || []
+
+      // Find management fee: type 3 (Managed) or type 2 (Rent Collect), frequency 0 (Ongoing)
+      const managedFee = fees.find(f => (f.type === 3 || f.type === 2) && f.frequency === 0)
+      let managementFeePercent: number | null = null
+      let managementFeeFixed: number | null = null
+      let managementFeeType: 'percentage' | 'fixed' | null = null
+      if (managedFee && typeof managedFee.amount === 'number') {
+        if (managedFee.amountType === 1) {
+          managementFeePercent = managedFee.amount
+          managementFeeType = 'percentage'
+        } else {
+          managementFeeFixed = managedFee.amount
+          managementFeeType = 'fixed'
+        }
+      }
+
+      // Find letting fee: type 1 (Rent Fee) or type 5 (Marketing), frequency 1 (One-off)
+      const lettingFee = fees.find(f => (f.type === 1 || f.type === 5) && f.frequency === 1)
+      let lettingFeeAmount: number | null = null
+      let lettingFeeType: 'percentage' | 'fixed' | null = null
+      if (lettingFee && typeof lettingFee.amount === 'number') {
+        lettingFeeAmount = lettingFee.amount
+        lettingFeeType = lettingFee.amountType === 1 ? 'percentage' : 'fixed'
+      }
+
+      // Build raw fees list for display
+      const rawFees = fees
+        .filter(f => typeof f.amount === 'number')
+        .map(f => ({
+          typeLabel: FEE_TYPE_LABELS[f.type ?? -1] || `Type ${f.type}`,
+          amount: f.amount as number,
+          amountType: (f.amountType === 1 ? 'percentage' : 'fixed') as 'percentage' | 'fixed',
+          frequencyLabel: f.frequency === 0 ? 'Ongoing' : 'One-off',
+        }))
+
+      const propAddress = (prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : '') || ''
+      const apexAddress = listing.displayAddress
+        || [listing.address1, listing.city].filter(Boolean).join(', ')
+        || ''
+
+      items.push({
+        apex27ListingId: String(prop.apex27_listing_id),
+        apex27Address: apexAddress,
+        apex27Postcode: listing.postalCode || '',
+        matchedPropertyId: prop.id,
+        matchedPropertyAddress: `${propAddress}, ${prop.postcode || ''}`.trim(),
+        managementFeePercent,
+        managementFeeFixed,
+        managementFeeType,
+        lettingFeeAmount,
+        lettingFeeType,
+        rawFees,
+        currentFeePercent: prop.fee_percent != null ? parseFloat(prop.fee_percent) : null,
+        currentManagementFeeType: prop.management_fee_type || null,
+        currentLettingFeeAmount: prop.letting_fee_amount != null ? parseFloat(prop.letting_fee_amount) : null,
+        currentLettingFeeType: prop.letting_fee_type || null,
+        importFees: rawFees.length > 0, // Default to import if any fees found
+      })
+    } catch (err) {
+      console.error(`[Apex27 Fees] Failed to fetch listing ${prop.apex27_listing_id}:`, err)
+      continue
+    }
+  }
+
+  return items
+}
+
+/**
+ * Confirm fees sync — applies the (possibly user-edited) fee data to PG properties.
+ */
+export async function confirmFeesSync(
+  companyId: string,
+  userId: string,
+  items: FeesPreviewItem[]
+): Promise<SyncResult> {
+  const result: SyncResult = {
+    records_processed: 0,
+    records_created: 0,
+    records_updated: 0,
+    records_skipped: 0,
+    errors: [],
+  }
+
+  // Sync log
+  const { data: syncLog } = await supabase
+    .from('apex27_sync_logs')
+    .insert({
+      company_id: companyId,
+      sync_type: 'fees',
+      status: 'started',
+    })
+    .select('id')
+    .single()
+
+  const syncLogId = syncLog?.id
+
+  for (const item of items) {
+    result.records_processed++
+
+    if (!item.importFees || !item.matchedPropertyId) {
+      result.records_skipped++
+      continue
+    }
+
+    try {
+      // Build update — write management fee + letting fee if present
+      const update: any = {}
+
+      if (item.managementFeeType === 'percentage' && item.managementFeePercent != null) {
+        update.fee_percent = item.managementFeePercent
+        update.management_fee_type = 'percentage'
+      } else if (item.managementFeeType === 'fixed' && item.managementFeeFixed != null) {
+        update.fee_percent = item.managementFeeFixed
+        update.management_fee_type = 'fixed'
+      }
+
+      if (item.lettingFeeAmount != null && item.lettingFeeType) {
+        update.letting_fee_amount = item.lettingFeeAmount
+        update.letting_fee_type = item.lettingFeeType
+      }
+
+      if (Object.keys(update).length === 0) {
+        result.records_skipped++
+        continue
+      }
+
+      const { error } = await supabase
+        .from('properties')
+        .update(update)
+        .eq('id', item.matchedPropertyId)
+        .eq('company_id', companyId)
+
+      if (error) {
+        result.errors.push({ message: `Failed to update property ${item.matchedPropertyId}`, detail: error.message })
+        continue
+      }
+
+      result.records_updated++
+    } catch (err: any) {
+      result.errors.push({ message: `Error processing fee for listing ${item.apex27ListingId}`, detail: err.message })
+    }
+  }
+
+  if (syncLogId) {
+    await supabase
+      .from('apex27_sync_logs')
+      .update({
+        status: 'completed',
+        records_processed: result.records_processed,
+        records_created: result.records_created,
+        records_updated: result.records_updated,
+        records_skipped: result.records_skipped,
+        errors: result.errors,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', syncLogId)
+  }
+
+  return result
 }

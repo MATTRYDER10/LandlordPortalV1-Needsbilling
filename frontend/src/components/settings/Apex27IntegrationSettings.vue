@@ -385,6 +385,30 @@
             </div>
           </div>
 
+          <!-- ============================================================ -->
+          <!-- FEES SYNC SECTION -->
+          <!-- ============================================================ -->
+          <div v-if="status.lastSyncAt" class="mt-6 pt-6 border-t dark:border-slate-700">
+            <div v-if="!feesPreviewItems">
+              <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Sync Fees &amp; Services</h5>
+              <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                Pull management and letting fees from Apex27 listings into PropertyGoose. You can review and edit each fee before importing.
+              </p>
+              <button
+                type="button"
+                @click="handleFeesPreview"
+                :disabled="feesPreviewing"
+                class="px-4 py-2 text-sm font-medium text-white bg-[#15803d] hover:bg-[#15803d]/90 rounded-md disabled:opacity-50"
+              >
+                <span v-if="feesPreviewing" class="flex items-center gap-2">
+                  <Loader2 class="w-4 h-4 animate-spin" />
+                  Fetching fees...
+                </span>
+                <span v-else>Sync Fees &amp; Services</span>
+              </button>
+            </div>
+          </div>
+
         </div><!-- close: initial sync (L143 status.lastTestStatus) -->
       </div><!-- close: configured && !editMode (L64) -->
     </div><!-- close: Main Panel v-else (L38) -->
@@ -567,6 +591,144 @@
           </router-link>
         </div>
       </div>
+
+      <!-- Fees Preview — Full Width Below Settings Panel -->
+      <div v-if="feesPreviewItems" class="mt-6 bg-white dark:bg-slate-800 rounded-lg shadow border dark:border-slate-700">
+        <div class="px-6 py-4 border-b dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Review Fee Import</h4>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
+              {{ feesPreviewItems.length }} propert{{ feesPreviewItems.length === 1 ? 'y' : 'ies' }} found.
+              Review and edit the fees, then click confirm to import.
+            </p>
+          </div>
+          <button
+            type="button"
+            @click="feesPreviewItems = null; feesSyncResult = null"
+            class="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div v-if="feesPreviewItems.length === 0" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
+          No linked properties found. Run "Sync Properties" first to link your Apex27 listings.
+        </div>
+
+        <div v-else class="overflow-auto max-h-[600px]">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-900 sticky top-0">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Import</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Property</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Apex27 Fees Found</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Mgmt Fee</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Letting Fee</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+              <tr v-for="(item, idx) in feesPreviewItems" :key="item.apex27ListingId" :class="idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50/50 dark:bg-slate-900/30'">
+                <td class="px-4 py-3">
+                  <input type="checkbox" v-model="item.importFees" class="rounded text-[#15803d]" />
+                </td>
+                <td class="px-4 py-3">
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.matchedPropertyAddress || item.apex27Address }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">{{ item.apex27Postcode }}</div>
+                  <div v-if="item.currentFeePercent" class="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                    Currently: {{ item.currentFeePercent }}{{ item.currentManagementFeeType === 'fixed' ? '/mo' : '%' }}
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div v-if="item.rawFees.length === 0" class="text-xs text-gray-400 italic">No fees in Apex27</div>
+                  <div v-else class="space-y-1">
+                    <div v-for="(rf, ri) in item.rawFees" :key="ri" class="text-xs text-gray-600 dark:text-slate-300">
+                      <span class="font-medium">{{ rf.typeLabel }}:</span>
+                      {{ rf.amountType === 'percentage' ? `${rf.amount}%` : `£${rf.amount}` }}
+                      <span class="text-gray-400">({{ rf.frequencyLabel }})</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1">
+                    <input
+                      v-model.number="item.managementFeePercent"
+                      type="number"
+                      step="0.01"
+                      class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded"
+                      :placeholder="item.managementFeeType === 'fixed' ? '£' : '%'"
+                    />
+                    <button
+                      type="button"
+                      @click="item.managementFeeType = item.managementFeeType === 'percentage' ? 'fixed' : 'percentage'"
+                      class="px-2 py-1 text-xs font-medium border rounded bg-[#15803d]/10 border-[#15803d] text-[#15803d]"
+                    >
+                      {{ item.managementFeeType === 'fixed' ? '£' : '%' }}
+                    </button>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1">
+                    <input
+                      v-model.number="item.lettingFeeAmount"
+                      type="number"
+                      step="0.01"
+                      class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded"
+                      :placeholder="item.lettingFeeType === 'fixed' ? '£' : '%'"
+                    />
+                    <button
+                      type="button"
+                      @click="item.lettingFeeType = item.lettingFeeType === 'percentage' ? 'fixed' : 'percentage'"
+                      class="px-2 py-1 text-xs font-medium border rounded bg-[#15803d]/10 border-[#15803d] text-[#15803d]"
+                    >
+                      {{ item.lettingFeeType === 'fixed' ? '£' : '%' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="feesPreviewItems.length > 0" class="px-6 py-4 border-t dark:border-slate-700 flex items-center justify-between bg-gray-50 dark:bg-slate-900/30">
+          <div class="text-sm text-gray-600 dark:text-slate-400">
+            {{ feesPreviewItems.filter(i => i.importFees).length }} of {{ feesPreviewItems.length }} selected
+          </div>
+          <button
+            type="button"
+            @click="handleFeesConfirm"
+            :disabled="feesConfirming || feesPreviewItems.filter(i => i.importFees).length === 0"
+            class="px-6 py-2 text-sm font-medium text-white bg-[#15803d] hover:bg-[#15803d]/90 rounded-md disabled:opacity-50"
+          >
+            <span v-if="feesConfirming" class="flex items-center gap-2">
+              <Loader2 class="w-4 h-4 animate-spin" />
+              Importing...
+            </span>
+            <span v-else>Confirm &amp; Import Fees</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fees sync result -->
+      <div v-if="feesSyncResult" class="mt-4 p-4 bg-white dark:bg-slate-800 rounded-lg shadow border dark:border-slate-700">
+        <h6 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Fees Sync Results</h6>
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ feesSyncResult.records_processed }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Processed</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ feesSyncResult.records_updated }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Updated</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-400">{{ feesSyncResult.records_skipped }}</div>
+            <div class="text-xs text-gray-500 dark:text-slate-400">Skipped</div>
+          </div>
+        </div>
+        <div v-if="feesSyncResult.errors && feesSyncResult.errors.length > 0" class="mt-3 text-sm text-red-600 dark:text-red-400">
+          {{ feesSyncResult.errors.length }} error(s) occurred during fee import.
+        </div>
+      </div>
     </div>
 
     <!-- Edit Form -->
@@ -657,6 +819,17 @@ const importableCount = computed(() => {
 const tenancySyncResult = ref<{
   records_processed: number
   records_created: number
+  records_skipped: number
+  errors?: any[]
+} | null>(null)
+
+// Fees sync state
+const feesPreviewing = ref(false)
+const feesConfirming = ref(false)
+const feesPreviewItems = ref<any[] | null>(null)
+const feesSyncResult = ref<{
+  records_processed: number
+  records_updated: number
   records_skipped: number
   errors?: any[]
 } | null>(null)
@@ -1072,6 +1245,68 @@ async function handleTenancyConfirm() {
     errorMsg.value = 'Tenancy import failed'
   } finally {
     tenancyConfirming.value = false
+  }
+}
+
+async function handleFeesPreview() {
+  clearMessages()
+  feesPreviewing.value = true
+  feesSyncResult.value = null
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/fees/preview`, {
+      method: 'POST'
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Failed to fetch fees preview'
+      return
+    }
+
+    feesPreviewItems.value = data.items || []
+    if (feesPreviewItems.value!.length === 0) {
+      successMsg.value = 'No linked Apex27 properties found. Run "Sync Properties" first.'
+      feesPreviewItems.value = null
+    }
+  } catch (err) {
+    errorMsg.value = 'Failed to fetch fees preview from Apex27'
+  } finally {
+    feesPreviewing.value = false
+  }
+}
+
+async function handleFeesConfirm() {
+  if (!feesPreviewItems.value) return
+
+  clearMessages()
+  feesConfirming.value = true
+  feesSyncResult.value = null
+
+  const approvedItems = feesPreviewItems.value.filter(item => item.importFees)
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/fees/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: approvedItems })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Fees import failed'
+      return
+    }
+
+    feesSyncResult.value = data
+    successMsg.value = `Fees import complete: ${data.records_updated} updated, ${data.records_skipped} skipped.`
+    feesPreviewItems.value = null
+  } catch (err) {
+    errorMsg.value = 'Fees import failed'
+  } finally {
+    feesConfirming.value = false
   }
 }
 
