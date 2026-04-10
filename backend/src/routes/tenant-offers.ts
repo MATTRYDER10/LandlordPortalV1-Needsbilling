@@ -1856,11 +1856,117 @@ router.patch('/:id/tenant/:tenantId/name', authenticateToken, async (req: AuthRe
     }
 })
 
+/**
+ * Shared: push a holding deposit from a tenant_offer into RentGoose.
+ *
+ * Creates both the expected_payments row (so it appears in the pre-tenancy
+ * queue and the dashboard count) AND the client_account_entries row
+ * (so the ledger balance reflects the money received). Safe to call
+ * multiple times — if either row already exists for the offer, the
+ * duplicate is skipped.
+ *
+ * Previously this logic only lived in POST /:id/holding-deposit-received,
+ * which meant the V2 offers page (which calls mark-referencing after
+ * creating a V2 reference) was silently dropping holding deposits from
+ * the RentGoose view. Any offer taken through V2 before this fix is why
+ * holding deposits only appear from 9 April onwards.
+ */
+async function propagateHoldingDepositToRentGoose(
+    offerId: string,
+    companyId: string,
+    userId: string | null
+): Promise<void> {
+    const { data: offer } = await supabase
+        .from('tenant_offers')
+        .select('id, company_id, tenancy_id, linked_property_id, holding_deposit_amount, property_address_encrypted, property_postcode_encrypted, tenant_offer_tenants(name_encrypted)')
+        .eq('id', offerId)
+        .eq('company_id', companyId)
+        .single()
+
+    if (!offer) {
+        console.warn(`[RentGoose] propagateHoldingDeposit: offer ${offerId} not found`)
+        return
+    }
+
+    const amount = parseFloat((offer.holding_deposit_amount as any) || '0')
+    if (!amount || amount <= 0) {
+        return // Offers without a holding deposit don't need propagation
+    }
+
+    // Skip if an expected_payment already exists for this offer
+    const { data: existingEp } = await supabase
+        .from('expected_payments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('source_type', 'tenant_offer')
+        .eq('source_id', offerId)
+        .eq('payment_type', 'holding_deposit')
+        .maybeSingle()
+
+    if (existingEp) {
+        return
+    }
+
+    const propertyAddr = (offer as any).property_address_encrypted ? decrypt((offer as any).property_address_encrypted) : ''
+    const propertyPc = (offer as any).property_postcode_encrypted ? decrypt((offer as any).property_postcode_encrypted) : ''
+    const firstTenant: any = Array.isArray((offer as any).tenant_offer_tenants) ? (offer as any).tenant_offer_tenants[0] : null
+    const tenantName = firstTenant?.name_encrypted ? decrypt(firstTenant.name_encrypted) : 'Tenant'
+
+    const { createExpectedPayment, getCurrentBalance } = await import('../services/rentgooseService')
+
+    try {
+        await createExpectedPayment(companyId, {
+            tenancy_id: (offer as any).tenancy_id || undefined,
+            property_id: (offer as any).linked_property_id || undefined,
+            payment_type: 'holding_deposit',
+            source_type: 'tenant_offer',
+            source_id: offerId,
+            description: `Holding deposit - ${propertyAddr || 'Property'}`,
+            amount_due: amount,
+            amount_received: amount,
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            payout_type: 'deposit_hold',
+            payout_split: [{ type: 'holding_deposit', amount, description: 'Holding deposit' }],
+            property_address: propertyAddr || undefined,
+            property_postcode: propertyPc || undefined,
+            tenant_name: tenantName || undefined,
+        } as any)
+
+        const currentBalance = await getCurrentBalance(companyId)
+        const newBalance = currentBalance + amount
+
+        await supabase
+            .from('client_account_entries')
+            .insert({
+                company_id: companyId,
+                entry_type: 'holding_deposit_in',
+                amount,
+                description: `Holding deposit received - ${propertyAddr || 'Property'}`,
+                reference: `HD-${offerId.slice(0, 8).toUpperCase()}`,
+                related_id: offerId,
+                related_type: 'tenant_offer',
+                balance_after: newBalance,
+                created_by: userId || null,
+                is_manual: false,
+            })
+    } catch (err) {
+        console.error(`[RentGoose] propagateHoldingDeposit failed for offer ${offerId}:`, err)
+        // Don't throw — we don't want to fail the calling endpoint if the
+        // RentGoose propagation fails, just log it.
+    }
+}
+
 // Simple endpoint to mark offer as sent to referencing
 router.post('/:id/mark-referencing', authenticateToken, async (req: AuthRequest, res) => {
     try {
+        const userId = req.user?.id || null
         const { id } = req.params
-        const { reference_id } = req.body
+
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
 
         const { error } = await supabase
             .from('tenant_offers')
@@ -1869,10 +1975,17 @@ router.post('/:id/mark-referencing', authenticateToken, async (req: AuthRequest,
                 holding_deposit_received_at: new Date().toISOString()
             })
             .eq('id', id)
+            .eq('company_id', companyId)
 
         if (error) {
             return res.status(400).json({ error: error.message })
         }
+
+        // Propagate the holding deposit into RentGoose (expected_payments +
+        // client_account_entries) so the ledger and dashboard stay in sync.
+        // No-op if the offer has no holding_deposit_amount or a row already
+        // exists for the offer.
+        await propagateHoldingDepositToRentGoose(id, companyId, userId)
 
         res.json({ success: true })
     } catch (error: any) {
@@ -1919,6 +2032,11 @@ router.post('/:id/link-reference', authenticateToken, async (req: AuthRequest, r
             console.error('[link-reference] No rows updated - company_id mismatch?', { offerId: id, companyId, reference_id })
             return res.status(404).json({ error: 'Offer not found or company mismatch' })
         }
+
+        // Propagate the holding deposit into RentGoose (expected_payments +
+        // client_account_entries). Idempotent — safe to call even if
+        // mark-referencing already ran on the same offer.
+        await propagateHoldingDepositToRentGoose(id, companyId, userId)
 
         console.log('[link-reference] Success:', { offerId: id, reference_id })
         res.json({ success: true, message: 'Offer linked to reference' })
@@ -2013,10 +2131,28 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             return res.status(400).json({ error: updateError.message })
         }
 
-        // Create expected payment for holding deposit (already received)
+        // Create expected payment for holding deposit (already received).
+        // Skip if an expected_payment already exists for this offer (e.g. if
+        // mark-referencing or link-reference already propagated it) to avoid
+        // duplicate ledger entries.
         try {
           const { createExpectedPayment } = await import('../services/rentgooseService')
           const { getCurrentBalance } = await import('../services/rentgooseService')
+
+          // Idempotency check
+          const { data: existingEp } = await supabase
+            .from('expected_payments')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('source_type', 'tenant_offer')
+            .eq('source_id', id)
+            .eq('payment_type', 'holding_deposit')
+            .maybeSingle()
+
+          if (existingEp) {
+            console.log(`[RentGoose] Skipping duplicate holding deposit propagation for offer ${id}`)
+            throw new Error('__already_propagated')
+          }
 
           // Get property details for the expected payment
           const propertyAddr = offerData.property_address_encrypted ? decrypt(offerData.property_address_encrypted) : ''
@@ -2062,8 +2198,10 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
               created_by: userId,
               is_manual: false,
             })
-        } catch (epError) {
-          console.error('[RentGoose] Failed to create holding deposit expected payment:', epError)
+        } catch (epError: any) {
+          if (epError?.message !== '__already_propagated') {
+            console.error('[RentGoose] Failed to create holding deposit expected payment:', epError)
+          }
           // Don't fail the whole request
         }
 
