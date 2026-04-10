@@ -467,7 +467,7 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
   const { isRentGooseEnabled } = await import('./rentgooseAccess')
   if (!await isRentGooseEnabled(companyId)) return { synced: 0, extended: 0 }
 
-  // Get all active tenancies with management_type — tenancy is the source of truth
+  // Get all active tenancies — management_type is the gate (tenancy field, falls back to property)
   const { data: allTenancies, error } = await supabase
     .from('tenancies')
     .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id, management_type')
@@ -477,12 +477,34 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
 
   if (error || !allTenancies || allTenancies.length === 0) return { synced: 0, extended: 0 }
 
-  // Only extend rolling schedules for managed tenancies — let_only gets month 1 only via initTenancySchedule
-  const tenancies = allTenancies.filter(t => {
-    if (!t.management_type) return false // No management type set = not in RentGoose
-    if (t.management_type === 'let_only') return false // No recurring for let_only
-    return true
-  })
+  // Fall back to property management_type for tenancies that don't have it set
+  // (e.g. imported via Apex which writes management_type to the property only).
+  const propIds = [...new Set(allTenancies.map(t => t.property_id).filter(Boolean))]
+  const propManagementMap = new Map<string, string | null>()
+  if (propIds.length > 0) {
+    const { data: props } = await supabase
+      .from('properties')
+      .select('id, management_type')
+      .in('id', propIds)
+    for (const p of (props || [])) {
+      propManagementMap.set(p.id, p.management_type || null)
+    }
+  }
+
+  // Resolve effective management_type for each tenancy + filter
+  const tenancies = allTenancies
+    .map(t => ({
+      ...t,
+      effective_management_type: t.management_type || propManagementMap.get(t.property_id) || null,
+    }))
+    .filter(t => {
+      if (!t.effective_management_type) return false // No management type anywhere = not in RentGoose
+      if (t.effective_management_type === 'let_only') return false // No recurring for let_only
+      return true
+    })
+
+  console.log(`[RentGoose] syncActiveManagedTenancies: ${allTenancies.length} active tenancies, ${tenancies.length} managed (after fallback)`)
+
   if (tenancies.length === 0) return { synced: 0, extended: 0 }
 
   const today = new Date()

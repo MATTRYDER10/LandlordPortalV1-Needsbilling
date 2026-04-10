@@ -389,24 +389,22 @@
           <!-- FEES SYNC SECTION -->
           <!-- ============================================================ -->
           <div v-if="status.lastSyncAt" class="mt-6 pt-6 border-t dark:border-slate-700">
-            <div v-if="!feesPreviewItems">
-              <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Sync Fees &amp; Services</h5>
-              <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">
-                Pull management and letting fees from Apex27 listings into PropertyGoose. You can review and edit each fee before importing.
-              </p>
-              <button
-                type="button"
-                @click="handleFeesPreview"
-                :disabled="feesPreviewing"
-                class="px-4 py-2 text-sm font-medium text-white bg-[#15803d] hover:bg-[#15803d]/90 rounded-md disabled:opacity-50"
-              >
-                <span v-if="feesPreviewing" class="flex items-center gap-2">
-                  <Loader2 class="w-4 h-4 animate-spin" />
-                  Fetching fees...
-                </span>
-                <span v-else>Sync Fees &amp; Services</span>
-              </button>
-            </div>
+            <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Sync Fees &amp; Services</h5>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">
+              Pull management and letting fees from Apex27 listings into PropertyGoose. You can review and edit each fee before importing.
+            </p>
+            <button
+              type="button"
+              @click="handleFeesPreview"
+              :disabled="feesPreviewing"
+              class="px-4 py-2 text-sm font-medium text-white bg-[#15803d] hover:bg-[#15803d]/90 rounded-md disabled:opacity-50"
+            >
+              <span v-if="feesPreviewing" class="flex items-center gap-2">
+                <Loader2 class="w-4 h-4 animate-spin" />
+                Fetching fees...
+              </span>
+              <span v-else>Sync Fees &amp; Services</span>
+            </button>
           </div>
 
         </div><!-- close: initial sync (L143 status.lastTestStatus) -->
@@ -1258,20 +1256,28 @@ async function handleFeesPreview() {
       method: 'POST'
     })
 
-    const data = await response.json()
+    let data: any = {}
+    try {
+      data = await response.json()
+    } catch {
+      // Non-JSON response (e.g. timeout / 502)
+    }
 
     if (!response.ok) {
-      errorMsg.value = data.error || 'Failed to fetch fees preview'
+      errorMsg.value = data?.error || `Fees preview failed (HTTP ${response.status}). Check backend logs.`
       return
     }
 
-    feesPreviewItems.value = data.items || []
-    if (feesPreviewItems.value!.length === 0) {
+    const items = data.items || []
+    if (items.length === 0) {
       successMsg.value = 'No linked Apex27 properties found. Run "Sync Properties" first.'
       feesPreviewItems.value = null
+    } else {
+      feesPreviewItems.value = items
     }
-  } catch (err) {
-    errorMsg.value = 'Failed to fetch fees preview from Apex27'
+  } catch (err: any) {
+    console.error('[Fees Sync] Error:', err)
+    errorMsg.value = `Failed to fetch fees preview: ${err?.message || 'unknown error'}`
   } finally {
     feesPreviewing.value = false
   }
