@@ -1872,14 +1872,16 @@ export async function uploadContractorInvoice(companyId: string, input: {
           .limit(1)
 
         if (entries && entries.length > 0) {
+          // Agent's commission is the cut they take from the contractor invoice,
+          // NOT the entire invoice value.
           await supabase.from('agent_charges').insert({
             company_id: companyId,
             schedule_entry_id: entries[0].id,
             charge_type: 'contractor_commission',
-            description: `Contractor invoice #${input.invoice_number}`,
-            net_amount: input.gross_amount,
-            vat_amount: 0,
-            gross_amount: input.gross_amount,
+            description: `Commission on contractor invoice #${input.invoice_number}`,
+            net_amount: commissionNet,
+            vat_amount: commissionVatAmount,
+            gross_amount: commissionNet + commissionVatAmount,
             included: true,
             contractor_invoice_id: data.id,
           })
