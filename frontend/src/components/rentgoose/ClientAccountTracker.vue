@@ -255,7 +255,6 @@ const accountCategories = computed(() => {
     { type: 'holding_deposit', label: 'Holding Deposits', creditTypes: ['holding_deposit_in'], debitTypes: [], dotClass: 'bg-purple-500', amountClass: 'text-purple-500' },
     { type: 'deposit', label: 'Security Deposits', creditTypes: ['deposit_in'], debitTypes: ['deposit_out'], dotClass: 'bg-blue-500', amountClass: 'text-blue-500' },
     { type: 'fees', label: 'Agent Fees', creditTypes: ['invoice_fee_in'], debitTypes: [], dotClass: 'bg-orange-500', amountClass: 'text-orange-500' },
-    { type: 'contractor', label: 'Contractor Payouts', creditTypes: [], debitTypes: ['contractor_payout_out'], dotClass: 'bg-red-400', amountClass: 'text-red-400' },
     { type: 'manual', label: 'Manual / Opening', creditTypes: ['manual_credit', 'opening_balance'], debitTypes: ['manual_debit'], dotClass: 'bg-gray-400', amountClass: isDark.value ? 'text-slate-300' : 'text-gray-700' },
   ]
 
