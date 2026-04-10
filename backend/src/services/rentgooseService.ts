@@ -278,8 +278,12 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
   // Create rent share allocations for HMO tenancies
   await initRentShareAllocations(tenancyId, companyId)
 
-  // Auto-receipt month 1 if initial monies already confirmed
-  await autoReceiptMonth1FromInitialMonies(tenancyId, companyId)
+  // Auto-receipt month 1 if initial monies already confirmed (non-blocking)
+  try {
+    await autoReceiptMonth1FromInitialMonies(tenancyId, companyId)
+  } catch (err: any) {
+    console.error('[RentGoose] Auto-receipt month 1 failed (non-blocking):', err.message)
+  }
 }
 
 /**
@@ -297,7 +301,7 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
     .eq('payment_type', 'initial_monies')
     .eq('status', 'paid')
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!ep || !ep.payout_split) return false
 
@@ -316,7 +320,7 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
     .not('status', 'in', '("paid","cancelled")')
     .order('period_start', { ascending: true })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!entry) return false
 
@@ -477,12 +481,11 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
 
   const tenancyIds = tenancies.map(t => t.id)
 
-  // Get all non-cancelled entries for these tenancies
+  // Get ALL entries (including cancelled) — cancelled means user removed it on purpose, don't recreate
   const { data: existing } = await supabase
     .from('rent_schedule_entries')
     .select('tenancy_id, period_start')
     .in('tenancy_id', tenancyIds)
-    .neq('status', 'cancelled')
 
   // Index existing entries: tenancyId → Set of 'YYYY-MM' strings
   const coveredMonths = new Map<string, Set<string>>()
@@ -1199,7 +1202,7 @@ async function applyFeeCarryover(companyId: string, scheduleEntryId: string, gro
     .from('rent_schedule_entries')
     .select('tenancy_id, period_start')
     .eq('id', scheduleEntryId)
-    .single()
+    .maybeSingle()
   if (!thisEntry) return
 
   // Find the next non-cancelled rent entry for this tenancy
@@ -1212,7 +1215,7 @@ async function applyFeeCarryover(companyId: string, scheduleEntryId: string, gro
     .neq('status', 'cancelled')
     .order('period_start', { ascending: true })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!nextEntry) {
     console.log(`[RentGoose] No next entry to carry over £${deficit} fee deficit from ${scheduleEntryId}`)
@@ -1284,8 +1287,12 @@ export async function markPayoutPaid(companyId: string, input: {
 
   if (payoutErr) throw payoutErr
 
-  // If charges exceeded rent, carry the deficit to the next month's rent
-  await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  // If charges exceeded rent, carry the deficit to the next month's rent (non-blocking)
+  try {
+    await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  } catch (err: any) {
+    console.error('[RentGoose] Fee carryover failed (non-blocking):', err.message)
+  }
 
   // Create ClientAccountEntry (payout_out) for rent portion
   const currentBalance = await getCurrentBalance(companyId)
@@ -1478,8 +1485,12 @@ export async function holdPayout(companyId: string, input: {
     .update({ statement_pdf_path: 'HELD' })
     .eq('id', payoutRecord.id)
 
-  // If charges exceeded rent, carry the deficit to the next month's rent
-  await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  // If charges exceeded rent, carry the deficit to the next month's rent (non-blocking)
+  try {
+    await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  } catch (err: any) {
+    console.error('[RentGoose] Fee carryover failed (non-blocking):', err.message)
+  }
 
   // Create client_account_entry — rent_held_in with the actual amount
   // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold.
