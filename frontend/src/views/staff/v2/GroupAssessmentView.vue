@@ -559,9 +559,20 @@ const combinedAffordability = computed(() => {
   }
 })
 
+// All tenants (and their guarantors if present) must have individual results before group decision
+const incompleteMembers = computed<string[]>(() => {
+  const missing: string[] = []
+  for (const t of tenantMembers.value) {
+    if (!t.individual_result) missing.push(t.name)
+    if (t.guarantor && !t.guarantor.individual_result) missing.push(`${t.name} (guarantor: ${t.guarantor.name})`)
+  }
+  return missing
+})
+
 const canSubmit = computed(() => {
   if (!decision.value) return false
   if (!rentShareTotalMatches.value) return false
+  if (incompleteMembers.value.length > 0) return false
   return true
 })
 

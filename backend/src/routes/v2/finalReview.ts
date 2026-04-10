@@ -515,6 +515,25 @@ router.post('/:referenceId/decision', authenticateStaff, requireFinalReviewRole,
       return res.status(404).json({ error: 'Reference not found' })
     }
 
+    // Safety net: ensure all sections on this reference have a decision before allowing
+    // a final review decision. Prevents the bug where references could be approved/rejected
+    // with incomplete sections (e.g. INCOME never assessed).
+    {
+      const { supabase: sb } = await import('../../config/supabase')
+      const { data: refSections } = await sb
+        .from('reference_sections_v2')
+        .select('section_type, decision')
+        .eq('reference_id', referenceId)
+
+      const undecided = (refSections || []).filter(s => !s.decision).map(s => s.section_type)
+      if (undecided.length > 0) {
+        return res.status(400).json({
+          error: `Cannot submit final decision — the following sections still need to be assessed: ${undecided.join(', ')}`,
+          undecided_sections: undecided,
+        })
+      }
+    }
+
     const hasParent = !!reference.parent_reference_id
     const isGroupParent = !!reference.is_group_parent
     const guarantor = await getGuarantor(referenceId)
