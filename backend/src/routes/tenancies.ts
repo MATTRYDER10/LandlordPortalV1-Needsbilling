@@ -3426,9 +3426,8 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
       depositAmount: isReposit ? 0 : (tenancy.deposit_amount || 0),
       depositScheme: tenancy.deposit_scheme || null,
       holdingDepositPaid,
-      additionalCharges: (tenancy.additional_charges || [])
-        .filter(c => c.frequency === 'one_time')
-        .map(c => ({ name: c.name, amount: c.amount })),
+      // Initial monies = rent + deposit only. Additional charges are now agent fees deducted from month 1 rent payout.
+      additionalCharges: [],
       dueDate: dueDate.toISOString().split('T')[0],
       termMonths,
       moveInDate,
@@ -3546,11 +3545,9 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
     // Calculate amounts - use edited values if provided, otherwise use tenancy values
     const firstMonthRent = editedFirstMonthRent !== undefined ? editedFirstMonthRent : (tenancy.monthly_rent || 0)
     const depositAmount = editedDeposit !== undefined ? editedDeposit : (tenancy.deposit_amount || 0)
-    const additionalCharges = editedAdditionalCharges !== undefined
-      ? editedAdditionalCharges
-      : (tenancy.additional_charges || [])
-          .filter(c => c.frequency === 'one_time')
-          .map(c => ({ name: c.name, amount: c.amount }))
+    // Initial monies = rent + deposit only. All agent fees (management, letting, additional)
+    // are landlord fees deducted from the rent payout via month 1 agent_charges, not the tenant.
+    const additionalCharges: { name: string; amount: number }[] = []
 
     // Format property address
     const propertyAddress = [
@@ -3607,7 +3604,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       initialMoniesRequestedBy: userId
     }, userId)
 
-    const totalDue = firstMonthRent + depositAmount + additionalCharges.reduce((sum: number, c: { name: string; amount: number }) => sum + c.amount, 0) - holdingDepositPaid
+    const totalDue = firstMonthRent + depositAmount - holdingDepositPaid
 
     // Save to payment_requests table for future rentgoose implementation
     const { error: paymentRequestError } = await supabase
@@ -3644,6 +3641,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       const propertyPc = (propForEp as any).postcode || ''
 
       // Build payout split
+      // Initial monies = rent + deposit only. Fees are deducted from month 1 rent payout, not collected here.
       const payoutSplit: any[] = []
       const rentPortion = firstMonthRent - holdingDepositPaid
       if (rentPortion > 0) {
@@ -3651,9 +3649,6 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       }
       if (depositAmount > 0) {
         payoutSplit.push({ type: 'deposit_hold', amount: depositAmount, description: 'Security deposit' })
-      }
-      for (const charge of additionalCharges) {
-        payoutSplit.push({ type: 'agent_fee', amount: charge.amount, description: charge.name })
       }
 
       await createExpectedPayment(companyId, {
@@ -3916,10 +3911,7 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
           }
         }
 
-        const additionalChargesAmt = (currentTenancy.additional_charges || [])
-          .filter((c: any) => c.frequency === 'one_time')
-          .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
-
+        // Initial monies = rent + deposit only. Fees are deducted from month 1 rent payout, not collected here.
         const payoutSplit: any[] = []
         const rentPortion = firstMonthRent - holdingDepPaid
         if (rentPortion > 0) {
@@ -3927,9 +3919,6 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
         }
         if (depositAmt > 0) {
           payoutSplit.push({ type: 'deposit_hold', amount: depositAmt, description: 'Security deposit' })
-        }
-        if (additionalChargesAmt > 0) {
-          payoutSplit.push({ type: 'agent_fee', amount: additionalChargesAmt, description: 'Additional charges' })
         }
 
         const tenantNames = (currentTenancy.tenants || [])

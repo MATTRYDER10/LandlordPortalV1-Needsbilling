@@ -244,9 +244,26 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
         included: true,
       })
     }
-    // NOTE: Additional one-off charges (tenancy.additional_charges) are NOT added here.
-    // They're collected via initial monies (request-initial-monies adds them to the
-    // expected_payment payout_split), so adding them here would double-count.
+
+    // Additional one-off charges from the tenancy (e.g. inventory fee, EPC, admin)
+    // These are landlord fees deducted from month 1 rent (not collected from tenant via initial monies).
+    const additionalCharges = (tenancy.additional_charges || []) as any[]
+    for (const ch of additionalCharges) {
+      if (ch.frequency !== 'one_time') continue
+      const net = parseFloat(ch.amount) || 0
+      if (net <= 0) continue
+      const vat = Math.round(net * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'ad_hoc',
+        description: ch.name || 'Additional charge',
+        net_amount: net,
+        vat_amount: vat,
+        gross_amount: Math.round((net + vat) * 100) / 100,
+        included: true,
+      })
+    }
 
     if (month1Charges.length > 0) {
       const { error: chargesErr } = await supabase
@@ -1115,7 +1132,8 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 
       const includedCharges = charges.filter((c: AgentChargeItem) => c.included)
       const totalCharges = includedCharges.reduce((sum: number, c: AgentChargeItem) => sum + c.gross_amount, 0)
-      const netPayout = Math.round((grossRent - totalCharges) * 100) / 100
+      // Cap at 0 — if fees exceed rent, the deficit carries over to next month (handled at payout time)
+      const netPayout = Math.max(0, Math.round((grossRent - totalCharges) * 100) / 100)
 
       const landlordName = landlord
         ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
@@ -1167,6 +1185,66 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 // MARK PAYOUT PAID
 // ============================================================================
 
+/**
+ * If month X's rent doesn't cover all the agent fees, the deficit carries over to
+ * month X+1 by creating a `carryover` agent_charge on the next rent entry.
+ * Idempotent — won't create a duplicate carryover for the same source entry.
+ */
+async function applyFeeCarryover(companyId: string, scheduleEntryId: string, grossRent: number, totalCharges: number): Promise<void> {
+  const deficit = Math.round((totalCharges - grossRent) * 100) / 100
+  if (deficit <= 0) return
+
+  // Find this entry's tenancy + period
+  const { data: thisEntry } = await supabase
+    .from('rent_schedule_entries')
+    .select('tenancy_id, period_start')
+    .eq('id', scheduleEntryId)
+    .single()
+  if (!thisEntry) return
+
+  // Find the next non-cancelled rent entry for this tenancy
+  const { data: nextEntry } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, period_start')
+    .eq('tenancy_id', thisEntry.tenancy_id)
+    .eq('company_id', companyId)
+    .gt('period_start', thisEntry.period_start)
+    .neq('status', 'cancelled')
+    .order('period_start', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!nextEntry) {
+    console.log(`[RentGoose] No next entry to carry over £${deficit} fee deficit from ${scheduleEntryId}`)
+    return
+  }
+
+  // Idempotency: skip if a carryover from this source already exists
+  const carryRef = `CARRY-${scheduleEntryId.slice(0, 8)}`
+  const { data: existing } = await supabase
+    .from('agent_charges')
+    .select('id')
+    .eq('schedule_entry_id', nextEntry.id)
+    .eq('charge_type', 'carryover')
+    .ilike('description', `%${carryRef}%`)
+    .limit(1)
+    .maybeSingle()
+  if (existing) return
+
+  await supabase.from('agent_charges').insert({
+    company_id: companyId,
+    schedule_entry_id: nextEntry.id,
+    charge_type: 'carryover',
+    description: `Fees carried over from previous rent (${carryRef})`,
+    net_amount: deficit,
+    vat_amount: 0,
+    gross_amount: deficit,
+    included: true,
+  })
+
+  console.log(`[RentGoose] Carried over £${deficit} fee deficit from entry ${scheduleEntryId} → ${nextEntry.id}`)
+}
+
 export async function markPayoutPaid(companyId: string, input: {
   schedule_entry_id: string
   landlord_id?: string
@@ -1205,6 +1283,9 @@ export async function markPayoutPaid(companyId: string, input: {
     .single()
 
   if (payoutErr) throw payoutErr
+
+  // If charges exceeded rent, carry the deficit to the next month's rent
+  await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
 
   // Create ClientAccountEntry (payout_out) for rent portion
   const currentBalance = await getCurrentBalance(companyId)
@@ -1396,6 +1477,9 @@ export async function holdPayout(companyId: string, input: {
     .from('payout_records')
     .update({ statement_pdf_path: 'HELD' })
     .eq('id', payoutRecord.id)
+
+  // If charges exceeded rent, carry the deficit to the next month's rent
+  await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
 
   // Create client_account_entry — rent_held_in with the actual amount
   // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold.
