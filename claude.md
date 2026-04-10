@@ -8,26 +8,30 @@ The project has both frontend and backend in separate directories:
 
 ### Correct way to start both servers:
 
+**From the root directory:**
+```bash
+npm run dev
+```
+This starts both backend (port 3001) and frontend (port 5173) simultaneously using `concurrently`.
+
+Or start individually:
+
 **Terminal 1 - Backend:**
 ```bash
 cd backend
 npm run dev
 ```
-This starts the backend on port 3001.
 
 **Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
-This starts the frontend on port 5173.
 
 ### Important Notes:
-- **MUST open separate terminal windows** - Claude Code has issues starting frontend in background mode
-- Frontend dev command `npm run dev` works fine in a regular terminal but exits immediately when run in background by Claude
-- Backend runs fine in background mode with Claude
 - Frontend URL: http://localhost:5173/
 - Backend URL: http://localhost:3001/
+- Frontend dev command exits immediately when run in background by Claude — only the root `npm run dev` or a manual terminal works
 
 ### Backend
 - Port: 3001
