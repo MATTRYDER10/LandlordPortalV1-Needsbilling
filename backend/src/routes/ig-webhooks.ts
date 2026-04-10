@@ -10,6 +10,43 @@ import { decrypt } from '../services/encryption'
 
 const router = Router()
 
+// ── Rate limiter for the IG properties pull endpoint ────────────────────────
+// Keyed by client IP. IG is expected to call this on manual syncs only; a
+// legitimate caller will stay well under this limit. The cap exists to
+// blunt brute-force attempts against x-pg-api-key.
+const igPropertiesRateMap = new Map<string, { count: number; resetAt: number }>()
+const IG_PROPERTIES_RATE_MAX = 30
+const IG_PROPERTIES_RATE_WINDOW_MS = 60_000
+
+function isIgPropertiesRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = igPropertiesRateMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    igPropertiesRateMap.set(ip, { count: 1, resetAt: now + IG_PROPERTIES_RATE_WINDOW_MS })
+    return false
+  }
+  entry.count++
+  return entry.count > IG_PROPERTIES_RATE_MAX
+}
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, entry] of igPropertiesRateMap) {
+    if (now > entry.resetAt) igPropertiesRateMap.delete(ip)
+  }
+}, 60_000)
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for']
+  if (forwarded) {
+    const ips = (typeof forwarded === 'string' ? forwarded : forwarded[0]).split(',')
+    return ips[0].trim()
+  }
+  const realIp = req.headers['x-real-ip']
+  if (realIp) return typeof realIp === 'string' ? realIp : realIp[0]
+  return req.ip || req.socket?.remoteAddress || '0.0.0.0'
+}
+
 // ============================================================================
 // HELPER: Verify webhook and find appointment
 // ============================================================================
@@ -230,8 +267,17 @@ router.post('/report-complete', async (req: Request, res: Response) => {
  * Used by IG to pull its full property list from PG in one request (manual sync).
  */
 router.get('/properties', async (req: Request, res: Response) => {
+  const clientIp = getClientIp(req)
+
+  // Rate limit BEFORE any DB work so brute-force attempts are cheap to reject
+  if (isIgPropertiesRateLimited(clientIp)) {
+    console.warn(`[IG Properties] Rate limited ip=${clientIp}`)
+    return res.status(429).json({ error: 'Too many requests' })
+  }
+
   try {
-    const apiKey = req.headers['x-pg-api-key'] as string | undefined
+    const rawKey = req.headers['x-pg-api-key']
+    const apiKey = typeof rawKey === 'string' ? rawKey.trim() : ''
     if (!apiKey) {
       return res.status(401).json({ error: 'Missing x-pg-api-key header' })
     }
@@ -239,6 +285,7 @@ router.get('/properties', async (req: Request, res: Response) => {
     const hash = hashIGApiKey(apiKey)
     const companyId = await findCompanyIdByIgApiKeyHash(hash)
     if (!companyId) {
+      console.warn(`[IG Properties] Auth failed ip=${clientIp}`)
       return res.status(401).json({ error: 'Invalid API key' })
     }
 
@@ -265,6 +312,7 @@ router.get('/properties', async (req: Request, res: Response) => {
       updated_at: p.updated_at
     }))
 
+    console.log(`[IG Properties] Served ${payload.length} properties company=${companyId} ip=${clientIp}`)
     res.json({ properties: payload })
   } catch (error) {
     console.error('[IG Properties] Error:', error)
