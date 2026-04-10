@@ -373,6 +373,15 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
+    // Trigger RentGoose access check — self-heals legacy companies on first access
+    let rentgooseEnabled = (companyUser.companies as any)?.rentgoose_enabled === true
+    try {
+      const { isRentGooseEnabled } = await import('../services/rentgooseAccess')
+      rentgooseEnabled = await isRentGooseEnabled((companyUser.companies as any).id)
+    } catch (e) {
+      // Non-fatal — fall back to whatever the row says
+    }
+
     // Decrypt company fields
     const company = companyUser.companies ? {
       ...companyUser.companies,
@@ -382,7 +391,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       address: decrypt((companyUser.companies as any).address_encrypted),
       city: decrypt((companyUser.companies as any).city_encrypted),
       postcode: decrypt((companyUser.companies as any).postcode_encrypted),
-      website: decrypt((companyUser.companies as any).website_encrypted)
+      website: decrypt((companyUser.companies as any).website_encrypted),
+      rentgoose_enabled: rentgooseEnabled
     } : null
 
     console.log('GET /api/company returning:', {
