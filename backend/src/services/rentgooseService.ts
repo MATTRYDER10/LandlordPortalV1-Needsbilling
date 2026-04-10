@@ -78,6 +78,16 @@ export interface AgentChargeItem {
 // ============================================================================
 
 export async function initTenancySchedule(tenancyId: string, companyId: string): Promise<void> {
+  // SAFETY: skip entirely if this company isn't on the RentGoose whitelist.
+  // Otherwise we'd silently create rent_schedule_entries that the arrears
+  // scheduler would later process — sending arrears emails to tenants whose
+  // agent never opted into RentGoose.
+  const { isRentGooseEnabled } = await import('./rentgooseAccess')
+  if (!await isRentGooseEnabled(companyId)) {
+    console.log(`[RentGoose] Skipping initTenancySchedule for tenancy ${tenancyId} — company not RentGoose-enabled`)
+    return
+  }
+
   // Get tenancy details — management_type on tenancy is the single source of truth
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
@@ -453,6 +463,10 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 // ============================================================================
 
 export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
+  // SAFETY: skip entirely if this company isn't on the RentGoose whitelist.
+  const { isRentGooseEnabled } = await import('./rentgooseAccess')
+  if (!await isRentGooseEnabled(companyId)) return { synced: 0, extended: 0 }
+
   // Get all active tenancies with management_type — tenancy is the source of truth
   const { data: allTenancies, error } = await supabase
     .from('tenancies')

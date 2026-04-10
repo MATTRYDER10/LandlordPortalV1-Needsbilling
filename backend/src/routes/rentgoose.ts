@@ -2,8 +2,24 @@ import { Router } from 'express'
 import multer from 'multer'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import * as rentgooseService from '../services/rentgooseService'
+import { isRentGooseEnabled } from '../services/rentgooseAccess'
 
 const router = Router()
+
+// Gate ALL RentGoose routes — companies not on the whitelist get a clean 403,
+// preventing any background processing for non-RentGoose users.
+router.use(authenticateToken, async (req: AuthRequest, res, next) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+    const enabled = await isRentGooseEnabled(companyId)
+    if (!enabled) return res.status(403).json({ error: 'RentGoose is not enabled for this company' })
+    next()
+  } catch (err: any) {
+    console.error('[RentGoose] Access check failed:', err)
+    res.status(500).json({ error: 'Failed to verify RentGoose access' })
+  }
+})
 
 const invoiceUpload = multer({
   storage: multer.memoryStorage(),
