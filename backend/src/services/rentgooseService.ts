@@ -1305,6 +1305,9 @@ export async function markPayoutPaid(companyId: string, input: {
   if (!payout) throw new Error('Payout not found in queue')
 
   // Create payout record (synchronous — must succeed before returning)
+  // Note: deposit tracking is handled via separate client_account_entries +
+  // expected_payments updates below; payout_records itself does not store a
+  // deposit_amount column.
   const { data: payoutRecord, error: payoutErr } = await supabase
     .from('payout_records')
     .insert({
@@ -1315,7 +1318,6 @@ export async function markPayoutPaid(companyId: string, input: {
       gross_rent: payout.gross_rent,
       total_charges: payout.total_charges,
       net_payout: payout.net_payout,
-      deposit_amount: payout.deposit_amount || 0,
       paid_by: input.paid_by || null,
     })
     .select()

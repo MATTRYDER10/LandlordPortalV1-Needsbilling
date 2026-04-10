@@ -329,7 +329,7 @@ router.post('/payout', authenticateToken, async (req: AuthRequest, res) => {
     res.json(result)
   } catch (err: any) {
     console.error('Error processing payout:', err)
-    res.status(500).json({ error: 'Failed to process payout' })
+    res.status(500).json({ error: 'Failed to process payout', details: err.message || String(err) })
   }
 })
 
