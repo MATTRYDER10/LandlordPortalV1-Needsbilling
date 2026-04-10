@@ -60,7 +60,7 @@ async function getTenancyWithDetails(tenancyId: string, companyId: string) {
     .from('tenancies')
     .select(`
       *,
-      properties(id, postcode, address_line1_encrypted, city_encrypted),
+      properties(id, postcode, address_line1_encrypted, address_line2_encrypted, city_encrypted, county_encrypted),
       tenancy_tenants(*)
     `)
     .eq('id', tenancyId)
@@ -151,6 +151,14 @@ router.post('/submit/:tenancyId', authenticateToken, async (req: AuthRequest, re
       return res.status(400).json({ error: `A ${moveType} has already been submitted for this tenancy.` })
     }
 
+    // Get company name for agency_name field
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', companyId)
+      .single()
+    const agencyName = company?.name_encrypted ? decrypt(company.name_encrypted) : ''
+
     // Get tenancy details
     const tenancy = await getTenancyWithDetails(req.params.tenancyId, companyId)
     if (!tenancy) {
@@ -177,8 +185,14 @@ router.post('/submit/:tenancyId', authenticateToken, async (req: AuthRequest, re
     const addressLine1 = tenancy.properties?.address_line1_encrypted
       ? decrypt(tenancy.properties.address_line1_encrypted) || ''
       : ''
+    const addressLine2 = tenancy.properties?.address_line2_encrypted
+      ? decrypt(tenancy.properties.address_line2_encrypted) || ''
+      : ''
     const city = tenancy.properties?.city_encrypted
       ? decrypt(tenancy.properties.city_encrypted) || ''
+      : ''
+    const county = tenancy.properties?.county_encrypted
+      ? decrypt(tenancy.properties.county_encrypted) || ''
       : ''
     const postcode = tenancy.properties?.postcode || ''
 
@@ -204,12 +218,14 @@ router.post('/submit/:tenancyId', authenticateToken, async (req: AuthRequest, re
     // Build move event (movein or moveout)
     const moveEvent = {
       active: 1 as const,
-      movetype: 'letting' as const,
+      movetype: (tenancy.tenancy_type === 'sale' ? 'sale' : 'letting') as 'sale' | 'letting',
       movedate: moveDate,
       movedate_confirmed: 1,
       managed: 1,
       address1: addressLine1,
+      address2: addressLine2 || undefined,
       city,
+      county: county || undefined,
       postcode,
       country: 'United Kingdom',
       single_occupancy: activeTenants.length <= 1 ? 1 : 0,
@@ -218,6 +234,7 @@ router.post('/submit/:tenancyId', authenticateToken, async (req: AuthRequest, re
 
     const payload: JMIMovePayload = {
       partner_move_identifier: req.params.tenancyId,
+      agency_name: agencyName || undefined,
       customer: {
         gdpr_consent: true,
         email: tenantEmail,

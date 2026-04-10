@@ -540,7 +540,13 @@ const combinedAffordability = computed(() => {
     }
     return sum + t.annual_income
   }, 0)
-  const totalMonthlyRent = groupData.value?.monthly_rent || 0
+  // Use sum of tenant rent shares, not the full property rent.
+  // Rent shares are the source of truth for affordability — they reflect what each
+  // tenant is actually liable for. Falls back to splitting full rent equally if shares unset.
+  let totalMonthlyRent = tenants.reduce((sum, t) => sum + (rentShares[t.id] || 0), 0)
+  if (totalMonthlyRent === 0 && tenants.length > 0 && groupData.value?.monthly_rent) {
+    totalMonthlyRent = groupData.value.monthly_rent
+  }
   const totalAnnualRent = totalMonthlyRent * 12
   const ratio = totalAnnualRent > 0 ? totalAnnualIncome / totalAnnualRent : 0
   const pass = ratio >= 2.5
@@ -553,9 +559,20 @@ const combinedAffordability = computed(() => {
   }
 })
 
+// All tenants (and their guarantors if present) must have individual results before group decision
+const incompleteMembers = computed<string[]>(() => {
+  const missing: string[] = []
+  for (const t of tenantMembers.value) {
+    if (!t.individual_result) missing.push(t.name)
+    if (t.guarantor && !t.guarantor.individual_result) missing.push(`${t.name} (guarantor: ${t.guarantor.name})`)
+  }
+  return missing
+})
+
 const canSubmit = computed(() => {
   if (!decision.value) return false
   if (!rentShareTotalMatches.value) return false
+  if (incompleteMembers.value.length > 0) return false
   return true
 })
 

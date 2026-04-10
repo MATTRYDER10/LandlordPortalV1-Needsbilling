@@ -58,6 +58,7 @@ export interface JMIMoveEvent {
 
 export interface JMIMovePayload {
   partner_move_identifier?: string
+  agency_name?: string
   customer: JMICustomer
   movein?: JMIMoveEvent
   moveout?: JMIMoveEvent

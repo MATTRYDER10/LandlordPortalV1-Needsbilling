@@ -1919,7 +1919,7 @@ async function searchProperties(query: string) {
 
 function selectProperty(property: PropertySearchResult) {
   selectedProperty.value = property
-  sendForm.value.property_address = property.address_line1 || ''
+  sendForm.value.property_address = [property.address_line1, property.address_line2].filter(Boolean).join(', ')
   sendForm.value.property_city = property.city || ''
   sendForm.value.property_postcode = property.postcode || ''
   sendForm.value.linked_property_id = property.id

@@ -254,6 +254,7 @@ const fetchSigningData = async () => {
         property_address: data.agreement.propertyAddress,
         language: data.agreement.language,
         template_type: data.agreement.templateType,
+        agreementType: data.agreement.agreementType,
         rent_amount: data.agreement.rentAmount,
         deposit_amount: data.agreement.depositAmount,
         tenancy_start_date: data.agreement.tenancyStartDate,
@@ -389,9 +390,15 @@ const formatDate = (dateString: string) => {
 
 const getAgreementTitle = () => {
   if (!signingData.value?.agreement) return 'Tenancy Agreement'
-  return signingData.value.agreement.language === 'welsh'
-    ? 'Welsh Occupation Contract'
-    : 'Assured Shorthold Tenancy Agreement'
+  if (signingData.value.agreement.language === 'welsh') return 'Welsh Occupation Contract'
+  const labels: Record<string, string> = {
+    ast: 'Assured Shorthold Tenancy Agreement',
+    apta: 'Assured Periodic Tenancy Agreement',
+    company_let: 'Company Let Agreement',
+    lodger: 'Lodger Agreement',
+    holiday_let: 'Holiday Let Agreement'
+  }
+  return labels[signingData.value.agreement.agreementType] || 'Tenancy Agreement'
 }
 
 // Lifecycle

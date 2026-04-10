@@ -1,6 +1,7 @@
 /**
  * Authenticated fetch wrapper that includes branch isolation headers
- * Use this instead of raw fetch() for API calls to ensure proper multi-branch isolation
+ * and automatic token refresh on 403 errors.
+ * Use this instead of raw fetch() for API calls to ensure proper multi-branch isolation.
  */
 
 import { supabase } from './supabase'
@@ -70,7 +71,16 @@ export function getAuthHeaders(token?: string): Record<string, string> {
 }
 
 /**
- * Wrapper around fetch that automatically includes auth and branch headers
+ * Get a fresh access token from Supabase, triggering a refresh if needed.
+ */
+async function getFreshToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.access_token ?? null
+}
+
+/**
+ * Wrapper around fetch that automatically includes auth and branch headers.
+ * On 403 "Invalid token", refreshes the session and retries once.
  */
 export async function authFetch(
   url: string,
@@ -78,7 +88,10 @@ export async function authFetch(
 ): Promise<Response> {
   const { token, headers: customHeaders, ...restOptions } = options
 
-  const authHeaders = getAuthHeaders(token)
+  // Use provided token, or get a fresh one from Supabase
+  const effectiveToken = token || await getFreshToken()
+
+  const authHeaders = getAuthHeaders(effectiveToken || undefined)
 
   const mergedHeaders: Record<string, string> = {
     ...authHeaders,
@@ -89,13 +102,6 @@ export async function authFetch(
   if (restOptions.body && typeof restOptions.body === 'string' && !mergedHeaders['Content-Type']) {
     mergedHeaders['Content-Type'] = 'application/json'
   }
-
-  // Debug logging
-  const activeBranchId = localStorage.getItem(ACTIVE_BRANCH_KEY)
-  console.log('[authFetch]', url.split('/api/')[1]?.split('?')[0], {
-    activeBranchId,
-    'X-Branch-Id': mergedHeaders['X-Branch-Id']
-  })
 
   const response = await fetch(url, { ...restOptions, headers: mergedHeaders })
 

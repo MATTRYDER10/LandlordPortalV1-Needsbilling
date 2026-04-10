@@ -126,6 +126,7 @@ router.get('/:token', async (req: Request, res: Response) => {
         propertyAddress,
         language: agreement.language || 'english',
         templateType: agreement.template_type,
+        agreementType: agreement.agreement_type || 'ast',
         rentAmount: agreement.rent_amount,
         depositAmount: agreement.deposit_amount,
         tenancyStartDate: agreement.tenancy_start_date,

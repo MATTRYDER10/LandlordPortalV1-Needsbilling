@@ -164,31 +164,41 @@
 
     <!-- AGENT PAYOUTS -->
     <div v-else-if="payoutTab === 'agent'" class="space-y-4">
-      <div v-if="agentCharges.length === 0" class="flex flex-col items-center justify-center py-16">
+      <!-- Pending agent payout -->
+      <div v-if="pendingAgentCharges.length === 0 && agentPayoutHistory.length === 0" class="flex flex-col items-center justify-center py-16">
         <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
         <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No agent fees to pay out</p>
         <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Agent fees will appear once rent is receipted and management fees are calculated.</p>
       </div>
 
-      <div v-else :class="['rounded-[10px] border overflow-hidden', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
+      <div v-if="pendingAgentCharges.length > 0" :class="['rounded-[10px] border overflow-hidden', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
         <div class="px-5 py-4 flex items-center justify-between">
           <div>
-            <p class="font-medium text-base">Agency Fees</p>
-            <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">{{ agentCharges.length }} charge{{ agentCharges.length !== 1 ? 's' : '' }} across {{ agentPropertyCount }} propert{{ agentPropertyCount !== 1 ? 'ies' : 'y' }}</p>
+            <p class="font-medium text-base dark:text-white">Pending Agent Fees</p>
+            <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">{{ pendingAgentCharges.length }} charge{{ pendingAgentCharges.length !== 1 ? 's' : '' }} across {{ pendingAgentPropertyCount }} propert{{ pendingAgentPropertyCount !== 1 ? 'ies' : 'y' }}</p>
           </div>
           <div class="text-right">
             <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Total Agent Payout</p>
-            <p class="text-[22px] font-bold text-primary tabular-nums">&pound;{{ formatMoney(agentTotal) }}</p>
+            <p class="text-[22px] font-bold text-primary tabular-nums">&pound;{{ formatMoney(pendingAgentTotal) }}</p>
           </div>
         </div>
 
         <div v-if="expandedId === 'agent'" :class="['px-5 py-4 border-t', isDark ? 'border-slate-700' : 'border-[#f3f4f6]']">
-          <div v-for="(charges, address) in agentChargesByProperty" :key="address" class="mb-3">
-            <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold mb-1">{{ address }}</p>
+          <div v-for="(charges, address) in pendingAgentChargesByProperty" :key="address" class="mb-3">
+            <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold mb-1">
+              <a
+                v-if="charges[0]?.property_id"
+                :href="`/properties/${charges[0].property_id}`"
+                target="_blank"
+                rel="noopener"
+                class="text-primary hover:underline"
+              >{{ address }}</a>
+              <span v-else>{{ address }}</span>
+            </p>
             <div v-for="c in charges" :key="c.id" class="text-sm mb-1 pl-3">
               <div class="flex justify-between">
-                <span>{{ c.description }}</span>
-                <span class="font-medium tabular-nums">&pound;{{ formatMoney(c.gross_amount) }}</span>
+                <span class="dark:text-slate-200">{{ c.description }}</span>
+                <span class="font-medium tabular-nums dark:text-white">&pound;{{ formatMoney(c.gross_amount) }}</span>
               </div>
               <div :class="['text-xs flex justify-end gap-3', isDark ? 'text-slate-500' : 'text-gray-400']">
                 <span>Net: &pound;{{ formatMoney(c.net_amount) }}</span>
@@ -197,8 +207,8 @@
             </div>
           </div>
           <div :class="['text-sm font-medium flex justify-between border-t pt-2 mt-2', isDark ? 'border-slate-700' : 'border-gray-200']">
-            <span>Total</span>
-            <span class="text-primary font-bold tabular-nums">&pound;{{ formatMoney(agentTotal) }}</span>
+            <span class="dark:text-slate-200">Total</span>
+            <span class="text-primary font-bold tabular-nums">&pound;{{ formatMoney(pendingAgentTotal) }}</span>
           </div>
         </div>
 
@@ -206,6 +216,52 @@
           <button @click="expandedId = expandedId === 'agent' ? null : 'agent'" class="text-sm text-primary hover:underline">
             {{ expandedId === 'agent' ? 'Hide details' : 'Show details' }}
           </button>
+          <button
+            @click="showAgentPayoutModal = true"
+            class="bg-[#f97316] hover:bg-[#ea6d10] text-white rounded-lg font-semibold px-[18px] py-2.5 text-sm transition-colors"
+          >
+            Process Agent Payout
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent payout history -->
+      <div v-if="agentPayoutHistory.length > 0" :class="['rounded-[10px] border overflow-hidden', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
+        <div :class="['px-5 py-3 border-b', isDark ? 'border-slate-700' : 'border-gray-200']">
+          <p class="font-medium text-sm dark:text-white">Payout History</p>
+        </div>
+        <div v-for="p in agentPayoutHistory" :key="p.id" :class="['border-b last:border-b-0', isDark ? 'border-slate-700' : 'border-[#f3f4f6]']">
+          <div class="px-5 py-3 flex items-center justify-between">
+            <div>
+              <p :class="['text-sm font-medium', isDark ? 'text-white' : 'text-gray-900']">
+                {{ formatPayoutDate(p.created_at) }}
+              </p>
+              <p :class="['text-xs', isDark ? 'text-slate-400' : 'text-gray-500']">
+                {{ p.charge_count }} charge{{ p.charge_count !== 1 ? 's' : '' }} &middot; Net &pound;{{ formatMoney(p.total_net) }} &middot; VAT &pound;{{ formatMoney(p.total_vat) }}
+              </p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-base font-bold text-primary tabular-nums">&pound;{{ formatMoney(p.total_gross) }}</span>
+              <button @click="viewPayoutDetails(p.id)" class="text-xs text-primary hover:underline">View information</button>
+            </div>
+          </div>
+          <!-- Expanded details -->
+          <div v-if="expandedHistoryId === p.id && payoutDetailsCache[p.id]" :class="['px-5 py-3 border-t text-sm', isDark ? 'bg-slate-900/50 border-slate-700' : 'bg-gray-50 border-gray-200']">
+            <div v-for="c in payoutDetailsCache[p.id].charges" :key="c.id" class="flex items-center justify-between py-1">
+              <div>
+                <a
+                  v-if="c.property_id"
+                  :href="`/properties/${c.property_id}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-primary hover:underline text-xs font-medium"
+                >{{ c.property_address }}</a>
+                <span v-else class="text-xs font-medium dark:text-slate-300">{{ c.property_address }}</span>
+                <span :class="['text-xs ml-2', isDark ? 'text-slate-500' : 'text-gray-500']">{{ c.description }}</span>
+              </div>
+              <span class="text-xs font-medium tabular-nums dark:text-white">&pound;{{ formatMoney(c.gross_amount) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -326,6 +382,14 @@
       @close="showBatchModal = false"
       @completed="onBatchCompleted"
     />
+
+    <!-- Agent Payout Summary Modal -->
+    <AgentPayoutSummaryModal
+      v-if="showAgentPayoutModal"
+      :charges="pendingAgentCharges"
+      @close="showAgentPayoutModal = false"
+      @paid="onAgentPayoutComplete"
+    />
   </div>
 </template>
 
@@ -336,6 +400,7 @@ import { useRentGooseStore, type PayoutItem } from '../../stores/rentgoose'
 import { useApi } from '../../composables/useApi'
 import MarkPaidModal from './MarkPaidModal.vue'
 import BatchPayoutModal from './BatchPayoutModal.vue'
+import AgentPayoutSummaryModal from './AgentPayoutSummaryModal.vue'
 
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
@@ -356,34 +421,84 @@ const landlordPayouts = computed(() => store.payouts)
 // Total payout value (display-only computed)
 const totalPayoutValue = computed(() => landlordPayouts.value.reduce((s, p) => s + (p.net_payout || 0) + (p.deposit_amount || 0), 0))
 
-// Agent charges = all included charges across all payouts (management fees, ad-hoc agent charges)
-const agentCharges = computed(() => {
-  const charges: any[] = []
-  for (const p of store.payouts) {
-    for (const c of (p.charges || [])) {
-      if (c.included && c.charge_type !== 'contractor_commission') {
-        charges.push({
-          ...c,
-          property_address: `${p.property_address}, ${p.property_postcode}`,
-          property_id: p.property_id,
-        })
+// Pending agent charges — fetched from API (charges where landlord has been paid AND agent_paid_at is null)
+const pendingAgentCharges = ref<any[]>([])
+const agentPayoutHistory = ref<any[]>([])
+const showAgentPayoutModal = ref(false)
+const expandedHistoryId = ref<string | null>(null)
+const payoutDetailsCache = ref<Record<string, any>>({})
+
+async function fetchPendingAgentCharges() {
+  try {
+    const data = await get<any[]>('/api/rentgoose/pending-agent-charges')
+    // Enrich with property info from current payouts queue (best effort)
+    const propertyByEntry = new Map<string, { address: string; id: string }>()
+    for (const p of store.payouts) {
+      propertyByEntry.set(p.schedule_entry_id, {
+        address: `${p.property_address}, ${p.property_postcode}`,
+        id: p.property_id,
+      })
+    }
+    pendingAgentCharges.value = (data || []).map(c => {
+      const prop = propertyByEntry.get(c.schedule_entry_id)
+      return {
+        ...c,
+        property_address: prop?.address || 'Unknown property',
+        property_id: prop?.id || null,
       }
+    })
+  } catch (err) {
+    console.error('Failed to fetch pending agent charges:', err)
+  }
+}
+
+async function fetchAgentPayoutHistory() {
+  try {
+    const data = await get<any>('/api/rentgoose/agent-payouts')
+    agentPayoutHistory.value = data.payouts || []
+  } catch (err) {
+    console.error('Failed to fetch agent payout history:', err)
+  }
+}
+
+async function viewPayoutDetails(payoutId: string) {
+  if (expandedHistoryId.value === payoutId) {
+    expandedHistoryId.value = null
+    return
+  }
+  if (!payoutDetailsCache.value[payoutId]) {
+    try {
+      const data = await get<any>(`/api/rentgoose/agent-payout/${payoutId}`)
+      payoutDetailsCache.value[payoutId] = data
+    } catch (err) {
+      console.error('Failed to fetch agent payout details:', err)
+      return
     }
   }
-  return charges
-})
+  expandedHistoryId.value = payoutId
+}
 
-const agentChargesByProperty = computed(() => {
+function formatPayoutDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+async function onAgentPayoutComplete() {
+  showAgentPayoutModal.value = false
+  await fetchPendingAgentCharges()
+  await fetchAgentPayoutHistory()
+}
+
+const pendingAgentChargesByProperty = computed(() => {
   const grouped: Record<string, any[]> = {}
-  for (const c of agentCharges.value) {
+  for (const c of pendingAgentCharges.value) {
     if (!grouped[c.property_address]) grouped[c.property_address] = []
     grouped[c.property_address].push(c)
   }
   return grouped
 })
 
-const agentPropertyCount = computed(() => Object.keys(agentChargesByProperty.value).length)
-const agentTotal = computed(() => agentCharges.value.reduce((s, c) => s + c.gross_amount, 0))
+const pendingAgentPropertyCount = computed(() => Object.keys(pendingAgentChargesByProperty.value).length)
+const pendingAgentTotal = computed(() => pendingAgentCharges.value.reduce((s, c) => s + parseFloat(c.gross_amount || 0), 0))
 
 // Held rents
 const heldRents = ref<any[]>([])
@@ -442,7 +557,7 @@ async function fetchContractorPayouts() {
 const payoutTabs = computed(() => [
   { id: 'landlord', name: 'Landlord Payouts', count: landlordPayouts.value.length },
   { id: 'contractor', name: 'Contractor Payouts', count: contractorPayouts.value.length },
-  { id: 'agent', name: 'Agent Payouts', count: agentCharges.value.length },
+  { id: 'agent', name: 'Agent Payouts', count: pendingAgentCharges.value.length },
   { id: 'held', name: 'Held Rents', count: heldRents.value.length },
 ])
 
@@ -493,9 +608,11 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 }
 
-onMounted(() => {
-  store.fetchPayouts()
-  fetchContractorPayouts()
-  fetchHeldRents()
+onMounted(async () => {
+  await store.fetchPayouts()
+  await fetchContractorPayouts()
+  await fetchHeldRents()
+  await fetchPendingAgentCharges()
+  await fetchAgentPayoutHistory()
 })
 </script>

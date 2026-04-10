@@ -78,10 +78,10 @@ export interface AgentChargeItem {
 // ============================================================================
 
 export async function initTenancySchedule(tenancyId: string, companyId: string): Promise<void> {
-  // Get tenancy details
+  // Get tenancy details — management_type on tenancy is the single source of truth
   const { data: tenancy, error: tenancyErr } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, status, property_id, management_type, additional_charges')
     .eq('id', tenancyId)
     .single()
 
@@ -89,6 +89,39 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     console.error('Failed to get tenancy for schedule init:', tenancyErr)
     return
   }
+
+  // management_type on the tenancy gates RentGoose entry — must be explicitly set
+  // If null, fall back to property for backwards compat
+  let managementType = tenancy.management_type
+  let propertyFees: { fee_percent: number | null; management_fee_type: string | null; letting_fee_amount: number | null; letting_fee_type: string | null } = {
+    fee_percent: null,
+    management_fee_type: null,
+    letting_fee_amount: null,
+    letting_fee_type: null,
+  }
+  if (tenancy.property_id) {
+    const { data: prop } = await supabase
+      .from('properties')
+      .select('management_type, fee_percent, management_fee_type, letting_fee_amount, letting_fee_type')
+      .eq('id', tenancy.property_id)
+      .single()
+    if (!managementType) managementType = prop?.management_type || null
+    if (prop) {
+      propertyFees = {
+        fee_percent: prop.fee_percent != null ? parseFloat(prop.fee_percent) : null,
+        management_fee_type: prop.management_fee_type || null,
+        letting_fee_amount: prop.letting_fee_amount != null ? parseFloat(prop.letting_fee_amount) : null,
+        letting_fee_type: prop.letting_fee_type || null,
+      }
+    }
+  }
+
+  if (!managementType) {
+    console.log(`[RentGoose] Skipping tenancy ${tenancyId} — no management type set`)
+    return
+  }
+
+  const isLetOnly = managementType === 'let_only'
 
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
@@ -112,10 +145,10 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     ? new Date(startDate.getFullYear(), startDate.getMonth(), 1)
     : new Date(today.getFullYear(), today.getMonth(), 1)
 
-  const monthsToGenerate = [
-    firstMonth,
-    new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1),
-  ]
+  // Let only: month 1 only (initial monies + first rent). Managed: current + next month.
+  const monthsToGenerate = isLetOnly
+    ? [firstMonth]
+    : [firstMonth, new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1)]
 
   const entries: any[] = []
 
@@ -143,18 +176,185 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
     })
   }
 
+  let month1EntryId: string | null = null
+
   if (entries.length > 0) {
-    const { error } = await supabase
+    const { data: insertedEntries, error } = await supabase
       .from('rent_schedule_entries')
       .insert(entries)
+      .select('id, period_start')
 
     if (error) {
       console.error('Failed to create rent schedule:', error)
+    } else if (insertedEntries && insertedEntries.length > 0) {
+      // Identify month 1 (earliest period) for new-tenancy charges
+      const sorted = [...insertedEntries].sort((a, b) => a.period_start.localeCompare(b.period_start))
+      month1EntryId = sorted[0].id
+    }
+  }
+
+  // Create month 1 agent charges: management fee, letting/setup fee, additional one-off charges
+  // These are the deductions taken from the first month's rent on a new tenancy.
+  if (month1EntryId) {
+    const month1Charges: any[] = []
+
+    // Management fee (recurring — applied every month, but we create it on month 1 here;
+    // getPayoutsQueue auto-creates for subsequent months if missing)
+    if (propertyFees.fee_percent && propertyFees.fee_percent > 0) {
+      let netFee: number
+      if (propertyFees.management_fee_type === 'fixed') {
+        netFee = propertyFees.fee_percent
+      } else {
+        netFee = Math.round((propertyFees.fee_percent / 100) * monthlyRent * 100) / 100
+      }
+      const vatFee = Math.round(netFee * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'management_fee',
+        description: propertyFees.management_fee_type === 'fixed'
+          ? `Management fee (£${netFee.toFixed(2)}/month)`
+          : `Management fee at ${propertyFees.fee_percent}%`,
+        net_amount: netFee,
+        vat_amount: vatFee,
+        gross_amount: Math.round((netFee + vatFee) * 100) / 100,
+        included: true,
+      })
+    }
+
+    // Letting/setup fee (one-off, only on month 1)
+    if (propertyFees.letting_fee_amount && propertyFees.letting_fee_amount > 0) {
+      let netLet: number
+      if (propertyFees.letting_fee_type === 'percentage') {
+        netLet = Math.round((propertyFees.letting_fee_amount / 100) * monthlyRent * 100) / 100
+      } else {
+        netLet = propertyFees.letting_fee_amount
+      }
+      const vatLet = Math.round(netLet * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'letting_fee',
+        description: propertyFees.letting_fee_type === 'percentage'
+          ? `Letting/setup fee at ${propertyFees.letting_fee_amount}%`
+          : `Letting/setup fee (£${propertyFees.letting_fee_amount.toFixed(2)})`,
+        net_amount: netLet,
+        vat_amount: vatLet,
+        gross_amount: Math.round((netLet + vatLet) * 100) / 100,
+        included: true,
+      })
+    }
+
+    // Additional one-off charges from the tenancy (e.g. inventory fee, EPC, admin)
+    // These are landlord fees deducted from month 1 rent (not collected from tenant via initial monies).
+    const additionalCharges = (tenancy.additional_charges || []) as any[]
+    for (const ch of additionalCharges) {
+      if (ch.frequency !== 'one_time') continue
+      const net = parseFloat(ch.amount) || 0
+      if (net <= 0) continue
+      const vat = Math.round(net * 0.20 * 100) / 100
+      month1Charges.push({
+        company_id: companyId,
+        schedule_entry_id: month1EntryId,
+        charge_type: 'ad_hoc',
+        description: ch.name || 'Additional charge',
+        net_amount: net,
+        vat_amount: vat,
+        gross_amount: Math.round((net + vat) * 100) / 100,
+        included: true,
+      })
+    }
+
+    if (month1Charges.length > 0) {
+      const { error: chargesErr } = await supabase
+        .from('agent_charges')
+        .insert(month1Charges)
+      if (chargesErr) {
+        console.error('[RentGoose] Failed to create month 1 agent_charges:', chargesErr)
+      }
     }
   }
 
   // Create rent share allocations for HMO tenancies
   await initRentShareAllocations(tenancyId, companyId)
+
+  // Auto-receipt month 1 if initial monies already confirmed (non-blocking)
+  try {
+    await autoReceiptMonth1FromInitialMonies(tenancyId, companyId)
+  } catch (err: any) {
+    console.error('[RentGoose] Auto-receipt month 1 failed (non-blocking):', err.message)
+  }
+}
+
+/**
+ * Bridges initial monies → month 1 rent schedule entry.
+ * If initial monies have been receipted and a month 1 entry exists unpaid,
+ * auto-marks it as paid so it moves straight to the payout queue.
+ * Idempotent — returns false if nothing to do.
+ */
+export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, companyId: string): Promise<boolean> {
+  // 1. Find paid initial monies expected_payment
+  const { data: ep } = await supabase
+    .from('expected_payments')
+    .select('id, payout_split')
+    .eq('tenancy_id', tenancyId)
+    .eq('payment_type', 'initial_monies')
+    .eq('status', 'paid')
+    .limit(1)
+    .maybeSingle()
+
+  if (!ep || !ep.payout_split) return false
+
+  // 2. Extract rent portion from payout_split
+  const splits = (ep.payout_split as any[]) || []
+  const rentSplits = splits.filter((s: any) => s.type === 'landlord_rent' || s.type === 'landlord_prorata')
+  const rentPortion = rentSplits.reduce((sum: number, s: any) => sum + parseFloat(s.amount || 0), 0)
+  if (rentPortion <= 0) return false
+
+  // 3. Find earliest unpaid month 1 rent_schedule_entry
+  const { data: entry } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, amount_due, amount_received, status')
+    .eq('tenancy_id', tenancyId)
+    .eq('company_id', companyId)
+    .not('status', 'in', '("paid","cancelled")')
+    .order('period_start', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (!entry) return false
+
+  // 4. Mark the entry as paid
+  const amountDue = parseFloat(entry.amount_due)
+  const receiptAmount = Math.min(rentPortion, amountDue)
+
+  const { error: updateErr } = await supabase
+    .from('rent_schedule_entries')
+    .update({
+      amount_received: receiptAmount,
+      status: receiptAmount >= amountDue ? 'paid' : 'partial',
+    })
+    .eq('id', entry.id)
+
+  if (updateErr) {
+    console.error('[RentGoose] Failed to auto-receipt month 1:', updateErr)
+    return false
+  }
+
+  // 5. Create rent_payments record (no client_account_entry — money already posted)
+  await supabase
+    .from('rent_payments')
+    .insert({
+      company_id: companyId,
+      schedule_entry_id: entry.id,
+      amount: receiptAmount,
+      payment_method: 'initial_monies',
+      date_received: new Date().toISOString().split('T')[0],
+      reference: `Auto-receipted from initial monies (EP: ${ep.id.slice(0, 8)})`,
+    })
+
+  console.log(`[RentGoose] Auto-receipted month 1 for tenancy ${tenancyId}: £${receiptAmount}`)
+  return true
 }
 
 async function initRentShareAllocations(tenancyId: string, companyId: string): Promise<void> {
@@ -217,7 +417,7 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
     .neq('status', 'cancelled')
     .order('period_end', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!latest) return
 
@@ -253,16 +453,23 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 // ============================================================================
 
 export async function syncActiveManagedTenancies(companyId: string): Promise<{ synced: number; extended: number }> {
-  // Get all active managed tenancies
-  const { data: tenancies, error } = await supabase
+  // Get all active tenancies with management_type — tenancy is the source of truth
+  const { data: allTenancies, error } = await supabase
     .from('tenancies')
-    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day')
+    .select('id, tenancy_start_date, rent_amount, monthly_rent, rent_due_day, property_id, management_type')
     .eq('company_id', companyId)
     .eq('status', 'active')
-    .eq('management_type', 'managed')
     .is('deleted_at', null)
 
-  if (error || !tenancies || tenancies.length === 0) return { synced: 0, extended: 0 }
+  if (error || !allTenancies || allTenancies.length === 0) return { synced: 0, extended: 0 }
+
+  // Only extend rolling schedules for managed tenancies — let_only gets month 1 only via initTenancySchedule
+  const tenancies = allTenancies.filter(t => {
+    if (!t.management_type) return false // No management type set = not in RentGoose
+    if (t.management_type === 'let_only') return false // No recurring for let_only
+    return true
+  })
+  if (tenancies.length === 0) return { synced: 0, extended: 0 }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -274,12 +481,11 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
 
   const tenancyIds = tenancies.map(t => t.id)
 
-  // Get all non-cancelled entries for these tenancies
+  // Get ALL entries (including cancelled) — cancelled means user removed it on purpose, don't recreate
   const { data: existing } = await supabase
     .from('rent_schedule_entries')
     .select('tenancy_id, period_start')
     .in('tenancy_id', tenancyIds)
-    .neq('status', 'cancelled')
 
   // Index existing entries: tenancyId → Set of 'YYYY-MM' strings
   const coveredMonths = new Map<string, Set<string>>()
@@ -389,7 +595,7 @@ export async function getRentSchedule(companyId: string, filters: {
 
   const { data: properties } = await supabase
     .from('properties')
-    .select('id, address_line1_encrypted, postcode, fee_percent, management_type')
+    .select('id, address_line1_encrypted, postcode, fee_percent, management_type, management_fee_type')
     .in('id', propertyIds)
 
   // Get landlord links
@@ -432,6 +638,10 @@ export async function getRentSchedule(companyId: string, filters: {
 
     const property = propertyMap.get(tenancy.property_id)
     if (!property) continue
+
+    // Skip properties without fee information
+    const hasFee = (property.fee_percent && parseFloat(property.fee_percent) > 0) || property.management_fee_type === 'fixed'
+    if (!hasFee) continue
 
     if (filters.property_id && tenancy.property_id !== filters.property_id) continue
 
@@ -925,7 +1135,8 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 
       const includedCharges = charges.filter((c: AgentChargeItem) => c.included)
       const totalCharges = includedCharges.reduce((sum: number, c: AgentChargeItem) => sum + c.gross_amount, 0)
-      const netPayout = Math.round((grossRent - totalCharges) * 100) / 100
+      // Cap at 0 — if fees exceed rent, the deficit carries over to next month (handled at payout time)
+      const netPayout = Math.max(0, Math.round((grossRent - totalCharges) * 100) / 100)
 
       const landlordName = landlord
         ? `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
@@ -977,6 +1188,66 @@ export async function getPayoutsQueue(companyId: string): Promise<PayoutItem[]> 
 // MARK PAYOUT PAID
 // ============================================================================
 
+/**
+ * If month X's rent doesn't cover all the agent fees, the deficit carries over to
+ * month X+1 by creating a `carryover` agent_charge on the next rent entry.
+ * Idempotent — won't create a duplicate carryover for the same source entry.
+ */
+async function applyFeeCarryover(companyId: string, scheduleEntryId: string, grossRent: number, totalCharges: number): Promise<void> {
+  const deficit = Math.round((totalCharges - grossRent) * 100) / 100
+  if (deficit <= 0) return
+
+  // Find this entry's tenancy + period
+  const { data: thisEntry } = await supabase
+    .from('rent_schedule_entries')
+    .select('tenancy_id, period_start')
+    .eq('id', scheduleEntryId)
+    .maybeSingle()
+  if (!thisEntry) return
+
+  // Find the next non-cancelled rent entry for this tenancy
+  const { data: nextEntry } = await supabase
+    .from('rent_schedule_entries')
+    .select('id, period_start')
+    .eq('tenancy_id', thisEntry.tenancy_id)
+    .eq('company_id', companyId)
+    .gt('period_start', thisEntry.period_start)
+    .neq('status', 'cancelled')
+    .order('period_start', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (!nextEntry) {
+    console.log(`[RentGoose] No next entry to carry over £${deficit} fee deficit from ${scheduleEntryId}`)
+    return
+  }
+
+  // Idempotency: skip if a carryover from this source already exists
+  const carryRef = `CARRY-${scheduleEntryId.slice(0, 8)}`
+  const { data: existing } = await supabase
+    .from('agent_charges')
+    .select('id')
+    .eq('schedule_entry_id', nextEntry.id)
+    .eq('charge_type', 'carryover')
+    .ilike('description', `%${carryRef}%`)
+    .limit(1)
+    .maybeSingle()
+  if (existing) return
+
+  await supabase.from('agent_charges').insert({
+    company_id: companyId,
+    schedule_entry_id: nextEntry.id,
+    charge_type: 'carryover',
+    description: `Fees carried over from previous rent (${carryRef})`,
+    net_amount: deficit,
+    vat_amount: 0,
+    gross_amount: deficit,
+    included: true,
+  })
+
+  console.log(`[RentGoose] Carried over £${deficit} fee deficit from entry ${scheduleEntryId} → ${nextEntry.id}`)
+}
+
 export async function markPayoutPaid(companyId: string, input: {
   schedule_entry_id: string
   landlord_id?: string
@@ -1015,6 +1286,13 @@ export async function markPayoutPaid(companyId: string, input: {
     .single()
 
   if (payoutErr) throw payoutErr
+
+  // If charges exceeded rent, carry the deficit to the next month's rent (non-blocking)
+  try {
+    await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  } catch (err: any) {
+    console.error('[RentGoose] Fee carryover failed (non-blocking):', err.message)
+  }
 
   // Create ClientAccountEntry (payout_out) for rent portion
   const currentBalance = await getCurrentBalance(companyId)
@@ -1207,8 +1485,16 @@ export async function holdPayout(companyId: string, input: {
     .update({ statement_pdf_path: 'HELD' })
     .eq('id', payoutRecord.id)
 
+  // If charges exceeded rent, carry the deficit to the next month's rent (non-blocking)
+  try {
+    await applyFeeCarryover(companyId, input.schedule_entry_id, payout.gross_rent, payout.total_charges)
+  } catch (err: any) {
+    console.error('[RentGoose] Fee carryover failed (non-blocking):', err.message)
+  }
+
   // Create client_account_entry — rent_held_in with the actual amount
-  // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold
+  // Balance stays the same because the rent_in already credited on receipt; this just tracks the hold.
+  // The agent fee remains in the client account until the agent explicitly processes their payout.
   const currentBalance = await getCurrentBalance(companyId)
 
   await supabase.from('client_account_entries').insert({
@@ -1366,6 +1652,204 @@ export async function batchPayout(companyId: string, input: {
 // ============================================================================
 // AGENT FEES
 // ============================================================================
+
+/**
+ * Process an agent payout — collects pending agent charges, creates a payout
+ * record, marks charges as paid, and debits the client account.
+ * If chargeIds is omitted, processes ALL pending agent charges.
+ */
+export async function processAgentPayout(companyId: string, input: {
+  charge_ids?: string[]
+  paid_by?: string
+}): Promise<{ payout_id: string; total_gross: number; charge_count: number }> {
+  // Get pending charges (filtered by IDs if provided)
+  let chargeQuery = supabase
+    .from('agent_charges')
+    .select('id, net_amount, vat_amount, gross_amount')
+    .eq('company_id', companyId)
+    .eq('included', true)
+    .is('agent_paid_at', null)
+
+  if (input.charge_ids && input.charge_ids.length > 0) {
+    chargeQuery = chargeQuery.in('id', input.charge_ids)
+  }
+
+  const { data: charges, error: chargesErr } = await chargeQuery
+  if (chargesErr) throw chargesErr
+  if (!charges || charges.length === 0) {
+    throw new Error('No pending agent charges to pay out')
+  }
+
+  // Sum totals
+  const totalNet = charges.reduce((s, c) => s + parseFloat(c.net_amount), 0)
+  const totalVat = charges.reduce((s, c) => s + parseFloat(c.vat_amount), 0)
+  const totalGross = charges.reduce((s, c) => s + parseFloat(c.gross_amount), 0)
+
+  // Create the agent_payouts record
+  const { data: payoutRecord, error: payoutErr } = await supabase
+    .from('agent_payouts')
+    .insert({
+      company_id: companyId,
+      total_gross: totalGross,
+      total_net: totalNet,
+      total_vat: totalVat,
+      charge_count: charges.length,
+      paid_by: input.paid_by || null,
+    })
+    .select()
+    .single()
+
+  if (payoutErr) throw payoutErr
+
+  // Debit the client account
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - totalGross
+
+  const { data: clientEntry } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'payout_out',
+      amount: totalGross,
+      description: `Agent payout — ${charges.length} charge${charges.length !== 1 ? 's' : ''} (£${totalGross.toFixed(2)})`,
+      reference: `AGENT-${payoutRecord.id.slice(0, 8).toUpperCase()}`,
+      related_id: payoutRecord.id,
+      related_type: 'agent_payout',
+      balance_after: newBalance,
+      created_by: input.paid_by || null,
+      is_manual: false,
+    })
+    .select()
+    .single()
+
+  if (clientEntry) {
+    await supabase
+      .from('agent_payouts')
+      .update({ client_account_entry_id: clientEntry.id })
+      .eq('id', payoutRecord.id)
+  }
+
+  // Link charges to this payout and mark as paid
+  await supabase
+    .from('agent_charges')
+    .update({
+      agent_payout_id: payoutRecord.id,
+      agent_paid_at: new Date().toISOString(),
+    })
+    .in('id', charges.map(c => c.id))
+
+  return {
+    payout_id: payoutRecord.id,
+    total_gross: totalGross,
+    charge_count: charges.length,
+  }
+}
+
+/**
+ * Get history of agent payouts (for the ledger view).
+ */
+export async function getAgentPayoutHistory(companyId: string): Promise<Array<{
+  id: string
+  total_gross: number
+  total_net: number
+  total_vat: number
+  charge_count: number
+  created_at: string
+}>> {
+  const { data } = await supabase
+    .from('agent_payouts')
+    .select('id, total_gross, total_net, total_vat, charge_count, created_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+
+  return (data || []).map(p => ({
+    id: p.id,
+    total_gross: parseFloat(p.total_gross),
+    total_net: parseFloat(p.total_net),
+    total_vat: parseFloat(p.total_vat),
+    charge_count: p.charge_count,
+    created_at: p.created_at,
+  }))
+}
+
+/**
+ * Get details of a single agent payout including all linked charges with property info.
+ */
+export async function getAgentPayoutDetails(companyId: string, payoutId: string): Promise<{
+  payout: any
+  charges: Array<{
+    id: string
+    description: string
+    property_address: string
+    property_id: string | null
+    net_amount: number
+    vat_amount: number
+    gross_amount: number
+  }>
+} | null> {
+  const { data: payout } = await supabase
+    .from('agent_payouts')
+    .select('*')
+    .eq('id', payoutId)
+    .eq('company_id', companyId)
+    .single()
+
+  if (!payout) return null
+
+  const { data: charges } = await supabase
+    .from('agent_charges')
+    .select('id, schedule_entry_id, description, net_amount, vat_amount, gross_amount')
+    .eq('agent_payout_id', payoutId)
+
+  // Look up properties via schedule entries → tenancies → properties
+  const entryIds = [...new Set((charges || []).map(c => c.schedule_entry_id))]
+  const { data: entries } = entryIds.length > 0
+    ? await supabase.from('rent_schedule_entries').select('id, tenancy_id').in('id', entryIds)
+    : { data: [] }
+
+  const tenancyIds = [...new Set((entries || []).map(e => e.tenancy_id))]
+  const { data: tenancies } = tenancyIds.length > 0
+    ? await supabase.from('tenancies').select('id, property_id').in('id', tenancyIds)
+    : { data: [] }
+
+  const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+  const { data: properties } = propertyIds.length > 0
+    ? await supabase.from('properties').select('id, address_line1_encrypted, postcode').in('id', propertyIds)
+    : { data: [] }
+
+  const propMap = new Map(
+    (properties || []).map(p => [p.id, {
+      id: p.id,
+      address: `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`,
+    }])
+  )
+  const tenancyToPropMap = new Map((tenancies || []).map(t => [t.id, t.property_id]))
+  const entryToPropMap = new Map(
+    (entries || []).map(e => [e.id, tenancyToPropMap.get(e.tenancy_id)])
+  )
+
+  return {
+    payout: {
+      ...payout,
+      total_gross: parseFloat(payout.total_gross),
+      total_net: parseFloat(payout.total_net),
+      total_vat: parseFloat(payout.total_vat),
+    },
+    charges: (charges || []).map(c => {
+      const propId = entryToPropMap.get(c.schedule_entry_id)
+      const prop = propId ? propMap.get(propId) : null
+      return {
+        id: c.id,
+        description: c.description,
+        property_address: prop?.address || 'Unknown property',
+        property_id: prop?.id || null,
+        net_amount: parseFloat(c.net_amount),
+        vat_amount: parseFloat(c.vat_amount),
+        gross_amount: parseFloat(c.gross_amount),
+      }
+    }),
+  }
+}
 
 export async function getAgentFees(companyId: string, fromDate?: string, toDate?: string): Promise<{
   fees: Array<{
@@ -1597,7 +2081,7 @@ export async function getCurrentBalance(companyId: string): Promise<number> {
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   return data ? parseFloat(data.balance_after) : 0
 }
@@ -1768,14 +2252,16 @@ export async function uploadContractorInvoice(companyId: string, input: {
           .limit(1)
 
         if (entries && entries.length > 0) {
+          // Agent's commission is the cut they take from the contractor invoice,
+          // NOT the entire invoice value.
           await supabase.from('agent_charges').insert({
             company_id: companyId,
             schedule_entry_id: entries[0].id,
             charge_type: 'contractor_commission',
-            description: `Contractor invoice #${input.invoice_number}`,
-            net_amount: input.gross_amount,
-            vat_amount: 0,
-            gross_amount: input.gross_amount,
+            description: `Commission on contractor invoice #${input.invoice_number}`,
+            net_amount: commissionNet,
+            vat_amount: commissionVatAmount,
+            gross_amount: commissionNet + commissionVatAmount,
             included: true,
             contractor_invoice_id: data.id,
           })
@@ -2776,7 +3262,7 @@ export async function getHoldingDepositCredit(companyId: string, tenancyId: stri
     .eq('payment_type', 'holding_deposit')
     .eq('status', 'paid')
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (data && parseFloat(data.amount_received) > 0) {
     return {

@@ -67,7 +67,19 @@ export interface AgreementPDFData {
   agentEmail?: string
   agentPhone?: string
   managementType?: 'managed' | 'let_only'
-  agreementType?: 'ast' | 'apta' | 'company_let' | 'lodger'
+  agreementType?: 'ast' | 'apta' | 'company_let' | 'lodger' | 'holiday_let'
+  // Holiday Let specific
+  checkInDate?: string
+  checkOutDate?: string
+  checkInTime?: string
+  checkOutTime?: string
+  numberOfGuests?: number
+  maxOccupancy?: number
+  securityDepositAmount?: number
+  balanceDueDate?: string
+  balanceAmount?: number
+  cancellationFullRefundDays?: number
+  cancellationPartialRefundDays?: number
   tenancyTerm?: number
   breakClause?: string
   specialClauses?: string
@@ -202,6 +214,16 @@ class PDFGenerationService {
 
     if (agreementType === 'company_let') {
       const templateFile = 'PG-CompanyLet.md'
+      const templatePath = path.join(this.contractsDir, langDir, templateFile)
+      if (!fs.existsSync(templatePath)) {
+        console.error(`Template not found: ${templatePath}`)
+        throw new Error(`Template file not found: ${templateFile}`)
+      }
+      return templatePath
+    }
+
+    if (agreementType === 'holiday_let') {
+      const templateFile = 'PG-HolidayLet.md'
       const templatePath = path.join(this.contractsDir, langDir, templateFile)
       if (!fs.existsSync(templatePath)) {
         console.error(`Template not found: ${templatePath}`)
@@ -701,14 +723,19 @@ class PDFGenerationService {
     if (data.agreementType === 'company_let') {
       const termType = data.tenancyEndDate ? `Fixed Term of ${data.tenancyTerm || 12} months` : 'Monthly Rolling (Periodic)'
       result = result.replace(/\[TERM_TYPE\]/gi, termType)
-      result = result.replace(/\[TENANT_COMPANY_NAME\]/gi, data.tenantCompanyName || data.tenants[0]?.name || '________')
-      result = result.replace(/\[TENANT_COMPANY_NUMBER\]/gi, data.tenantCompanyNumber || '________')
+      const tenantCompanyName = data.tenantCompanyName || data.tenants[0]?.name || '________'
+      const tenantCompanyNumber = data.tenantCompanyNumber || ''
+      // Show company number only if provided
+      const tenantNameDisplay = tenantCompanyNumber
+        ? `${tenantCompanyName} (Company Number: ${tenantCompanyNumber})`
+        : tenantCompanyName
+      result = result.replace(/\[TENANT_COMPANY_NAME\] \(Company Number: \[TENANT_COMPANY_NUMBER\]\)/gi, tenantNameDisplay)
+      result = result.replace(/\[TENANT_COMPANY_NAME\]/gi, tenantCompanyName)
+      result = result.replace(/\[TENANT_COMPANY_NUMBER\]/gi, tenantCompanyNumber || 'N/A')
       result = result.replace(/\[TENANT_SIGNATORY_NAME\]/gi, data.tenantSignatoryName || data.tenants[0]?.name || '________')
       result = result.replace(/\[TENANT_SIGNATORY_POSITION\]/gi, data.tenantSignatoryPosition || 'Director')
-      result = result.replace(/\[AGENT_NAME\]/gi, data.companyName || '')
-      result = result.replace(/\[AGENT_ADDRESS\]/gi, data.companyAddress ? this.formatAddress(data.companyAddress) : '')
-      result = result.replace(/\[AGENT_EMAIL\]/gi, data.agentEmail || '')
-      result = result.replace(/\[AGENT_PHONE\]/gi, '')
+      // Remove Agent section entirely — NHAs are directly between landlord and tenant
+      result = result.replace(/\*\*\(3\) Agent \(if applicable\)\*\*[\s\S]*?\n\n/gi, '')
       result = result.replace(/\[FIRST_RENT_DATE\]/gi, this.formatDate(data.tenancyStartDate))
       result = result.replace(/\[PAYMENT_REFERENCE\]/gi, data.paymentReference || this.formatAddress(data.propertyAddress))
       result = result.replace(/\[NOTICE_PERIOD_MONTHS\]/gi, String(data.noticePeriodMonths || 2))
@@ -758,6 +785,39 @@ class PDFGenerationService {
         ? `## GUARANTOR\n\nThe Guarantor hereby guarantees to the Landlord the performance of the Tenant's obligations under this agreement including (but not limited to) the payment of rent and the repair of any damage caused to the Property.\n\nName: ${data.guarantors[0].name}\n\nAddress: ${this.formatAddress(data.guarantors[0].address)}`
         : ''
       result = result.replace(/\[GUARANTOR_SECTION\]/gi, guarantorSection)
+    }
+
+    // Holiday Let specific replacements
+    if (data.agreementType === 'holiday_let') {
+      result = result.replace(/\[CHECK_IN_DATE\]/gi, this.formatDate(data.checkInDate || data.tenancyStartDate))
+      result = result.replace(/\[CHECK_OUT_DATE\]/gi, this.formatDate(data.checkOutDate || data.tenancyEndDate))
+      result = result.replace(/\[CHECK_IN_TIME\]/gi, data.checkInTime || '3:00 PM')
+      result = result.replace(/\[CHECK_OUT_TIME\]/gi, data.checkOutTime || '10:00 AM')
+      result = result.replace(/\[NUMBER_OF_GUESTS\]/gi, String(data.numberOfGuests || 1))
+      result = result.replace(/\[MAX_OCCUPANCY\]/gi, String(data.maxOccupancy || data.numberOfGuests || 1))
+      const balanceAmount = (data.rentAmount || 0) - (data.depositAmount || 0)
+      result = result.replace(/\[BALANCE_AMOUNT\]/gi, this.formatCurrency(balanceAmount > 0 ? balanceAmount : 0))
+      result = result.replace(/\[BALANCE_DUE_DATE\]/gi, this.formatDate(data.tenancyStartDate))
+      // Tenant name/address
+      result = result.replace(/\[TENANT_NAME\]/gi, data.tenants[0]?.name || '________')
+      result = result.replace(/\[TENANT_ADDRESS\]/gi, data.tenants[0]?.address ? this.formatAddress(data.tenants[0].address) : '')
+      result = result.replace(/\[TENANT_EMAIL\]/gi, data.tenantEmail || '')
+      result = result.replace(/\[TENANT_PHONE\]/gi, data.tenants[0]?.phone || '')
+      // Landlord email and phone for holiday let
+      const holidayLandlordEmail = data.managementType === 'managed'
+        ? (data.agentEmail || '')
+        : (data.landlordEmail || '')
+      result = result.replace(/\[landlord_email\]/gi, holidayLandlordEmail)
+      const holidayLandlordPhone = data.managementType === 'managed'
+        ? (data.agentPhone || '')
+        : (data.landlords?.[0]?.phone || '')
+      result = result.replace(/\[landlord_phone\]/gi, holidayLandlordPhone)
+      // Special clauses
+      if (data.specialClauses) {
+        result = result.replace(/\[SPECIAL_CLAUSES_SECTION\]/gi, `## SPECIAL CLAUSES\n\n${data.specialClauses}`)
+      } else {
+        result = result.replace(/\[SPECIAL_CLAUSES_SECTION\]/gi, '')
+      }
     }
 
     // Generic [TERM_TYPE] fallback

@@ -53,6 +53,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     }
 
     options.push({ value: 'company_let', label: 'Company Let' })
+    options.push({ value: 'holiday_let', label: 'Holiday Let' })
     options.push({ value: 'lodger', label: 'Lodger Agreement' })
 
     return options
@@ -62,6 +63,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
   const templateOptions = [
     { value: 'ast', label: 'Assured Shorthold Tenancy (AST)' },
     { value: 'company_let', label: 'Company Let' },
+    { value: 'holiday_let', label: 'Holiday Let' },
     { value: 'lodger', label: 'Lodger Agreement' }
   ]
 
@@ -77,6 +79,8 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
 
   // Computed: is the current agreement type APTA
   const isAPTA = computed(() => formData.value.agreementType === 'apta')
+  const isCompanyLet = computed(() => formData.value.agreementType === 'company_let')
+  const isHolidayLet = computed(() => formData.value.agreementType === 'holiday_let')
 
   // Auto-switch agreement type when date crosses RRA cutoff
   watch(() => formData.value.tenancyStartDate, (newDate) => {
@@ -88,6 +92,26 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       formData.value.agreementType = 'apta'
     } else if (!isPostRRA && formData.value.agreementType === 'apta') {
       formData.value.agreementType = 'ast'
+    }
+  })
+
+  // Auto-mirror rent due day from tenancy start date
+  const rentDueDayManuallyEdited = ref(false)
+  watch(() => formData.value.tenancyStartDate, (newDate) => {
+    if (!newDate || rentDueDayManuallyEdited.value) return
+    const day = new Date(newDate).getDate()
+    if (day >= 1 && day <= 31) {
+      formData.value.rentDueDay = `${day}${getOrdinalSuffix(day)}`
+    }
+  })
+  watch(() => formData.value.rentDueDay, () => {
+    // Mark as manually edited only after initial prefill
+    if (formData.value.tenancyStartDate) {
+      const day = new Date(formData.value.tenancyStartDate).getDate()
+      const expected = `${day}${getOrdinalSuffix(day)}`
+      if (formData.value.rentDueDay !== expected) {
+        rentDueDayManuallyEdited.value = true
+      }
     }
   })
 
@@ -359,6 +383,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     formData.value = getDefaultFormData()
     depositManuallyEdited.value = false
     endDateManuallyEdited.value = false
+    rentDueDayManuallyEdited.value = false
   }
 
   // Pre-fill from tenancy data
@@ -379,6 +404,11 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
         city: tenancy.property.city || '',
         county: tenancy.property.county || '',
         postcode: tenancy.property.postcode || ''
+      }
+      // Auto-detect Welsh postcode
+      const pc = (tenancy.property.postcode || '').toUpperCase().trim()
+      if (pc.startsWith('CF') || pc.startsWith('NP') || pc.startsWith('SA')) {
+        formData.value.language = 'welsh'
       }
     }
 
@@ -405,7 +435,20 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     }
     if (tenancy.rent_due_day) formData.value.rentDueDay = `${tenancy.rent_due_day}${getOrdinalSuffix(tenancy.rent_due_day)}`
     if (tenancy.bills_included) formData.value.billsIncluded = tenancy.bills_included
-    if (tenancy.tenancy_type) formData.value.templateType = tenancy.tenancy_type
+    if (tenancy.tenancy_type) {
+      formData.value.templateType = tenancy.tenancy_type
+      // Map tenancy_type to agreementType so the correct template is used
+      const agreementTypeMap: Record<string, 'ast' | 'apta' | 'company_let' | 'lodger'> = {
+        ast: 'ast',
+        periodic: 'apta',
+        company_let: 'company_let',
+        lodger: 'lodger',
+        license: 'lodger'
+      }
+      if (agreementTypeMap[tenancy.tenancy_type]) {
+        formData.value.agreementType = agreementTypeMap[tenancy.tenancy_type]
+      }
+    }
 
     // Calculate term from dates if both present
     if (tenancy.start_date && tenancy.end_date) {
@@ -481,7 +524,10 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     }
 
     // Guarantors - prefer options.guarantorsData (from reference), fall back to tenancy.guarantors
-    const guarantorsList = options?.guarantorsData || tenancy.guarantors || []
+    // Skip guarantors for lodger/license agreements as they don't use them
+    const guarantorsList = (formData.value.agreementType === 'lodger')
+      ? []
+      : (options?.guarantorsData || tenancy.guarantors || [])
     if (guarantorsList.length > 0) {
       formData.value.guarantors = guarantorsList.map((g: any) => ({
         name: `${g.first_name || ''} ${g.last_name || ''}`.trim() || g.name || '',
@@ -515,6 +561,8 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
 
     // APTA
     isAPTA,
+    isCompanyLet,
+    isHolidayLet,
 
     // Computed values
     calculatedDeposit,

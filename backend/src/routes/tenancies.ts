@@ -3302,21 +3302,62 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
     const leadTenant = (tenancy.tenants || []).find(t => t.is_lead_tenant && t.email && t.status === 'active')
     const targetTenant = leadTenant || (tenancy.tenants || []).find(t => t.email && t.status === 'active')
 
-    // Get holding deposit from tenant_offers (if reference exists)
+    // Get holding deposit — check tenancy field first (set during V2 conversion), then fall back to offer lookup
     let holdingDepositPaid = 0
-    if (tenancy.primary_reference_id) {
+
+    // 1. Check tenancy's own holding_deposit_amount (reliable for V2 conversions)
+    if (tenancy.holding_deposit_amount && parseFloat(tenancy.holding_deposit_amount) > 0) {
+      holdingDepositPaid = parseFloat(tenancy.holding_deposit_amount)
+    }
+
+    // 2. If not on tenancy, try tenant_offers via reference_id (V1 path)
+    if (holdingDepositPaid === 0 && tenancy.primary_reference_id) {
       const { data: offer } = await supabase
         .from('tenant_offers')
         .select('holding_deposit_amount_paid, holding_deposit_amount')
         .eq('reference_id', tenancy.primary_reference_id)
-        .single()
+        .maybeSingle()
 
       if (offer?.holding_deposit_amount_paid) {
         holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
       } else if (offer?.holding_deposit_amount) {
-        // Fall back to the requested amount if not yet confirmed
         holdingDepositPaid = parseFloat(offer.holding_deposit_amount) || 0
       }
+    }
+
+    // 3. If still 0, try V2 reference path
+    if (holdingDepositPaid === 0 && tenancy.primary_reference_id) {
+      const { data: v2ref } = await supabase
+        .from('tenant_references_v2')
+        .select('holding_deposit_amount, offer_id')
+        .eq('id', tenancy.primary_reference_id)
+        .maybeSingle()
+
+      if (v2ref?.holding_deposit_amount) {
+        holdingDepositPaid = parseFloat(v2ref.holding_deposit_amount) || 0
+      } else if (v2ref?.offer_id) {
+        const { data: v2offer } = await supabase
+          .from('tenant_offers')
+          .select('holding_deposit_amount_paid, holding_deposit_amount')
+          .eq('id', v2ref.offer_id)
+          .maybeSingle()
+
+        if (v2offer?.holding_deposit_amount_paid) {
+          holdingDepositPaid = parseFloat(v2offer.holding_deposit_amount_paid) || 0
+        } else if (v2offer?.holding_deposit_amount) {
+          holdingDepositPaid = parseFloat(v2offer.holding_deposit_amount) || 0
+        }
+      }
+    }
+
+    // Self-heal: if we found the value via fallback but tenancy field is null, backfill it
+    if (holdingDepositPaid > 0 && (!tenancy.holding_deposit_amount || parseFloat(tenancy.holding_deposit_amount) === 0)) {
+      await supabase
+        .from('tenancies')
+        .update({ holding_deposit_amount: holdingDepositPaid })
+        .eq('id', req.params.id)
+        .eq('company_id', companyId)
+      console.log(`[InitialMonies] Backfilled holding_deposit_amount=${holdingDepositPaid} on tenancy ${req.params.id}`)
     }
 
     // If deposit scheme is reposit, deposit amount should be 0 (no cash deposit)
@@ -3385,9 +3426,8 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
       depositAmount: isReposit ? 0 : (tenancy.deposit_amount || 0),
       depositScheme: tenancy.deposit_scheme || null,
       holdingDepositPaid,
-      additionalCharges: (tenancy.additional_charges || [])
-        .filter(c => c.frequency === 'one_time')
-        .map(c => ({ name: c.name, amount: c.amount })),
+      // Initial monies = rent + deposit only. Additional charges are now agent fees deducted from month 1 rent payout.
+      additionalCharges: [],
       dueDate: dueDate.toISOString().split('T')[0],
       termMonths,
       moveInDate,
@@ -3457,28 +3497,57 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
     const companyPhone = company.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
     const companyEmail = company.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
 
-    // Get holding deposit paid from tenant_offers (if reference exists) - only if not provided by modal
+    // Get holding deposit paid — use modal override if provided, otherwise auto-detect
     let holdingDepositPaid = editedHoldingDeposit !== undefined ? editedHoldingDeposit : 0
-    if (holdingDepositPaid === 0 && editedHoldingDeposit === undefined && tenancy.primary_reference_id) {
-      const { data: offer } = await supabase
-        .from('tenant_offers')
-        .select('holding_deposit_amount_paid')
-        .eq('reference_id', tenancy.primary_reference_id)
-        .single()
+    if (holdingDepositPaid === 0 && editedHoldingDeposit === undefined) {
+      // 1. Check tenancy's own field (set during V2 conversion)
+      if (tenancy.holding_deposit_amount && parseFloat(tenancy.holding_deposit_amount) > 0) {
+        holdingDepositPaid = parseFloat(tenancy.holding_deposit_amount)
+      }
 
-      if (offer?.holding_deposit_amount_paid) {
-        holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+      // 2. Try tenant_offers via reference_id (V1 path)
+      if (holdingDepositPaid === 0 && tenancy.primary_reference_id) {
+        const { data: offer } = await supabase
+          .from('tenant_offers')
+          .select('holding_deposit_amount_paid')
+          .eq('reference_id', tenancy.primary_reference_id)
+          .maybeSingle()
+
+        if (offer?.holding_deposit_amount_paid) {
+          holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+        }
+      }
+
+      // 3. Try V2 reference path
+      if (holdingDepositPaid === 0 && tenancy.primary_reference_id) {
+        const { data: v2ref } = await supabase
+          .from('tenant_references_v2')
+          .select('holding_deposit_amount, offer_id')
+          .eq('id', tenancy.primary_reference_id)
+          .maybeSingle()
+
+        if (v2ref?.holding_deposit_amount) {
+          holdingDepositPaid = parseFloat(v2ref.holding_deposit_amount) || 0
+        } else if (v2ref?.offer_id) {
+          const { data: v2offer } = await supabase
+            .from('tenant_offers')
+            .select('holding_deposit_amount_paid')
+            .eq('id', v2ref.offer_id)
+            .maybeSingle()
+
+          if (v2offer?.holding_deposit_amount_paid) {
+            holdingDepositPaid = parseFloat(v2offer.holding_deposit_amount_paid) || 0
+          }
+        }
       }
     }
 
     // Calculate amounts - use edited values if provided, otherwise use tenancy values
     const firstMonthRent = editedFirstMonthRent !== undefined ? editedFirstMonthRent : (tenancy.monthly_rent || 0)
     const depositAmount = editedDeposit !== undefined ? editedDeposit : (tenancy.deposit_amount || 0)
-    const additionalCharges = editedAdditionalCharges !== undefined
-      ? editedAdditionalCharges
-      : (tenancy.additional_charges || [])
-          .filter(c => c.frequency === 'one_time')
-          .map(c => ({ name: c.name, amount: c.amount }))
+    // Initial monies = rent + deposit only. All agent fees (management, letting, additional)
+    // are landlord fees deducted from the rent payout via month 1 agent_charges, not the tenant.
+    const additionalCharges: { name: string; amount: number }[] = []
 
     // Format property address
     const propertyAddress = [
@@ -3535,7 +3604,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       initialMoniesRequestedBy: userId
     }, userId)
 
-    const totalDue = firstMonthRent + depositAmount + additionalCharges.reduce((sum: number, c: { name: string; amount: number }) => sum + c.amount, 0) - holdingDepositPaid
+    const totalDue = firstMonthRent + depositAmount - holdingDepositPaid
 
     // Save to payment_requests table for future rentgoose implementation
     const { error: paymentRequestError } = await supabase
@@ -3572,6 +3641,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       const propertyPc = (propForEp as any).postcode || ''
 
       // Build payout split
+      // Initial monies = rent + deposit only. Fees are deducted from month 1 rent payout, not collected here.
       const payoutSplit: any[] = []
       const rentPortion = firstMonthRent - holdingDepositPaid
       if (rentPortion > 0) {
@@ -3579,9 +3649,6 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       }
       if (depositAmount > 0) {
         payoutSplit.push({ type: 'deposit_hold', amount: depositAmount, description: 'Security deposit' })
-      }
-      for (const charge of additionalCharges) {
-        payoutSplit.push({ type: 'agent_fee', amount: charge.amount, description: charge.name })
       }
 
       await createExpectedPayment(companyId, {
@@ -3656,7 +3723,7 @@ router.get('/records/:id/payment-request', authenticateToken, async (req: AuthRe
       .eq('type', 'initial_monies')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     // Calculate amounts
     const firstMonthRent = paymentRequest?.first_month_rent || tenancy.monthly_rent || 0
@@ -3808,21 +3875,43 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
         const firstMonthRent = parseFloat(String(currentTenancy.monthly_rent || 0))
         const depositAmt = parseFloat(String(currentTenancy.deposit_amount || 0))
         let holdingDepPaid = 0
-        if (currentTenancy.primary_reference_id) {
+        // 1. Check tenancy's own field (reliable for V2 conversions)
+        if (currentTenancy.holding_deposit_amount && parseFloat(String(currentTenancy.holding_deposit_amount)) > 0) {
+          holdingDepPaid = parseFloat(String(currentTenancy.holding_deposit_amount))
+        }
+        // 2. V1 offer lookup
+        if (holdingDepPaid === 0 && currentTenancy.primary_reference_id) {
           const { data: offer } = await sb
             .from('tenant_offers')
             .select('holding_deposit_amount_paid')
             .eq('reference_id', currentTenancy.primary_reference_id)
-            .single()
+            .maybeSingle()
           if (offer?.holding_deposit_amount_paid) {
             holdingDepPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
           }
         }
+        // 3. V2 reference lookup
+        if (holdingDepPaid === 0 && currentTenancy.primary_reference_id) {
+          const { data: v2ref } = await sb
+            .from('tenant_references_v2')
+            .select('holding_deposit_amount, offer_id')
+            .eq('id', currentTenancy.primary_reference_id)
+            .maybeSingle()
+          if (v2ref?.holding_deposit_amount) {
+            holdingDepPaid = parseFloat(v2ref.holding_deposit_amount) || 0
+          } else if (v2ref?.offer_id) {
+            const { data: v2offer } = await sb
+              .from('tenant_offers')
+              .select('holding_deposit_amount_paid')
+              .eq('id', v2ref.offer_id)
+              .maybeSingle()
+            if (v2offer?.holding_deposit_amount_paid) {
+              holdingDepPaid = parseFloat(v2offer.holding_deposit_amount_paid) || 0
+            }
+          }
+        }
 
-        const additionalChargesAmt = (currentTenancy.additional_charges || [])
-          .filter((c: any) => c.frequency === 'one_time')
-          .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
-
+        // Initial monies = rent + deposit only. Fees are deducted from month 1 rent payout, not collected here.
         const payoutSplit: any[] = []
         const rentPortion = firstMonthRent - holdingDepPaid
         if (rentPortion > 0) {
@@ -3830,9 +3919,6 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
         }
         if (depositAmt > 0) {
           payoutSplit.push({ type: 'deposit_hold', amount: depositAmt, description: 'Security deposit' })
-        }
-        if (additionalChargesAmt > 0) {
-          payoutSplit.push({ type: 'agent_fee', amount: additionalChargesAmt, description: 'Additional charges' })
         }
 
         const tenantNames = (currentTenancy.tenants || [])
@@ -3882,6 +3968,13 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
           date_received: new Date().toISOString().split('T')[0],
           receipted_by: userId,
         })
+      }
+      // Auto-receipt month 1 if schedule already exists (tenancy activated before initial monies)
+      try {
+        const { autoReceiptMonth1FromInitialMonies } = await import('../services/rentgooseService')
+        await autoReceiptMonth1FromInitialMonies(req.params.id, companyId)
+      } catch (autoErr: any) {
+        console.error('[RentGoose] Auto-receipt month 1 failed (non-blocking):', autoErr.message)
       }
     } catch (epError) {
       console.error('[RentGoose] Failed to receipt initial monies expected payment:', epError)

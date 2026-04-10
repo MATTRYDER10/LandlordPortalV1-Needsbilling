@@ -29,7 +29,7 @@ export interface PropertyAddress {
 
 export type Language = 'english' | 'welsh'
 
-export type AgreementType = 'ast' | 'apta' | 'company_let' | 'lodger'
+export type AgreementType = 'ast' | 'apta' | 'company_let' | 'lodger' | 'holiday_let'
 
 export interface AgreementData {
   templateType: TemplateType
@@ -69,6 +69,22 @@ export interface AgreementData {
   companyAddress?: PropertyAddress
   // Language for the agreement
   language?: Language
+  // NHA / Company Let specific
+  tenantCompanyNumber?: string
+  nhaNoticePeriodMonths?: number
+  nhaBreakNoticePeriod?: number
+  nhaBreakEarliestMonth?: number
+  // Holiday Let specific
+  checkInDate?: string
+  checkOutDate?: string
+  checkInTime?: string
+  checkOutTime?: string
+  numberOfGuests?: number
+  maxOccupancy?: number
+  securityDepositAmount?: number
+  balanceDueDate?: string
+  cancellationFullRefundDays?: number
+  cancellationPartialRefundDays?: number
 }
 
 export interface ComplianceOverride {

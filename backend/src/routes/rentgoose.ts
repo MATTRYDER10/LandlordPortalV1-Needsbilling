@@ -447,6 +447,75 @@ router.post('/arrears/resolve', authenticateToken, async (req: AuthRequest, res)
   }
 })
 
+// POST /api/rentgoose/arrears/silence — Silence arrears emails for 30 days
+router.post('/arrears/silence', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    const silencedUntil = new Date()
+    silencedUntil.setDate(silencedUntil.getDate() + 30)
+
+    // Find and silence the active chase for this schedule entry
+    const { supabase } = await import('../config/supabase')
+    const { error } = await supabase
+      .from('arrears_chases')
+      .update({ silenced_until: silencedUntil.toISOString() })
+      .eq('schedule_entry_id', schedule_entry_id)
+      .eq('status', 'active')
+
+    if (error) throw error
+    res.json({ success: true, silenced_until: silencedUntil.toISOString() })
+  } catch (err: any) {
+    console.error('Error silencing arrears:', err)
+    res.status(500).json({ error: 'Failed to silence arrears' })
+  }
+})
+
+// POST /api/rentgoose/schedule/remove — Remove a schedule entry (cancel + resolve arrears)
+router.post('/schedule/remove', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { schedule_entry_id } = req.body
+    if (!schedule_entry_id) return res.status(400).json({ error: 'schedule_entry_id required' })
+
+    // Cancel the schedule entry
+    const { supabase } = await import('../config/supabase')
+    const { error: entryError } = await supabase
+      .from('rent_schedule_entries')
+      .update({ status: 'cancelled' })
+      .eq('id', schedule_entry_id)
+      .eq('company_id', companyId)
+
+    if (entryError) throw entryError
+
+    // Resolve any associated arrears chase
+    const { data: chase } = await supabase
+      .from('arrears_chases')
+      .select('id')
+      .eq('schedule_entry_id', schedule_entry_id)
+      .eq('status', 'active')
+      .single()
+
+    if (chase) {
+      await supabase
+        .from('arrears_chases')
+        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+        .eq('id', chase.id)
+    }
+
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error removing schedule entry:', err)
+    res.status(500).json({ error: 'Failed to remove from list' })
+  }
+})
+
 // GET /api/rentgoose/client-account
 router.get('/client-account', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -992,19 +1061,8 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
 
     if (!charges || charges.length === 0) return res.json([])
 
-    // Only show charges where the landlord payout has been completed
-    const entryIds = [...new Set(charges.map(c => c.schedule_entry_id))]
-    const { data: landlordPayouts } = await supabase
-      .from('payout_records')
-      .select('schedule_entry_id')
-      .eq('company_id', companyId)
-      .eq('payout_type', 'landlord')
-      .in('schedule_entry_id', entryIds)
-
-    const paidOutEntryIds = new Set((landlordPayouts || []).map(p => p.schedule_entry_id))
-    const readyCharges = charges.filter(c => paidOutEntryIds.has(c.schedule_entry_id))
-
-    res.json(readyCharges.map(c => ({
+    // Show all unpaid charges — agent can collect their fee independently of landlord payout
+    res.json(charges.map(c => ({
       ...c,
       net_amount: parseFloat(c.net_amount),
       vat_amount: parseFloat(c.vat_amount),
@@ -1013,6 +1071,56 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
   } catch (err: any) {
     console.error('Error fetching pending agent charges:', err)
     res.status(500).json({ error: 'Failed to fetch agent charges' })
+  }
+})
+
+// POST /api/rentgoose/agent-payout — process pending agent charges into a payout
+router.post('/agent-payout', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { charge_ids } = req.body || {}
+
+    const result = await rentgooseService.processAgentPayout(companyId, {
+      charge_ids: Array.isArray(charge_ids) && charge_ids.length > 0 ? charge_ids : undefined,
+      paid_by: req.user?.id,
+    })
+
+    res.json(result)
+  } catch (err: any) {
+    console.error('Error processing agent payout:', err)
+    res.status(500).json({ error: err.message || 'Failed to process agent payout' })
+  }
+})
+
+// GET /api/rentgoose/agent-payouts — history of agent payouts
+router.get('/agent-payouts', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const history = await rentgooseService.getAgentPayoutHistory(companyId)
+    res.json({ payouts: history })
+  } catch (err: any) {
+    console.error('Error fetching agent payout history:', err)
+    res.status(500).json({ error: 'Failed to fetch agent payout history' })
+  }
+})
+
+// GET /api/rentgoose/agent-payout/:id — details of a single agent payout
+router.get('/agent-payout/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const details = await rentgooseService.getAgentPayoutDetails(companyId, req.params.id)
+    if (!details) return res.status(404).json({ error: 'Agent payout not found' })
+
+    res.json(details)
+  } catch (err: any) {
+    console.error('Error fetching agent payout details:', err)
+    res.status(500).json({ error: 'Failed to fetch agent payout details' })
   }
 })
 
@@ -1034,28 +1142,30 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
 
     if (error) throw error
 
-    // Filter to only managed properties
+    // Filter to only properties with fee information
     const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
-    let managedPropertyIds = new Set<string>()
+    let propsWithFees = new Set<string>()
     if (propertyIds.length > 0) {
       const { data: props } = await supabase
         .from('properties')
-        .select('id, management_type')
+        .select('id, fee_percent, management_fee_type')
         .in('id', propertyIds)
-        .neq('management_type', 'let_only')
-      managedPropertyIds = new Set((props || []).map(p => p.id))
+      for (const p of (props || [])) {
+        const hasFee = (p.fee_percent && parseFloat(p.fee_percent) > 0) || p.management_fee_type === 'fixed'
+        if (hasFee) propsWithFees.add(p.id)
+      }
     }
 
-    const managedTenancies = (tenancies || []).filter(t => !t.property_id || managedPropertyIds.has(t.property_id))
+    const eligibleTenancies = (tenancies || []).filter(t => !t.property_id || propsWithFees.has(t.property_id))
 
-    if (managedTenancies.length === 0) {
-      return res.json({ message: 'No managed active tenancies found', count: 0 })
+    if (eligibleTenancies.length === 0) {
+      return res.json({ message: 'No active tenancies with fee information found', count: 0 })
     }
 
     let successCount = 0
     const errors: string[] = []
 
-    for (const tenancy of managedTenancies) {
+    for (const tenancy of eligibleTenancies) {
       try {
         await rentgooseService.initTenancySchedule(tenancy.id, companyId)
         successCount++
@@ -1065,9 +1175,9 @@ router.post('/init-all-active', authenticateToken, async (req: AuthRequest, res)
     }
 
     res.json({
-      message: `Initialised ${successCount} of ${managedTenancies.length} managed tenancies (${(tenancies || []).length - managedTenancies.length} let-only excluded)`,
+      message: `Initialised ${successCount} of ${eligibleTenancies.length} tenancies with fees (${(tenancies || []).length - eligibleTenancies.length} without fees excluded)`,
       count: successCount,
-      total: managedTenancies.length,
+      total: eligibleTenancies.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err: any) {
@@ -1170,7 +1280,7 @@ router.post('/deposit-protected', authenticateToken, async (req: AuthRequest, re
   }
 })
 
-// GET /api/rentgoose/landlords — landlords linked to active tenancies with financial summary
+// GET /api/rentgoose/landlords — landlords with active tenancies OR payout history (retained even if off management)
 router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
@@ -1179,7 +1289,7 @@ router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
     const { supabase } = await import('../config/supabase')
     const { decrypt } = await import('../services/encryption')
 
-    // Get active tenancies
+    // --- Source 1: Landlords with active tenancies ---
     const { data: tenancies } = await supabase
       .from('tenancies')
       .select('id, property_id, status')
@@ -1187,58 +1297,60 @@ router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
       .in('status', ['active', 'notice_given'])
       .is('deleted_at', null)
 
-    if (!tenancies || tenancies.length === 0) return res.json({ landlords: [] })
+    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
 
-    const propertyIds = [...new Set(tenancies.map(t => t.property_id).filter(Boolean))]
+    const { data: propLandlords } = propertyIds.length > 0
+      ? await supabase
+          .from('property_landlords')
+          .select('property_id, landlord_id')
+          .in('property_id', propertyIds)
+      : { data: [] }
 
-    // Get property-landlord links
-    const { data: propLandlords } = await supabase
-      .from('property_landlords')
-      .select('property_id, landlord_id')
-      .in('property_id', propertyIds)
-      .eq('is_primary_contact', true)
+    const activeLandlordIds = new Set((propLandlords || []).map(pl => pl.landlord_id))
 
-    const landlordIds = [...new Set((propLandlords || []).map(pl => pl.landlord_id))]
-    if (landlordIds.length === 0) return res.json({ landlords: [] })
+    // --- Source 2: Landlords with ANY payout history (retained even if property off management) ---
+    const { data: payoutSums } = await supabase
+      .from('payout_records')
+      .select('landlord_id, net_payout')
+      .eq('company_id', companyId)
+      .eq('payout_type', 'landlord')
+
+    const payoutTotals = new Map<string, number>()
+    for (const p of (payoutSums || [])) {
+      if (!p.landlord_id) continue
+      payoutTotals.set(p.landlord_id, (payoutTotals.get(p.landlord_id) || 0) + parseFloat(p.net_payout))
+    }
+
+    // Merge both sets — active tenancy landlords + anyone with payout history
+    const allLandlordIds = [...new Set([...activeLandlordIds, ...payoutTotals.keys()])]
+    if (allLandlordIds.length === 0) return res.json({ landlords: [] })
 
     // Get landlord details
     const { data: landlords } = await supabase
       .from('landlords')
       .select('id, first_name_encrypted, last_name_encrypted, email_encrypted')
-      .in('id', landlordIds)
+      .in('id', allLandlordIds)
 
-    // Count properties per landlord
+    // Count active properties per landlord
     const propsByLandlord = new Map<string, Set<string>>()
     for (const pl of (propLandlords || [])) {
       if (!propsByLandlord.has(pl.landlord_id)) propsByLandlord.set(pl.landlord_id, new Set())
       propsByLandlord.get(pl.landlord_id)!.add(pl.property_id)
     }
 
-    // Get payout totals per landlord
-    const { data: payoutSums } = await supabase
-      .from('payout_records')
-      .select('landlord_id, net_payout')
-      .eq('company_id', companyId)
-      .eq('payout_type', 'landlord')
-      .in('landlord_id', landlordIds)
-
-    const payoutTotals = new Map<string, number>()
-    for (const p of (payoutSums || [])) {
-      payoutTotals.set(p.landlord_id, (payoutTotals.get(p.landlord_id) || 0) + parseFloat(p.net_payout))
-    }
-
-    // Get property addresses for search
-    const { data: allProperties } = await supabase
-      .from('properties')
-      .select('id, address_line1_encrypted, postcode')
-      .in('id', propertyIds)
+    // Get property addresses for active properties
+    const { data: allProperties } = propertyIds.length > 0
+      ? await supabase
+          .from('properties')
+          .select('id, address_line1_encrypted, postcode')
+          .in('id', propertyIds)
+      : { data: [] }
 
     const propertyAddrMap = new Map<string, string>()
     for (const p of (allProperties || [])) {
       propertyAddrMap.set(p.id, `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`)
     }
 
-    // Build property addresses per landlord
     const landlordPropertyAddresses = new Map<string, string[]>()
     for (const pl of (propLandlords || [])) {
       if (!landlordPropertyAddresses.has(pl.landlord_id)) landlordPropertyAddresses.set(pl.landlord_id, [])
@@ -1253,12 +1365,125 @@ router.get('/landlords', authenticateToken, async (req: AuthRequest, res) => {
       property_count: propsByLandlord.get(l.id)?.size || 0,
       total_paid: payoutTotals.get(l.id) || 0,
       property_addresses: landlordPropertyAddresses.get(l.id) || [],
+      has_active_tenancy: activeLandlordIds.has(l.id),
     }))
 
     res.json({ landlords: result })
   } catch (err: any) {
     console.error('Error getting landlords:', err)
     res.status(500).json({ error: 'Failed to get landlords' })
+  }
+})
+
+// GET /api/rentgoose/tenancy/:id/history — full rent history for a tenancy
+router.get('/tenancy/:id/history', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+
+    const tenancyId = req.params.id
+
+    // Get all rent schedule entries for this tenancy
+    const { data: entries } = await supabase
+      .from('rent_schedule_entries')
+      .select('id, period_start, period_end, amount_due, amount_received, status, due_date, rent_credit_amount, rent_credit_reason, created_at')
+      .eq('tenancy_id', tenancyId)
+      .eq('company_id', companyId)
+      .order('period_start', { ascending: true })
+
+    // Get all rent payments for these entries
+    const entryIds = (entries || []).map(e => e.id)
+    const { data: payments } = entryIds.length > 0
+      ? await supabase
+          .from('rent_payments')
+          .select('id, schedule_entry_id, amount, payment_method, date_received, reference, created_at')
+          .in('schedule_entry_id', entryIds)
+          .order('date_received', { ascending: true })
+      : { data: [] }
+
+    // Group payments by entry
+    const paymentsByEntry = new Map<string, any[]>()
+    for (const p of (payments || [])) {
+      if (!paymentsByEntry.has(p.schedule_entry_id)) paymentsByEntry.set(p.schedule_entry_id, [])
+      paymentsByEntry.get(p.schedule_entry_id)!.push(p)
+    }
+
+    const result = (entries || []).map(e => ({
+      ...e,
+      payments: paymentsByEntry.get(e.id) || []
+    }))
+
+    res.json({ history: result })
+  } catch (err: any) {
+    console.error('Error getting tenancy history:', err)
+    res.status(500).json({ error: 'Failed to get tenancy history' })
+  }
+})
+
+// POST /api/rentgoose/tenancy/:id/rent-credit — apply a rent credit to a specific schedule entry
+router.post('/tenancy/:id/rent-credit', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { supabase } = await import('../config/supabase')
+
+    const { schedule_entry_id, credit_amount, reason } = req.body
+    if (!schedule_entry_id || !credit_amount || credit_amount <= 0) {
+      return res.status(400).json({ error: 'schedule_entry_id, credit_amount (> 0), and reason are required' })
+    }
+
+    // Verify the entry belongs to this tenancy and company
+    const { data: entry, error: entryErr } = await supabase
+      .from('rent_schedule_entries')
+      .select('id, amount_due, amount_received, status, rent_credit_amount, original_amount_due')
+      .eq('id', schedule_entry_id)
+      .eq('tenancy_id', req.params.id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (entryErr || !entry) {
+      return res.status(404).json({ error: 'Schedule entry not found' })
+    }
+
+    // Use original_amount_due as the base — prevents double-dipping on repeated credits
+    const originalDue = parseFloat(entry.original_amount_due || entry.amount_due)
+    const existingCredit = parseFloat(entry.rent_credit_amount || 0)
+    const newCreditTotal = existingCredit + parseFloat(credit_amount)
+    const newAmountDue = Math.max(0, originalDue - newCreditTotal)
+
+    const updates: any = {
+      amount_due: newAmountDue,
+      rent_credit_amount: newCreditTotal,
+      rent_credit_reason: reason,
+    }
+
+    // Persist original_amount_due on first credit so we always subtract from the true base
+    if (!entry.original_amount_due) {
+      updates.original_amount_due = originalDue
+    }
+
+    // If the amount already received now covers the reduced amount, mark as paid
+    const amountReceived = parseFloat(entry.amount_received || 0)
+    if (amountReceived >= newAmountDue && newAmountDue > 0) {
+      updates.status = 'paid'
+    }
+
+    const { error: updateErr } = await supabase
+      .from('rent_schedule_entries')
+      .update(updates)
+      .eq('id', schedule_entry_id)
+
+    if (updateErr) {
+      return res.status(500).json({ error: 'Failed to apply rent credit' })
+    }
+
+    res.json({ success: true, new_amount_due: newAmountDue, credit_total: newCreditTotal })
+  } catch (err: any) {
+    console.error('Error applying rent credit:', err)
+    res.status(500).json({ error: 'Failed to apply rent credit' })
   }
 })
 
