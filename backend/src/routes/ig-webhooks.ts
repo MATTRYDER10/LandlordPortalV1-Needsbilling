@@ -130,6 +130,12 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     console.log(`[IG Webhook] Event: ${event}, Status: ${status}, Appointment: ${appointmentId}`)
 
+    // Capture pre-update scheduling so we can detect a reschedule and
+    // notify the tenant. Strings compared directly because the DB stores
+    // YYYY-MM-DD and HH:mm.
+    const previousScheduledDate: string | null = appointment.scheduled_date || null
+    const previousScheduledTime: string | null = appointment.scheduled_time || null
+
     // Build update object
     const updates: any = {
       updated_at: new Date().toISOString()
@@ -211,6 +217,97 @@ router.post('/webhook', async (req: Request, res: Response) => {
           metadata: { appointmentId, event, status },
           is_system_action: true
         })
+    }
+
+    // Tenant re-notification on reschedule.
+    // Trigger when:
+    //   - The webhook delivered a new scheduledAt
+    //   - The new date or time differs from what we had stored
+    //   - The appointment type is mid_term or checkout (skip inventory)
+    //   - The appointment isn't being cancelled in the same payload
+    const newScheduledDate: string | null = updates.scheduled_date || null
+    const newScheduledTime: string | null = updates.scheduled_time || null
+    const dateChanged = !!newScheduledDate && newScheduledDate !== previousScheduledDate
+    const timeChanged = !!newScheduledTime && newScheduledTime !== previousScheduledTime
+    const isReschedule = (dateChanged || timeChanged) && status !== 'cancelled'
+    const isNotifiableType = appointment.type === 'mid_term' || appointment.type === 'checkout'
+
+    if (isReschedule && isNotifiableType) {
+      const tenancyIdForNotify: string | null = appointment.tenancy_id || null
+      const propertyIdForNotify: string | null = appointment.property_id || null
+      const companyIdForNotify: string = appointment.company_id
+      // Capture the new schedule + assessor in scope where TS narrowing is fine
+      const finalScheduledDate = newScheduledDate as string
+      const finalScheduledTime = (newScheduledTime as string) || previousScheduledTime || ''
+      const finalAssessorName: string | null = updates.assessor_name || appointment.assessor_name || null
+      const finalType: 'mid_term' | 'checkout' = appointment.type
+
+      ;(async () => {
+        try {
+          if (!tenancyIdForNotify) {
+            console.warn(`[IG Webhook] Reschedule notification skipped — no tenancy_id on appointment ${appointment.id}`)
+            return
+          }
+
+          // Resolve property address
+          let propertyAddress = ''
+          if (propertyIdForNotify) {
+            const { data: prop } = await supabase
+              .from('properties')
+              .select('address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode')
+              .eq('id', propertyIdForNotify)
+              .maybeSingle()
+            if (prop) {
+              const line1 = prop.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+              const line2 = prop.address_line2_encrypted ? (decrypt(prop.address_line2_encrypted) || '') : ''
+              const city = prop.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+              const pc = prop.postcode || ''
+              propertyAddress = [line1, line2, city, pc].filter(Boolean).join(', ')
+            }
+          }
+
+          // Resolve active tenants for this tenancy
+          const { data: tenantRows } = await supabase
+            .from('tenancy_tenants')
+            .select('tenant_name_encrypted, tenant_email_encrypted, status')
+            .eq('tenancy_id', tenancyIdForNotify)
+            .eq('status', 'active')
+
+          const tenants = (tenantRows || [])
+            .map((t: any) => ({
+              name: t.tenant_name_encrypted ? (decrypt(t.tenant_name_encrypted) || '') : '',
+              email: t.tenant_email_encrypted ? (decrypt(t.tenant_email_encrypted) || '') : '',
+            }))
+            .filter((t: any) => t.email)
+
+          if (tenants.length === 0) {
+            console.warn(`[IG Webhook] No tenant emails on file for tenancy ${tenancyIdForNotify} — skipping reschedule notification`)
+            return
+          }
+
+          const { sendTenantInspectionBookedEmail } = await import('../services/emailService')
+          for (const tenant of tenants) {
+            try {
+              await sendTenantInspectionBookedEmail({
+                tenantEmail: tenant.email,
+                tenantName: tenant.name || 'Tenant',
+                inspectionType: finalType,
+                propertyAddress: propertyAddress || 'your property',
+                scheduledDate: finalScheduledDate,
+                scheduledTime: finalScheduledTime,
+                assessorName: finalAssessorName,
+                companyId: companyIdForNotify,
+                isReschedule: true,
+              })
+              console.log(`[IG Webhook] Reschedule email sent to ${tenant.email} (tenancy ${tenancyIdForNotify}, type ${finalType}, ${previousScheduledDate} ${previousScheduledTime} → ${finalScheduledDate} ${finalScheduledTime})`)
+            } catch (emailErr: any) {
+              console.error(`[IG Webhook] Failed to send reschedule email to ${tenant.email}:`, emailErr?.message || emailErr)
+            }
+          }
+        } catch (err: any) {
+          console.error('[IG Webhook] Reschedule notification flow failed:', err?.message || err)
+        }
+      })()
     }
 
     res.json({ received: true })
@@ -389,41 +486,83 @@ router.get('/properties', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to load properties' })
     }
 
-    // Batch-fetch landlords for every property in one round trip via the
-    // property_landlords junction table. Then decrypt landlord PII and group
-    // by property so we can attach landlords[] to each property in the
-    // response. IG uses this to keep landlord contact details in sync with
-    // PG without needing a separate /landlords pull.
+    // Batch-fetch landlords for every property via the property_landlords
+    // junction table, then decrypt landlord PII and group by property so we
+    // can attach landlords[] to each property in the response. IG uses this
+    // to keep landlord contact details in sync with PG without needing a
+    // separate /landlords pull.
+    //
+    // IMPORTANT: Supabase REST translates `.in('col', [a, b, c])` into a
+    // querystring like `?col=in.(a,b,c)`. With 400+ UUIDs that exceeds the
+    // server's URL length limit and the request silently returns no data
+    // (no error, just an empty result set). The previous implementation
+    // hit this exact bug for RG Property Bristol (423 properties) — every
+    // property came back with `landlords: []` even though the underlying
+    // data was fine.
+    //
+    // Fix: chunk both `.in()` queries into batches of 100. Defensive cap
+    // chosen to keep URL length comfortably under 8KB even with extra
+    // PostgREST overhead.
+    const IN_CHUNK_SIZE = 100
+
+    async function fetchInChunks<T>(
+      chunkSource: string[],
+      fn: (batch: string[]) => Promise<T[]>
+    ): Promise<T[]> {
+      const out: T[] = []
+      for (let i = 0; i < chunkSource.length; i += IN_CHUNK_SIZE) {
+        const batch = chunkSource.slice(i, i + IN_CHUNK_SIZE)
+        const rows = await fn(batch)
+        if (rows && rows.length > 0) out.push(...rows)
+      }
+      return out
+    }
+
     const propertyIds = (properties || []).map((p: any) => p.id)
     const landlordsByProperty = new Map<string, any[]>()
 
     if (propertyIds.length > 0) {
-      const { data: links } = await supabase
-        .from('property_landlords')
-        .select('property_id, landlord_id, ownership_percentage, is_primary_contact')
-        .in('property_id', propertyIds)
+      const links = await fetchInChunks(propertyIds, async (batch) => {
+        const { data, error: linkErr } = await supabase
+          .from('property_landlords')
+          .select('property_id, landlord_id, ownership_percentage, is_primary_contact')
+          .in('property_id', batch)
+        if (linkErr) {
+          console.error('[IG Properties] property_landlords batch query error:', linkErr)
+          return []
+        }
+        return (data || []) as any[]
+      })
 
-      const landlordIds = [...new Set((links || []).map((l: any) => l.landlord_id))]
+      const landlordIds = [...new Set(links.map((l: any) => l.landlord_id))]
       const landlordById = new Map<string, any>()
+
       if (landlordIds.length > 0) {
-        const { data: landlords } = await supabase
-          .from('landlords')
-          .select(`
-            id,
-            first_name_encrypted,
-            last_name_encrypted,
-            email_encrypted,
-            phone_encrypted,
-            address_line1_encrypted,
-            address_line2_encrypted,
-            city_encrypted,
-            postcode_encrypted
-          `)
-          .in('id', landlordIds)
-        for (const l of (landlords || [])) landlordById.set(l.id, l)
+        const landlords = await fetchInChunks(landlordIds, async (batch) => {
+          const { data, error: llErr } = await supabase
+            .from('landlords')
+            .select(`
+              id,
+              first_name_encrypted,
+              last_name_encrypted,
+              email_encrypted,
+              phone_encrypted,
+              address_line1_encrypted,
+              address_line2_encrypted,
+              city_encrypted,
+              postcode_encrypted
+            `)
+            .in('id', batch)
+          if (llErr) {
+            console.error('[IG Properties] landlords batch query error:', llErr)
+            return []
+          }
+          return (data || []) as any[]
+        })
+        for (const l of landlords) landlordById.set(l.id, l)
       }
 
-      for (const link of (links || [])) {
+      for (const link of links) {
         const ll = landlordById.get(link.landlord_id)
         if (!ll) continue
         const arr = landlordsByProperty.get(link.property_id) || []
@@ -447,6 +586,8 @@ router.get('/properties', async (req: Request, res: Response) => {
         })
         landlordsByProperty.set(link.property_id, arr)
       }
+
+      console.log(`[IG Properties] Joined ${links.length} property_landlords link(s) → ${landlordsByProperty.size} property/landlord groups`)
     }
 
     const payload = (properties || []).map((p: any) => ({

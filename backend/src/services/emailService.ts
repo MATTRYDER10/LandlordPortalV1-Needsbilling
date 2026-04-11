@@ -1197,6 +1197,139 @@ export async function sendVerificationReportToAgent(
 }
 
 /**
+ * Send a tenant inspection-booked confirmation email.
+ *
+ * Used by the IG appointment flow to notify tenants when a mid-term or
+ * check-out inspection has been scheduled OR rescheduled. We DON'T send
+ * for "inventory" (check-in) inspections — those are handled at move-in
+ * via a different communication path.
+ *
+ * Pass isReschedule=true when re-notifying for a date/time change. The
+ * subject line, headline and intro paragraph adapt accordingly; the rest
+ * of the email (appointment card, what-to-expect, prep checklist) is
+ * identical so the tenant has all the same information in one place.
+ */
+export async function sendTenantInspectionBookedEmail(params: {
+  tenantEmail: string
+  tenantName: string
+  inspectionType: 'mid_term' | 'checkout'
+  propertyAddress: string
+  scheduledDate: string // ISO date 'YYYY-MM-DD'
+  scheduledTime: string // 'HH:mm' or 'HH:mm:ss'
+  assessorName?: string | null
+  companyId: string
+  isReschedule?: boolean
+}): Promise<void> {
+  const { supabase } = await import('../config/supabase')
+  const { decrypt } = await import('./encryption')
+
+  const { data: company } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', params.companyId)
+    .single()
+
+  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
+  const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) : ''
+  const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : ''
+  const companyLogoUrl = company?.logo_url || null
+
+  const inspectionTypeLabel = params.inspectionType === 'mid_term' ? 'Mid-Term' : 'Check-Out'
+  const inspectionTypeLabelLower = params.inspectionType === 'mid_term' ? 'mid-term' : 'check-out'
+  const isReschedule = !!params.isReschedule
+
+  // Headline + intro line + first paragraph differ for reschedules
+  const emailHeadline = isReschedule
+    ? `${inspectionTypeLabel} Inspection Rescheduled`
+    : `${inspectionTypeLabel} Inspection Booked`
+  const emailIntroLine = isReschedule
+    ? `Your ${inspectionTypeLabelLower} inspection has been rescheduled to a new date and time.`
+    : `Your ${inspectionTypeLabelLower} inspection has been scheduled.`
+  const emailFirstParagraph = isReschedule
+    ? `We're writing to let you know that your previously scheduled <strong>${inspectionTypeLabelLower} inspection</strong> at <strong>{{ PropertyAddress }}</strong> has been moved. The new appointment details are below — please update your calendar and let us know if the new date or time doesn't work for you.`
+    : `We're writing to confirm that a <strong>${inspectionTypeLabelLower} inspection</strong> has been booked for your property at <strong>{{ PropertyAddress }}</strong>.`
+
+  // Format date as "Friday, 24 May 2026" UK style
+  let scheduledDateFormatted = params.scheduledDate
+  try {
+    const d = new Date(params.scheduledDate + 'T00:00:00')
+    if (!isNaN(d.getTime())) {
+      scheduledDateFormatted = d.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    }
+  } catch {}
+
+  // Format time as "10:30 AM" UK 12-hour
+  let scheduledTimeFormatted = params.scheduledTime
+  try {
+    const [hStr, mStr] = (params.scheduledTime || '').split(':')
+    const h = parseInt(hStr, 10)
+    const m = parseInt(mStr, 10)
+    if (!isNaN(h) && !isNaN(m)) {
+      const date = new Date()
+      date.setHours(h, m, 0, 0)
+      scheduledTimeFormatted = date.toLocaleTimeString('en-GB', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    }
+  } catch {}
+
+  // What-to-expect copy depends on inspection type
+  const whatToExpectHtml = params.inspectionType === 'mid_term'
+    ? 'A property inspector will visit the property and carry out a routine check of its general condition, looking for any maintenance issues or signs of wear. The visit usually takes around 20–30 minutes. You do not need to be present, but you are welcome to be there if you prefer.'
+    : 'A property inspector will visit to carry out the check-out inventory. They will compare the property to the inventory taken at the start of your tenancy and document its current condition. This typically takes 30–60 minutes depending on the size of the property. You are welcome to attend if you would like to.'
+
+  // Optional assessor row — only render if a name is supplied
+  const assessorRowHtml = params.assessorName
+    ? `<tr>
+         <td style="padding: 8px 0; vertical-align: top; width: 110px; color: #6b7280; font-weight: 500;">Inspector</td>
+         <td style="padding: 8px 0; font-weight: 500; color: #111827;">${params.assessorName}</td>
+       </tr>`
+    : ''
+
+  // Pre-render PropertyAddress into the first paragraph so the template's
+  // existing variable substitution does the right thing
+  const firstParagraphResolved = emailFirstParagraph.replace(/\{\{ PropertyAddress \}\}/g, params.propertyAddress)
+
+  const html = loadEmailTemplate('tenant-inspection-booked', {
+    TenantName: params.tenantName || 'Tenant',
+    EmailHeadline: emailHeadline,
+    EmailIntroLine: emailIntroLine,
+    EmailFirstParagraphHtml: firstParagraphResolved,
+    InspectionTypeLabel: inspectionTypeLabel,
+    InspectionTypeLabelLower: inspectionTypeLabelLower,
+    PropertyAddress: params.propertyAddress,
+    ScheduledDateFormatted: scheduledDateFormatted,
+    ScheduledTimeFormatted: scheduledTimeFormatted,
+    AssessorRowHtml: assessorRowHtml,
+    WhatToExpectHtml: whatToExpectHtml,
+    CompanyName: companyName || 'PropertyGoose',
+    AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
+  })
+
+  const subject = isReschedule
+    ? `${inspectionTypeLabel} Inspection Rescheduled — ${params.propertyAddress}`
+    : `${inspectionTypeLabel} Inspection Booked — ${params.propertyAddress}`
+
+  await sendEmail({
+    to: params.tenantEmail,
+    subject,
+    html,
+    contactDetails: {
+      companyName: companyName || undefined,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined,
+    },
+  })
+}
+
+/**
  * Send landlord verification request email (for AML checks)
  */
 export async function sendLandlordVerificationRequest(
