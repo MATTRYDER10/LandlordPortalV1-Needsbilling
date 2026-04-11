@@ -799,4 +799,62 @@ router.beforeEach(async (to, _from, next) => {
   next()
 })
 
+// ----------------------------------------------------------------------------
+// Stale SPA chunk recovery
+// ----------------------------------------------------------------------------
+// When the frontend is redeployed, the file names of lazy-loaded route chunks
+// change (Vite content-hashes them). Tabs that were already open still hold a
+// reference to the old chunk filenames; the next time the user navigates to a
+// lazy route, the import 404s and the page silently fails to render. We catch
+// the import error here and reload the page once so the user picks up the new
+// asset manifest. The session-storage flag prevents infinite reload loops if
+// the failure is genuine (e.g. real network error or a missing asset on the
+// new build).
+const RELOAD_FLAG = 'pg_chunk_reload_attempted'
+const isChunkLoadError = (err: any): boolean => {
+  if (!err) return false
+  const msg = (err && (err.message || String(err))) || ''
+  return (
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('error loading dynamically imported module') ||
+    err?.name === 'ChunkLoadError'
+  )
+}
+
+const handleChunkError = (err: any) => {
+  if (!isChunkLoadError(err)) return
+  try {
+    const alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG)
+    if (alreadyReloaded) {
+      console.error('[Router] Chunk load error after reload — not retrying:', err)
+      return
+    }
+    sessionStorage.setItem(RELOAD_FLAG, '1')
+    console.warn('[Router] Stale chunk detected — forcing one hard reload to pick up new build')
+    // Hard reload so the new index.html (with fresh asset hashes) loads
+    window.location.reload()
+  } catch (e) {
+    console.error('[Router] Failed to recover from chunk error:', e)
+  }
+}
+
+// Clear the reload flag on any successful navigation so future stale-chunk
+// recoveries can happen again.
+router.afterEach(() => {
+  try {
+    sessionStorage.removeItem(RELOAD_FLAG)
+  } catch {}
+})
+
+router.onError(handleChunkError)
+
+// Belt-and-braces: also catch unhandled rejections that bubble up from
+// async chunk imports outside the router.
+window.addEventListener('unhandledrejection', (event) => {
+  if (isChunkLoadError(event.reason)) {
+    handleChunkError(event.reason)
+  }
+})
+
 export default router
