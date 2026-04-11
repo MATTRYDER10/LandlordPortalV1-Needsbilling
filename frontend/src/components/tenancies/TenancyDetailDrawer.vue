@@ -6014,7 +6014,26 @@ const confirmInitialMonies = async () => {
       throw new Error(error.error || 'Failed to confirm payment')
     }
 
+    // Use the updated tenancy from the response so the UI flips to
+    // "Initial Monies Paid" immediately, then re-fetch the full tenancy
+    // to pull in any related changes (payment_requests, expected_payments,
+    // activity log etc.). Without this the screen would still show
+    // "Tenant confirmed / Confirm receipt" until the parent re-rendered.
+    try {
+      const data = await response.json()
+      if (data?.tenancy) {
+        fullTenancyData.value = { ...(fullTenancyData.value || {}), ...data.tenancy }
+      }
+    } catch {
+      // Body parse failure is non-fatal — the loadFullTenancyData() below
+      // will refresh state regardless.
+    }
+
     toast.success('Payment confirmed')
+
+    // Re-fetch the canonical tenancy state and notify the parent so it
+    // can refresh its list/badges.
+    await loadFullTenancyData()
     emit('updated')
   } catch (error: any) {
     console.error('Error confirming initial monies:', error)

@@ -10,29 +10,43 @@ import { decrypt } from '../services/encryption'
 
 const router = Router()
 
-// ── Rate limiter for the IG properties pull endpoint ────────────────────────
-// Keyed by client IP. IG is expected to call this on manual syncs only; a
-// legitimate caller will stay well under this limit. The cap exists to
-// blunt brute-force attempts against x-pg-api-key.
-const igPropertiesRateMap = new Map<string, { count: number; resetAt: number }>()
-const IG_PROPERTIES_RATE_MAX = 30
-const IG_PROPERTIES_RATE_WINDOW_MS = 60_000
+// ── Failed-auth throttle for the IG properties pull endpoint ───────────────
+// We don't rate-limit successful authenticated requests at all — IG can pull
+// as fast as it likes if the API key is valid. We DO throttle FAILED auth
+// attempts per IP so that anyone trying to brute-force the x-pg-api-key
+// header gets locked out cheaply after a small handful of failures. This is
+// the standard pattern for authenticated APIs: punish failure, not success.
+const igFailedAuthMap = new Map<string, { count: number; resetAt: number }>()
+const IG_FAILED_AUTH_MAX = 10 // failed attempts per window before lockout
+const IG_FAILED_AUTH_WINDOW_MS = 5 * 60_000 // 5-minute rolling window
 
-function isIgPropertiesRateLimited(ip: string): boolean {
+function isIgAuthLockedOut(ip: string): boolean {
   const now = Date.now()
-  const entry = igPropertiesRateMap.get(ip)
+  const entry = igFailedAuthMap.get(ip)
+  if (!entry || now > entry.resetAt) return false
+  return entry.count > IG_FAILED_AUTH_MAX
+}
+
+function recordIgAuthFailure(ip: string): void {
+  const now = Date.now()
+  const entry = igFailedAuthMap.get(ip)
   if (!entry || now > entry.resetAt) {
-    igPropertiesRateMap.set(ip, { count: 1, resetAt: now + IG_PROPERTIES_RATE_WINDOW_MS })
-    return false
+    igFailedAuthMap.set(ip, { count: 1, resetAt: now + IG_FAILED_AUTH_WINDOW_MS })
+    return
   }
   entry.count++
-  return entry.count > IG_PROPERTIES_RATE_MAX
+}
+
+function clearIgAuthFailures(ip: string): void {
+  // A successful auth wipes any prior failure count for this IP — fixes the
+  // "agent typo'd their key, fixed it, now they're locked out" footgun.
+  igFailedAuthMap.delete(ip)
 }
 
 setInterval(() => {
   const now = Date.now()
-  for (const [ip, entry] of igPropertiesRateMap) {
-    if (now > entry.resetAt) igPropertiesRateMap.delete(ip)
+  for (const [ip, entry] of igFailedAuthMap) {
+    if (now > entry.resetAt) igFailedAuthMap.delete(ip)
   }
 }, 60_000)
 
@@ -269,25 +283,33 @@ router.post('/report-complete', async (req: Request, res: Response) => {
 router.get('/properties', async (req: Request, res: Response) => {
   const clientIp = getClientIp(req)
 
-  // Rate limit BEFORE any DB work so brute-force attempts are cheap to reject
-  if (isIgPropertiesRateLimited(clientIp)) {
-    console.warn(`[IG Properties] Rate limited ip=${clientIp}`)
-    return res.status(429).json({ error: 'Too many requests' })
+  // Lockout check BEFORE any DB work — if this IP has been hammering bad
+  // keys we reject it cheaply with no auth lookup. Successful pulls have
+  // no rate limit at all.
+  if (isIgAuthLockedOut(clientIp)) {
+    console.warn(`[IG Properties] Auth lockout ip=${clientIp}`)
+    return res.status(429).json({ error: 'Too many failed authentication attempts. Try again later.' })
   }
 
   try {
     const rawKey = req.headers['x-pg-api-key']
     const apiKey = typeof rawKey === 'string' ? rawKey.trim() : ''
     if (!apiKey) {
+      recordIgAuthFailure(clientIp)
       return res.status(401).json({ error: 'Missing x-pg-api-key header' })
     }
 
     const hash = hashIGApiKey(apiKey)
     const companyId = await findCompanyIdByIgApiKeyHash(hash)
     if (!companyId) {
+      recordIgAuthFailure(clientIp)
       console.warn(`[IG Properties] Auth failed ip=${clientIp}`)
       return res.status(401).json({ error: 'Invalid API key' })
     }
+
+    // Successful auth — clear any prior failure count for this IP so a
+    // brief mistype doesn't lock the legitimate caller out for 5 minutes.
+    clearIgAuthFailures(clientIp)
 
     const { data: properties, error } = await supabase
       .from('properties')
@@ -301,6 +323,66 @@ router.get('/properties', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to load properties' })
     }
 
+    // Batch-fetch landlords for every property in one round trip via the
+    // property_landlords junction table. Then decrypt landlord PII and group
+    // by property so we can attach landlords[] to each property in the
+    // response. IG uses this to keep landlord contact details in sync with
+    // PG without needing a separate /landlords pull.
+    const propertyIds = (properties || []).map((p: any) => p.id)
+    const landlordsByProperty = new Map<string, any[]>()
+
+    if (propertyIds.length > 0) {
+      const { data: links } = await supabase
+        .from('property_landlords')
+        .select('property_id, landlord_id, ownership_percentage, is_primary_contact')
+        .in('property_id', propertyIds)
+
+      const landlordIds = [...new Set((links || []).map((l: any) => l.landlord_id))]
+      const landlordById = new Map<string, any>()
+      if (landlordIds.length > 0) {
+        const { data: landlords } = await supabase
+          .from('landlords')
+          .select(`
+            id,
+            first_name_encrypted,
+            last_name_encrypted,
+            email_encrypted,
+            phone_encrypted,
+            address_line1_encrypted,
+            address_line2_encrypted,
+            city_encrypted,
+            postcode_encrypted
+          `)
+          .in('id', landlordIds)
+        for (const l of (landlords || [])) landlordById.set(l.id, l)
+      }
+
+      for (const link of (links || [])) {
+        const ll = landlordById.get(link.landlord_id)
+        if (!ll) continue
+        const arr = landlordsByProperty.get(link.property_id) || []
+        const firstName = ll.first_name_encrypted ? (decrypt(ll.first_name_encrypted) || '') : ''
+        const lastName = ll.last_name_encrypted ? (decrypt(ll.last_name_encrypted) || '') : ''
+        arr.push({
+          pg_landlord_id: ll.id,
+          first_name: firstName,
+          last_name: lastName,
+          name: `${firstName} ${lastName}`.trim(),
+          email: ll.email_encrypted ? (decrypt(ll.email_encrypted) || '') : '',
+          phone: ll.phone_encrypted ? (decrypt(ll.phone_encrypted) || '') : '',
+          address: {
+            line1: ll.address_line1_encrypted ? (decrypt(ll.address_line1_encrypted) || '') : '',
+            line2: ll.address_line2_encrypted ? (decrypt(ll.address_line2_encrypted) || '') : '',
+            city: ll.city_encrypted ? (decrypt(ll.city_encrypted) || '') : '',
+            postcode: ll.postcode_encrypted ? (decrypt(ll.postcode_encrypted) || '') : '',
+          },
+          ownership_percentage: link.ownership_percentage || 100,
+          is_primary_contact: !!link.is_primary_contact,
+        })
+        landlordsByProperty.set(link.property_id, arr)
+      }
+    }
+
     const payload = (properties || []).map((p: any) => ({
       pg_property_id: p.id,
       address_line_1: decrypt(p.address_line1_encrypted) || '',
@@ -309,10 +391,12 @@ router.get('/properties', async (req: Request, res: Response) => {
       postcode: p.postcode || '',
       property_type: p.property_type || 'flat',
       bedrooms: p.number_of_bedrooms || 0,
-      updated_at: p.updated_at
+      updated_at: p.updated_at,
+      landlords: landlordsByProperty.get(p.id) || [],
     }))
 
-    console.log(`[IG Properties] Served ${payload.length} properties company=${companyId} ip=${clientIp}`)
+    const totalLandlords = payload.reduce((sum, p) => sum + p.landlords.length, 0)
+    console.log(`[IG Properties] Served ${payload.length} properties (${totalLandlords} landlords) company=${companyId} ip=${clientIp}`)
     res.json({ properties: payload })
   } catch (error) {
     console.error('[IG Properties] Error:', error)

@@ -557,6 +557,376 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * GET /api/v2/references/calendar
+ * Upcoming move-in dates drawn from BOTH V1 and V2 references for the
+ * dashboard calendar. One entry per reference (groups collapse to a single
+ * row). Guarantors are excluded. Any reference with a move_in_date in the
+ * next 12 months is returned, regardless of status, so the calendar
+ * reflects the true pipeline — not just converted tenancies.
+ *
+ * Each entry is tagged with referenceVersion ('v1' | 'v2') so the frontend
+ * can route clicks to the correct page (/references vs /references-v2).
+ */
+router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID required' })
+    }
+
+    const now = new Date()
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 0)
+    const endDateStr = endDate.toISOString().split('T')[0]
+    const startDateStr = now.toISOString().split('T')[0]
+
+    // Helper to take a flat list of references and collapse group children
+    // into their parent — same logic for V1 and V2 since both use the same
+    // parent_reference_id / is_group_parent shape.
+    const collapseGroups = (rows: any[]) => {
+      const parentById = new Map<string, any>()
+      const childrenByParent = new Map<string, any[]>()
+      for (const r of rows) {
+        if (r.parent_reference_id && !r.is_group_parent) {
+          const arr = childrenByParent.get(r.parent_reference_id) || []
+          arr.push(r)
+          childrenByParent.set(r.parent_reference_id, arr)
+        } else {
+          parentById.set(r.id, r)
+        }
+      }
+      return { parentById, childrenByParent }
+    }
+
+    // Helper to convert a reference row + its group children into a calendar
+    // entry. Works for both V1 and V2 — the column shapes are nearly
+    // identical (V1 uses tenant_references, V2 uses tenant_references_v2).
+    const buildEntry = (ref: any, groupMembers: any[], version: 'v1' | 'v2') => {
+      const allTenants = [ref, ...groupMembers]
+      const tenants = allTenants.map((t: any) => {
+        const first = t.tenant_first_name_encrypted ? (decrypt(t.tenant_first_name_encrypted) || '') : ''
+        const last = t.tenant_last_name_encrypted ? (decrypt(t.tenant_last_name_encrypted) || '') : ''
+        const name = `${first} ${last}`.trim() || 'Tenant'
+        return { id: t.id, name }
+      })
+
+      let propertyAddress = ''
+      let propertyCity = ''
+      let propertyPostcode = ''
+      try {
+        propertyAddress = ref.property_address_encrypted ? (decrypt(ref.property_address_encrypted) || '') : ''
+        propertyCity = ref.property_city_encrypted ? (decrypt(ref.property_city_encrypted) || '') : ''
+        propertyPostcode = ref.property_postcode_encrypted ? (decrypt(ref.property_postcode_encrypted) || '') : ''
+      } catch (e) {}
+
+      return {
+        referenceId: ref.id,
+        referenceVersion: version,
+        referenceNumber: ref.reference_number || null,
+        tenancyId: ref.converted_to_tenancy_id || null,
+        moveInDate: ref.move_in_date,
+        property: {
+          address: propertyAddress,
+          city: propertyCity,
+          postcode: propertyPostcode,
+        },
+        rentAmount: ref.monthly_rent || null,
+        tenants,
+        groupSize: tenants.length,
+        status: ref.status,
+        allActionsComplete: true,
+        type: 'move_in' as const,
+      }
+    }
+
+    // ========================================================================
+    // V2 references
+    // ========================================================================
+    const { data: v2Refs, error: v2Err } = await supabase
+      .from('tenant_references_v2')
+      .select(`
+        id,
+        status,
+        is_guarantor,
+        is_group_parent,
+        parent_reference_id,
+        move_in_date,
+        monthly_rent,
+        rent_share,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
+        linked_property_id,
+        reference_number,
+        converted_to_tenancy_id
+      `)
+      .eq('company_id', companyId)
+      .eq('is_guarantor', false)
+      .not('move_in_date', 'is', null)
+      .gte('move_in_date', startDateStr)
+      .lte('move_in_date', endDateStr)
+      .order('move_in_date', { ascending: true })
+
+    if (v2Err) {
+      console.error('[References] V2 calendar query error:', v2Err)
+      return res.status(500).json({ error: 'Failed to fetch V2 calendar data' })
+    }
+
+    const v2 = collapseGroups(v2Refs || [])
+
+    // Backfill V2 parents that fall outside the date window but have
+    // children inside it (rare).
+    for (const [parentId, children] of v2.childrenByParent.entries()) {
+      if (!v2.parentById.has(parentId) && children.length > 0) {
+        const { data: parent } = await supabase
+          .from('tenant_references_v2')
+          .select(`
+            id, status, is_guarantor, is_group_parent, parent_reference_id,
+            move_in_date, monthly_rent, rent_share,
+            tenant_first_name_encrypted, tenant_last_name_encrypted,
+            property_address_encrypted, property_city_encrypted, property_postcode_encrypted,
+            linked_property_id, reference_number, converted_to_tenancy_id
+          `)
+          .eq('id', parentId)
+          .eq('company_id', companyId)
+          .maybeSingle()
+        if (parent && parent.move_in_date && parent.move_in_date >= startDateStr && parent.move_in_date <= endDateStr) {
+          v2.parentById.set(parent.id, parent)
+        }
+      }
+    }
+
+    const v2Entries = Array.from(v2.parentById.values()).map((ref: any) =>
+      buildEntry(ref, v2.childrenByParent.get(ref.id) || [], 'v2')
+    )
+
+    // ========================================================================
+    // V1 references — same shape, different table
+    // ========================================================================
+    // V1 tenant_references doesn't have a reference_number or
+    // converted_to_tenancy_id column, so we select null for those.
+    const { data: v1Refs, error: v1Err } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        status,
+        is_guarantor,
+        is_group_parent,
+        parent_reference_id,
+        move_in_date,
+        monthly_rent,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
+        linked_property_id,
+        converted_to_tenancy_id
+      `)
+      .eq('company_id', companyId)
+      .eq('is_guarantor', false)
+      .not('move_in_date', 'is', null)
+      .gte('move_in_date', startDateStr)
+      .lte('move_in_date', endDateStr)
+      .order('move_in_date', { ascending: true })
+
+    if (v1Err) {
+      // V1 failure is non-fatal — log and continue with V2 results so the
+      // calendar still renders if the V1 schema diverges.
+      console.error('[References] V1 calendar query error (non-fatal):', v1Err.message)
+    }
+
+    const v1 = collapseGroups(v1Refs || [])
+
+    for (const [parentId, children] of v1.childrenByParent.entries()) {
+      if (!v1.parentById.has(parentId) && children.length > 0) {
+        const { data: parent } = await supabase
+          .from('tenant_references')
+          .select(`
+            id, status, is_guarantor, is_group_parent, parent_reference_id,
+            move_in_date, monthly_rent,
+            tenant_first_name_encrypted, tenant_last_name_encrypted,
+            property_address_encrypted, property_city_encrypted, property_postcode_encrypted,
+            linked_property_id, converted_to_tenancy_id
+          `)
+          .eq('id', parentId)
+          .eq('company_id', companyId)
+          .maybeSingle()
+        if (parent && parent.move_in_date && parent.move_in_date >= startDateStr && parent.move_in_date <= endDateStr) {
+          v1.parentById.set(parent.id, parent)
+        }
+      }
+    }
+
+    const v1Entries = Array.from(v1.parentById.values()).map((ref: any) =>
+      buildEntry(ref, v1.childrenByParent.get(ref.id) || [], 'v1')
+    )
+
+    // ========================================================================
+    // Tenancies — third source for the move-in calendar.
+    // ========================================================================
+    // Includes any pending or active tenancy with a tenancy_start_date in
+    // the next 12 months. After fetching we deduplicate against V1+V2 by
+    // skipping any tenancy whose id is already represented by a reference's
+    // converted_to_tenancy_id (the canonical link). This prevents the same
+    // move-in showing twice when a reference has been converted into a
+    // tenancy.
+    const convertedTenancyIds = new Set<string>()
+    for (const r of (v2Refs || [])) {
+      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
+    }
+    for (const r of (v1Refs || [])) {
+      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
+    }
+
+    let tenancyEntries: any[] = []
+    try {
+      const { data: tenancies, error: tenErr } = await supabase
+        .from('tenancies')
+        .select(`
+          id,
+          tenancy_start_date,
+          monthly_rent,
+          rent_amount,
+          status,
+          property_id,
+          primary_reference_id
+        `)
+        .eq('company_id', companyId)
+        .in('status', ['pending', 'active'])
+        .is('deleted_at', null)
+        .not('tenancy_start_date', 'is', null)
+        .gte('tenancy_start_date', startDateStr)
+        .lte('tenancy_start_date', endDateStr)
+        .order('tenancy_start_date', { ascending: true })
+
+      if (tenErr) {
+        console.error('[References] Tenancies calendar query error (non-fatal):', tenErr.message)
+      }
+
+      // Drop tenancies already covered by a reference, then dedupe by
+      // primary_reference_id (covers the case where a reference id matches
+      // a V1/V2 row id even when converted_to_tenancy_id wasn't backfilled).
+      const tenanciesToShow = (tenancies || []).filter((t: any) => {
+        if (convertedTenancyIds.has(t.id)) return false
+        if (t.primary_reference_id) {
+          // If we already returned a reference with this id, skip the tenancy
+          const inV2 = (v2Refs || []).some((r: any) => r.id === t.primary_reference_id)
+          const inV1 = (v1Refs || []).some((r: any) => r.id === t.primary_reference_id)
+          if (inV2 || inV1) return false
+        }
+        return true
+      })
+
+      // Need property + tenant data to build calendar entries
+      const tenancyIds = tenanciesToShow.map((t: any) => t.id)
+      const propertyIds = [...new Set(tenanciesToShow.map((t: any) => t.property_id).filter(Boolean))]
+
+      const propertyMap = new Map<string, any>()
+      if (propertyIds.length > 0) {
+        const { data: properties } = await supabase
+          .from('properties')
+          .select('id, address_line1_encrypted, city_encrypted, postcode')
+          .in('id', propertyIds)
+        for (const p of (properties || [])) propertyMap.set(p.id, p)
+      }
+
+      const tenantMap = new Map<string, any[]>()
+      if (tenancyIds.length > 0) {
+        const { data: allTenants } = await supabase
+          .from('tenancy_tenants')
+          .select('id, tenancy_id, tenant_name_encrypted, tenant_order, is_lead_tenant')
+          .in('tenancy_id', tenancyIds)
+          .eq('is_active', true)
+        for (const t of (allTenants || [])) {
+          if (!tenantMap.has(t.tenancy_id)) tenantMap.set(t.tenancy_id, [])
+          tenantMap.get(t.tenancy_id)!.push(t)
+        }
+      }
+
+      tenancyEntries = tenanciesToShow.map((t: any) => {
+        const prop = propertyMap.get(t.property_id)
+        let propertyAddress = ''
+        let propertyCity = ''
+        let propertyPostcode = ''
+        try {
+          propertyAddress = prop?.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+          propertyCity = prop?.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+          propertyPostcode = prop?.postcode || ''
+        } catch (e) {}
+
+        const tenants = (tenantMap.get(t.id) || [])
+          .sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))
+          .map((tt: any) => {
+            let name = 'Tenant'
+            try {
+              name = tt.tenant_name_encrypted ? (decrypt(tt.tenant_name_encrypted) || 'Tenant') : 'Tenant'
+            } catch (e) {}
+            return { id: tt.id, name }
+          })
+
+        return {
+          referenceId: null,
+          referenceVersion: undefined,
+          referenceNumber: null,
+          tenancyId: t.id,
+          moveInDate: t.tenancy_start_date,
+          property: {
+            address: propertyAddress,
+            city: propertyCity,
+            postcode: propertyPostcode,
+          },
+          rentAmount: t.monthly_rent || t.rent_amount || null,
+          tenants,
+          groupSize: tenants.length,
+          status: t.status,
+          allActionsComplete: true,
+          type: 'move_in' as const,
+        }
+      })
+    } catch (e: any) {
+      console.error('[References] Tenancies calendar fetch failed (non-fatal):', e?.message || e)
+    }
+
+    // ========================================================================
+    // Merge V2 + V1 + tenancies, then dedupe by (linked_property_id, moveInDate)
+    // as a final safety net for any orphan duplicates the explicit join
+    // didn't catch.
+    // ========================================================================
+    const entries = [...v2Entries, ...v1Entries, ...tenancyEntries]
+
+    // Soft dedupe: if two entries share the same property address + move-in
+    // date, keep the highest-priority one (V2 > V1 > tenancy). Sources are
+    // already in priority order in the array above so a Map insert from
+    // first to last preserves the winner.
+    const dedupedByKey = new Map<string, any>()
+    for (const e of entries) {
+      const addr = (e.property?.address || '').trim().toLowerCase()
+      const key = `${addr}|${e.moveInDate}`
+      // Without a property address there's no reliable way to dedupe, so
+      // pass these through unchanged using the unique entry id
+      const finalKey = addr ? key : `unique-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!dedupedByKey.has(finalKey)) {
+        dedupedByKey.set(finalKey, e)
+      }
+    }
+
+    const dedupedEntries = Array.from(dedupedByKey.values())
+    dedupedEntries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
+
+    res.json({
+      startDate: startDateStr,
+      endDate: endDateStr,
+      entries: dedupedEntries,
+    })
+  } catch (error: any) {
+    console.error('[References] Error in calendar endpoint:', error)
+    res.status(500).json({ error: error.message || 'Calendar error' })
+  }
+})
+
+/**
  * Get single V2 reference with full details
  */
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {

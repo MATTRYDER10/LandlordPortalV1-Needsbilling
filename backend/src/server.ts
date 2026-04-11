@@ -70,6 +70,7 @@ import { startDepositCertificateScheduler } from './services/depositCertificateS
 import { startArrearsChaseScheduler } from './services/arrearsChaseScheduler'
 import { startWeeklyReportScheduler } from './services/weeklyReportService'
 import { startErrorGithubScheduler } from './services/errorGithubScheduler'
+import { startLandlordAmlChaseScheduler } from './services/landlordAmlChaseScheduler'
 
 dotenv.config()
 
@@ -311,6 +312,7 @@ app.listen(PORT, '0.0.0.0', () => {
     startArrearsChaseScheduler()
     startWeeklyReportScheduler()
     startErrorGithubScheduler()
+    startLandlordAmlChaseScheduler()
     console.log('[Scheduler] All background schedulers started (production)')
   } else {
     console.log('[Scheduler] Skipping background schedulers (non-production)')

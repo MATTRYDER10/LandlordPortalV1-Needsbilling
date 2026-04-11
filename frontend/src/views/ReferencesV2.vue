@@ -776,6 +776,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/Sidebar.vue'
 import ReferenceDrawerV2 from '@/components/ReferenceDrawerV2.vue'
@@ -804,6 +805,8 @@ import { useToast } from 'vue-toastification'
 import ConversionModalV2 from '@/components/references/ConversionModalV2.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -1416,7 +1419,20 @@ function getSectionBlockClass(section: any) {
   return 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400'
 }
 
-onMounted(() => {
-  fetchReferences()
+onMounted(async () => {
+  await fetchReferences()
+
+  // If navigated with ?ref=<id> (e.g. from the dashboard Move-in Calendar),
+  // auto-open the drawer for that reference. Fall back to no-op if the id
+  // isn't in the current list.
+  const refId = route.query.ref as string | undefined
+  if (refId) {
+    const target = references.value.find((r: any) => r.id === refId)
+    if (target) {
+      openDrawer(target)
+    }
+    // Strip the query param so back-navigation doesn't re-open the drawer
+    router.replace({ query: {} })
+  }
 })
 </script>

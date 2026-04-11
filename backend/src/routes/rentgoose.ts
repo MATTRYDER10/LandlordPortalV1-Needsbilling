@@ -616,6 +616,24 @@ router.post('/client-account/manual', authenticateToken, async (req: AuthRequest
   }
 })
 
+// GET /api/rentgoose/deposits — list every collected deposit for the company
+// with its scheme, registration status and current location (held by agent /
+// registered with scheme / paid to landlord). Used by the Deposits tab on the
+// PayoutsBoard so the agent can SEE every deposit, not just the ones bundled
+// invisibly into a rent payout.
+router.get('/deposits', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const deposits = await rentgooseService.getDepositsList(companyId)
+    res.json({ deposits })
+  } catch (err: any) {
+    console.error('Error fetching deposits:', err)
+    res.status(500).json({ error: 'Failed to fetch deposits' })
+  }
+})
+
 // POST /api/rentgoose/client-account/reconcile
 router.post('/client-account/reconcile', authenticateToken, async (req: AuthRequest, res) => {
   try {
