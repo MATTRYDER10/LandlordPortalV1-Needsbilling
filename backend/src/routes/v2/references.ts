@@ -764,15 +764,161 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     )
 
     // ========================================================================
-    // Merge + sort
+    // Tenancies — third source for the move-in calendar.
     // ========================================================================
-    const entries = [...v2Entries, ...v1Entries]
-    entries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
+    // Includes any pending or active tenancy with a tenancy_start_date in
+    // the next 12 months. After fetching we deduplicate against V1+V2 by
+    // skipping any tenancy whose id is already represented by a reference's
+    // converted_to_tenancy_id (the canonical link). This prevents the same
+    // move-in showing twice when a reference has been converted into a
+    // tenancy.
+    const convertedTenancyIds = new Set<string>()
+    for (const r of (v2Refs || [])) {
+      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
+    }
+    for (const r of (v1Refs || [])) {
+      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
+    }
+
+    let tenancyEntries: any[] = []
+    try {
+      const { data: tenancies, error: tenErr } = await supabase
+        .from('tenancies')
+        .select(`
+          id,
+          tenancy_start_date,
+          monthly_rent,
+          rent_amount,
+          status,
+          property_id,
+          primary_reference_id
+        `)
+        .eq('company_id', companyId)
+        .in('status', ['pending', 'active'])
+        .is('deleted_at', null)
+        .not('tenancy_start_date', 'is', null)
+        .gte('tenancy_start_date', startDateStr)
+        .lte('tenancy_start_date', endDateStr)
+        .order('tenancy_start_date', { ascending: true })
+
+      if (tenErr) {
+        console.error('[References] Tenancies calendar query error (non-fatal):', tenErr.message)
+      }
+
+      // Drop tenancies already covered by a reference, then dedupe by
+      // primary_reference_id (covers the case where a reference id matches
+      // a V1/V2 row id even when converted_to_tenancy_id wasn't backfilled).
+      const tenanciesToShow = (tenancies || []).filter((t: any) => {
+        if (convertedTenancyIds.has(t.id)) return false
+        if (t.primary_reference_id) {
+          // If we already returned a reference with this id, skip the tenancy
+          const inV2 = (v2Refs || []).some((r: any) => r.id === t.primary_reference_id)
+          const inV1 = (v1Refs || []).some((r: any) => r.id === t.primary_reference_id)
+          if (inV2 || inV1) return false
+        }
+        return true
+      })
+
+      // Need property + tenant data to build calendar entries
+      const tenancyIds = tenanciesToShow.map((t: any) => t.id)
+      const propertyIds = [...new Set(tenanciesToShow.map((t: any) => t.property_id).filter(Boolean))]
+
+      const propertyMap = new Map<string, any>()
+      if (propertyIds.length > 0) {
+        const { data: properties } = await supabase
+          .from('properties')
+          .select('id, address_line1_encrypted, city_encrypted, postcode')
+          .in('id', propertyIds)
+        for (const p of (properties || [])) propertyMap.set(p.id, p)
+      }
+
+      const tenantMap = new Map<string, any[]>()
+      if (tenancyIds.length > 0) {
+        const { data: allTenants } = await supabase
+          .from('tenancy_tenants')
+          .select('id, tenancy_id, tenant_name_encrypted, tenant_order, is_lead_tenant')
+          .in('tenancy_id', tenancyIds)
+          .eq('is_active', true)
+        for (const t of (allTenants || [])) {
+          if (!tenantMap.has(t.tenancy_id)) tenantMap.set(t.tenancy_id, [])
+          tenantMap.get(t.tenancy_id)!.push(t)
+        }
+      }
+
+      tenancyEntries = tenanciesToShow.map((t: any) => {
+        const prop = propertyMap.get(t.property_id)
+        let propertyAddress = ''
+        let propertyCity = ''
+        let propertyPostcode = ''
+        try {
+          propertyAddress = prop?.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+          propertyCity = prop?.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+          propertyPostcode = prop?.postcode || ''
+        } catch (e) {}
+
+        const tenants = (tenantMap.get(t.id) || [])
+          .sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))
+          .map((tt: any) => {
+            let name = 'Tenant'
+            try {
+              name = tt.tenant_name_encrypted ? (decrypt(tt.tenant_name_encrypted) || 'Tenant') : 'Tenant'
+            } catch (e) {}
+            return { id: tt.id, name }
+          })
+
+        return {
+          referenceId: null,
+          referenceVersion: undefined,
+          referenceNumber: null,
+          tenancyId: t.id,
+          moveInDate: t.tenancy_start_date,
+          property: {
+            address: propertyAddress,
+            city: propertyCity,
+            postcode: propertyPostcode,
+          },
+          rentAmount: t.monthly_rent || t.rent_amount || null,
+          tenants,
+          groupSize: tenants.length,
+          status: t.status,
+          allActionsComplete: true,
+          type: 'move_in' as const,
+        }
+      })
+    } catch (e: any) {
+      console.error('[References] Tenancies calendar fetch failed (non-fatal):', e?.message || e)
+    }
+
+    // ========================================================================
+    // Merge V2 + V1 + tenancies, then dedupe by (linked_property_id, moveInDate)
+    // as a final safety net for any orphan duplicates the explicit join
+    // didn't catch.
+    // ========================================================================
+    const entries = [...v2Entries, ...v1Entries, ...tenancyEntries]
+
+    // Soft dedupe: if two entries share the same property address + move-in
+    // date, keep the highest-priority one (V2 > V1 > tenancy). Sources are
+    // already in priority order in the array above so a Map insert from
+    // first to last preserves the winner.
+    const dedupedByKey = new Map<string, any>()
+    for (const e of entries) {
+      const addr = (e.property?.address || '').trim().toLowerCase()
+      const key = `${addr}|${e.moveInDate}`
+      // Without a property address there's no reliable way to dedupe, so
+      // pass these through unchanged using the unique entry id
+      const finalKey = addr ? key : `unique-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!dedupedByKey.has(finalKey)) {
+        dedupedByKey.set(finalKey, e)
+      }
+    }
+
+    const dedupedEntries = Array.from(dedupedByKey.values())
+    dedupedEntries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
 
     res.json({
       startDate: startDateStr,
       endDate: endDateStr,
-      entries,
+      entries: dedupedEntries,
     })
   } catch (error: any) {
     console.error('[References] Error in calendar endpoint:', error)

@@ -743,9 +743,10 @@ const fetchCalendarData = async () => {
 
     calendarLoading.value = true
 
-    // Pull move-in calendar data from V2 references (source of truth for
-    // the move-in pipeline) and merge with move-out + compliance data
-    // from the tenancies calendar endpoint.
+    // Pull move-in calendar data from /api/v2/references/calendar — that
+    // endpoint now merges V1 references + V2 references + tenancies and
+    // dedupes by (linked_property_id, move-in date). Move-out entries +
+    // compliance still come from /api/tenancies/records/calendar.
     const [moveInResp, tenancyResp] = await Promise.all([
       authFetch(`${API_URL}/api/v2/references/calendar`, { token }),
       authFetch(`${API_URL}/api/tenancies/records/calendar`, { token }),
@@ -777,17 +778,23 @@ const navigateToTenancy = (tenancyId: string) => {
   router.push(`/tenancies?tenancy=${tenancyId}`)
 }
 
-// Navigate to a reference from the move-in calendar. V2 references go to
-// /references-v2?ref=<id> (the page reads it and auto-opens the drawer);
-// V1 references go to /references?person=<id> (the V1 page already
-// supports that query param). Falls back to V2 if version is unset.
+// Navigate to a calendar entry. The calendar feed merges three sources —
+// V2 refs, V1 refs and tenancies — and tags each with referenceVersion
+// where applicable. Routing rules:
+//   - referenceVersion === 'v2'  → /references-v2?ref=<id>
+//   - referenceVersion === 'v1'  → /references?person=<id>
+//   - no referenceId (pure tenancy) → /tenancies?tenancy=<id>
 const navigateToReference = (entry: CalendarEntry) => {
-  const id = entry.referenceId
-  if (!id) return
-  if (entry.referenceVersion === 'v1') {
-    router.push(`/references?person=${id}`)
-  } else {
-    router.push(`/references-v2?ref=${id}`)
+  if (entry.referenceVersion === 'v2' && entry.referenceId) {
+    router.push(`/references-v2?ref=${entry.referenceId}`)
+    return
+  }
+  if (entry.referenceVersion === 'v1' && entry.referenceId) {
+    router.push(`/references?person=${entry.referenceId}`)
+    return
+  }
+  if (entry.tenancyId) {
+    router.push(`/tenancies?tenancy=${entry.tenancyId}`)
   }
 }
 
