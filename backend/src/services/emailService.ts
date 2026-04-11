@@ -1249,34 +1249,56 @@ export async function sendTenantInspectionBookedEmail(params: {
     ? `We're writing to let you know that your previously scheduled <strong>${inspectionTypeLabelLower} inspection</strong> at <strong>{{ PropertyAddress }}</strong> has been moved. The new appointment details are below — please update your calendar and let us know if the new date or time doesn't work for you.`
     : `We're writing to confirm that a <strong>${inspectionTypeLabelLower} inspection</strong> has been booked for your property at <strong>{{ PropertyAddress }}</strong>.`
 
-  // Format date as "Friday, 24 May 2026" UK style
+  // Format date as "Saturday, 11 April 2026" — manually so we don't depend on
+  // Node ICU data being available on the deployment runtime (Railway's stripped
+  // build outputs different shapes for toLocaleDateString depending on the
+  // locale data that ships with the image).
+  const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
   let scheduledDateFormatted = params.scheduledDate
   try {
-    const d = new Date(params.scheduledDate + 'T00:00:00')
+    const d = new Date(params.scheduledDate + 'T00:00:00Z')
     if (!isNaN(d.getTime())) {
-      scheduledDateFormatted = d.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
+      scheduledDateFormatted = `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
     }
   } catch {}
 
-  // Format time as "10:30 AM" UK 12-hour
-  let scheduledTimeFormatted = params.scheduledTime
+  // Format time as "2:30 PM" — manually, no toLocaleTimeString. The Node
+  // runtime on Railway was rendering midnight as "0:00 pm" instead of
+  // "12:00 PM" because of incomplete ICU data, so we just do the conversion
+  // ourselves and don't trust the platform.
+  //
+  // Accepts: "14:30", "14:30:00", "14:30 PM", "9:00 am" — anything where
+  // splitting on ":" gives at least an hour and a minute.
+  let scheduledTimeFormatted = params.scheduledTime || ''
   try {
-    const [hStr, mStr] = (params.scheduledTime || '').split(':')
-    const h = parseInt(hStr, 10)
-    const m = parseInt(mStr, 10)
-    if (!isNaN(h) && !isNaN(m)) {
-      const date = new Date()
-      date.setHours(h, m, 0, 0)
-      scheduledTimeFormatted = date.toLocaleTimeString('en-GB', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      })
+    const raw = (params.scheduledTime || '').trim()
+    if (raw) {
+      // Strip any AM/PM suffix the caller might have already added
+      const cleaned = raw.replace(/\s*(am|pm|AM|PM)\s*$/i, '').trim()
+      const parts = cleaned.split(':')
+      const h = parseInt(parts[0], 10)
+      const m = parseInt(parts[1] || '0', 10)
+      if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        // 24h → 12h
+        let displayHour: number
+        let suffix: string
+        if (h === 0) {
+          displayHour = 12
+          suffix = 'AM'
+        } else if (h < 12) {
+          displayHour = h
+          suffix = 'AM'
+        } else if (h === 12) {
+          displayHour = 12
+          suffix = 'PM'
+        } else {
+          displayHour = h - 12
+          suffix = 'PM'
+        }
+        scheduledTimeFormatted = `${displayHour}:${m.toString().padStart(2, '0')} ${suffix}`
+      }
     }
   } catch {}
 
@@ -1297,6 +1319,13 @@ export async function sendTenantInspectionBookedEmail(params: {
   // existing variable substitution does the right thing
   const firstParagraphResolved = emailFirstParagraph.replace(/\{\{ PropertyAddress \}\}/g, params.propertyAddress)
 
+  // Reschedule callout: if the company has an email on file, point the
+  // tenant at it directly; otherwise fall back to "contact your agent" so
+  // we never tell them to reply to this email (replies go to noreply).
+  const rescheduleContactHtml = companyEmail
+    ? `If this date or time doesn't work for you, please email <a href="mailto:${companyEmail}" style="color: #f97316; text-decoration: underline;">${companyEmail}</a> as soon as possible so we can find an alternative.`
+    : `If this date or time doesn't work for you, please contact ${companyName || 'your agent'} as soon as possible so we can find an alternative.`
+
   const html = loadEmailTemplate('tenant-inspection-booked', {
     TenantName: params.tenantName || 'Tenant',
     EmailHeadline: emailHeadline,
@@ -1309,6 +1338,7 @@ export async function sendTenantInspectionBookedEmail(params: {
     ScheduledTimeFormatted: scheduledTimeFormatted,
     AssessorRowHtml: assessorRowHtml,
     WhatToExpectHtml: whatToExpectHtml,
+    RescheduleContactHtml: rescheduleContactHtml,
     CompanyName: companyName || 'PropertyGoose',
     AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
   })

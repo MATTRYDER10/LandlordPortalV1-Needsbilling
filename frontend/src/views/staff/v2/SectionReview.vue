@@ -441,12 +441,23 @@
                     <p class="font-medium text-gray-900 dark:text-white">{{ section.credit_check.requestData?.dateOfBirth || 'N/A' }}</p>
                   </div>
                   <div class="col-span-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <span class="text-amber-600 dark:text-amber-400 text-xs font-semibold">Address (as sent to Creditsafe)</span>
-                    <p class="font-mono font-medium text-gray-900 dark:text-white mt-0.5">{{ section.credit_check.requestData?.address || 'N/A' }}</p>
+                    <label class="text-amber-600 dark:text-amber-400 text-xs font-semibold block mb-1">Address (sent to Creditsafe — editable)</label>
+                    <input
+                      v-model="creditRerunAddress"
+                      type="text"
+                      placeholder="e.g. 380 Hotwell Road"
+                      class="w-full font-mono font-medium text-gray-900 dark:text-white bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded px-2 py-1 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                    />
+                    <p class="text-[10px] text-amber-700 dark:text-amber-500 mt-1">Edit to match the proof of address before re-running</p>
                   </div>
                   <div class="p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <span class="text-amber-600 dark:text-amber-400 text-xs font-semibold">Postcode (as sent)</span>
-                    <p class="font-mono font-medium text-gray-900 dark:text-white mt-0.5">{{ section.credit_check.requestData?.postcode || 'N/A' }}</p>
+                    <label class="text-amber-600 dark:text-amber-400 text-xs font-semibold block mb-1">Postcode (editable)</label>
+                    <input
+                      v-model="creditRerunPostcode"
+                      type="text"
+                      placeholder="e.g. BS8 4NT"
+                      class="w-full font-mono font-medium text-gray-900 dark:text-white bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded px-2 py-1 focus:ring-2 focus:ring-amber-400 focus:outline-none uppercase"
+                    />
                   </div>
                 </div>
               </div>
@@ -481,7 +492,7 @@
                   <RefreshCcw v-else class="w-4 h-4 animate-spin" />
                   {{ creditRerunLoading ? 'Running...' : 'Re-Run Creditsafe Check' }}
                 </button>
-                <p class="text-xs text-gray-400">Uses the same name/address/DOB shown above. Page will refresh with new results.</p>
+                <p class="text-xs text-gray-400">Uses the name/DOB on file with the address &amp; postcode entered above. Page will refresh with new results.</p>
               </div>
 
               <!-- Raw Response Data (collapsible) -->
@@ -592,7 +603,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import UKTimeClock from './components/UKTimeClock.vue'
@@ -626,6 +637,12 @@ const viewingImage = ref<string | null>(null)
 const collectedInputValues = ref<Record<string, any>>({})
 const showCreditRerun = ref(false)
 const showRawCreditData = ref(false)
+// Editable address + postcode for the Creditsafe re-run panel. Seeded from
+// the existing requestData when the section loads so the staff user can
+// compare against the proof of address and tweak before re-running. Sent
+// to /rerun-credit-check as { address, postcode } overrides.
+const creditRerunAddress = ref('')
+const creditRerunPostcode = ref('')
 const creditRerunLoading = ref(false)
 
 const sectionId = computed(() => route.params.sectionId as string)
@@ -1377,7 +1394,21 @@ const checklistSteps = computed(() => {
   }
 })
 
+// Seed the editable address/postcode whenever a section is loaded with
+// existing Creditsafe request data. This way the staff user sees what was
+// previously sent and can edit it from there.
+watch(() => section.value?.credit_check?.requestData, (req) => {
+  if (req) {
+    creditRerunAddress.value = req.address || ''
+    creditRerunPostcode.value = req.postcode || ''
+  }
+}, { immediate: true })
+
 async function rerunCreditCheck() {
+  if (!creditRerunAddress.value.trim() || !creditRerunPostcode.value.trim()) {
+    alert('Address and postcode are required to re-run the credit check.')
+    return
+  }
   creditRerunLoading.value = true
   try {
     const response = await fetch(`${API_URL}/api/v2/sections/${sectionId.value}/rerun-credit-check`, {
@@ -1386,7 +1417,10 @@ async function rerunCreditCheck() {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        address: creditRerunAddress.value.trim(),
+        postcode: creditRerunPostcode.value.trim().toUpperCase(),
+      })
     })
 
     if (response.ok) {
