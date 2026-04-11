@@ -1199,10 +1199,15 @@ export async function sendVerificationReportToAgent(
 /**
  * Send a tenant inspection-booked confirmation email.
  *
- * Used by the IG appointment creation flow to notify tenants when a
- * mid-term or check-out inspection has been scheduled. We DON'T send
+ * Used by the IG appointment flow to notify tenants when a mid-term or
+ * check-out inspection has been scheduled OR rescheduled. We DON'T send
  * for "inventory" (check-in) inspections — those are handled at move-in
  * via a different communication path.
+ *
+ * Pass isReschedule=true when re-notifying for a date/time change. The
+ * subject line, headline and intro paragraph adapt accordingly; the rest
+ * of the email (appointment card, what-to-expect, prep checklist) is
+ * identical so the tenant has all the same information in one place.
  */
 export async function sendTenantInspectionBookedEmail(params: {
   tenantEmail: string
@@ -1213,6 +1218,7 @@ export async function sendTenantInspectionBookedEmail(params: {
   scheduledTime: string // 'HH:mm' or 'HH:mm:ss'
   assessorName?: string | null
   companyId: string
+  isReschedule?: boolean
 }): Promise<void> {
   const { supabase } = await import('../config/supabase')
   const { decrypt } = await import('./encryption')
@@ -1230,6 +1236,18 @@ export async function sendTenantInspectionBookedEmail(params: {
 
   const inspectionTypeLabel = params.inspectionType === 'mid_term' ? 'Mid-Term' : 'Check-Out'
   const inspectionTypeLabelLower = params.inspectionType === 'mid_term' ? 'mid-term' : 'check-out'
+  const isReschedule = !!params.isReschedule
+
+  // Headline + intro line + first paragraph differ for reschedules
+  const emailHeadline = isReschedule
+    ? `${inspectionTypeLabel} Inspection Rescheduled`
+    : `${inspectionTypeLabel} Inspection Booked`
+  const emailIntroLine = isReschedule
+    ? `Your ${inspectionTypeLabelLower} inspection has been rescheduled to a new date and time.`
+    : `Your ${inspectionTypeLabelLower} inspection has been scheduled.`
+  const emailFirstParagraph = isReschedule
+    ? `We're writing to let you know that your previously scheduled <strong>${inspectionTypeLabelLower} inspection</strong> at <strong>{{ PropertyAddress }}</strong> has been moved. The new appointment details are below — please update your calendar and let us know if the new date or time doesn't work for you.`
+    : `We're writing to confirm that a <strong>${inspectionTypeLabelLower} inspection</strong> has been booked for your property at <strong>{{ PropertyAddress }}</strong>.`
 
   // Format date as "Friday, 24 May 2026" UK style
   let scheduledDateFormatted = params.scheduledDate
@@ -1275,8 +1293,15 @@ export async function sendTenantInspectionBookedEmail(params: {
        </tr>`
     : ''
 
+  // Pre-render PropertyAddress into the first paragraph so the template's
+  // existing variable substitution does the right thing
+  const firstParagraphResolved = emailFirstParagraph.replace(/\{\{ PropertyAddress \}\}/g, params.propertyAddress)
+
   const html = loadEmailTemplate('tenant-inspection-booked', {
     TenantName: params.tenantName || 'Tenant',
+    EmailHeadline: emailHeadline,
+    EmailIntroLine: emailIntroLine,
+    EmailFirstParagraphHtml: firstParagraphResolved,
     InspectionTypeLabel: inspectionTypeLabel,
     InspectionTypeLabelLower: inspectionTypeLabelLower,
     PropertyAddress: params.propertyAddress,
@@ -1288,9 +1313,13 @@ export async function sendTenantInspectionBookedEmail(params: {
     AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
   })
 
+  const subject = isReschedule
+    ? `${inspectionTypeLabel} Inspection Rescheduled — ${params.propertyAddress}`
+    : `${inspectionTypeLabel} Inspection Booked — ${params.propertyAddress}`
+
   await sendEmail({
     to: params.tenantEmail,
-    subject: `${inspectionTypeLabel} Inspection Booked — ${params.propertyAddress}`,
+    subject,
     html,
     contactDetails: {
       companyName: companyName || undefined,

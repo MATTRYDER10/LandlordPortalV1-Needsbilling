@@ -130,6 +130,12 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     console.log(`[IG Webhook] Event: ${event}, Status: ${status}, Appointment: ${appointmentId}`)
 
+    // Capture pre-update scheduling so we can detect a reschedule and
+    // notify the tenant. Strings compared directly because the DB stores
+    // YYYY-MM-DD and HH:mm.
+    const previousScheduledDate: string | null = appointment.scheduled_date || null
+    const previousScheduledTime: string | null = appointment.scheduled_time || null
+
     // Build update object
     const updates: any = {
       updated_at: new Date().toISOString()
@@ -211,6 +217,97 @@ router.post('/webhook', async (req: Request, res: Response) => {
           metadata: { appointmentId, event, status },
           is_system_action: true
         })
+    }
+
+    // Tenant re-notification on reschedule.
+    // Trigger when:
+    //   - The webhook delivered a new scheduledAt
+    //   - The new date or time differs from what we had stored
+    //   - The appointment type is mid_term or checkout (skip inventory)
+    //   - The appointment isn't being cancelled in the same payload
+    const newScheduledDate: string | null = updates.scheduled_date || null
+    const newScheduledTime: string | null = updates.scheduled_time || null
+    const dateChanged = !!newScheduledDate && newScheduledDate !== previousScheduledDate
+    const timeChanged = !!newScheduledTime && newScheduledTime !== previousScheduledTime
+    const isReschedule = (dateChanged || timeChanged) && status !== 'cancelled'
+    const isNotifiableType = appointment.type === 'mid_term' || appointment.type === 'checkout'
+
+    if (isReschedule && isNotifiableType) {
+      const tenancyIdForNotify: string | null = appointment.tenancy_id || null
+      const propertyIdForNotify: string | null = appointment.property_id || null
+      const companyIdForNotify: string = appointment.company_id
+      // Capture the new schedule + assessor in scope where TS narrowing is fine
+      const finalScheduledDate = newScheduledDate as string
+      const finalScheduledTime = (newScheduledTime as string) || previousScheduledTime || ''
+      const finalAssessorName: string | null = updates.assessor_name || appointment.assessor_name || null
+      const finalType: 'mid_term' | 'checkout' = appointment.type
+
+      ;(async () => {
+        try {
+          if (!tenancyIdForNotify) {
+            console.warn(`[IG Webhook] Reschedule notification skipped — no tenancy_id on appointment ${appointment.id}`)
+            return
+          }
+
+          // Resolve property address
+          let propertyAddress = ''
+          if (propertyIdForNotify) {
+            const { data: prop } = await supabase
+              .from('properties')
+              .select('address_line1_encrypted, address_line2_encrypted, city_encrypted, postcode')
+              .eq('id', propertyIdForNotify)
+              .maybeSingle()
+            if (prop) {
+              const line1 = prop.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+              const line2 = prop.address_line2_encrypted ? (decrypt(prop.address_line2_encrypted) || '') : ''
+              const city = prop.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+              const pc = prop.postcode || ''
+              propertyAddress = [line1, line2, city, pc].filter(Boolean).join(', ')
+            }
+          }
+
+          // Resolve active tenants for this tenancy
+          const { data: tenantRows } = await supabase
+            .from('tenancy_tenants')
+            .select('tenant_name_encrypted, tenant_email_encrypted, status')
+            .eq('tenancy_id', tenancyIdForNotify)
+            .eq('status', 'active')
+
+          const tenants = (tenantRows || [])
+            .map((t: any) => ({
+              name: t.tenant_name_encrypted ? (decrypt(t.tenant_name_encrypted) || '') : '',
+              email: t.tenant_email_encrypted ? (decrypt(t.tenant_email_encrypted) || '') : '',
+            }))
+            .filter((t: any) => t.email)
+
+          if (tenants.length === 0) {
+            console.warn(`[IG Webhook] No tenant emails on file for tenancy ${tenancyIdForNotify} — skipping reschedule notification`)
+            return
+          }
+
+          const { sendTenantInspectionBookedEmail } = await import('../services/emailService')
+          for (const tenant of tenants) {
+            try {
+              await sendTenantInspectionBookedEmail({
+                tenantEmail: tenant.email,
+                tenantName: tenant.name || 'Tenant',
+                inspectionType: finalType,
+                propertyAddress: propertyAddress || 'your property',
+                scheduledDate: finalScheduledDate,
+                scheduledTime: finalScheduledTime,
+                assessorName: finalAssessorName,
+                companyId: companyIdForNotify,
+                isReschedule: true,
+              })
+              console.log(`[IG Webhook] Reschedule email sent to ${tenant.email} (tenancy ${tenancyIdForNotify}, type ${finalType}, ${previousScheduledDate} ${previousScheduledTime} → ${finalScheduledDate} ${finalScheduledTime})`)
+            } catch (emailErr: any) {
+              console.error(`[IG Webhook] Failed to send reschedule email to ${tenant.email}:`, emailErr?.message || emailErr)
+            }
+          }
+        } catch (err: any) {
+          console.error('[IG Webhook] Reschedule notification flow failed:', err?.message || err)
+        }
+      })()
     }
 
     res.json({ received: true })
