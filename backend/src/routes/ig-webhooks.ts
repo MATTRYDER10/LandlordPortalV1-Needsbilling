@@ -280,6 +280,72 @@ router.post('/report-complete', async (req: Request, res: Response) => {
  * Authenticates by the IG-issued API key and returns all properties for that company.
  * Used by IG to pull its full property list from PG in one request (manual sync).
  */
+/**
+ * GET /api/integrations/ig/test-connection
+ * Health-check endpoint for InventoryGoose to verify the PG side is
+ * reachable and the supplied API key authenticates against an active
+ * company integration. Returns the company name + a confirmation timestamp
+ * on success. Does not touch any other tables, so it's cheap and reliable.
+ *
+ * IG should call this from its "Test Connection" button instead of trying
+ * /properties (which works but pulls a lot of data) or /webhook (which
+ * requires an HMAC signature and a real appointment).
+ */
+router.get('/test-connection', async (req: Request, res: Response) => {
+  const clientIp = getClientIp(req)
+
+  if (isIgAuthLockedOut(clientIp)) {
+    console.warn(`[IG TestConnection] Auth lockout ip=${clientIp}`)
+    return res.status(429).json({ error: 'Too many failed authentication attempts. Try again later.' })
+  }
+
+  try {
+    const rawKey = req.headers['x-pg-api-key']
+    const apiKey = typeof rawKey === 'string' ? rawKey.trim() : ''
+    if (!apiKey) {
+      recordIgAuthFailure(clientIp)
+      return res.status(401).json({ ok: false, error: 'Missing x-pg-api-key header' })
+    }
+
+    const hash = hashIGApiKey(apiKey)
+    const companyId = await findCompanyIdByIgApiKeyHash(hash)
+    if (!companyId) {
+      recordIgAuthFailure(clientIp)
+      console.warn(`[IG TestConnection] Auth failed ip=${clientIp}`)
+      return res.status(401).json({ ok: false, error: 'Invalid API key' })
+    }
+
+    clearIgAuthFailures(clientIp)
+
+    // Look up the company name so IG can display it back to the agent on
+    // a successful connection ("Connected to PropertyGoose Lettings").
+    let companyName = ''
+    try {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name_encrypted')
+        .eq('id', companyId)
+        .maybeSingle()
+      if (company?.name_encrypted) {
+        companyName = decrypt(company.name_encrypted) || ''
+      }
+    } catch (err) {
+      console.warn('[IG TestConnection] Company name lookup failed (non-fatal):', err)
+    }
+
+    console.log(`[IG TestConnection] Success company=${companyId} ip=${clientIp}`)
+    return res.json({
+      ok: true,
+      company_id: companyId,
+      company_name: companyName,
+      verified_at: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    console.error('[IG TestConnection] Unexpected error:', error)
+    return res.status(500).json({ ok: false, error: error?.message || 'Internal server error' })
+  }
+})
+
 router.get('/properties', async (req: Request, res: Response) => {
   const clientIp = getClientIp(req)
 
