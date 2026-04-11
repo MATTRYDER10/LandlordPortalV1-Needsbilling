@@ -294,7 +294,30 @@ app.use('/api/error-logs', errorLogsRoutes)
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logError(err, req)
   if (!res.headersSent) {
-    res.status(err.status || 500).json({ error: 'Internal server error' })
+    const status = err.status || err.statusCode || 500
+
+    // For client-side errors (400-499) — body parse failures, validation
+    // errors, missing fields etc. — surface the real message so the caller
+    // can debug. The previous "Internal server error" string was misleading
+    // (e.g. a malformed JSON body returned 400 + "Internal server error",
+    // confusing IG when it tried to parse the response).
+    let message: string
+    if (status >= 400 && status < 500) {
+      if (err.type === 'entity.parse.failed') {
+        message = 'Invalid JSON in request body'
+      } else if (err.type === 'entity.too.large') {
+        message = 'Request body too large'
+      } else if (typeof err.message === 'string' && err.message.length < 500) {
+        message = err.message
+      } else {
+        message = 'Bad request'
+      }
+    } else {
+      // 5xx — keep the message generic so we don't leak internals
+      message = 'Internal server error'
+    }
+
+    res.status(status).json({ error: message })
   }
 })
 
