@@ -10,29 +10,43 @@ import { decrypt } from '../services/encryption'
 
 const router = Router()
 
-// ── Rate limiter for the IG properties pull endpoint ────────────────────────
-// Keyed by client IP. IG is expected to call this on manual syncs only; a
-// legitimate caller will stay well under this limit. The cap exists to
-// blunt brute-force attempts against x-pg-api-key.
-const igPropertiesRateMap = new Map<string, { count: number; resetAt: number }>()
-const IG_PROPERTIES_RATE_MAX = 30
-const IG_PROPERTIES_RATE_WINDOW_MS = 60_000
+// ── Failed-auth throttle for the IG properties pull endpoint ───────────────
+// We don't rate-limit successful authenticated requests at all — IG can pull
+// as fast as it likes if the API key is valid. We DO throttle FAILED auth
+// attempts per IP so that anyone trying to brute-force the x-pg-api-key
+// header gets locked out cheaply after a small handful of failures. This is
+// the standard pattern for authenticated APIs: punish failure, not success.
+const igFailedAuthMap = new Map<string, { count: number; resetAt: number }>()
+const IG_FAILED_AUTH_MAX = 10 // failed attempts per window before lockout
+const IG_FAILED_AUTH_WINDOW_MS = 5 * 60_000 // 5-minute rolling window
 
-function isIgPropertiesRateLimited(ip: string): boolean {
+function isIgAuthLockedOut(ip: string): boolean {
   const now = Date.now()
-  const entry = igPropertiesRateMap.get(ip)
+  const entry = igFailedAuthMap.get(ip)
+  if (!entry || now > entry.resetAt) return false
+  return entry.count > IG_FAILED_AUTH_MAX
+}
+
+function recordIgAuthFailure(ip: string): void {
+  const now = Date.now()
+  const entry = igFailedAuthMap.get(ip)
   if (!entry || now > entry.resetAt) {
-    igPropertiesRateMap.set(ip, { count: 1, resetAt: now + IG_PROPERTIES_RATE_WINDOW_MS })
-    return false
+    igFailedAuthMap.set(ip, { count: 1, resetAt: now + IG_FAILED_AUTH_WINDOW_MS })
+    return
   }
   entry.count++
-  return entry.count > IG_PROPERTIES_RATE_MAX
+}
+
+function clearIgAuthFailures(ip: string): void {
+  // A successful auth wipes any prior failure count for this IP — fixes the
+  // "agent typo'd their key, fixed it, now they're locked out" footgun.
+  igFailedAuthMap.delete(ip)
 }
 
 setInterval(() => {
   const now = Date.now()
-  for (const [ip, entry] of igPropertiesRateMap) {
-    if (now > entry.resetAt) igPropertiesRateMap.delete(ip)
+  for (const [ip, entry] of igFailedAuthMap) {
+    if (now > entry.resetAt) igFailedAuthMap.delete(ip)
   }
 }, 60_000)
 
@@ -269,25 +283,33 @@ router.post('/report-complete', async (req: Request, res: Response) => {
 router.get('/properties', async (req: Request, res: Response) => {
   const clientIp = getClientIp(req)
 
-  // Rate limit BEFORE any DB work so brute-force attempts are cheap to reject
-  if (isIgPropertiesRateLimited(clientIp)) {
-    console.warn(`[IG Properties] Rate limited ip=${clientIp}`)
-    return res.status(429).json({ error: 'Too many requests' })
+  // Lockout check BEFORE any DB work — if this IP has been hammering bad
+  // keys we reject it cheaply with no auth lookup. Successful pulls have
+  // no rate limit at all.
+  if (isIgAuthLockedOut(clientIp)) {
+    console.warn(`[IG Properties] Auth lockout ip=${clientIp}`)
+    return res.status(429).json({ error: 'Too many failed authentication attempts. Try again later.' })
   }
 
   try {
     const rawKey = req.headers['x-pg-api-key']
     const apiKey = typeof rawKey === 'string' ? rawKey.trim() : ''
     if (!apiKey) {
+      recordIgAuthFailure(clientIp)
       return res.status(401).json({ error: 'Missing x-pg-api-key header' })
     }
 
     const hash = hashIGApiKey(apiKey)
     const companyId = await findCompanyIdByIgApiKeyHash(hash)
     if (!companyId) {
+      recordIgAuthFailure(clientIp)
       console.warn(`[IG Properties] Auth failed ip=${clientIp}`)
       return res.status(401).json({ error: 'Invalid API key' })
     }
+
+    // Successful auth — clear any prior failure count for this IP so a
+    // brief mistype doesn't lock the legitimate caller out for 5 minutes.
+    clearIgAuthFailures(clientIp)
 
     const { data: properties, error } = await supabase
       .from('properties')
