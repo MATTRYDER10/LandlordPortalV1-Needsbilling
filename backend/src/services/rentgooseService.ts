@@ -315,13 +315,50 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
 
   if (!ep || !ep.payout_split) return false
 
-  // 2. Extract rent portion from payout_split
+  // 2. Extract rent portion from payout_split. The rent split is normally
+  // recorded NET of any holding deposit credit (e.g. £850 rent − £196
+  // holding deposit = £654 landlord_rent split). We need to add the
+  // holding deposit credit back so the schedule entry's amount_received
+  // reflects the FULL month 1 rent — the holding deposit was already
+  // credited to the client account when it was received and counts toward
+  // covering the rent.
   const splits = (ep.payout_split as any[]) || []
   const rentSplits = splits.filter((s: any) => s.type === 'landlord_rent' || s.type === 'landlord_prorata')
-  const rentPortion = rentSplits.reduce((sum: number, s: any) => sum + parseFloat(s.amount || 0), 0)
+  let rentPortion = rentSplits.reduce((sum: number, s: any) => sum + parseFloat(s.amount || 0), 0)
   if (rentPortion <= 0) return false
 
-  // 3. Find earliest unpaid month 1 rent_schedule_entry
+  // 3. Look up any holding deposit that was applied as a credit toward the
+  // initial monies for this tenancy. Two paths to find it:
+  //   a) tenant_offers.holding_deposit_amount_paid linked via the tenancy's
+  //      primary_reference_id (V1 and V2 references both flow through this)
+  //   b) a separate expected_payments row of type 'holding_deposit'
+  //      linked to this tenancy directly, or to the offer
+  let holdingDepositCredit = 0
+  try {
+    const { data: tenancy } = await supabase
+      .from('tenancies')
+      .select('primary_reference_id')
+      .eq('id', tenancyId)
+      .maybeSingle()
+
+    if (tenancy?.primary_reference_id) {
+      const { data: offer } = await supabase
+        .from('tenant_offers')
+        .select('id, holding_deposit_amount_paid')
+        .eq('reference_id', tenancy.primary_reference_id)
+        .maybeSingle()
+
+      if (offer?.holding_deposit_amount_paid) {
+        holdingDepositCredit = parseFloat(offer.holding_deposit_amount_paid as any) || 0
+      }
+    }
+  } catch (err) {
+    console.warn('[RentGoose] autoReceiptMonth1: holding deposit lookup failed (non-fatal):', err)
+  }
+
+  rentPortion += holdingDepositCredit
+
+  // 4. Find earliest unpaid month 1 rent_schedule_entry
   const { data: entry } = await supabase
     .from('rent_schedule_entries')
     .select('id, amount_due, amount_received, status')
@@ -334,7 +371,7 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
 
   if (!entry) return false
 
-  // 4. Mark the entry as paid
+  // 5. Mark the entry as paid (capped at amount_due so we never over-credit)
   const amountDue = parseFloat(entry.amount_due)
   const receiptAmount = Math.min(rentPortion, amountDue)
 
@@ -351,7 +388,7 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
     return false
   }
 
-  // 5. Create rent_payments record (no client_account_entry — money already posted)
+  // 6. Create rent_payments record (no client_account_entry — money already posted)
   await supabase
     .from('rent_payments')
     .insert({
@@ -360,10 +397,10 @@ export async function autoReceiptMonth1FromInitialMonies(tenancyId: string, comp
       amount: receiptAmount,
       payment_method: 'initial_monies',
       date_received: new Date().toISOString().split('T')[0],
-      reference: `Auto-receipted from initial monies (EP: ${ep.id.slice(0, 8)})`,
+      reference: `Auto-receipted from initial monies (EP: ${ep.id.slice(0, 8)})${holdingDepositCredit > 0 ? ` + £${holdingDepositCredit} holding deposit credit` : ''}`,
     })
 
-  console.log(`[RentGoose] Auto-receipted month 1 for tenancy ${tenancyId}: £${receiptAmount}`)
+  console.log(`[RentGoose] Auto-receipted month 1 for tenancy ${tenancyId}: £${receiptAmount} (rent split £${rentPortion - holdingDepositCredit} + holding deposit £${holdingDepositCredit})`)
   return true
 }
 
@@ -2018,6 +2055,182 @@ export async function getAgentFees(companyId: string, fromDate?: string, toDate?
     fees: allFees,
     summary: { total_paid, total_due, grand_total: total_paid + total_due },
   }
+}
+
+// ============================================================================
+// DEPOSITS LIST
+// ============================================================================
+
+/**
+ * Returns every collected security deposit for a company with its current
+ * location and the action (if any) the agent needs to take. This is what
+ * powers the "Deposits" tab on the PayoutsBoard so the agent can see all
+ * deposits in one place — landlord-held ones bundled silently with rent
+ * payouts, scheme-held ones registered with TDS / DPS / mydeposits, and
+ * deposits still sitting in the client account waiting to be sorted.
+ */
+export async function getDepositsList(companyId: string): Promise<Array<{
+  id: string
+  tenancy_id: string
+  property_id: string | null
+  property_address: string
+  property_postcode: string
+  tenant_name: string
+  amount: number
+  deposit_scheme: string | null
+  scheme_label: string
+  status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+  status_label: string
+  registration_ref: string | null
+  registered_at: string | null
+  paid_to_landlord_at: string | null
+  expected_payment_id: string | null
+  received_at: string
+  next_action: 'pay_landlord' | 'register_scheme' | 'none'
+}>> {
+  // Pull every deposit_in client_account_entry for this company. Each one
+  // represents a deposit being collected (initial monies receipt time).
+  const { data: entries, error } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, description, related_id, related_type, created_at')
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  if (!entries || entries.length === 0) return []
+
+  // related_id on a deposit_in row points to an expected_payment (the
+  // initial monies row that contained the deposit_hold split). Bucket the
+  // related_ids so we can fetch tenancies / properties / schemes in batches.
+  const epIds = [...new Set(entries.map(e => e.related_id).filter(Boolean) as string[])]
+  const epMap = new Map<string, any>()
+  if (epIds.length > 0) {
+    const { data: eps } = await supabase
+      .from('expected_payments')
+      .select('id, tenancy_id, property_id, deposit_payout_at')
+      .in('id', epIds)
+    for (const ep of (eps || [])) epMap.set(ep.id, ep)
+  }
+
+  const tenancyIds = [...new Set(Array.from(epMap.values()).map(ep => ep.tenancy_id).filter(Boolean) as string[])]
+  const tenancyMap = new Map<string, any>()
+  if (tenancyIds.length > 0) {
+    const { data: tens } = await supabase
+      .from('tenancies')
+      .select('id, property_id, deposit_scheme, deposit_protected_at, deposit_protection_id')
+      .in('id', tenancyIds)
+    for (const t of (tens || [])) tenancyMap.set(t.id, t)
+  }
+
+  const propertyIds = [...new Set(
+    Array.from(tenancyMap.values()).map(t => t.property_id).filter(Boolean) as string[]
+  )]
+  const propertyMap = new Map<string, any>()
+  if (propertyIds.length > 0) {
+    const { data: props } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, postcode')
+      .in('id', propertyIds)
+    for (const p of (props || [])) propertyMap.set(p.id, p)
+  }
+
+  // Lead tenant per tenancy
+  const tenantNameByTenancy = new Map<string, string>()
+  if (tenancyIds.length > 0) {
+    const { data: tenants } = await supabase
+      .from('tenancy_tenants')
+      .select('tenancy_id, tenant_name_encrypted, is_lead_tenant, tenant_order, status')
+      .in('tenancy_id', tenancyIds)
+      .eq('is_active', true)
+    const byTenancy = new Map<string, any[]>()
+    for (const t of (tenants || [])) {
+      const arr = byTenancy.get(t.tenancy_id) || []
+      arr.push(t)
+      byTenancy.set(t.tenancy_id, arr)
+    }
+    for (const [tid, list] of byTenancy.entries()) {
+      const lead = list.find((t: any) => t.is_lead_tenant) || list.sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))[0]
+      if (lead?.tenant_name_encrypted) {
+        tenantNameByTenancy.set(tid, decrypt(lead.tenant_name_encrypted) || 'Tenant')
+      }
+    }
+  }
+
+  const schemeLabels: Record<string, string> = {
+    landlord_held: 'Landlord Held',
+    tds: 'TDS',
+    tds_custodial: 'TDS Custodial',
+    tds_insured: 'TDS Insured',
+    dps_custodial: 'DPS Custodial',
+    dps_insured: 'DPS Insured',
+    mydeposits: 'mydeposits',
+    mydeposits_custodial: 'mydeposits Custodial',
+    mydeposits_insured: 'mydeposits Insured',
+    reposit: 'Reposit',
+    no_deposit: 'No Deposit',
+  }
+
+  return entries.map((e: any) => {
+    const ep = e.related_id ? epMap.get(e.related_id) : null
+    const tenancy = ep?.tenancy_id ? tenancyMap.get(ep.tenancy_id) : null
+    const property = tenancy?.property_id ? propertyMap.get(tenancy.property_id) : null
+
+    let propertyAddress = ''
+    let propertyPostcode = ''
+    try {
+      propertyAddress = property?.address_line1_encrypted ? (decrypt(property.address_line1_encrypted) || '') : ''
+      propertyPostcode = property?.postcode || ''
+    } catch {}
+
+    const scheme = (tenancy?.deposit_scheme || '') as string
+    const schemeLabel = schemeLabels[scheme] || scheme || 'Not set'
+    const isLandlordHeld = scheme === 'landlord_held'
+    const isProtected = !!tenancy?.deposit_protected_at
+    const paidOut = !!ep?.deposit_payout_at
+
+    let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+    let statusLabel: string
+    let nextAction: 'pay_landlord' | 'register_scheme' | 'none' = 'none'
+
+    if (isLandlordHeld) {
+      if (paidOut) {
+        status = 'paid_to_landlord'
+        statusLabel = 'Paid to landlord'
+      } else {
+        status = 'in_client_account'
+        statusLabel = 'In client account — awaiting payout to landlord'
+        nextAction = 'pay_landlord'
+      }
+    } else if (isProtected) {
+      status = 'registered'
+      statusLabel = `Registered with ${schemeLabel}`
+    } else {
+      status = 'awaiting_registration'
+      statusLabel = `Awaiting registration with ${schemeLabel}`
+      nextAction = 'register_scheme'
+    }
+
+    return {
+      id: e.id,
+      tenancy_id: ep?.tenancy_id || '',
+      property_id: tenancy?.property_id || null,
+      property_address: propertyAddress,
+      property_postcode: propertyPostcode,
+      tenant_name: tenantNameByTenancy.get(ep?.tenancy_id || '') || 'Tenant',
+      amount: parseFloat(e.amount),
+      deposit_scheme: scheme || null,
+      scheme_label: schemeLabel,
+      status,
+      status_label: statusLabel,
+      registration_ref: tenancy?.deposit_protection_id || null,
+      registered_at: tenancy?.deposit_protected_at || null,
+      paid_to_landlord_at: ep?.deposit_payout_at || null,
+      expected_payment_id: ep?.id || null,
+      received_at: e.created_at,
+      next_action: nextAction,
+    }
+  })
 }
 
 // ============================================================================

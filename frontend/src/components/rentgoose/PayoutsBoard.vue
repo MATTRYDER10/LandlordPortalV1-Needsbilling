@@ -365,6 +365,57 @@
       </div>
     </div>
 
+    <!-- DEPOSITS -->
+    <div v-else-if="payoutTab === 'deposits'">
+      <div v-if="depositsLoading" class="flex justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+      <div v-else-if="deposits.length === 0" class="flex flex-col items-center justify-center py-16">
+        <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" /></svg>
+        <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No deposits yet</p>
+        <p class="text-[13px] text-gray-500 dark:text-slate-400 max-w-[320px] text-center mt-1">Security deposits collected through initial monies will appear here with their scheme registration status.</p>
+      </div>
+
+      <div
+        v-for="(dep, idx) in deposits"
+        :key="dep.id"
+        :class="['border-b last:border-b-0 transition-colors', isDark ? 'border-slate-700' : 'border-gray-100', idx % 2 === 1 ? (isDark ? 'bg-slate-800/50' : 'bg-[#fff8f3]') : (isDark ? 'bg-slate-900' : 'bg-white')]"
+      >
+        <div class="px-5 py-4 flex items-center justify-between">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-primary text-base truncate">{{ dep.tenant_name }}</span>
+              <span
+                :class="[
+                  'px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full',
+                  dep.status === 'paid_to_landlord' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                  dep.status === 'registered' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                  dep.status === 'in_client_account' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                ]"
+              >
+                {{ dep.scheme_label }}
+              </span>
+            </div>
+            <p :class="['text-sm mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+              {{ dep.property_address }}, {{ dep.property_postcode }}
+            </p>
+            <p :class="['text-xs mt-1', dep.status === 'awaiting_registration' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400']">
+              {{ dep.status_label }}
+              <span v-if="dep.registered_at"> &middot; {{ formatDate(dep.registered_at) }}</span>
+              <span v-else-if="dep.received_at"> &middot; received {{ formatDate(dep.received_at) }}</span>
+            </p>
+          </div>
+          <div class="text-right flex items-center gap-4">
+            <div>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
+              <p class="text-[22px] font-bold text-blue-600 dark:text-blue-400">&pound;{{ formatMoney(dep.amount) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     </div><!-- close list container -->
 
     <!-- Mark Paid Modal -->
@@ -514,6 +565,22 @@ async function fetchHeldRents() {
   }
 }
 
+// Deposits — every collected security deposit with its scheme + status
+const deposits = ref<any[]>([])
+const depositsLoading = ref(false)
+
+async function fetchDeposits() {
+  depositsLoading.value = true
+  try {
+    const data = await get<any>('/api/rentgoose/deposits')
+    deposits.value = data.deposits || []
+  } catch (err) {
+    console.error('Failed to fetch deposits:', err)
+  } finally {
+    depositsLoading.value = false
+  }
+}
+
 async function holdPayout(payout: PayoutItem) {
   holdingId.value = payout.id
   try {
@@ -559,6 +626,7 @@ const payoutTabs = computed(() => [
   { id: 'contractor', name: 'Contractor Payouts', count: contractorPayouts.value.length },
   { id: 'agent', name: 'Agent Payouts', count: pendingAgentCharges.value.length },
   { id: 'held', name: 'Held Rents', count: heldRents.value.length },
+  { id: 'deposits', name: 'Deposits', count: deposits.value.length },
 ])
 
 function onPaid() {
@@ -614,5 +682,6 @@ onMounted(async () => {
   await fetchHeldRents()
   await fetchPendingAgentCharges()
   await fetchAgentPayoutHistory()
+  await fetchDeposits()
 })
 </script>
