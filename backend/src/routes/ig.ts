@@ -289,6 +289,51 @@ router.post('/appointments', authenticateToken, async (req: AuthRequest, res) =>
         is_system_action: false
       })
 
+    // Fire-and-forget tenant notification email — only for mid_term and
+    // checkout inspections. Inventory (check-in) inspections happen at
+    // move-in and are communicated via the move-in pack flow, so we skip
+    // them here. Failures don't affect the API response — the appointment
+    // is already created in IG and stored in PG.
+    if (type === 'mid_term' || type === 'checkout') {
+      const fullAddress = [
+        propertyData.addressLine1,
+        propertyData.addressLine2,
+        propertyData.city,
+        propertyData.postcode,
+      ].filter(Boolean).join(', ')
+
+      const tenantsToNotify = (propertyData.tenants || []).filter((t: any) => t.email)
+      // Capture assessor name in a scope where TS still has the
+      // result.data narrowing — it gets lost inside the async IIFE
+      const assessorName: string | null = result.data.assessor?.name || null
+      const inspectionType: 'mid_term' | 'checkout' = type
+
+      if (tenantsToNotify.length === 0) {
+        console.warn(`[IG] No tenant emails on file for tenancy ${tenancyId} — skipping inspection-booked notification`)
+      } else {
+        ;(async () => {
+          for (const tenant of tenantsToNotify) {
+            try {
+              const { sendTenantInspectionBookedEmail } = await import('../services/emailService')
+              await sendTenantInspectionBookedEmail({
+                tenantEmail: tenant.email,
+                tenantName: tenant.name || 'Tenant',
+                inspectionType,
+                propertyAddress: fullAddress,
+                scheduledDate,
+                scheduledTime,
+                assessorName,
+                companyId,
+              })
+              console.log(`[IG] Inspection-booked email sent to ${tenant.email} (tenancy ${tenancyId}, type ${inspectionType})`)
+            } catch (emailErr: any) {
+              console.error(`[IG] Failed to send inspection-booked email to ${tenant.email}:`, emailErr?.message || emailErr)
+            }
+          }
+        })()
+      }
+    }
+
     res.status(201).json(result.data)
   } catch (error) {
     console.error('[IG] Error creating appointment:', error)
