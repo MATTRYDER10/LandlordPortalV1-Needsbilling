@@ -547,10 +547,10 @@ router.get('/properties', async (req: Request, res: Response) => {
               last_name_encrypted,
               email_encrypted,
               phone_encrypted,
-              address_line1_encrypted,
-              address_line2_encrypted,
-              city_encrypted,
-              postcode_encrypted
+              residential_address_line1_encrypted,
+              residential_address_line2_encrypted,
+              residential_city_encrypted,
+              residential_postcode_encrypted
             `)
             .in('id', batch)
           if (llErr) {
@@ -576,10 +576,10 @@ router.get('/properties', async (req: Request, res: Response) => {
           email: ll.email_encrypted ? (decrypt(ll.email_encrypted) || '') : '',
           phone: ll.phone_encrypted ? (decrypt(ll.phone_encrypted) || '') : '',
           address: {
-            line1: ll.address_line1_encrypted ? (decrypt(ll.address_line1_encrypted) || '') : '',
-            line2: ll.address_line2_encrypted ? (decrypt(ll.address_line2_encrypted) || '') : '',
-            city: ll.city_encrypted ? (decrypt(ll.city_encrypted) || '') : '',
-            postcode: ll.postcode_encrypted ? (decrypt(ll.postcode_encrypted) || '') : '',
+            line1: ll.residential_address_line1_encrypted ? (decrypt(ll.residential_address_line1_encrypted) || '') : '',
+            line2: ll.residential_address_line2_encrypted ? (decrypt(ll.residential_address_line2_encrypted) || '') : '',
+            city: ll.residential_city_encrypted ? (decrypt(ll.residential_city_encrypted) || '') : '',
+            postcode: ll.residential_postcode_encrypted ? (decrypt(ll.residential_postcode_encrypted) || '') : '',
           },
           ownership_percentage: link.ownership_percentage || 100,
           is_primary_contact: !!link.is_primary_contact,

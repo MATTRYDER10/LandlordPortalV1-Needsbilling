@@ -191,8 +191,9 @@
               data-lpignore="true"
               data-1p-ignore
               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              placeholder="e.g. EW12345"
+              placeholder="Your TDS Member ID"
             />
+            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Member ID and Branch ID are the same value</p>
           </div>
           <div>
             <label for="custodial-branch-id" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Branch ID</label>
@@ -206,9 +207,9 @@
               data-lpignore="true"
               data-1p-ignore
               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              placeholder="0"
+              placeholder="Same as Member ID"
             />
-            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Enter 0 for single-branch members</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Same as your Member ID</p>
           </div>
         </div>
 
