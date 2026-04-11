@@ -558,11 +558,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
 /**
  * GET /api/v2/references/calendar
- * Upcoming move-in dates drawn from V2 references for the dashboard calendar.
- * One entry per reference (groups collapse to a single row using the
- * is_group_parent flag). Guarantors are excluded. Any reference with a
- * move_in_date in the next 12 months is returned, regardless of status,
- * so the calendar reflects the true pipeline — not just converted tenancies.
+ * Upcoming move-in dates drawn from BOTH V1 and V2 references for the
+ * dashboard calendar. One entry per reference (groups collapse to a single
+ * row). Guarantors are excluded. Any reference with a move_in_date in the
+ * next 12 months is returned, regardless of status, so the calendar
+ * reflects the true pipeline — not just converted tenancies.
+ *
+ * Each entry is tagged with referenceVersion ('v1' | 'v2') so the frontend
+ * can route clicks to the correct page (/references vs /references-v2).
  */
 router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -576,13 +579,69 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     const endDateStr = endDate.toISOString().split('T')[0]
     const startDateStr = now.toISOString().split('T')[0]
 
-    // Pull all references for the company with a move_in_date in range.
-    // - Exclude guarantors (they're linked to a parent and shouldn't show
-    //   separately)
-    // - Exclude group children (is_group_parent = false AND parent_reference_id
-    //   set) so a 4-person group shows as 1 row, not 4
-    // - Include any status — the calendar is a pipeline view
-    const { data: refs, error } = await supabase
+    // Helper to take a flat list of references and collapse group children
+    // into their parent — same logic for V1 and V2 since both use the same
+    // parent_reference_id / is_group_parent shape.
+    const collapseGroups = (rows: any[]) => {
+      const parentById = new Map<string, any>()
+      const childrenByParent = new Map<string, any[]>()
+      for (const r of rows) {
+        if (r.parent_reference_id && !r.is_group_parent) {
+          const arr = childrenByParent.get(r.parent_reference_id) || []
+          arr.push(r)
+          childrenByParent.set(r.parent_reference_id, arr)
+        } else {
+          parentById.set(r.id, r)
+        }
+      }
+      return { parentById, childrenByParent }
+    }
+
+    // Helper to convert a reference row + its group children into a calendar
+    // entry. Works for both V1 and V2 — the column shapes are nearly
+    // identical (V1 uses tenant_references, V2 uses tenant_references_v2).
+    const buildEntry = (ref: any, groupMembers: any[], version: 'v1' | 'v2') => {
+      const allTenants = [ref, ...groupMembers]
+      const tenants = allTenants.map((t: any) => {
+        const first = t.tenant_first_name_encrypted ? (decrypt(t.tenant_first_name_encrypted) || '') : ''
+        const last = t.tenant_last_name_encrypted ? (decrypt(t.tenant_last_name_encrypted) || '') : ''
+        const name = `${first} ${last}`.trim() || 'Tenant'
+        return { id: t.id, name }
+      })
+
+      let propertyAddress = ''
+      let propertyCity = ''
+      let propertyPostcode = ''
+      try {
+        propertyAddress = ref.property_address_encrypted ? (decrypt(ref.property_address_encrypted) || '') : ''
+        propertyCity = ref.property_city_encrypted ? (decrypt(ref.property_city_encrypted) || '') : ''
+        propertyPostcode = ref.property_postcode_encrypted ? (decrypt(ref.property_postcode_encrypted) || '') : ''
+      } catch (e) {}
+
+      return {
+        referenceId: ref.id,
+        referenceVersion: version,
+        referenceNumber: ref.reference_number || null,
+        tenancyId: ref.converted_to_tenancy_id || null,
+        moveInDate: ref.move_in_date,
+        property: {
+          address: propertyAddress,
+          city: propertyCity,
+          postcode: propertyPostcode,
+        },
+        rentAmount: ref.monthly_rent || null,
+        tenants,
+        groupSize: tenants.length,
+        status: ref.status,
+        allActionsComplete: true,
+        type: 'move_in' as const,
+      }
+    }
+
+    // ========================================================================
+    // V2 references
+    // ========================================================================
+    const { data: v2Refs, error: v2Err } = await supabase
       .from('tenant_references_v2')
       .select(`
         id,
@@ -609,31 +668,17 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       .lte('move_in_date', endDateStr)
       .order('move_in_date', { ascending: true })
 
-    if (error) {
-      console.error('[V2 References] Calendar query error:', error)
-      return res.status(500).json({ error: 'Failed to fetch calendar data' })
+    if (v2Err) {
+      console.error('[References] V2 calendar query error:', v2Err)
+      return res.status(500).json({ error: 'Failed to fetch V2 calendar data' })
     }
 
-    // Collapse group children into their parent. A group child has
-    // parent_reference_id set AND is_group_parent = false.
-    const all = refs || []
-    const parentById = new Map<string, any>()
-    const childrenByParent = new Map<string, any[]>()
-    for (const r of all) {
-      if (r.parent_reference_id && !r.is_group_parent) {
-        const arr = childrenByParent.get(r.parent_reference_id) || []
-        arr.push(r)
-        childrenByParent.set(r.parent_reference_id, arr)
-      } else {
-        parentById.set(r.id, r)
-      }
-    }
-    // If a child exists whose parent is outside the date window, still show
-    // the parent row using the child's data we have — but only if the parent
-    // isn't in our list. Rare edge case.
-    for (const [parentId, children] of childrenByParent.entries()) {
-      if (!parentById.has(parentId) && children.length > 0) {
-        // Fetch the parent explicitly so the group shows once
+    const v2 = collapseGroups(v2Refs || [])
+
+    // Backfill V2 parents that fall outside the date window but have
+    // children inside it (rare).
+    for (const [parentId, children] of v2.childrenByParent.entries()) {
+      if (!v2.parentById.has(parentId) && children.length > 0) {
         const { data: parent } = await supabase
           .from('tenant_references_v2')
           .select(`
@@ -647,63 +692,81 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           .eq('company_id', companyId)
           .maybeSingle()
         if (parent && parent.move_in_date && parent.move_in_date >= startDateStr && parent.move_in_date <= endDateStr) {
-          parentById.set(parent.id, parent)
+          v2.parentById.set(parent.id, parent)
         }
       }
     }
 
-    // Enrich each parent row with the full group members list (name-only)
-    // so the calendar card can show e.g. "Mark Ryder + 2 others".
-    const entries = Array.from(parentById.values()).map((ref: any) => {
-      const groupMembers = childrenByParent.get(ref.id) || []
-      const allTenants = [ref, ...groupMembers]
+    const v2Entries = Array.from(v2.parentById.values()).map((ref: any) =>
+      buildEntry(ref, v2.childrenByParent.get(ref.id) || [], 'v2')
+    )
 
-      // Decrypt names and build the tenants array
-      const tenants = allTenants.map((t: any) => {
-        const first = t.tenant_first_name_encrypted ? (decrypt(t.tenant_first_name_encrypted) || '') : ''
-        const last = t.tenant_last_name_encrypted ? (decrypt(t.tenant_last_name_encrypted) || '') : ''
-        const name = `${first} ${last}`.trim() || 'Tenant'
-        return { id: t.id, name }
-      })
+    // ========================================================================
+    // V1 references — same shape, different table
+    // ========================================================================
+    // V1 tenant_references doesn't have a reference_number or
+    // converted_to_tenancy_id column, so we select null for those.
+    const { data: v1Refs, error: v1Err } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        status,
+        is_guarantor,
+        is_group_parent,
+        parent_reference_id,
+        move_in_date,
+        monthly_rent,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
+        linked_property_id,
+        converted_to_tenancy_id
+      `)
+      .eq('company_id', companyId)
+      .eq('is_guarantor', false)
+      .not('move_in_date', 'is', null)
+      .gte('move_in_date', startDateStr)
+      .lte('move_in_date', endDateStr)
+      .order('move_in_date', { ascending: true })
 
-      // Decrypt property address fields
-      let propertyAddress = ''
-      let propertyCity = ''
-      let propertyPostcode = ''
-      try {
-        propertyAddress = ref.property_address_encrypted ? (decrypt(ref.property_address_encrypted) || '') : ''
-        propertyCity = ref.property_city_encrypted ? (decrypt(ref.property_city_encrypted) || '') : ''
-        propertyPostcode = ref.property_postcode_encrypted ? (decrypt(ref.property_postcode_encrypted) || '') : ''
-      } catch (e) {}
+    if (v1Err) {
+      // V1 failure is non-fatal — log and continue with V2 results so the
+      // calendar still renders if the V1 schema diverges.
+      console.error('[References] V1 calendar query error (non-fatal):', v1Err.message)
+    }
 
-      return {
-        // referenceId is the navigation target — the drawer or detail view
-        // for this reference on the /references-v2 page
-        referenceId: ref.id,
-        referenceNumber: ref.reference_number || null,
-        // keep tenancyId present for backward compatibility with the
-        // existing frontend interface, but it's the converted tenancy id
-        // (nullable) — not the calendar's primary key any more
-        tenancyId: ref.converted_to_tenancy_id || null,
-        moveInDate: ref.move_in_date,
-        property: {
-          address: propertyAddress,
-          city: propertyCity,
-          postcode: propertyPostcode,
-        },
-        // For groups the rent_amount is the full rent on the parent record
-        rentAmount: ref.monthly_rent || null,
-        tenants,
-        groupSize: tenants.length,
-        status: ref.status,
-        // Legacy field — always true for references (pipeline view, not
-        // pre-move-in action list)
-        allActionsComplete: true,
-        type: 'move_in' as const,
+    const v1 = collapseGroups(v1Refs || [])
+
+    for (const [parentId, children] of v1.childrenByParent.entries()) {
+      if (!v1.parentById.has(parentId) && children.length > 0) {
+        const { data: parent } = await supabase
+          .from('tenant_references')
+          .select(`
+            id, status, is_guarantor, is_group_parent, parent_reference_id,
+            move_in_date, monthly_rent,
+            tenant_first_name_encrypted, tenant_last_name_encrypted,
+            property_address_encrypted, property_city_encrypted, property_postcode_encrypted,
+            linked_property_id, converted_to_tenancy_id
+          `)
+          .eq('id', parentId)
+          .eq('company_id', companyId)
+          .maybeSingle()
+        if (parent && parent.move_in_date && parent.move_in_date >= startDateStr && parent.move_in_date <= endDateStr) {
+          v1.parentById.set(parent.id, parent)
+        }
       }
-    })
+    }
 
-    // Sort by move_in_date ascending (redundant but safe after grouping)
+    const v1Entries = Array.from(v1.parentById.values()).map((ref: any) =>
+      buildEntry(ref, v1.childrenByParent.get(ref.id) || [], 'v1')
+    )
+
+    // ========================================================================
+    // Merge + sort
+    // ========================================================================
+    const entries = [...v2Entries, ...v1Entries]
     entries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
 
     res.json({
@@ -712,7 +775,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       entries,
     })
   } catch (error: any) {
-    console.error('[V2 References] Error in calendar endpoint:', error)
+    console.error('[References] Error in calendar endpoint:', error)
     res.status(500).json({ error: error.message || 'Calendar error' })
   }
 })

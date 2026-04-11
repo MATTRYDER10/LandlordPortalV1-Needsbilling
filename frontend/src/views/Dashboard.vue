@@ -379,9 +379,9 @@
                   <div v-if="monthData.entries.filter(e => e.type !== 'move_out').length > 0" class="mt-3 space-y-1.5">
                     <div
                       v-for="entry in monthData.entries.filter(e => e.type !== 'move_out')"
-                      :key="entry.referenceId || entry.tenancyId"
+                      :key="`${entry.referenceVersion || 'x'}-${entry.referenceId || entry.tenancyId}`"
                       class="flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      @click="navigateToReference(entry.referenceId || entry.tenancyId)"
+                      @click="navigateToReference(entry)"
                     >
                       <div
                         class="w-7 h-7 rounded bg-slate-900 dark:bg-slate-700 text-white flex flex-col items-center justify-center flex-shrink-0"
@@ -439,10 +439,12 @@ import {
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface CalendarEntry {
-  // V2 reference id — the calendar is now driven by references, not
+  // Reference id — the calendar is now driven by V1 + V2 references, not
   // tenancies. tenancyId is kept for backwards compat with move-out entries
   // which still come from the tenancies table.
   referenceId?: string | null
+  // 'v1' | 'v2' — controls which page the click-through navigates to
+  referenceVersion?: 'v1' | 'v2'
   referenceNumber?: string | null
   tenancyId?: string | null
   moveInDate: string
@@ -775,11 +777,18 @@ const navigateToTenancy = (tenancyId: string) => {
   router.push(`/tenancies?tenancy=${tenancyId}`)
 }
 
-// Navigate to a V2 reference from the move-in calendar. ReferencesV2.vue
-// reads ?ref=<id> on mount and opens that reference in the drawer.
-const navigateToReference = (referenceId: string | null | undefined) => {
-  if (!referenceId) return
-  router.push(`/references-v2?ref=${referenceId}`)
+// Navigate to a reference from the move-in calendar. V2 references go to
+// /references-v2?ref=<id> (the page reads it and auto-opens the drawer);
+// V1 references go to /references?person=<id> (the V1 page already
+// supports that query param). Falls back to V2 if version is unset.
+const navigateToReference = (entry: CalendarEntry) => {
+  const id = entry.referenceId
+  if (!id) return
+  if (entry.referenceVersion === 'v1') {
+    router.push(`/references?person=${id}`)
+  } else {
+    router.push(`/references-v2?ref=${id}`)
+  }
 }
 
 const navigateToDeposits = () => {
