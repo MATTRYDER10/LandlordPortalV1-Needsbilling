@@ -486,41 +486,83 @@ router.get('/properties', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to load properties' })
     }
 
-    // Batch-fetch landlords for every property in one round trip via the
-    // property_landlords junction table. Then decrypt landlord PII and group
-    // by property so we can attach landlords[] to each property in the
-    // response. IG uses this to keep landlord contact details in sync with
-    // PG without needing a separate /landlords pull.
+    // Batch-fetch landlords for every property via the property_landlords
+    // junction table, then decrypt landlord PII and group by property so we
+    // can attach landlords[] to each property in the response. IG uses this
+    // to keep landlord contact details in sync with PG without needing a
+    // separate /landlords pull.
+    //
+    // IMPORTANT: Supabase REST translates `.in('col', [a, b, c])` into a
+    // querystring like `?col=in.(a,b,c)`. With 400+ UUIDs that exceeds the
+    // server's URL length limit and the request silently returns no data
+    // (no error, just an empty result set). The previous implementation
+    // hit this exact bug for RG Property Bristol (423 properties) — every
+    // property came back with `landlords: []` even though the underlying
+    // data was fine.
+    //
+    // Fix: chunk both `.in()` queries into batches of 100. Defensive cap
+    // chosen to keep URL length comfortably under 8KB even with extra
+    // PostgREST overhead.
+    const IN_CHUNK_SIZE = 100
+
+    async function fetchInChunks<T>(
+      chunkSource: string[],
+      fn: (batch: string[]) => Promise<T[]>
+    ): Promise<T[]> {
+      const out: T[] = []
+      for (let i = 0; i < chunkSource.length; i += IN_CHUNK_SIZE) {
+        const batch = chunkSource.slice(i, i + IN_CHUNK_SIZE)
+        const rows = await fn(batch)
+        if (rows && rows.length > 0) out.push(...rows)
+      }
+      return out
+    }
+
     const propertyIds = (properties || []).map((p: any) => p.id)
     const landlordsByProperty = new Map<string, any[]>()
 
     if (propertyIds.length > 0) {
-      const { data: links } = await supabase
-        .from('property_landlords')
-        .select('property_id, landlord_id, ownership_percentage, is_primary_contact')
-        .in('property_id', propertyIds)
+      const links = await fetchInChunks(propertyIds, async (batch) => {
+        const { data, error: linkErr } = await supabase
+          .from('property_landlords')
+          .select('property_id, landlord_id, ownership_percentage, is_primary_contact')
+          .in('property_id', batch)
+        if (linkErr) {
+          console.error('[IG Properties] property_landlords batch query error:', linkErr)
+          return []
+        }
+        return (data || []) as any[]
+      })
 
-      const landlordIds = [...new Set((links || []).map((l: any) => l.landlord_id))]
+      const landlordIds = [...new Set(links.map((l: any) => l.landlord_id))]
       const landlordById = new Map<string, any>()
+
       if (landlordIds.length > 0) {
-        const { data: landlords } = await supabase
-          .from('landlords')
-          .select(`
-            id,
-            first_name_encrypted,
-            last_name_encrypted,
-            email_encrypted,
-            phone_encrypted,
-            address_line1_encrypted,
-            address_line2_encrypted,
-            city_encrypted,
-            postcode_encrypted
-          `)
-          .in('id', landlordIds)
-        for (const l of (landlords || [])) landlordById.set(l.id, l)
+        const landlords = await fetchInChunks(landlordIds, async (batch) => {
+          const { data, error: llErr } = await supabase
+            .from('landlords')
+            .select(`
+              id,
+              first_name_encrypted,
+              last_name_encrypted,
+              email_encrypted,
+              phone_encrypted,
+              address_line1_encrypted,
+              address_line2_encrypted,
+              city_encrypted,
+              postcode_encrypted
+            `)
+            .in('id', batch)
+          if (llErr) {
+            console.error('[IG Properties] landlords batch query error:', llErr)
+            return []
+          }
+          return (data || []) as any[]
+        })
+        for (const l of landlords) landlordById.set(l.id, l)
       }
 
-      for (const link of (links || [])) {
+      for (const link of links) {
         const ll = landlordById.get(link.landlord_id)
         if (!ll) continue
         const arr = landlordsByProperty.get(link.property_id) || []
@@ -544,6 +586,8 @@ router.get('/properties', async (req: Request, res: Response) => {
         })
         landlordsByProperty.set(link.property_id, arr)
       }
+
+      console.log(`[IG Properties] Joined ${links.length} property_landlords link(s) → ${landlordsByProperty.size} property/landlord groups`)
     }
 
     const payload = (properties || []).map((p: any) => ({
