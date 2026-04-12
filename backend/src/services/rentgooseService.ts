@@ -3338,12 +3338,15 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
   if (fetchErr || !entries || entries.length === 0) return
 
   for (const entry of entries) {
-    const period = new Date(entry.period_start)
-    const newDueDate = new Date(period.getFullYear(), period.getMonth(), newDueDay)
-    // If due day is before period start, push to next month
-    if (newDueDate < period) {
-      newDueDate.setMonth(newDueDate.getMonth() + 1)
-    }
+    const oldStart = new Date(entry.period_start)
+    // New period_start = the new due day in the same month as the old period
+    const newPeriodStart = new Date(oldStart.getFullYear(), oldStart.getMonth(), newDueDay)
+    // New period_end = day before the NEXT month's due day
+    const nextPeriodStart = new Date(newPeriodStart.getFullYear(), newPeriodStart.getMonth() + 1, newDueDay)
+    const newPeriodEnd = new Date(nextPeriodStart)
+    newPeriodEnd.setDate(newPeriodEnd.getDate() - 1)
+
+    const newDueDate = new Date(newPeriodStart)
 
     const todayDate = new Date()
     todayDate.setHours(0, 0, 0, 0)
@@ -3357,6 +3360,8 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
     await supabase
       .from('rent_schedule_entries')
       .update({
+        period_start: newPeriodStart.toISOString().split('T')[0],
+        period_end: newPeriodEnd.toISOString().split('T')[0],
         due_date: newDueDate.toISOString().split('T')[0],
         status: newStatus,
         updated_at: new Date().toISOString()
@@ -3364,7 +3369,7 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
       .eq('id', entry.id)
   }
 
-  console.log(`[RentGoose] Updated due dates for ${entries.length} future entries to day ${newDueDay} for tenancy ${tenancyId}`)
+  console.log(`[RentGoose] Updated periods and due dates for ${entries.length} future entries to day ${newDueDay} for tenancy ${tenancyId}`)
 }
 
 // ============================================================================

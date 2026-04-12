@@ -732,6 +732,16 @@ export async function updateTenancy(
     }
   }
 
+  // Propagate rent due day changes to future RentGoose schedule entries
+  if (input.rentDueDay !== undefined) {
+    try {
+      const { updateFutureRentDueDates } = await import('./rentgooseService')
+      await updateFutureRentDueDates(tenancyId, input.rentDueDay)
+    } catch (err) {
+      console.error('[TenancyService] Failed to propagate rent due day change to schedule:', err)
+    }
+  }
+
   return formatTenancy(data)
 }
 
