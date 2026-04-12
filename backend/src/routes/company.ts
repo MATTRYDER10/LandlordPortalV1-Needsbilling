@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
 import crypto from 'crypto'
@@ -780,6 +780,62 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
     res.json({ message: 'Member removed successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// OFFER LINK — universal offer form link per company
+// ============================================================================
+
+router.get('/offer-link', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const { data: company } = await supabase
+      .from('companies')
+      .select('offer_link_token')
+      .eq('id', companyId)
+      .single()
+
+    const token = company?.offer_link_token
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://app.propertygoose.co.uk'
+      : 'http://localhost:5173'
+
+    res.json({
+      token,
+      url: token ? `${frontendUrl}/make-offer/${token}` : null,
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/offer-link/regenerate', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const crypto = await import('crypto')
+    const newToken = crypto.randomUUID()
+    const { error: updateErr } = await supabase
+      .from('companies')
+      .update({ offer_link_token: newToken })
+      .eq('id', companyId)
+
+    if (updateErr) throw updateErr
+
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://app.propertygoose.co.uk'
+      : 'http://localhost:5173'
+
+    res.json({
+      token: newToken,
+      url: `${frontendUrl}/make-offer/${newToken}`,
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
   }
 })
 

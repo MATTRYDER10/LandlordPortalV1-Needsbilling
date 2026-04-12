@@ -20,6 +20,14 @@
               <RefreshCcw :class="{ 'animate-spin': loading }" class="w-4 h-4" />
             </button>
             <button
+              @click="copyOfferLink"
+              class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+              title="Copy universal offer link to clipboard"
+            >
+              <Link2 class="w-4 h-4" />
+              {{ offerLinkCopied ? 'Copied!' : 'Copy Offer Link' }}
+            </button>
+            <button
               @click="showSendModal = true"
               class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-orange-500 text-white rounded-lg hover:shadow-lg transition-all"
             >
@@ -1623,6 +1631,7 @@ import EmailInput from '@/components/EmailInput.vue'
 import {
   Search,
   Send,
+  Link2,
   RefreshCcw,
   FileText,
   ChevronRight,
@@ -1680,6 +1689,30 @@ const leadTenantSignature = computed(() => {
   return tenants.find((t: any) => t.signature) || tenants[0] || null
 })
 const processingAction = ref(false)
+
+// Copy offer link
+const offerLinkCopied = ref(false)
+async function copyOfferLink() {
+  try {
+    const response = await fetch(`${API_URL}/api/company/offer-link`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      if (data.url) {
+        await navigator.clipboard.writeText(data.url)
+        offerLinkCopied.value = true
+        toast.success('Offer link copied to clipboard')
+        setTimeout(() => { offerLinkCopied.value = false }, 3000)
+      }
+    }
+  } catch (err) {
+    toast.error('Failed to copy offer link')
+  }
+}
 
 // Inline rent editing state
 const editingOfferRent = ref(false)

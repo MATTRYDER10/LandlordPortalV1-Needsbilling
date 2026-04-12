@@ -135,7 +135,7 @@
                 </td>
                 <td class="px-4 py-3">
                   <div v-if="item.property_address" class="font-semibold text-sm">
-                    {{ item.property_address }} <span :class="['font-normal', isDark ? 'text-slate-400' : 'text-gray-500']">&middot; {{ abbreviateNames(item.tenant_name || item.tenant_names) }}</span>
+                    {{ item.property_address }}
                   </div>
                   <div v-else class="font-semibold text-sm">{{ item.description }}</div>
                   <div v-if="item.property_address" :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">{{ formatPeriodDesc(item.description) }}</div>
