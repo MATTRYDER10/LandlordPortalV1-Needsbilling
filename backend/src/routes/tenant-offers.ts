@@ -559,6 +559,25 @@ router.post('/submit', async (req, res) => {
           }
         }
 
+        // Auto-match property if not already linked
+        let resolvedPropertyId = linked_property_id || null
+        if (!resolvedPropertyId && property_address && property_postcode) {
+            try {
+                const { matchOrCreateProperty } = await import('../services/propertyMatchingService')
+                const matchResult = await matchOrCreateProperty(companyId, {
+                    line1: property_address,
+                    city: property_city || '',
+                    postcode: property_postcode
+                }, { autoCreate: false })
+                if (matchResult.property_id) {
+                    resolvedPropertyId = matchResult.property_id
+                    console.log(`[Offer Submit] Auto-matched property ${resolvedPropertyId} for "${property_address}"`)
+                }
+            } catch (matchError: any) {
+                console.error('[Offer Submit] Property matching failed (non-critical):', matchError.message)
+            }
+        }
+
         // Create offer
         const { data: offer, error: offerError } = await supabase
             .from('tenant_offers')
@@ -578,7 +597,7 @@ router.post('/submit', async (req, res) => {
                 deposit_replacement_requested: depositReplacementRequested,
                 unihomes_offered: unihomesOfferedBool,
                 unihomes_interested: unihomesInterestedBool,
-                linked_property_id: linked_property_id || null,
+                linked_property_id: resolvedPropertyId,
                 is_v2: is_v2 === true,
                 negotiator_id: negotiatorId
             })
@@ -907,6 +926,40 @@ router.post('/submit', async (req, res) => {
             // Don't fail the request - email is non-critical
         }
 
+        // Push offer to Apex27 (non-blocking)
+        try {
+            const { pushOfferToApex27 } = await import('../services/apex27Service')
+            const apex27Result = await pushOfferToApex27(companyId, {
+                linked_property_id: resolvedPropertyId,
+                offered_rent_amount: parseFloat(offered_rent_amount),
+                proposed_move_in_date: proposed_move_in_date || undefined,
+                proposed_tenancy_length_months: proposed_tenancy_length_months ? parseInt(proposed_tenancy_length_months) : undefined,
+                deposit_amount: finalDepositAmount || undefined,
+                deposit_replacement_requested: depositReplacementRequested || false,
+                unihomes_interested: unihomesInterestedBool || false,
+                special_conditions: special_conditions || undefined,
+                tenants: tenants.map((t: any) => ({
+                    first_name: t.first_name || t.name?.split(' ')[0] || '',
+                    last_name: t.last_name || t.name?.split(' ').slice(1).join(' ') || '',
+                    email: t.email,
+                    phone: t.phone,
+                    address: t.address,
+                    annual_income: t.annual_income || undefined,
+                    job_title: t.job_title || undefined,
+                    is_student: t.is_student || false,
+                    has_guarantor: t.has_guarantor || false
+                }))
+            })
+            if (apex27Result.success && apex27Result.apex27OfferId) {
+                await supabase.from('tenant_offers').update({
+                    apex27_offer_id: apex27Result.apex27OfferId,
+                    apex27_listing_id: apex27Result.apex27ListingId
+                }).eq('id', offer.id)
+            }
+        } catch (apex27Error: any) {
+            console.error('[Apex27 Offer Push] Error (non-critical):', apex27Error.message)
+        }
+
         res.status(201).json({
             success: true,
             message: 'Offer submitted successfully',
@@ -1118,6 +1171,32 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             rent_share_percentage: tenant.rent_share_percentage
         }))
 
+        // Fetch negotiator details if present
+        let negotiator = null
+        if (offer.negotiator_id) {
+            const { data: neg } = await supabase
+                .from('negotiators')
+                .select('id, name, email')
+                .eq('id', offer.negotiator_id)
+                .single()
+            if (neg) {
+                negotiator = neg
+            }
+        }
+
+        // Fetch linked property details if present
+        let linkedProperty = null
+        if (offer.linked_property_id) {
+            const { data: prop } = await supabase
+                .from('properties')
+                .select('id, address_line1, city, postcode')
+                .eq('id', offer.linked_property_id)
+                .single()
+            if (prop) {
+                linkedProperty = prop
+            }
+        }
+
         const decrypted = {
             ...offer,
             property_address: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
@@ -1125,12 +1204,190 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             property_postcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
             special_conditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : '',
             declined_reason: offer.declined_reason_encrypted ? decrypt(offer.declined_reason_encrypted) : '',
-            tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order)
+            tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order),
+            linked_property: linkedProperty,
+            negotiator
         }
 
         res.json({ offer: decrypted })
     } catch (error: any) {
         console.error('Error fetching offer:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Link a property to an offer (manual matching)
+router.post('/:id/link-property', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { property_id } = req.body
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        if (!property_id) {
+            return res.status(400).json({ error: 'property_id is required' })
+        }
+
+        // Verify offer exists and belongs to company (with tenants for Apex27 push)
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select(`
+                id, status, linked_property_id, offered_rent_amount,
+                proposed_move_in_date, proposed_tenancy_length_months, deposit_amount,
+                deposit_replacement_requested, unihomes_interested,
+                special_conditions_encrypted,
+                tenant_offer_tenants (
+                    first_name_encrypted, last_name_encrypted,
+                    email_encrypted, phone_encrypted, address_encrypted,
+                    annual_income_encrypted, job_title_encrypted,
+                    no_ccj_bankruptcy_iva
+                )
+            `)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Verify property exists and belongs to same company
+        const { data: property, error: propError } = await supabase
+            .from('properties')
+            .select('id, address_line1, city, postcode')
+            .eq('id', property_id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (propError || !property) {
+            return res.status(404).json({ error: 'Property not found' })
+        }
+
+        // Update offer with linked property
+        const { error: updateError } = await supabase
+            .from('tenant_offers')
+            .update({ linked_property_id: property_id })
+            .eq('id', id)
+
+        if (updateError) throw updateError
+
+        // Push to Apex27 now that property is linked (non-blocking)
+        try {
+            const { pushOfferToApex27 } = await import('../services/apex27Service')
+            const offerTenants = (offer.tenant_offer_tenants || []).map((t: any) => ({
+                first_name: (t.first_name_encrypted ? decrypt(t.first_name_encrypted) : '') || '',
+                last_name: (t.last_name_encrypted ? decrypt(t.last_name_encrypted) : '') || '',
+                email: (t.email_encrypted ? decrypt(t.email_encrypted) : undefined) || undefined,
+                phone: (t.phone_encrypted ? decrypt(t.phone_encrypted) : undefined) || undefined,
+                address: (t.address_encrypted ? decrypt(t.address_encrypted) : undefined) || undefined,
+                annual_income: (t.annual_income_encrypted ? decrypt(t.annual_income_encrypted) : undefined) || undefined,
+                job_title: (t.job_title_encrypted ? decrypt(t.job_title_encrypted) : undefined) || undefined,
+                is_student: false,
+                has_guarantor: false
+            }))
+            const apex27Result = await pushOfferToApex27(companyId, {
+                linked_property_id: property_id,
+                offered_rent_amount: offer.offered_rent_amount,
+                proposed_move_in_date: offer.proposed_move_in_date || undefined,
+                proposed_tenancy_length_months: offer.proposed_tenancy_length_months || undefined,
+                deposit_amount: offer.deposit_amount || undefined,
+                deposit_replacement_requested: offer.deposit_replacement_requested || false,
+                unihomes_interested: offer.unihomes_interested || false,
+                special_conditions: (offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : undefined) || undefined,
+                tenants: offerTenants
+            })
+            if (apex27Result.success && apex27Result.apex27OfferId) {
+                await supabase.from('tenant_offers').update({
+                    apex27_offer_id: apex27Result.apex27OfferId,
+                    apex27_listing_id: apex27Result.apex27ListingId
+                }).eq('id', id)
+            }
+        } catch (apex27Error: any) {
+            console.error('[Apex27 Offer Push] Error on link-property (non-critical):', apex27Error.message)
+        }
+
+        res.json({
+            success: true,
+            linked_property: {
+                id: property.id,
+                address_line1: property.address_line1,
+                city: property.city,
+                postcode: property.postcode
+            }
+        })
+    } catch (error: any) {
+        console.error('Error linking property to offer:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Assign negotiator to an offer
+router.post('/:id/assign-negotiator', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { negotiator_id } = req.body
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        if (!negotiator_id) {
+            return res.status(400).json({ error: 'negotiator_id is required' })
+        }
+
+        // Verify offer exists and belongs to company
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select('id, status')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Verify negotiator exists and belongs to same company
+        const { data: negotiator, error: negError } = await supabase
+            .from('negotiators')
+            .select('id, name')
+            .eq('id', negotiator_id)
+            .eq('company_id', companyId)
+            .eq('is_active', true)
+            .single()
+
+        if (negError || !negotiator) {
+            return res.status(404).json({ error: 'Negotiator not found' })
+        }
+
+        // Update offer
+        const { error: updateError } = await supabase
+            .from('tenant_offers')
+            .update({ negotiator_id })
+            .eq('id', id)
+
+        if (updateError) throw updateError
+
+        res.json({
+            success: true,
+            negotiator: { id: negotiator.id, name: negotiator.name }
+        })
+    } catch (error: any) {
+        console.error('Error assigning negotiator to offer:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -1180,6 +1437,14 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
 
         if (offer.status !== 'pending' && offer.status !== 'accepted_with_changes') {
             return res.status(400).json({ error: 'Offer cannot be approved in its current status' })
+        }
+
+        if (!offer.linked_property_id) {
+            return res.status(400).json({ error: 'Offer must be linked to a property before it can be approved. Please match it to an existing property or create a new one.' })
+        }
+
+        if (!offer.negotiator_id) {
+            return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be approved.' })
         }
 
         // Build update object
@@ -1391,6 +1656,19 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             }
         }
 
+        // Update Apex27 offer status to accepted (non-blocking)
+        if (offer.apex27_offer_id && offer.apex27_listing_id) {
+            try {
+                const { getCompanyApex27Config, updateApex27OfferStatus } = await import('../services/apex27Service')
+                const config = await getCompanyApex27Config(companyId)
+                if (config) {
+                    await updateApex27OfferStatus(config.apiKey, offer.apex27_listing_id, offer.apex27_offer_id, 'accepted')
+                }
+            } catch (apex27Err: any) {
+                console.error('[Apex27] Failed to update offer to accepted (non-critical):', apex27Err.message)
+            }
+        }
+
         res.json({
             success: true,
             message: 'Offer approved and email sent to tenants',
@@ -1441,6 +1719,10 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
 
         if (offer.status !== 'pending' && offer.status !== 'accepted_with_changes') {
             return res.status(400).json({ error: 'Offer cannot be declined in its current status' })
+        }
+
+        if (!offer.negotiator_id) {
+            return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be declined.' })
         }
 
         // Update offer status
@@ -1511,6 +1793,19 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
                 await auditOfferRejected(offer.linked_property_id, companyId, userId, tenantName || 'Tenant', id, reason)
             } catch (auditError) {
                 console.error('Failed to log property audit:', auditError)
+            }
+        }
+
+        // Update Apex27 offer status to rejected (non-blocking)
+        if (offer.apex27_offer_id && offer.apex27_listing_id) {
+            try {
+                const { getCompanyApex27Config, updateApex27OfferStatus } = await import('../services/apex27Service')
+                const config = await getCompanyApex27Config(companyId)
+                if (config) {
+                    await updateApex27OfferStatus(config.apiKey, offer.apex27_listing_id, offer.apex27_offer_id, 'rejected')
+                }
+            } catch (apex27Err: any) {
+                console.error('[Apex27] Failed to update offer to rejected (non-critical):', apex27Err.message)
             }
         }
 

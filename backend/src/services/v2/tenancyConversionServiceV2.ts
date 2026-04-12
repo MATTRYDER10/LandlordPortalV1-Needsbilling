@@ -624,6 +624,7 @@ export async function convertV2ReferenceToTenancy(
           property_id: refData.propertyId,
           source_type: 'tenancy',
           source_id: tenancy.id,
+          file_path: doc.file_url,
           file_url: doc.file_url,
           file_name: doc.file_name,
           tag: doc.tag,

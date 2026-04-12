@@ -792,20 +792,12 @@ router.get('/offer-link', authenticateToken, async (req: AuthRequest, res) => {
     const companyId = await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('offer_link_token')
-      .eq('id', companyId)
-      .single()
-
-    const token = company?.offer_link_token
     const frontendUrl = process.env.NODE_ENV === 'production'
       ? 'https://app.propertygoose.co.uk'
       : 'http://localhost:5173'
 
     res.json({
-      token,
-      url: token ? `${frontendUrl}/make-offer/${token}` : null,
+      url: `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1`,
     })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -817,22 +809,12 @@ router.post('/offer-link/regenerate', authenticateToken, async (req: AuthRequest
     const companyId = await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
-    const crypto = await import('crypto')
-    const newToken = crypto.randomUUID()
-    const { error: updateErr } = await supabase
-      .from('companies')
-      .update({ offer_link_token: newToken })
-      .eq('id', companyId)
-
-    if (updateErr) throw updateErr
-
     const frontendUrl = process.env.NODE_ENV === 'production'
       ? 'https://app.propertygoose.co.uk'
       : 'http://localhost:5173'
 
     res.json({
-      token: newToken,
-      url: `${frontendUrl}/make-offer/${newToken}`,
+      url: `${frontendUrl}/tenant-offer?company_id=${companyId}&v2=1`,
     })
   } catch (err: any) {
     res.status(500).json({ error: err.message })

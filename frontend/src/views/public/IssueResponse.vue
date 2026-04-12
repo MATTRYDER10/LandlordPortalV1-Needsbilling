@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-800 flex items-center justify-center p-4">
     <div class="max-w-lg w-full">
       <!-- Loading -->
       <div v-if="loading" class="bg-white rounded-xl shadow-lg p-8 text-center">

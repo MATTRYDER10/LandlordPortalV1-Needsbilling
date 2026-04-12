@@ -14,10 +14,10 @@
       {{ apiError }}. Please type the address manually.
     </p>
     <div v-if="showDropdown && suggestions.length > 0"
-      class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+      class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto">
       <div v-for="(suggestion, index) in suggestions" :key="index" :class="[
-        'px-3 py-2 cursor-pointer text-sm text-gray-900',
-        highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-gray-100'
+        'px-3 py-2 cursor-pointer text-sm text-gray-900 dark:text-white',
+        highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-gray-100 dark:hover:bg-slate-700'
       ]" @mousedown.prevent="selectSuggestion(suggestion)" @mouseenter="highlightedIndex = index">
         {{ suggestion.description }}
       </div>

@@ -390,6 +390,7 @@
                   'px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full',
                   dep.status === 'paid_to_landlord' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                   dep.status === 'registered' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                  dep.status === 'with_scheme' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
                   dep.status === 'in_client_account' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
                   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                 ]"
@@ -398,10 +399,11 @@
               </span>
             </div>
             <p :class="['text-sm mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
-              {{ dep.property_address }}, {{ dep.property_postcode }}
+              {{ dep.property_address }}{{ dep.property_postcode ? ', ' + dep.property_postcode : '' }}
             </p>
             <p :class="['text-xs mt-1', dep.status === 'awaiting_registration' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400']">
               {{ dep.status_label }}
+              <span v-if="dep.registration_ref"> &middot; Ref: {{ dep.registration_ref }}</span>
               <span v-if="dep.registered_at"> &middot; {{ formatDate(dep.registered_at) }}</span>
               <span v-else-if="dep.received_at"> &middot; received {{ formatDate(dep.received_at) }}</span>
             </p>

@@ -496,6 +496,44 @@ export async function generateAndUploadGroupCertificate(parentReferenceId: strin
     })
     .eq('id', parentReferenceId)
 
+  // Push to property_documents for Apex27 doc push and tenancy documents tab
+  try {
+    const { data: parentRef } = await supabase
+      .from('tenant_references_v2')
+      .select('company_id, linked_property_id, reference_number')
+      .eq('id', parentReferenceId)
+      .single()
+
+    if (parentRef?.linked_property_id) {
+      const { data: existing } = await supabase
+        .from('property_documents')
+        .select('id')
+        .eq('source_type', 'reference')
+        .eq('source_id', parentReferenceId)
+        .eq('tag', 'reference')
+        .ilike('file_name', '%Group Assessment%')
+        .limit(1)
+
+      if (!existing || existing.length === 0) {
+        await supabase.from('property_documents').insert({
+          company_id: parentRef.company_id,
+          property_id: parentRef.linked_property_id,
+          file_name: `Group Assessment Certificate - ${parentRef.reference_number || parentReferenceId}.pdf`,
+          file_path: filePath,
+          file_type: 'application/pdf',
+          tag: 'reference',
+          source_type: 'reference',
+          source_id: parentReferenceId,
+          description: `Group assessment certificate for reference ${parentRef.reference_number || ''}`,
+          uploaded_by: null
+        })
+        console.log(`[V2 GroupCert] Pushed certificate to property_documents for property ${parentRef.linked_property_id}`)
+      }
+    }
+  } catch (docErr) {
+    console.error('[V2 GroupCert] Failed to push to property_documents (non-critical):', docErr)
+  }
+
   console.log(`[V2 GroupCert] Certificate uploaded: ${urlData.publicUrl}`)
   return urlData.publicUrl
 }

@@ -1,6 +1,6 @@
 <template>
   <Sidebar>
-    <div class="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+    <div class="p-4 sm:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       <div class="mb-8">
         <!-- Header -->
         <div class="flex justify-between items-center mb-4">
@@ -8,7 +8,7 @@
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Properties</h2>
             <p class="mt-2 text-gray-600 dark:text-slate-400">Manage all property details and compliance</p>
           </div>
-          <div class="flex gap-3">
+          <div class="flex flex-wrap gap-2 sm:gap-3">
             <router-link
               to="/settings/property-settings"
               class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
@@ -31,7 +31,7 @@
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4">
             <p class="text-sm text-gray-500 dark:text-slate-400">Total Properties</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.total }}</p>
@@ -100,7 +100,7 @@
         <!-- Bulk Actions Bar -->
         <div
           v-if="selectedProperties.size > 0"
-          class="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
+          class="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
         >
           <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
             {{ selectedProperties.size }} propert{{ selectedProperties.size === 1 ? 'y' : 'ies' }} selected

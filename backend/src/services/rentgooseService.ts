@@ -2103,7 +2103,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   amount: number
   deposit_scheme: string | null
   scheme_label: string
-  status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+  status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration' | 'with_scheme'
   status_label: string
   registration_ref: string | null
   registered_at: string | null
@@ -2159,25 +2159,18 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     for (const p of (props || [])) propertyMap.set(p.id, p)
   }
 
-  // Lead tenant per tenancy
-  const tenantNameByTenancy = new Map<string, string>()
+  // Tenants per tenancy (for display)
+  const byTenancyMap = new Map<string, any[]>()
   if (tenancyIds.length > 0) {
     const { data: tenants } = await supabase
       .from('tenancy_tenants')
       .select('tenancy_id, tenant_name_encrypted, is_lead_tenant, tenant_order, status')
       .in('tenancy_id', tenancyIds)
       .eq('is_active', true)
-    const byTenancy = new Map<string, any[]>()
     for (const t of (tenants || [])) {
-      const arr = byTenancy.get(t.tenancy_id) || []
+      const arr = byTenancyMap.get(t.tenancy_id) || []
       arr.push(t)
-      byTenancy.set(t.tenancy_id, arr)
-    }
-    for (const [tid, list] of byTenancy.entries()) {
-      const lead = list.find((t: any) => t.is_lead_tenant) || list.sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))[0]
-      if (lead?.tenant_name_encrypted) {
-        tenantNameByTenancy.set(tid, decrypt(lead.tenant_name_encrypted) || 'Tenant')
-      }
+      byTenancyMap.set(t.tenancy_id, arr)
     }
   }
 
@@ -2195,7 +2188,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     no_deposit: 'No Deposit',
   }
 
-  return entries.map((e: any) => {
+  const results = entries.map((e: any) => {
     const ep = e.related_id ? epMap.get(e.related_id) : null
     const tenancy = ep?.tenancy_id ? tenancyMap.get(ep.tenancy_id) : null
     const property = tenancy?.property_id ? propertyMap.get(tenancy.property_id) : null
@@ -2210,10 +2203,11 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     const scheme = (tenancy?.deposit_scheme || '') as string
     const schemeLabel = schemeLabels[scheme] || scheme || 'Not set'
     const isLandlordHeld = scheme === 'landlord_held'
+    const isCustodial = scheme.includes('custodial')
     const isProtected = !!tenancy?.deposit_protected_at
     const paidOut = !!ep?.deposit_payout_at
 
-    let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+    let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration' | 'with_scheme'
     let statusLabel: string
     let nextAction: 'pay_landlord' | 'register_scheme' | 'none' = 'none'
 
@@ -2227,13 +2221,26 @@ export async function getDepositsList(companyId: string): Promise<Array<{
         nextAction = 'pay_landlord'
       }
     } else if (isProtected) {
-      status = 'registered'
-      statusLabel = `Registered with ${schemeLabel}`
+      if (isCustodial) {
+        status = 'with_scheme'
+        statusLabel = `Held by ${schemeLabel} — accruing interest`
+      } else {
+        status = 'registered'
+        statusLabel = `Registered with ${schemeLabel}`
+      }
     } else {
       status = 'awaiting_registration'
       statusLabel = `Awaiting registration with ${schemeLabel}`
       nextAction = 'register_scheme'
     }
+
+    // Build tenant names list (all tenants, not just lead)
+    const tenancyTenants = tenancy ? (byTenancyMap.get(ep?.tenancy_id) || []) : []
+    const tenantNames = tenancyTenants
+      .sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))
+      .map((t: any) => t.tenant_name_encrypted ? (decrypt(t.tenant_name_encrypted) || '') : '')
+      .filter(Boolean)
+    const tenantDisplay = tenantNames.length > 0 ? tenantNames.join(', ') : 'Tenant'
 
     return {
       id: e.id,
@@ -2241,7 +2248,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       property_id: tenancy?.property_id || null,
       property_address: propertyAddress,
       property_postcode: propertyPostcode,
-      tenant_name: tenantNameByTenancy.get(ep?.tenancy_id || '') || 'Tenant',
+      tenant_name: tenantDisplay,
       amount: parseFloat(e.amount),
       deposit_scheme: scheme || null,
       scheme_label: schemeLabel,
@@ -2253,8 +2260,12 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       expected_payment_id: ep?.id || null,
       received_at: e.created_at,
       next_action: nextAction,
+      is_landlord_held: isLandlordHeld,
     }
   })
+
+  // Exclude landlord-held deposits — they belong in Landlord Payouts
+  return results.filter(d => !d.is_landlord_held)
 }
 
 // ============================================================================

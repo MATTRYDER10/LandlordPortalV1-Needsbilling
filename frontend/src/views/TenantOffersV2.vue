@@ -2,56 +2,56 @@
   <Sidebar>
     <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
       <!-- Header -->
-      <div class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 py-4">
+      <div class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-4 sm:px-6 py-4">
         <div class="flex items-center justify-between">
-          <div>
+          <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Tenant Offers</h1>
-              <span class="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full">V2</span>
+              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">Tenant Offers</h1>
+              <span class="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full flex-shrink-0">V2</span>
             </div>
-            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Manage rental property offers and convert to references</p>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1 hidden sm:block">Manage rental property offers and convert to references</p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button
               @click="refreshData"
               :disabled="loading"
-              class="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+              class="flex items-center gap-2 px-2 sm:px-3 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
             >
               <RefreshCcw :class="{ 'animate-spin': loading }" class="w-4 h-4" />
             </button>
             <button
               @click="copyOfferLink"
-              class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+              class="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
               title="Copy universal offer link to clipboard"
             >
               <Link2 class="w-4 h-4" />
-              {{ offerLinkCopied ? 'Copied!' : 'Copy Offer Link' }}
+              <span class="hidden sm:inline">{{ offerLinkCopied ? 'Copied!' : 'Copy Offer Link' }}</span>
             </button>
             <button
               @click="showSendModal = true"
-              class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-orange-500 text-white rounded-lg hover:shadow-lg transition-all"
+              class="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-primary to-orange-500 text-white rounded-lg hover:shadow-lg transition-all"
             >
               <Send class="w-4 h-4" />
-              Send Offer
+              <span class="hidden sm:inline">Send Offer</span>
             </button>
           </div>
         </div>
 
         <!-- Stats Cards - Order: Pending, Approved, Marked as Paid, Referencing, Sent, All Offers -->
-        <div class="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div class="mt-4 sm:mt-6 grid grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
           <button
             @click="statusFilter = 'pending'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'pending'
               ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-yellow-600">{{ statusCounts.pending }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Pending</div>
+                <div class="text-lg sm:text-2xl font-bold text-yellow-600">{{ statusCounts.pending }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">Pending</div>
               </div>
-              <div class="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <Clock class="w-5 h-5 text-yellow-600" />
               </div>
             </div>
@@ -59,17 +59,17 @@
 
           <button
             @click="statusFilter = 'approved'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'approved'
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-blue-600">{{ statusCounts.approved }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Approved</div>
+                <div class="text-lg sm:text-2xl font-bold text-blue-600">{{ statusCounts.approved }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">Approved</div>
               </div>
-              <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <CheckCircle class="w-5 h-5 text-blue-600" />
               </div>
             </div>
@@ -77,17 +77,17 @@
 
           <button
             @click="statusFilter = 'payment_pending'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'payment_pending'
               ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-amber-600">{{ statusCounts.payment_pending }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Marked<br/>as Paid</div>
+                <div class="text-lg sm:text-2xl font-bold text-amber-600">{{ statusCounts.payment_pending }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">Marked<br/>as Paid</div>
               </div>
-              <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <Banknote class="w-5 h-5 text-amber-600" />
               </div>
             </div>
@@ -95,17 +95,17 @@
 
           <button
             @click="statusFilter = 'deposit_received'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'deposit_received'
               ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-green-600">{{ statusCounts.deposit_received }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Referencing</div>
+                <div class="text-lg sm:text-2xl font-bold text-green-600">{{ statusCounts.deposit_received }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">Referencing</div>
               </div>
-              <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <Send class="w-5 h-5 text-green-600" />
               </div>
             </div>
@@ -113,17 +113,17 @@
 
           <button
             @click="statusFilter = 'sent'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'sent'
               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-purple-600">{{ statusCounts.sent }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Sent</div>
+                <div class="text-lg sm:text-2xl font-bold text-purple-600">{{ statusCounts.sent }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">Sent</div>
               </div>
-              <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <Mail class="w-5 h-5 text-purple-600" />
               </div>
             </div>
@@ -131,17 +131,17 @@
 
           <button
             @click="statusFilter = ''"
-            class="p-4 rounded-xl border-2 transition-all text-left"
+            class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === ''
               ? 'border-primary bg-primary/5'
               : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
           >
             <div class="flex items-center justify-between">
               <div>
-                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ offers.length }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">All Offers</div>
+                <div class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{{ offers.length }}</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">All Offers</div>
               </div>
-              <div class="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl flex items-center justify-center">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl hidden sm:flex items-center justify-center">
                 <FileText class="w-5 h-5 text-primary" />
               </div>
             </div>
@@ -170,7 +170,7 @@
       </div>
 
       <!-- Main Content + Leaderboard -->
-      <div class="flex-1 overflow-y-auto p-6 flex gap-6">
+      <div class="flex-1 overflow-y-auto p-3 sm:p-6 flex gap-6">
         <div class="flex-1 min-w-0">
         <!-- Loading -->
         <div v-if="loading" class="space-y-4">
@@ -199,11 +199,11 @@
         </div>
 
         <!-- Multi-select Actions Bar -->
-        <div v-if="selectedOfferIds.length > 0 && !showDetailModal" class="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between">
+        <div v-if="selectedOfferIds.length > 0 && !showDetailModal" class="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <span class="text-sm font-medium text-primary">
             {{ selectedOfferIds.length }} offer(s) selected
           </span>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <button
               @click="selectedOfferIds = []"
               class="px-3 py-1.5 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
@@ -422,19 +422,19 @@
               <table class="w-full">
                 <thead>
                   <tr>
-                    <th class="text-left text-[10px] font-medium text-gray-400 uppercase pb-2">#</th>
-                    <th class="text-left text-[10px] font-medium text-gray-400 uppercase pb-2">Name</th>
-                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Sent</th>
-                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Rcvd</th>
-                    <th class="text-center text-[10px] font-medium text-gray-400 uppercase pb-2">Let</th>
+                    <th class="text-left text-[10px] font-medium text-gray-400 dark:text-slate-400 uppercase pb-2">#</th>
+                    <th class="text-left text-[10px] font-medium text-gray-400 dark:text-slate-400 uppercase pb-2">Name</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 dark:text-slate-400 uppercase pb-2">Sent</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 dark:text-slate-400 uppercase pb-2">Rcvd</th>
+                    <th class="text-center text-[10px] font-medium text-gray-400 dark:text-slate-400 uppercase pb-2">Let</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(stat, idx) in negotiatorStats" :key="stat.id" class="border-t border-gray-100 dark:border-slate-800">
                     <td class="py-1.5 text-xs text-gray-400">{{ idx + 1 }}</td>
                     <td class="py-1.5 text-xs text-gray-900 dark:text-white truncate max-w-[100px]">{{ stat.name }}</td>
-                    <td class="py-1.5 text-xs text-gray-500 text-center">{{ stat.offers_sent }}</td>
-                    <td class="py-1.5 text-xs text-gray-500 text-center">{{ stat.offers_received }}</td>
+                    <td class="py-1.5 text-xs text-gray-500 dark:text-slate-400 text-center">{{ stat.offers_sent }}</td>
+                    <td class="py-1.5 text-xs text-gray-500 dark:text-slate-400 text-center">{{ stat.offers_received }}</td>
                     <td class="py-1.5 text-xs text-green-600 font-semibold text-center">{{ stat.let_agreed }}</td>
                   </tr>
                 </tbody>
@@ -477,10 +477,10 @@
             </div>
 
             <!-- Modal Content -->
-            <form @submit.prevent="sendOffer" class="flex-1 overflow-y-auto p-6">
+            <form @submit.prevent="sendOffer" class="flex-1 overflow-y-auto p-4 sm:p-6">
               <div class="space-y-4">
                 <!-- Tenant Details -->
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name *</label>
                     <input
@@ -642,7 +642,7 @@
                   </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monthly Rent (£) *</label>
                     <input
@@ -744,7 +744,7 @@
 
                 <!-- Deposit and Options -->
                 <div class="pt-4 border-t border-gray-200 dark:border-slate-700 space-y-4">
-                  <div class="grid grid-cols-2 gap-4 items-end">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                     <div>
                       <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Deposit (£)</label>
                       <input
@@ -824,7 +824,7 @@
             <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl flex items-center justify-center">
+                  <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl hidden sm:flex items-center justify-center">
                     <FileText class="w-5 h-5 text-primary" />
                   </div>
                   <div>

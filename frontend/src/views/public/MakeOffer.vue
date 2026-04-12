@@ -80,7 +80,7 @@
         <!-- Your Details -->
         <div>
           <h2 class="text-lg font-semibold text-gray-900 mb-3" :style="{ color: primaryColor }">Your Details</h2>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
               <input v-model="form.tenant_first_name" type="text" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:outline-none" />
@@ -106,7 +106,7 @@
             <h2 class="text-lg font-semibold text-gray-900" :style="{ color: primaryColor }">Additional Tenants</h2>
             <button type="button" @click="addTenant" class="text-sm font-medium px-3 py-1 rounded-lg transition-colors" :style="{ color: primaryColor, backgroundColor: primaryColor + '10' }">+ Add Tenant</button>
           </div>
-          <div v-for="(tenant, idx) in additionalTenants" :key="idx" class="grid grid-cols-5 gap-2 mb-2">
+          <div v-for="(tenant, idx) in additionalTenants" :key="idx" class="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2">
             <input v-model="tenant.first_name" placeholder="First name" class="col-span-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm" />
             <input v-model="tenant.last_name" placeholder="Last name" class="col-span-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm" />
             <input v-model="tenant.email" placeholder="Email" type="email" class="col-span-2 px-2 py-1.5 border border-gray-300 rounded-lg text-sm" />

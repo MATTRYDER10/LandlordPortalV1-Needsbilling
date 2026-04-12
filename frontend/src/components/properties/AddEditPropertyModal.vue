@@ -94,7 +94,7 @@
                     placeholder="Apartment, suite, etc."
                   />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City</label>
                     <input
@@ -128,7 +128,7 @@
             <!-- Property Details Section (Optional) -->
             <div class="mb-6">
               <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Property Details (Optional)</h4>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property Type</label>
                   <select
@@ -332,7 +332,7 @@
               <!-- New landlord form -->
               <div v-if="showNewLandlordForm" class="mt-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
                 <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-3">New Landlord Details</h5>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <input
                       v-model="newLandlord.first_name"

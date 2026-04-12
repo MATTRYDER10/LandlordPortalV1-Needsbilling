@@ -14,7 +14,7 @@
       </div>
     </header>
 
-    <main class="max-w-5xl mx-auto p-6">
+    <main class="max-w-5xl mx-auto p-4 sm:p-6">
       <div v-if="loading" class="space-y-4">
         <div v-for="i in 4" :key="i" class="h-32 bg-white dark:bg-slate-800 rounded-xl animate-pulse" />
       </div>

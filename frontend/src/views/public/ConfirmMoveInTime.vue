@@ -51,7 +51,7 @@
       <!-- Selection Form -->
       <div v-else class="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
         <!-- Header with logo -->
-        <div class="px-8 py-6 border-b border-gray-200 dark:border-slate-700 text-center">
+        <div class="px-4 sm:px-8 py-6 border-b border-gray-200 dark:border-slate-700 text-center">
           <img
             v-if="companyLogoUrl"
             :src="companyLogoUrl"
@@ -66,7 +66,7 @@
         </div>
 
         <!-- Property & Date Info -->
-        <div class="px-8 py-6 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700">
+        <div class="px-4 sm:px-8 py-6 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700">
           <div class="text-center">
             <p class="text-sm text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-1">Move-In Date</p>
             <p class="text-2xl font-bold text-amber-900 dark:text-amber-200">{{ formattedMoveInDate }}</p>
@@ -75,7 +75,7 @@
         </div>
 
         <!-- Form Content -->
-        <div class="px-8 py-6 space-y-6">
+        <div class="px-4 sm:px-8 py-6 space-y-6">
           <p class="text-gray-600 dark:text-slate-400 text-center">
             {{ companyName }} has suggested the following time slots. Please confirm which one works best for you:
           </p>
@@ -150,7 +150,7 @@
         </div>
 
         <!-- Footer -->
-        <div class="px-8 py-4 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 text-center">
+        <div class="px-4 sm:px-8 py-4 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 text-center">
           <p class="text-xs text-gray-500 dark:text-slate-400">
             Powered by <a href="https://propertygoose.co.uk" :style="{ color: primaryColor }" class="hover:underline">PropertyGoose</a>
           </p>

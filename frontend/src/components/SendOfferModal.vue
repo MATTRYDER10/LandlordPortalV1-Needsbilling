@@ -45,7 +45,7 @@
             </div>
 
             <!-- Entry Mode Toggle -->
-            <div class="flex gap-3">
+            <div class="flex flex-wrap gap-2 sm:gap-3">
               <button
                 @click="propertyEntryMode = 'select'; propertySearchQuery && fetchProperties()"
                 type="button"

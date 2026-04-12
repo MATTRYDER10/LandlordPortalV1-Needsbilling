@@ -341,7 +341,7 @@
                     <!-- Pricing Table -->
                     <div class="mb-5">
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Pricing (per person per week)</h3>
-                        <div class="grid grid-cols-5 gap-2 text-center text-sm">
+                        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-sm">
                             <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">1</div><div class="text-gray-500">£66</div></div>
                             <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">2</div><div class="text-gray-500">£38</div></div>
                             <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded"><div class="font-semibold">3</div><div class="text-gray-500">£30</div></div>
@@ -695,7 +695,8 @@ const handleSubmit = async () => {
             unihomes_offered: unihomesOffered.value,
             unihomes_interested: unihomesOffered.value ? formData.value.unihomes_interested : false,
             is_v2: isV2Offer.value,
-            form_ref: formRef || undefined
+            form_ref: formRef || undefined,
+            linked_property_id: (route.query.linked_property_id as string) || undefined
         }
 
         // Submit offer

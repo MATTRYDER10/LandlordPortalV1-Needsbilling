@@ -50,7 +50,7 @@
       <!-- Form -->
       <div v-else class="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
         <!-- Header with logo -->
-        <div class="px-8 py-6 border-b border-gray-200 dark:border-slate-700 text-center">
+        <div class="px-4 sm:px-8 py-6 border-b border-gray-200 dark:border-slate-700 text-center">
           <img
             v-if="companyLogoUrl"
             :src="companyLogoUrl"
@@ -65,13 +65,13 @@
         </div>
 
         <!-- Property Info -->
-        <div class="px-8 py-4 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+        <div class="px-4 sm:px-8 py-4 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
           <p class="text-sm text-gray-500 dark:text-slate-400 text-center">Property</p>
           <p class="text-center font-medium text-gray-900 dark:text-white">{{ propertyAddress }}</p>
         </div>
 
         <!-- Form Content -->
-        <form @submit.prevent="submitForm" class="px-8 py-6 space-y-6">
+        <form @submit.prevent="submitForm" class="px-4 sm:px-8 py-6 space-y-6">
           <p class="text-gray-600 dark:text-slate-400">
             Please select your preferred move-in date and two time slots. We'll confirm your slot as soon as possible.
           </p>
@@ -172,7 +172,7 @@
         </form>
 
         <!-- Footer -->
-        <div class="px-8 py-4 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 text-center">
+        <div class="px-4 sm:px-8 py-4 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 text-center">
           <p class="text-xs text-gray-500 dark:text-slate-400">
             Powered by <a href="https://propertygoose.co.uk" :style="{ color: primaryColor }" class="hover:underline">PropertyGoose</a>
           </p>

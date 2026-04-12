@@ -3,7 +3,7 @@
     <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <!-- Top Bar -->
       <div class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors duration-300">
-        <div class="px-6 py-4">
+        <div class="px-4 sm:px-6 py-4">
           <div class="flex items-center justify-between">
             <!-- Title -->
             <div class="flex items-center gap-3">
@@ -37,7 +37,7 @@
                   ]"
                 >
                   <Building2 class="w-3.5 h-3.5" />
-                  Managed
+                  <span class="hidden sm:inline">Managed</span>
                 </button>
                 <button
                   @click="toggleManagementFilter('let_only')"
@@ -49,7 +49,7 @@
                   ]"
                 >
                   <Key class="w-3.5 h-3.5" />
-                  Let Only
+                  <span class="hidden sm:inline">Let Only</span>
                 </button>
               </div>
             </div>
@@ -63,7 +63,7 @@
                   v-model="search"
                   type="text"
                   placeholder="Search tenant, property, or landlord..."
-                  class="pl-9 pr-3 py-2 w-72 text-xs bg-slate-100 dark:bg-slate-800 dark:text-white border-0 rounded-lg focus:ring-2 focus:ring-primary/30 focus:bg-white dark:focus:bg-slate-700 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  class="pl-9 pr-3 py-2 w-full sm:w-72 text-xs bg-slate-100 dark:bg-slate-800 dark:text-white border-0 rounded-lg focus:ring-2 focus:ring-primary/30 focus:bg-white dark:focus:bg-slate-700 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
                 <kbd
                   v-if="!search"
@@ -108,7 +108,7 @@
             >
               <div class="flex items-center justify-center gap-1.5">
                 <FileEdit class="w-3.5 h-3.5" />
-                <span>Draft</span>
+                <span class="hidden sm:inline">Draft</span>
                 <span
                   class="px-1.5 py-0.5 text-[10px] rounded-full font-medium"
                   :class="activeSection === 'draft'
@@ -138,7 +138,7 @@
             >
               <div class="flex items-center justify-center gap-1.5">
                 <CheckCircle2 class="w-3.5 h-3.5" />
-                <span>Active</span>
+                <span class="hidden sm:inline">Active</span>
                 <span
                   class="px-1.5 py-0.5 text-[10px] rounded-full font-medium"
                   :class="activeSection === 'active'
@@ -168,7 +168,7 @@
             >
               <div class="flex items-center justify-center gap-1.5">
                 <AlertTriangle class="w-3.5 h-3.5" />
-                <span>Notice Served</span>
+                <span class="hidden sm:inline">Notice Served</span>
                 <span
                   v-if="noticeServedTenancies.length > 0"
                   class="px-1.5 py-0.5 text-[10px] rounded-full font-medium"
@@ -199,7 +199,7 @@
             >
               <div class="flex items-center justify-center gap-1.5">
                 <Archive class="w-3.5 h-3.5" />
-                <span>Archived</span>
+                <span class="hidden sm:inline">Archived</span>
                 <span
                   v-if="archivedTenancies.length > 0"
                   class="px-1.5 py-0.5 text-[10px] rounded-full font-medium"
@@ -223,7 +223,7 @@
       <!-- Main Content -->
       <div class="flex-1 overflow-y-auto">
         <!-- Loading State -->
-        <div v-if="loading" class="p-6">
+        <div v-if="loading" class="p-4 sm:p-6">
           <div class="space-y-2.5">
             <div v-for="i in 5" :key="i" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
               <div class="animate-pulse">
@@ -244,7 +244,7 @@
         </div>
 
         <!-- Search Results (shows both sections when searching) -->
-        <div v-else-if="isSearching" class="p-6">
+        <div v-else-if="isSearching" class="p-4 sm:p-6">
           <div class="mb-5 flex items-center justify-between">
             <div>
               <h2 class="text-base font-semibold text-slate-900 dark:text-white">Search Results</h2>
@@ -299,7 +299,7 @@
         </div>
 
         <!-- Draft Section -->
-        <div v-else-if="activeSection === 'draft'" class="p-6">
+        <div v-else-if="activeSection === 'draft'" class="p-4 sm:p-6">
           <div v-if="draftTenancies.length > 0" class="space-y-1.5">
             <template v-for="group in groupedDraftTenancies" :key="`${group.year}-${group.month}`">
               <MonthBanner
@@ -323,7 +323,7 @@
         </div>
 
         <!-- Active Section -->
-        <div v-else-if="activeSection === 'active'" class="p-6">
+        <div v-else-if="activeSection === 'active'" class="p-4 sm:p-6">
           <div v-if="activeTenancies.length > 0">
             <!-- Select All / Bulk Actions Bar -->
             <div class="flex items-center justify-between mb-3 px-1">
@@ -388,7 +388,7 @@
         </div>
 
         <!-- Notice Served Section -->
-        <div v-else-if="activeSection === 'notice_served'" class="p-6">
+        <div v-else-if="activeSection === 'notice_served'" class="p-4 sm:p-6">
           <div v-if="noticeServedTenancies.length > 0" class="space-y-2.5">
             <div class="mb-5">
               <div class="flex items-center gap-2.5 text-rose-600 dark:text-rose-400">
@@ -412,7 +412,7 @@
         </div>
 
         <!-- Archived Section -->
-        <div v-else-if="activeSection === 'archived'" class="p-6">
+        <div v-else-if="activeSection === 'archived'" class="p-4 sm:p-6">
           <!-- Loading -->
           <div v-if="loadingArchived" class="space-y-2.5">
             <div v-for="i in 3" :key="i" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
