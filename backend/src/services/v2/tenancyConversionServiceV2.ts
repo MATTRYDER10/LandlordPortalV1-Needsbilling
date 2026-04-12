@@ -685,6 +685,40 @@ export async function convertV2ReferenceToTenancy(
       }
     })
 
+    // Fire-and-forget: send draft APTA agreement email to lead tenant.
+    // Only for APTA (post-RRA) tenancies — AST tenancies get their
+    // agreement via the manual generate-and-sign flow.
+    const RRA_CUTOFF = '2026-05-01'
+    const isPostRRA = refData.moveInDate >= RRA_CUTOFF
+    if (isPostRRA) {
+      const leadTenant = refData.tenants.find(t => t.isLeadTenant) || refData.tenants[0]
+      if (leadTenant?.email) {
+        ;(async () => {
+          try {
+            const { sendDraftAgreementNotification } = await import('../emailService')
+            // refData.propertyAddress may be a string or an object depending
+            // on the validation path. Handle both.
+            let propertyAddress = ''
+            if (typeof refData.propertyAddress === 'string') {
+              propertyAddress = refData.propertyAddress
+            } else if (refData.propertyAddress) {
+              propertyAddress = [(refData.propertyAddress as any).line1, (refData.propertyAddress as any).city, (refData.propertyAddress as any).postcode].filter(Boolean).join(', ')
+            }
+
+            await sendDraftAgreementNotification({
+              tenantEmail: leadTenant.email,
+              tenantName: `${leadTenant.firstName} ${leadTenant.lastName}`.trim(),
+              propertyAddress: propertyAddress || 'your property',
+              companyId,
+            })
+            console.log(`[V2 Conversion] Draft APTA email sent to ${leadTenant.email} for tenancy ${tenancy.id}`)
+          } catch (emailErr: any) {
+            console.error('[V2 Conversion] Draft APTA email failed (non-blocking):', emailErr?.message || emailErr)
+          }
+        })()
+      }
+    }
+
     return {
       success: true,
       tenancy

@@ -794,7 +794,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           primary_reference_id
         `)
         .eq('company_id', companyId)
-        .in('status', ['pending', 'active'])
+        .eq('status', 'pending') // Draft tenancies only — active ones have already moved in
         .is('deleted_at', null)
         .not('tenancy_start_date', 'is', null)
         .gte('tenancy_start_date', startDateStr)
@@ -890,25 +890,41 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // ========================================================================
-    // Merge V2 + V1 + tenancies, then dedupe by (linked_property_id, moveInDate)
-    // as a final safety net for any orphan duplicates the explicit join
-    // didn't catch.
+    // Merge V2 + V1 + tenancies, then dedupe by TENANT SURNAME + move-in
+    // date. The previous approach (address + date) incorrectly collapsed
+    // multi-unit properties where different tenants move in on the same
+    // day at the same address (e.g. Room 1 + Room 2 at 51 Warren Road).
+    //
+    // Surname-based dedup: extract the lead tenant's surname (last word
+    // of their name), combine with move-in date. Two entries with the
+    // same surname + date are treated as duplicates (same person
+    // appearing in both a reference and a tenancy). Different surnames
+    // at the same address/date are preserved (different tenants).
+    //
+    // Priority order: V2 > V1 > tenancy (sources are already in this
+    // order in the array, so a Map.set from first to last preserves
+    // the highest-priority entry).
     // ========================================================================
     const entries = [...v2Entries, ...v1Entries, ...tenancyEntries]
 
-    // Soft dedupe: if two entries share the same property address + move-in
-    // date, keep the highest-priority one (V2 > V1 > tenancy). Sources are
-    // already in priority order in the array above so a Map insert from
-    // first to last preserves the winner.
+    const extractSurname = (tenants: any[]): string => {
+      if (!tenants || tenants.length === 0) return ''
+      const leadName = (tenants[0]?.name || '').trim()
+      if (!leadName) return ''
+      const parts = leadName.split(/\s+/)
+      return (parts[parts.length - 1] || '').toLowerCase()
+    }
+
     const dedupedByKey = new Map<string, any>()
     for (const e of entries) {
-      const addr = (e.property?.address || '').trim().toLowerCase()
-      const key = `${addr}|${e.moveInDate}`
-      // Without a property address there's no reliable way to dedupe, so
-      // pass these through unchanged using the unique entry id
-      const finalKey = addr ? key : `unique-${e.referenceId || e.tenancyId || Math.random()}`
-      if (!dedupedByKey.has(finalKey)) {
-        dedupedByKey.set(finalKey, e)
+      const surname = extractSurname(e.tenants)
+      // Without a surname there's no reliable way to dedupe, so pass
+      // through with a unique key
+      const key = surname
+        ? `${surname}|${e.moveInDate}`
+        : `unique-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!dedupedByKey.has(key)) {
+        dedupedByKey.set(key, e)
       }
     }
 

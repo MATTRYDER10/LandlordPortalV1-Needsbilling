@@ -1209,6 +1209,94 @@ export async function sendVerificationReportToAgent(
  * of the email (appointment card, what-to-expect, prep checklist) is
  * identical so the tenant has all the same information in one place.
  */
+/**
+ * Send draft APTA agreement notification to a tenant after V2 reference
+ * conversion to tenancy. Attaches a static "draft example" APTA PDF.
+ */
+let cachedDraftAptaPdf: Buffer | null = null
+
+export async function sendDraftAgreementNotification(params: {
+  tenantEmail: string
+  tenantName: string
+  propertyAddress: string
+  companyId: string
+}): Promise<void> {
+  const { supabase } = await import('../config/supabase')
+  const { decrypt } = await import('./encryption')
+
+  const { data: company } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', params.companyId)
+    .single()
+
+  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
+  const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) : ''
+  const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : ''
+  const companyLogoUrl = company?.logo_url || null
+
+  const contactHtml = companyEmail
+    ? `Please contact <a href="mailto:${companyEmail}" style="color: #f97316; text-decoration: underline;">${companyName}</a>${companyPhone ? ` on ${companyPhone}` : ''}.`
+    : `Please contact ${companyName}${companyPhone ? ` on ${companyPhone}` : ''}.`
+
+  const html = loadEmailTemplate('draft-agreement-notification', {
+    TenantName: params.tenantName || 'Tenant',
+    PropertyAddress: params.propertyAddress,
+    ContactHtml: contactHtml,
+    CompanyName: companyName || 'PropertyGoose',
+    AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
+  })
+
+  // Generate draft APTA PDF (cached after first call)
+  if (!cachedDraftAptaPdf) {
+    try {
+      const { pdfGenerationService } = await import('./pdfGenerationService')
+      cachedDraftAptaPdf = await pdfGenerationService.generateAgreementPDF({
+        templateType: 'ast',
+        agreementType: 'apta',
+        language: 'english',
+        propertyAddress: {
+          line1: '[Property Address]',
+          line2: '',
+          city: '[City]',
+          county: '',
+          postcode: '[Postcode]',
+        },
+        landlords: [{ name: '[Landlord Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
+        tenants: [{ name: '[Tenant Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
+        guarantors: [],
+        depositAmount: 0,
+        rentAmount: 0,
+        tenancyStartDate: '[Start Date]',
+        rentDueDay: '1st',
+        depositSchemeType: 'dps_custodial',
+        bankAccountName: '[Bank Account Name]',
+        bankAccountNumber: '[Account Number]',
+        bankSortCode: '[Sort Code]',
+        managementType: 'let_only',
+      } as any)
+      console.log('[DraftAPTA] Generated draft PDF, size:', cachedDraftAptaPdf?.length, 'bytes')
+    } catch (pdfErr) {
+      console.error('[DraftAPTA] Failed to generate draft PDF — sending email without attachment:', pdfErr)
+    }
+  }
+
+  await sendEmail({
+    to: params.tenantEmail,
+    subject: `Draft Tenancy Agreement — ${params.propertyAddress}`,
+    html,
+    contactDetails: {
+      companyName: companyName || undefined,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined,
+    },
+    attachments: cachedDraftAptaPdf ? [{
+      filename: 'Draft-APTA-Agreement.pdf',
+      content: cachedDraftAptaPdf,
+    }] : undefined,
+  })
+}
+
 export async function sendTenantInspectionBookedEmail(params: {
   tenantEmail: string
   tenantName: string

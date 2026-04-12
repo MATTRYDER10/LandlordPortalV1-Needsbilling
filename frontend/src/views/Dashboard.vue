@@ -210,18 +210,19 @@
               </div>
             </router-link>
 
-            <!-- Rejected -->
+            <!-- Mid-Term Actions (replaced Rejected — always zero) -->
             <router-link
-              :to="{ path: '/references', query: { status: 'REJECTED' } }"
+              :to="{ path: '/tenancies', query: { filter: 'mid_term_actions' } }"
               class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
+              :class="midTermActions > 0 ? 'border-amber-200 dark:border-amber-800' : ''"
             >
               <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <X class="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="midTermActions > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-slate-100 dark:bg-slate-800'">
+                  <AlertTriangle class="w-4 h-4" :class="midTermActions > 0 ? 'text-amber-600' : 'text-slate-500 dark:text-slate-400'" />
                 </div>
                 <div>
-                  <p class="text-lg font-bold text-slate-900 dark:text-white">{{ rejectedReferences }}</p>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Rejected</p>
+                  <p class="text-lg font-bold" :class="midTermActions > 0 ? 'text-amber-600' : 'text-slate-900 dark:text-white'">{{ midTermActions }}</p>
+                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Mid-Term</p>
                 </div>
               </div>
             </router-link>
@@ -433,7 +434,8 @@ import {
   ClipboardCheck,
   X,
   CalendarDays,
-  Calendar
+  Calendar,
+  AlertTriangle
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -519,6 +521,7 @@ const pendingVerificationReferences = ref(0)
 const rejectedReferences = ref(0)
 const completedReferences = ref(0)
 const actionRequiredReferences = ref(0)
+const midTermActions = ref(0)
 const activeTenancies = ref(0)
 const pendingTenancies = ref(0)
 const expiringSoonTenancies = ref(0)
@@ -692,6 +695,7 @@ const fetchStats = async () => {
       completedReferences.value = stats.completed || 0
       rejectedReferences.value = stats.rejected || 0
       actionRequiredReferences.value = stats.actionRequired || 0
+      midTermActions.value = stats.midTermActions || 0
     }
   } catch (error) {
     console.error('Failed to fetch reference stats:', error)
