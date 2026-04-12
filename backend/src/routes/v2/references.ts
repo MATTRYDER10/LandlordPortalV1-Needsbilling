@@ -577,7 +577,10 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     const now = new Date()
     const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 0)
     const endDateStr = endDate.toISOString().split('T')[0]
-    const startDateStr = now.toISOString().split('T')[0]
+    // Start from the 1st of the current month so move-ins earlier this
+    // month still appear in the calendar (not just future dates)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startDateStr = monthStart.toISOString().split('T')[0]
 
     // Helper to take a flat list of references and collapse group children
     // into their parent — same logic for V1 and V2 since both use the same
