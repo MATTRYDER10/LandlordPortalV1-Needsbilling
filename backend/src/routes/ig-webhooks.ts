@@ -365,6 +365,52 @@ router.post('/report-complete', async (req: Request, res: Response) => {
         is_system_action: true
       })
 
+    // Download the report PDF from IG and save it to property_documents
+    // so it appears in the tenancy's Documents tab. Fire-and-forget so
+    // the webhook response isn't delayed.
+    if (pdfUrl && appointment.property_id) {
+      ;(async () => {
+        try {
+          const pdfResponse = await fetch(pdfUrl)
+          if (!pdfResponse.ok) {
+            console.error(`[IG Report] Failed to download PDF from ${pdfUrl}: ${pdfResponse.status}`)
+            return
+          }
+          const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer())
+          const fileName = `${typeLabel.replace(/\s+/g, '-')}-Report-${(reportId || appointment.ig_appointment_id || 'unknown').slice(0, 8)}.pdf`
+          const storagePath = `property-documents/${appointment.company_id}/${appointment.property_id}/${fileName}`
+
+          const { error: uploadErr } = await supabase.storage
+            .from('documents')
+            .upload(storagePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+          if (uploadErr) {
+            console.error('[IG Report] Failed to upload PDF to storage:', uploadErr)
+            return
+          }
+
+          const { data: urlData } = supabase.storage.from('documents').getPublicUrl(storagePath)
+
+          await supabase.from('property_documents').insert({
+            property_id: appointment.property_id,
+            company_id: appointment.company_id,
+            file_name: fileName,
+            file_path: storagePath,
+            file_url: urlData?.publicUrl || null,
+            file_type: 'application/pdf',
+            file_size: pdfBuffer.length,
+            tag: type === 'inventory' ? 'inventory' : type === 'checkout' ? 'checkout' : 'inspection',
+            description: `${typeLabel} report from InventoryGoose${signedAt ? ` — signed ${new Date(signedAt).toLocaleDateString('en-GB')}` : ''}`,
+            uploaded_by: null,
+          })
+
+          console.log(`[IG Report] PDF saved to documents: ${storagePath} (${pdfBuffer.length} bytes)`)
+        } catch (err: any) {
+          console.error('[IG Report] Failed to save PDF to documents (non-blocking):', err?.message || err)
+        }
+      })()
+    }
+
     res.json({ received: true })
   } catch (error) {
     console.error('[IG Report] Error processing report delivery:', error)
