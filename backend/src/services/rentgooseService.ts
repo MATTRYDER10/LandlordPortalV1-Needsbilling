@@ -2130,21 +2130,25 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   const epIds = [...new Set(entries.map(e => e.related_id).filter(Boolean) as string[])]
   const epMap = new Map<string, any>()
   if (epIds.length > 0) {
-    const { data: eps } = await supabase
+    const { data: eps, error: epErr } = await supabase
       .from('expected_payments')
       .select('id, tenancy_id, property_id, deposit_payout_at')
       .in('id', epIds)
+    console.log(`[Deposits Debug] entries: ${entries.length}, epIds: ${epIds.length}, eps returned: ${eps?.length || 0}, epErr: ${epErr?.message || 'none'}`)
     for (const ep of (eps || [])) epMap.set(ep.id, ep)
   }
 
   const tenancyIds = [...new Set(Array.from(epMap.values()).map(ep => ep.tenancy_id).filter(Boolean) as string[])]
   const tenancyMap = new Map<string, any>()
   if (tenancyIds.length > 0) {
-    const { data: tens } = await supabase
+    const { data: tens, error: tenErr } = await supabase
       .from('tenancies')
       .select('id, property_id, deposit_scheme, deposit_protected_at, deposit_protection_id')
       .in('id', tenancyIds)
+    console.log(`[Deposits Debug] tenancyIds: ${tenancyIds.length}, tenancies returned: ${tens?.length || 0}, tenErr: ${tenErr?.message || 'none'}`)
     for (const t of (tens || [])) tenancyMap.set(t.id, t)
+  } else {
+    console.log(`[Deposits Debug] No tenancyIds found from epMap (epMap size: ${epMap.size})`)
   }
 
   const propertyIds = [...new Set(
@@ -2162,11 +2166,12 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   // Tenants per tenancy (for display)
   const byTenancyMap = new Map<string, any[]>()
   if (tenancyIds.length > 0) {
-    const { data: tenants } = await supabase
+    const { data: tenants, error: ttErr } = await supabase
       .from('tenancy_tenants')
       .select('tenancy_id, tenant_name_encrypted, is_lead_tenant, tenant_order, status')
       .in('tenancy_id', tenancyIds)
       .eq('is_active', true)
+    console.log(`[Deposits Debug] tenancy_tenants returned: ${tenants?.length || 0}, ttErr: ${ttErr?.message || 'none'}`)
     for (const t of (tenants || [])) {
       const arr = byTenancyMap.get(t.tenancy_id) || []
       arr.push(t)
