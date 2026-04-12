@@ -72,6 +72,7 @@ import { startArrearsChaseScheduler } from './services/arrearsChaseScheduler'
 import { startWeeklyReportScheduler } from './services/weeklyReportService'
 import { startErrorGithubScheduler } from './services/errorGithubScheduler'
 import { startLandlordAmlChaseScheduler } from './services/landlordAmlChaseScheduler'
+import { startApex27DocPushScheduler } from './services/apex27DocPushScheduler'
 
 dotenv.config()
 
@@ -340,6 +341,7 @@ app.listen(PORT, '0.0.0.0', () => {
     startWeeklyReportScheduler()
     startErrorGithubScheduler()
     startLandlordAmlChaseScheduler()
+    startApex27DocPushScheduler()
     console.log('[Scheduler] All background schedulers started (production)')
   } else {
     console.log('[Scheduler] Skipping background schedulers (non-production)')

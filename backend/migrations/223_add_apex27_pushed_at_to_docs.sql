@@ -1,0 +1,2 @@
+ALTER TABLE property_documents
+  ADD COLUMN IF NOT EXISTS apex27_pushed_at TIMESTAMPTZ DEFAULT NULL;
