@@ -162,22 +162,37 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
 
   const entries: any[] = []
 
+  // Build rent period dates from the rent_due_day rather than from the 1st
+  // of each calendar month. A tenant whose rent is due on the 14th should
+  // see a period of "14 Apr – 13 May", not "1 Apr – 30 Apr".
+  //
+  // For each "month slot" we produce:
+  //   period_start = rent_due_day of that month
+  //   period_end   = day before rent_due_day of the NEXT month
+  //   due_date     = same as period_start
   for (const monthStart of monthsToGenerate) {
-    const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-    const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
-    if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+    const periodStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+    // If rentDueDay overflows the month (e.g. 31st in a 30-day month),
+    // JS Date wraps to the next month automatically, which is fine — the
+    // due date just lands on the 1st of the next month (same as most
+    // tenancy conventions for "last day" due dates).
 
-    const dueDateOnly = new Date(dueDate)
-    dueDateOnly.setHours(0, 0, 0, 0)
+    // Period end = one day before the NEXT month's period_start
+    const nextPeriodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, rentDueDay)
+    const periodEnd = new Date(nextPeriodStart)
+    periodEnd.setDate(periodEnd.getDate() - 1)
+
+    const dueDate = new Date(periodStart)
+    dueDate.setHours(0, 0, 0, 0)
 
     let status = 'upcoming'
-    if (dueDateOnly.getTime() === today.getTime()) status = 'due'
-    else if (dueDateOnly < today) status = 'overdue'
+    if (dueDate.getTime() === today.getTime()) status = 'due'
+    else if (dueDate < today) status = 'overdue'
 
     entries.push({
       company_id: companyId,
       tenancy_id: tenancyId,
-      period_start: monthStart.toISOString().split('T')[0],
+      period_start: periodStart.toISOString().split('T')[0],
       period_end: periodEnd.toISOString().split('T')[0],
       amount_due: monthlyRent,
       amount_received: 0,
@@ -470,23 +485,28 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 
   // Only need next month covered — check if it already exists
   const today = new Date()
-  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-  const latestPeriodStart = new Date(latest.period_start)
-
-  // Already covers next month or beyond
-  if (latestPeriodStart >= nextMonthStart) return
-
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
 
-  const periodEnd = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth() + 1, 0)
-  const dueDate = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth(), rentDueDay)
-  if (dueDate < nextMonthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+  // Next period starts on the rent_due_day of the month after the latest
+  // entry. Use the latest period_start + 1 month to find the right slot.
+  const latestPeriodStart = new Date(latest.period_start)
+  const nextPeriodStart = new Date(latestPeriodStart.getFullYear(), latestPeriodStart.getMonth() + 1, rentDueDay)
+
+  // Already covers next period or beyond
+  if (latestPeriodStart >= new Date(today.getFullYear(), today.getMonth() + 1, rentDueDay)) return
+
+  // Period end = day before the FOLLOWING period start
+  const followingPeriodStart = new Date(nextPeriodStart.getFullYear(), nextPeriodStart.getMonth() + 1, rentDueDay)
+  const periodEnd = new Date(followingPeriodStart)
+  periodEnd.setDate(periodEnd.getDate() - 1)
+
+  const dueDate = new Date(nextPeriodStart)
 
   await supabase.from('rent_schedule_entries').insert({
     company_id: companyId,
     tenancy_id: tenancyId,
-    period_start: nextMonthStart.toISOString().split('T')[0],
+    period_start: nextPeriodStart.toISOString().split('T')[0],
     period_end: periodEnd.toISOString().split('T')[0],
     amount_due: monthlyRent,
     amount_received: 0,
@@ -587,20 +607,24 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
       const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
       if (existing.has(key)) continue // Already covered
 
-      const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-      const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
-      if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+      // Period anchored on rent_due_day — e.g. rent due 14th →
+      // period 14 Apr – 13 May, NOT 1 Apr – 30 Apr.
+      const periodStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+      const nextPeriodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, rentDueDay)
+      const periodEnd = new Date(nextPeriodStart)
+      periodEnd.setDate(periodEnd.getDate() - 1)
 
-      const dueDateOnly = new Date(dueDate)
-      dueDateOnly.setHours(0, 0, 0, 0)
+      const dueDate = new Date(periodStart)
+      dueDate.setHours(0, 0, 0, 0)
+
       let status = 'upcoming'
-      if (dueDateOnly.getTime() === today.getTime()) status = 'due'
-      else if (dueDateOnly < today) status = 'overdue'
+      if (dueDate.getTime() === today.getTime()) status = 'due'
+      else if (dueDate < today) status = 'overdue'
 
       toInsert.push({
         company_id: companyId,
         tenancy_id: tenancy.id,
-        period_start: monthStart.toISOString().split('T')[0],
+        period_start: periodStart.toISOString().split('T')[0],
         period_end: periodEnd.toISOString().split('T')[0],
         amount_due: monthlyRent,
         amount_received: 0,

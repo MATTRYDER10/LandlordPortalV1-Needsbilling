@@ -250,10 +250,8 @@
               <EditableField label="Last Name" :value="refData?.tenant_last_name" field="tenant_last_name" :reference-id="refData?.id" @saved="onFieldSaved" />
               <EditableField label="Email" :value="refData?.tenant_email" field="tenant_email" :reference-id="refData?.id" @saved="onFieldSaved" />
               <EditableField label="Phone" :value="refData?.tenant_phone" field="tenant_phone" :reference-id="refData?.id" @saved="onFieldSaved" />
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Rent Share</span>
-                <span class="text-gray-900 dark:text-white">£{{ refData?.rent_share || refData?.monthly_rent }}/month</span>
-              </div>
+              <EditableField label="Monthly Rent" :value="String(refData?.monthly_rent || '')" field="monthly_rent" :reference-id="refData?.id" @saved="onFieldSaved" />
+              <EditableField label="Rent Share" :value="String(refData?.rent_share || refData?.monthly_rent || '')" field="rent_share" :reference-id="refData?.id" @saved="onFieldSaved" />
             </div>
           </div>
 

@@ -956,8 +956,29 @@
                       <Banknote class="w-3 h-3" />
                       Monthly Rent
                     </div>
-                    <p class="text-lg font-bold text-gray-900 dark:text-white">
+                    <!-- Click-to-edit rent amount -->
+                    <div v-if="editingOfferRent" class="flex items-center gap-2">
+                      <span class="text-lg font-bold text-gray-400">£</span>
+                      <input
+                        ref="offerRentInput"
+                        v-model.number="editOfferRentValue"
+                        type="number"
+                        min="0"
+                        step="1"
+                        class="w-28 text-lg font-bold text-gray-900 dark:text-white bg-white dark:bg-slate-700 border border-primary rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary"
+                        @keydown.enter="saveOfferRent"
+                        @keydown.escape="editingOfferRent = false"
+                        @blur="saveOfferRent"
+                      />
+                    </div>
+                    <p
+                      v-else
+                      class="text-lg font-bold text-gray-900 dark:text-white cursor-pointer hover:text-primary transition-colors group"
+                      @click="startEditOfferRent"
+                      title="Click to edit rent"
+                    >
                       {{ (selectedOffer.offered_rent_amount || selectedOffer.rent_amount) ? `£${selectedOffer.offered_rent_amount || selectedOffer.rent_amount}` : '-' }}
+                      <span class="text-xs text-gray-400 group-hover:text-primary ml-1 opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
                     </p>
                   </div>
                   <div class="p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
@@ -1593,7 +1614,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
@@ -1659,6 +1680,48 @@ const leadTenantSignature = computed(() => {
   return tenants.find((t: any) => t.signature) || tenants[0] || null
 })
 const processingAction = ref(false)
+
+// Inline rent editing state
+const editingOfferRent = ref(false)
+const editOfferRentValue = ref<number | null>(null)
+const offerRentInput = ref<HTMLInputElement | null>(null)
+
+function startEditOfferRent() {
+  editOfferRentValue.value = selectedOffer.value?.offered_rent_amount || selectedOffer.value?.rent_amount || null
+  editingOfferRent.value = true
+  nextTick(() => offerRentInput.value?.select())
+}
+
+async function saveOfferRent() {
+  if (!editingOfferRent.value) return
+  editingOfferRent.value = false
+  const newRent = editOfferRentValue.value
+  if (!newRent || newRent <= 0 || !selectedOffer.value?.id) return
+  const currentRent = selectedOffer.value.offered_rent_amount || selectedOffer.value.rent_amount
+  if (newRent === currentRent) return
+
+  try {
+    const response = await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json',
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      },
+      body: JSON.stringify({ offered_rent_amount: newRent })
+    })
+    if (response.ok) {
+      selectedOffer.value.offered_rent_amount = newRent
+      toast.success(`Rent updated to £${newRent}`)
+      await refreshData()
+    } else {
+      const err = await response.json()
+      toast.error(err.error || 'Failed to update rent')
+    }
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to update rent')
+  }
+}
 
 // Tenant name editing state
 const editingTenantId = ref<string | null>(null)
