@@ -57,13 +57,21 @@
         <!-- Action Buttons -->
         <div v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'"
           class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-          <div class="flex gap-3">
+          <div v-if="!offer.linked_property_id || !offer.negotiator_id"
+            class="mb-3 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+            {{ !offer.linked_property_id && !offer.negotiator_id ? 'Match a property and assign a deal owner before approving or declining.' :
+               !offer.linked_property_id ? 'Match a property before approving or declining.' :
+               'Assign a deal owner before approving or declining.' }}
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3">
             <button @click="showApproveModal = true"
-              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700">
+              :disabled="!offer.linked_property_id || !offer.negotiator_id"
+              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">
               Approve Offer
             </button>
             <button @click="showDeclineModal = true"
-              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
+              :disabled="!offer.linked_property_id || !offer.negotiator_id"
+              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
               Decline Offer
             </button>
             <button @click="showEditModal = true"
@@ -79,6 +87,81 @@
             class="w-full px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50">
             {{ processing ? 'Processing...' : 'Holding Deposit Received - Send References' }}
           </button>
+        </div>
+
+        <!-- Property Match Section -->
+        <div v-if="!offer.linked_property_id" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg shadow p-6">
+          <div class="flex items-start gap-3">
+            <AlertTriangle class="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-amber-800 dark:text-amber-300">Property Not Matched</h3>
+              <p class="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                This offer hasn't been matched to a property in your system. It must be linked before it can be approved.
+              </p>
+              <button @click="showPropertySearchModal = true"
+                class="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700">
+                Search &amp; Match Property
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <CheckCircle class="w-5 h-5 text-green-600 dark:text-green-400" />
+              <span class="text-sm font-medium text-green-800 dark:text-green-300">
+                Matched to: {{ offer.linked_property?.address_line1 }}{{ offer.linked_property?.city ? ', ' + offer.linked_property.city : '' }}{{ offer.linked_property?.postcode ? ' ' + offer.linked_property.postcode : '' }}
+              </span>
+            </div>
+            <button v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'"
+              @click="showPropertySearchModal = true"
+              class="text-sm text-green-700 dark:text-green-400 underline hover:no-underline">
+              Change
+            </button>
+          </div>
+        </div>
+
+        <!-- Deal Owner Assignment -->
+        <div v-if="!offer.negotiator_id && (offer.status === 'pending' || offer.status === 'accepted_with_changes')"
+          class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg shadow p-6">
+          <div class="flex items-start gap-3">
+            <AlertTriangle class="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-amber-800 dark:text-amber-300">No Deal Owner Assigned</h3>
+              <p class="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                A deal owner must be assigned before approving or declining this offer.
+              </p>
+              <div class="mt-3 flex items-center gap-3">
+                <select v-model="selectedNegotiatorId"
+                  class="px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm focus:ring-amber-500 focus:border-amber-500">
+                  <option value="">Select deal owner...</option>
+                  <option v-for="neg in negotiatorsList" :key="neg.id" :value="neg.id">{{ neg.name }}</option>
+                </select>
+                <button @click="assignNegotiator" :disabled="!selectedNegotiatorId || assigningNegotiator"
+                  class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                  {{ assigningNegotiator ? 'Assigning...' : 'Assign' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="offer.negotiator" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-600 dark:text-slate-400">Deal Owner:</span>
+              <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ offer.negotiator.name }}</span>
+            </div>
+            <div v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="flex items-center gap-2">
+              <select v-model="selectedNegotiatorId"
+                class="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm">
+                <option v-for="neg in negotiatorsList" :key="neg.id" :value="neg.id">{{ neg.name }}</option>
+              </select>
+              <button @click="assignNegotiator" :disabled="!selectedNegotiatorId || assigningNegotiator || selectedNegotiatorId === offer.negotiator_id"
+                class="text-sm text-primary underline hover:no-underline disabled:opacity-40 disabled:no-underline">
+                {{ assigningNegotiator ? 'Saving...' : 'Change' }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Notes Section -->
@@ -372,7 +455,7 @@
                   <dt class="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Signature</dt>
                   <dd class="mt-1">
                     <img :src="tenant.signature" alt="Signature"
-                      class="border border-gray-300 dark:border-slate-600 rounded bg-white p-2 max-w-md" style="max-height: 150px;" />
+                      class="border border-gray-300 dark:border-slate-600 rounded bg-white p-2 max-w-full sm:max-w-md" style="max-height: 150px;" />
                   </dd>
                 </div>
                 <div v-if="tenant.signed_at">
@@ -391,7 +474,7 @@
       <!-- Approve Modal -->
       <div v-if="showApproveModal" class="fixed inset-0 bg-gray-600 dark:bg-slate-900 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50"
         @click.self="showApproveModal = false">
-        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-96 shadow-lg rounded-md bg-white dark:bg-slate-800">
+        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-full max-w-sm mx-4 sm:mx-auto shadow-lg rounded-md bg-white dark:bg-slate-800">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Approve Offer</h3>
           <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
             This will send an email to the tenant(s) with bank details and request for holding deposit payment.
@@ -412,7 +495,7 @@
       <!-- Decline Modal -->
       <div v-if="showDeclineModal" class="fixed inset-0 bg-gray-600 dark:bg-slate-900 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50"
         @click.self="showDeclineModal = false">
-        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-96 shadow-lg rounded-md bg-white dark:bg-slate-800">
+        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-full max-w-sm mx-4 sm:mx-auto shadow-lg rounded-md bg-white dark:bg-slate-800">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Decline Offer</h3>
           <div class="mb-4">
             <label for="decline-reason" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -439,7 +522,7 @@
       <div v-if="showEditModal" class="fixed inset-0 bg-gray-600 dark:bg-slate-900 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50"
         @click.self="showEditModal = false">
         <div
-          class="relative top-10 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-slate-800 max-h-[90vh] overflow-y-auto">
+          class="relative top-10 mx-4 sm:mx-auto p-5 border border-gray-200 dark:border-slate-700 w-auto sm:w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-slate-800 max-h-[90vh] overflow-y-auto">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Accept with Changes</h3>
           <p class="text-sm text-gray-600 dark:text-slate-400 mb-1">Edit the offer details before accepting.</p>
           <p class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md p-2 mt-2">
@@ -453,7 +536,7 @@
               <input v-model="editForm.property_address" type="text" required
                 class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">City</label>
                 <input v-model="editForm.property_city" type="text"
@@ -465,7 +548,7 @@
                   class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Offered Rent (£) *</label>
                 <input v-model.number="editForm.offered_rent_amount" type="number" step="0.01" required
@@ -477,7 +560,7 @@
                   class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Tenancy Length (months) *</label>
                 <input v-model.number="editForm.proposed_tenancy_length_months" type="number" min="1" max="12" required
@@ -512,7 +595,7 @@
       <!-- Holding Deposit Modal -->
       <div v-if="showHoldingDepositModal" class="fixed inset-0 bg-gray-600 dark:bg-slate-900 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50"
         @click.self="closeHoldingDepositModal">
-        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-96 shadow-lg rounded-md bg-white dark:bg-slate-800">
+        <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-slate-700 w-full max-w-sm mx-4 sm:mx-auto shadow-lg rounded-md bg-white dark:bg-slate-800">
           <!-- Step 1: Input Amount -->
           <template v-if="holdingDepositStep === 'input'">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Enter Holding Deposit Amount</h3>
@@ -577,6 +660,43 @@
         </div>
       </div>
 
+      <!-- Property Search Modal -->
+      <div v-if="showPropertySearchModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showPropertySearchModal = false">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+          <div class="p-6 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Match to Property</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Search your properties to link this offer</p>
+            <input v-model="propertySearchQuery" type="text" placeholder="Search by address or postcode..."
+              class="mt-3 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+              @input="debouncePropertySearch" ref="propertySearchInput" />
+          </div>
+          <div class="flex-1 overflow-y-auto p-4">
+            <div v-if="propertySearching" class="text-center py-4 text-gray-500 dark:text-slate-400 text-sm">Searching...</div>
+            <div v-else-if="propertySearchResults.length === 0 && propertySearchQuery.length >= 2"
+              class="text-center py-4 text-gray-500 dark:text-slate-400 text-sm">No properties found</div>
+            <div v-else-if="propertySearchQuery.length < 2 && propertySearchResults.length === 0"
+              class="text-center py-4 text-gray-400 dark:text-slate-500 text-sm">Type at least 2 characters to search</div>
+            <div v-else class="space-y-2">
+              <button v-for="prop in propertySearchResults" :key="prop.id"
+                @click="linkProperty(prop.id)"
+                :disabled="linkingProperty"
+                class="w-full text-left px-4 py-3 rounded-md border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
+                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ prop.address_line1 }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">
+                  {{ [prop.city, prop.postcode].filter(Boolean).join(', ') }}
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200 dark:border-slate-700">
+            <button @click="showPropertySearchModal = false"
+              class="w-full px-4 py-2 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-slate-500">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Rent Share Modal -->
       <RentShareModal
         :is-open="showRentShareModal"
@@ -594,7 +714,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { ArrowLeft, Check, Pencil, Trash2, CheckCircle } from 'lucide-vue-next'
+import { ArrowLeft, Check, Pencil, Trash2, CheckCircle, AlertTriangle } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import RentShareModal from '../components/RentShareModal.vue'
 import { formatDate as formatDateOnly, formatDateTime } from '../utils/date'
@@ -634,6 +754,117 @@ const holdingDepositStep = ref<'input' | 'confirm' | 'success'>('input')
 const showRentShareModal = ref(false)
 const savingRentShares = ref(false)
 const holdingDepositError = ref('')
+
+// Negotiator assignment state
+const negotiatorsList = ref<any[]>([])
+const selectedNegotiatorId = ref('')
+const assigningNegotiator = ref(false)
+
+const fetchNegotiators = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/v2/negotiators`, {
+      token,
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      negotiatorsList.value = data.negotiators || []
+    }
+  } catch (err) {
+    console.error('Failed to fetch negotiators:', err)
+  }
+}
+
+const assignNegotiator = async () => {
+  if (!selectedNegotiatorId.value) return
+  assigningNegotiator.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/assign-negotiator`, {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ negotiator_id: selectedNegotiatorId.value })
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to assign negotiator')
+    }
+    await fetchOffer()
+  } catch (err: any) {
+    alert(err.message || 'Failed to assign negotiator')
+  } finally {
+    assigningNegotiator.value = false
+  }
+}
+
+// Property search modal state
+const showPropertySearchModal = ref(false)
+const propertySearchQuery = ref('')
+const propertySearchResults = ref<any[]>([])
+const propertySearching = ref(false)
+const linkingProperty = ref(false)
+const propertySearchInput = ref<HTMLInputElement | null>(null)
+let propertySearchTimeout: ReturnType<typeof setTimeout> | null = null
+
+const debouncePropertySearch = () => {
+  if (propertySearchTimeout) clearTimeout(propertySearchTimeout)
+  propertySearchTimeout = setTimeout(() => searchProperties(), 300)
+}
+
+const searchProperties = async () => {
+  const q = propertySearchQuery.value.trim()
+  if (q.length < 2) {
+    propertySearchResults.value = []
+    return
+  }
+  propertySearching.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/properties/search?q=${encodeURIComponent(q)}&limit=50`, {
+      token,
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      propertySearchResults.value = data.properties || []
+    }
+  } catch (err) {
+    console.error('Property search error:', err)
+  } finally {
+    propertySearching.value = false
+  }
+}
+
+const linkProperty = async (propertyId: string) => {
+  linkingProperty.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/link-property`, {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ property_id: propertyId })
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to link property')
+    }
+    showPropertySearchModal.value = false
+    propertySearchQuery.value = ''
+    propertySearchResults.value = []
+    await fetchOffer()
+  } catch (err: any) {
+    alert(err.message || 'Failed to link property')
+  } finally {
+    linkingProperty.value = false
+  }
+}
 
 const editForm = ref({
   property_address: '',
@@ -740,6 +971,11 @@ const fetchOffer = async () => {
 
     const data = await response.json()
     offer.value = data.offer
+
+    // Pre-select current negotiator
+    if (offer.value.negotiator_id) {
+      selectedNegotiatorId.value = offer.value.negotiator_id
+    }
 
     // Initialize edit form
     editForm.value = {
@@ -1192,5 +1428,6 @@ const confirmDelete = async () => {
 
 onMounted(() => {
   fetchOffer()
+  fetchNegotiators()
 })
 </script>

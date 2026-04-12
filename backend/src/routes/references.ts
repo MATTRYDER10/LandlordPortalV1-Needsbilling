@@ -456,7 +456,19 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
 
     const companyId = companyUsers[0].company_id
 
-    // Run all COUNT queries in parallel (much faster than fetching all data)
+    // Run V1 + V2 COUNT queries in parallel.
+    // Previously this only queried V1 (tenant_references). Now we also
+    // count V2 (tenant_references_v2) and sum both so the dashboard
+    // "References In Progress" stat reflects ALL active references.
+    //
+    // V2 status mapping:
+    //   V1 'in_progress'         → V2 'COLLECTING_EVIDENCE' + 'SENT'
+    //   V1 'pending_verification'→ V2 'READY_FOR_REVIEW' + 'IN_REVIEW' + 'GROUP_ASSESSMENT'
+    //   V1 'completed'           → V2 'ACCEPTED' + 'ACCEPTED_WITH_GUARANTOR' + 'ACCEPTED_ON_CONDITION' + 'INDIVIDUAL_COMPLETE'
+    //   V1 'rejected'            → V2 'REJECTED'
+    //   V1 'pending'             → V2 'SENT'
+    //   V1 'action_required'     → (no direct V2 equivalent)
+
     const [total, inProgress, pendingVerification, completed, rejected, pending, actionRequired] = await Promise.all([
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false),
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'in_progress').eq('is_guarantor', false),
@@ -467,14 +479,31 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'action_required').eq('is_guarantor', false)
     ])
 
+    // V2 counts — map to equivalent V1 buckets
+    const [v2Total, v2InProgress, v2PendingVerification, v2Completed, v2Rejected, v2Pending] = await Promise.all([
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false),
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false).in('status', ['COLLECTING_EVIDENCE', 'SENT']),
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false).in('status', ['READY_FOR_REVIEW', 'IN_REVIEW', 'GROUP_ASSESSMENT', 'INDIVIDUAL_COMPLETE']),
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false).in('status', ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION']),
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false).eq('status', 'REJECTED'),
+      supabase.from('tenant_references_v2').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false).eq('status', 'SENT'),
+    ])
+
+    // Mid-term actions: active tenant changes + notice-given tenancies
+    const [tenantChanges, noticeGiven] = await Promise.all([
+      supabase.from('tenant_changes').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'in_progress'),
+      supabase.from('tenancies').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'notice_given').is('deleted_at', null),
+    ])
+
     res.json({
-      total: total.count || 0,
-      inProgress: inProgress.count || 0,
-      pendingVerification: pendingVerification.count || 0,
-      completed: completed.count || 0,
-      rejected: rejected.count || 0,
-      pending: pending.count || 0,
-      actionRequired: actionRequired.count || 0
+      total: (total.count || 0) + (v2Total.count || 0),
+      inProgress: (inProgress.count || 0) + (v2InProgress.count || 0),
+      pendingVerification: (pendingVerification.count || 0) + (v2PendingVerification.count || 0),
+      completed: (completed.count || 0) + (v2Completed.count || 0),
+      rejected: (rejected.count || 0) + (v2Rejected.count || 0),
+      pending: (pending.count || 0) + (v2Pending.count || 0),
+      actionRequired: actionRequired.count || 0,
+      midTermActions: (tenantChanges.count || 0) + (noticeGiven.count || 0),
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

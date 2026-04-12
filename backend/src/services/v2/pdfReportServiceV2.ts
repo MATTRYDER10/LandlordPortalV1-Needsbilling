@@ -319,7 +319,7 @@ async function pushReportToTenancyDocuments(referenceId: string, filePath: strin
     // Find tenancy linked to this reference
     const { data: tenancy } = await supabase
       .from('tenancies')
-      .select('id, property_id')
+      .select('id, property_id, company_id')
       .eq('primary_reference_id', referenceId)
       .is('deleted_at', null)
       .limit(1)
@@ -336,7 +336,7 @@ async function pushReportToTenancyDocuments(referenceId: string, filePath: strin
       // Try finding tenancy by matching reference's parent
       const { data: parentTenancy } = await supabase
         .from('tenancies')
-        .select('id, property_id')
+        .select('id, property_id, company_id')
         .eq('property_id', ref?.linked_property_id)
         .is('deleted_at', null)
         .in('status', ['active', 'pending', 'draft'])
@@ -355,6 +355,7 @@ async function pushReportToTenancyDocuments(referenceId: string, filePath: strin
         : 'Tenant'
 
       await supabase.from('property_documents').insert({
+        company_id: parentTenancy.company_id,
         property_id: parentTenancy.property_id,
         file_name: `Reference Report - ${tenantName}.pdf`,
         file_path: filePath,
@@ -396,6 +397,7 @@ async function pushReportToTenancyDocuments(referenceId: string, filePath: strin
     }
 
     await supabase.from('property_documents').insert({
+      company_id: tenancy.company_id,
       property_id: tenancy.property_id,
       file_name: `Reference Report - ${tenantName}.pdf`,
       file_path: filePath,

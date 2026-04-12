@@ -3,14 +3,14 @@
     <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <!-- Top Bar -->
       <div class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors duration-300">
-        <div class="px-6 py-5">
+        <div class="px-4 sm:px-6 py-5">
           <div class="flex items-center justify-between">
             <!-- Title & Greeting -->
             <div>
               <h1 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                 Good {{ greeting }}, <span class="text-primary">{{ companyName }}</span>
               </h1>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p class="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
                 {{ formattedDate }}
               </p>
             </div>
@@ -22,28 +22,28 @@
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm shadow-primary/25 transition-all hover:shadow-md hover:shadow-primary/30"
               >
                 <Plus class="w-3.5 h-3.5" />
-                New Tenancy
+                <span class="hidden sm:inline">New Tenancy</span>
               </router-link>
               <router-link
                 to="/references?create=true"
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg transition-all"
               >
                 <UserCheck class="w-3.5 h-3.5" />
-                Reference
+                <span class="hidden sm:inline">Reference</span>
               </router-link>
               <router-link
                 to="/landlords?add=true"
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg transition-all"
               >
                 <UserPlus class="w-3.5 h-3.5" />
-                Landlord
+                <span class="hidden sm:inline">Landlord</span>
               </router-link>
               <router-link
                 to="/properties?add=true"
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg transition-all"
               >
                 <Home class="w-3.5 h-3.5" />
-                Property
+                <span class="hidden sm:inline">Property</span>
               </router-link>
             </div>
           </div>
@@ -52,7 +52,7 @@
 
       <!-- Main Content -->
       <div class="flex-1 overflow-y-auto">
-        <div class="p-6 space-y-6">
+        <div class="p-4 sm:p-6 space-y-6">
           <!-- Stats Grid -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Draft Tenancies -->
@@ -62,9 +62,9 @@
             >
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Draft Tenancies</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wide">Draft Tenancies</p>
                   <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1.5">{{ pendingTenancies }}</p>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pending move-ins</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-300 mt-1">Pending move-ins</p>
                 </div>
                 <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                   <FileEdit class="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors" />
@@ -84,9 +84,9 @@
             >
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Active Tenancies</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wide">Active Tenancies</p>
                   <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1.5">{{ activeTenancies }}</p>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Currently occupied</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-300 mt-1">Currently occupied</p>
                 </div>
                 <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                   <KeyRound class="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors" />
@@ -106,9 +106,9 @@
             >
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">References</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wide">References</p>
                   <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1.5">{{ inProgressReferences }}</p>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">In progress</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-300 mt-1">In progress</p>
                 </div>
                 <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                   <Clock class="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors" />
@@ -131,7 +131,7 @@
             >
               <div class="flex items-start justify-between">
                 <div>
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Deposits</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wide">Deposits</p>
                   <p class="text-3xl font-bold mt-1.5" :class="depositsToProtect > 0 ? 'text-primary' : 'text-slate-900 dark:text-white'">
                     {{ depositsToProtect }}
                   </p>
@@ -173,7 +173,7 @@
                 </div>
                 <div>
                   <p class="text-lg font-bold text-slate-900 dark:text-white">{{ totalReferences }}</p>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Refs</p>
+                  <p class="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-wide">Total Refs</p>
                 </div>
               </div>
             </router-link>
@@ -189,7 +189,7 @@
                 </div>
                 <div>
                   <p class="text-lg font-bold text-slate-900 dark:text-white">{{ completedReferences }}</p>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Completed</p>
+                  <p class="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-wide">Completed</p>
                 </div>
               </div>
             </router-link>
@@ -205,23 +205,24 @@
                 </div>
                 <div>
                   <p class="text-lg font-bold" :class="actionRequiredReferences > 0 ? 'text-primary' : 'text-slate-900 dark:text-white'">{{ actionRequiredReferences }}</p>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Action Req'd</p>
+                  <p class="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-wide">Action Req'd</p>
                 </div>
               </div>
             </router-link>
 
-            <!-- Rejected -->
+            <!-- Mid-Term Actions (replaced Rejected — always zero) -->
             <router-link
-              :to="{ path: '/references', query: { status: 'REJECTED' } }"
+              :to="{ path: '/tenancies', query: { filter: 'mid_term_actions' } }"
               class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
+              :class="midTermActions > 0 ? 'border-amber-200 dark:border-amber-800' : ''"
             >
               <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <X class="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="midTermActions > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-slate-100 dark:bg-slate-800'">
+                  <AlertTriangle class="w-4 h-4" :class="midTermActions > 0 ? 'text-amber-600' : 'text-slate-500 dark:text-slate-400'" />
                 </div>
                 <div>
-                  <p class="text-lg font-bold text-slate-900 dark:text-white">{{ rejectedReferences }}</p>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Rejected</p>
+                  <p class="text-lg font-bold" :class="midTermActions > 0 ? 'text-amber-600' : 'text-slate-900 dark:text-white'">{{ midTermActions }}</p>
+                  <p class="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-wide">Mid-Term</p>
                 </div>
               </div>
             </router-link>
@@ -237,7 +238,7 @@
                 </div>
                 <div>
                   <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Move-in Calendar</h2>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">Next 12 months • {{ calendarEntries.filter(e => e.type !== 'move_out').length }} scheduled move-ins</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-300">Next 12 months • {{ calendarEntries.filter(e => e.type !== 'move_out').length }} scheduled move-ins</p>
                 </div>
               </div>
               <router-link
@@ -256,8 +257,8 @@
             <!-- Calendar Empty State -->
             <div v-else-if="calendarEntries.length === 0 && complianceExpiries.length === 0" class="py-12 text-center">
               <CalendarDays class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-              <p class="text-sm font-medium text-slate-600 dark:text-slate-400">No scheduled move-ins</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Move-in dates from tenancies will appear here</p>
+              <p class="text-sm font-medium text-slate-600 dark:text-slate-300">No scheduled move-ins</p>
+              <p class="text-xs text-slate-500 dark:text-slate-300 mt-1">Move-in dates from tenancies will appear here</p>
             </div>
 
             <!-- Calendar Horizontal Scroll -->
@@ -266,7 +267,7 @@
                 <div
                   v-for="monthData in calendarMonths"
                   :key="`${monthData.year}-${monthData.month}`"
-                  class="calendar-month flex-shrink-0 w-72"
+                  class="calendar-month flex-shrink-0 w-60 sm:w-72"
                 >
                   <!-- Month Header -->
                   <div class="flex items-center gap-2.5 mb-3">
@@ -433,7 +434,8 @@ import {
   ClipboardCheck,
   X,
   CalendarDays,
-  Calendar
+  Calendar,
+  AlertTriangle
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -519,6 +521,7 @@ const pendingVerificationReferences = ref(0)
 const rejectedReferences = ref(0)
 const completedReferences = ref(0)
 const actionRequiredReferences = ref(0)
+const midTermActions = ref(0)
 const activeTenancies = ref(0)
 const pendingTenancies = ref(0)
 const expiringSoonTenancies = ref(0)
@@ -692,6 +695,7 @@ const fetchStats = async () => {
       completedReferences.value = stats.completed || 0
       rejectedReferences.value = stats.rejected || 0
       actionRequiredReferences.value = stats.actionRequired || 0
+      midTermActions.value = stats.midTermActions || 0
     }
   } catch (error) {
     console.error('Failed to fetch reference stats:', error)

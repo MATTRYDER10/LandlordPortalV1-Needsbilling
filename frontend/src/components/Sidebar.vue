@@ -121,7 +121,7 @@
           </div>
 
           <!-- Version Badge -->
-          <span :class="['text-[9px] font-mono px-1.5 py-0.5 rounded-full', isDark ? 'text-white/30 bg-white/5' : 'text-gray-400 bg-gray-100']">v{{ appVersion }}</span>
+          <span :class="['text-[9px] font-mono px-1.5 py-0.5 rounded-full', isDark ? 'text-white/60 bg-white/10' : 'text-gray-400 bg-gray-100']">v{{ appVersion }}</span>
 
           <!-- Create Button -->
           <div class="relative" data-create-menu>
@@ -198,7 +198,7 @@
               :class="isActive(item.path)
                 ? 'text-white'
                 : isDark
-                  ? 'text-white/50 group-hover:text-primary group-hover:scale-110'
+                  ? 'text-white/60 group-hover:text-primary group-hover:scale-110'
                   : 'text-gray-400 group-hover:text-primary group-hover:scale-110'"
             />
             <span class="flex-1 group-hover:translate-x-0.5 transition-transform duration-200">{{ item.name }}</span>
@@ -227,7 +227,7 @@
           <button
             @click="showLegacy = !showLegacy"
             class="w-full flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors"
-            :class="isDark ? 'text-white/40 hover:text-white/60 hover:bg-white/5' : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'"
+            :class="isDark ? 'text-white/60 hover:text-white/80 hover:bg-white/5' : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'"
           >
             <svg class="w-3 h-3 mr-1.5 transition-transform duration-200" :class="showLegacy ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
             Legacy References
@@ -242,13 +242,13 @@
               :class="isActive(item.path)
                 ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg shadow-primary/30'
                 : isDark
-                  ? 'text-white/50 hover:text-white hover:bg-white/10'
+                  ? 'text-white/60 hover:text-white hover:bg-white/10'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-primary/10'"
             >
               <component
                 :is="item.icon"
                 class="w-4 h-4 mr-2.5 transition-all duration-300"
-                :class="isActive(item.path) ? 'text-white' : isDark ? 'text-white/40 group-hover:text-primary' : 'text-gray-400 group-hover:text-primary'"
+                :class="isActive(item.path) ? 'text-white' : isDark ? 'text-white/60 group-hover:text-primary' : 'text-gray-400 group-hover:text-primary'"
               />
               <span class="flex-1 text-xs">{{ item.name }}</span>
             </router-link>
@@ -281,20 +281,20 @@
               @click="showRentGooseInfoModal = true"
               class="nav-item group flex items-center w-full px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300 cursor-pointer"
               :class="isDark
-                ? 'text-white/30 hover:text-white/50 hover:bg-white/5'
+                ? 'text-white/50 hover:text-white/70 hover:bg-white/5'
                 : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'"
               title="RentGoose is not enabled for your account — click to learn more"
             >
               <component
                 :is="item.icon"
                 class="w-5 h-5 mr-3 transition-all duration-300 opacity-50"
-                :class="isDark ? 'text-white/30' : 'text-gray-400'"
+                :class="isDark ? 'text-white/60' : 'text-gray-400'"
               />
               <span class="flex-1 text-xs">{{ item.name }}</span>
-              <svg class="w-3 h-3 mr-1" :class="isDark ? 'text-white/30' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <svg class="w-3 h-3 mr-1" :class="isDark ? 'text-white/60' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/40">Beta</span>
+              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/60">Beta</span>
             </button>
             <!-- Internal router link (V2 items) -->
             <router-link
@@ -314,7 +314,7 @@
                 :class="isActive(item.path)
                   ? 'text-white'
                   : isDark
-                    ? 'text-white/50 group-hover:text-primary'
+                    ? 'text-white/60 group-hover:text-primary'
                     : 'text-gray-400 group-hover:text-primary'"
               />
               <span class="flex-1 text-xs">{{ item.name }}</span>
@@ -376,7 +376,7 @@
                 </div>
                 <div class="ml-3 flex-1 min-w-0">
                   <AdminCompanySwitcher v-if="authStore.isAdmin" class="mb-0.5" />
-                  <p v-else-if="companyName" :class="['text-[10px] truncate mb-0.5 uppercase tracking-wider', isDark ? 'text-white/40' : 'text-gray-400']">{{ companyName }}</p>
+                  <p v-else-if="companyName" :class="['text-[10px] truncate mb-0.5 uppercase tracking-wider', isDark ? 'text-white/60' : 'text-gray-400']">{{ companyName }}</p>
                   <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">{{ userEmail }}</p>
                   <p class="text-[10px] text-primary truncate">{{ userRole }}</p>
                 </div>
@@ -404,7 +404,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto pt-14 md:pt-0 dark:bg-slate-950 transition-colors duration-300">
+    <main :class="['flex-1 overflow-auto md:pt-0 dark:bg-slate-950 transition-colors duration-300', adminCompanyStore.isOverrideActive ? 'pt-[5.25rem]' : 'pt-14']">
       <slot />
     </main>
 

@@ -1,6 +1,6 @@
 <template>
   <Sidebar>
-    <div class="p-8">
+    <div class="p-4 sm:p-8">
       <div v-if="loading" class="flex justify-center items-center h-64">
         <div class="text-gray-600 dark:text-slate-400">Loading property...</div>
       </div>
@@ -11,7 +11,7 @@
 
       <div v-else-if="property" class="space-y-6">
         <!-- Header -->
-        <div class="flex justify-between items-start">
+        <div class="flex flex-col sm:flex-row justify-between items-start gap-3">
           <div>
             <button @click="$router.push('/properties')"
               class="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white mb-4 flex items-center">
@@ -137,7 +137,7 @@
             <!-- Property Details Card -->
             <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Details</h3>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Property Type</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatPropertyType(property.property_type) || 'Not specified' }}</p>
@@ -186,7 +186,7 @@
             <!-- License Info Card -->
             <div v-if="property.is_licensed" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">License</h3>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">License Number</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ property.license_number || 'Not provided' }}</p>
@@ -384,7 +384,7 @@
               <div class="border-b border-gray-200 dark:border-slate-700">
                 <nav class="-mb-px flex">
                   <button @click="rightTab = 'landlords'" :class="[
-                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center',
+                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-xs sm:text-sm text-center',
                     rightTab === 'landlords'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'
@@ -392,7 +392,7 @@
                     Landlords
                   </button>
                   <button @click="rightTab = 'documents'" :class="[
-                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center',
+                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-xs sm:text-sm text-center',
                     rightTab === 'documents'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'
@@ -400,7 +400,7 @@
                     Documents
                   </button>
                   <button @click="rightTab = 'activity'; fetchActivity()" :class="[
-                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center',
+                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-xs sm:text-sm text-center',
                     rightTab === 'activity'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'
@@ -408,7 +408,7 @@
                     Activity
                   </button>
                   <button @click="rightTab = 'tenancies'; fetchPropertyTenancies()" :class="[
-                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center',
+                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-xs sm:text-sm text-center',
                     rightTab === 'tenancies'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'

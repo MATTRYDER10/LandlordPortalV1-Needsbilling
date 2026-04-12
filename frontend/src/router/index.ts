@@ -137,6 +137,11 @@ const router = createRouter({
       component: TenantOffer
     },
     {
+      path: '/make-offer/:token',
+      name: 'MakeOffer',
+      component: () => import('../views/public/MakeOffer.vue')
+    },
+    {
       path: '/tenant-offer/payment-confirmed',
       name: 'TenantOfferPaymentConfirmed',
       component: TenantOfferPaymentConfirmed
@@ -726,6 +731,7 @@ router.beforeEach(async (to, _from, next) => {
   const isStaffPath = to.path.startsWith('/staff')
   const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
                                  to.path.startsWith('/tenant-offer') ||
+                                 to.path.startsWith('/make-offer') ||
                                  to.path.startsWith('/guarantor-reference') ||
                                  to.path.startsWith('/guarantor-reference-v2') ||
                                  to.path.startsWith('/tenant-add-guarantor') ||

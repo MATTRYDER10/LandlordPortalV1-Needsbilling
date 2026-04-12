@@ -162,22 +162,37 @@ export async function initTenancySchedule(tenancyId: string, companyId: string):
 
   const entries: any[] = []
 
+  // Build rent period dates from the rent_due_day rather than from the 1st
+  // of each calendar month. A tenant whose rent is due on the 14th should
+  // see a period of "14 Apr – 13 May", not "1 Apr – 30 Apr".
+  //
+  // For each "month slot" we produce:
+  //   period_start = rent_due_day of that month
+  //   period_end   = day before rent_due_day of the NEXT month
+  //   due_date     = same as period_start
   for (const monthStart of monthsToGenerate) {
-    const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-    const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
-    if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+    const periodStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+    // If rentDueDay overflows the month (e.g. 31st in a 30-day month),
+    // JS Date wraps to the next month automatically, which is fine — the
+    // due date just lands on the 1st of the next month (same as most
+    // tenancy conventions for "last day" due dates).
 
-    const dueDateOnly = new Date(dueDate)
-    dueDateOnly.setHours(0, 0, 0, 0)
+    // Period end = one day before the NEXT month's period_start
+    const nextPeriodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, rentDueDay)
+    const periodEnd = new Date(nextPeriodStart)
+    periodEnd.setDate(periodEnd.getDate() - 1)
+
+    const dueDate = new Date(periodStart)
+    dueDate.setHours(0, 0, 0, 0)
 
     let status = 'upcoming'
-    if (dueDateOnly.getTime() === today.getTime()) status = 'due'
-    else if (dueDateOnly < today) status = 'overdue'
+    if (dueDate.getTime() === today.getTime()) status = 'due'
+    else if (dueDate < today) status = 'overdue'
 
     entries.push({
       company_id: companyId,
       tenancy_id: tenancyId,
-      period_start: monthStart.toISOString().split('T')[0],
+      period_start: periodStart.toISOString().split('T')[0],
       period_end: periodEnd.toISOString().split('T')[0],
       amount_due: monthlyRent,
       amount_received: 0,
@@ -470,23 +485,28 @@ export async function extendRollingSchedule(tenancyId: string, companyId: string
 
   // Only need next month covered — check if it already exists
   const today = new Date()
-  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-  const latestPeriodStart = new Date(latest.period_start)
-
-  // Already covers next month or beyond
-  if (latestPeriodStart >= nextMonthStart) return
-
   const monthlyRent = parseFloat(tenancy.rent_amount || tenancy.monthly_rent || 0)
   const rentDueDay = tenancy.rent_due_day || 1
 
-  const periodEnd = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth() + 1, 0)
-  const dueDate = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth(), rentDueDay)
-  if (dueDate < nextMonthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+  // Next period starts on the rent_due_day of the month after the latest
+  // entry. Use the latest period_start + 1 month to find the right slot.
+  const latestPeriodStart = new Date(latest.period_start)
+  const nextPeriodStart = new Date(latestPeriodStart.getFullYear(), latestPeriodStart.getMonth() + 1, rentDueDay)
+
+  // Already covers next period or beyond
+  if (latestPeriodStart >= new Date(today.getFullYear(), today.getMonth() + 1, rentDueDay)) return
+
+  // Period end = day before the FOLLOWING period start
+  const followingPeriodStart = new Date(nextPeriodStart.getFullYear(), nextPeriodStart.getMonth() + 1, rentDueDay)
+  const periodEnd = new Date(followingPeriodStart)
+  periodEnd.setDate(periodEnd.getDate() - 1)
+
+  const dueDate = new Date(nextPeriodStart)
 
   await supabase.from('rent_schedule_entries').insert({
     company_id: companyId,
     tenancy_id: tenancyId,
-    period_start: nextMonthStart.toISOString().split('T')[0],
+    period_start: nextPeriodStart.toISOString().split('T')[0],
     period_end: periodEnd.toISOString().split('T')[0],
     amount_due: monthlyRent,
     amount_received: 0,
@@ -587,20 +607,24 @@ export async function syncActiveManagedTenancies(companyId: string): Promise<{ s
       const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
       if (existing.has(key)) continue // Already covered
 
-      const periodEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-      const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
-      if (dueDate < monthStart) dueDate.setMonth(dueDate.getMonth() + 1)
+      // Period anchored on rent_due_day — e.g. rent due 14th →
+      // period 14 Apr – 13 May, NOT 1 Apr – 30 Apr.
+      const periodStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), rentDueDay)
+      const nextPeriodStart = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, rentDueDay)
+      const periodEnd = new Date(nextPeriodStart)
+      periodEnd.setDate(periodEnd.getDate() - 1)
 
-      const dueDateOnly = new Date(dueDate)
-      dueDateOnly.setHours(0, 0, 0, 0)
+      const dueDate = new Date(periodStart)
+      dueDate.setHours(0, 0, 0, 0)
+
       let status = 'upcoming'
-      if (dueDateOnly.getTime() === today.getTime()) status = 'due'
-      else if (dueDateOnly < today) status = 'overdue'
+      if (dueDate.getTime() === today.getTime()) status = 'due'
+      else if (dueDate < today) status = 'overdue'
 
       toInsert.push({
         company_id: companyId,
         tenancy_id: tenancy.id,
-        period_start: monthStart.toISOString().split('T')[0],
+        period_start: periodStart.toISOString().split('T')[0],
         period_end: periodEnd.toISOString().split('T')[0],
         amount_due: monthlyRent,
         amount_received: 0,
@@ -2079,7 +2103,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   amount: number
   deposit_scheme: string | null
   scheme_label: string
-  status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+  status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration' | 'with_scheme'
   status_label: string
   registration_ref: string | null
   registered_at: string | null
@@ -2135,25 +2159,18 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     for (const p of (props || [])) propertyMap.set(p.id, p)
   }
 
-  // Lead tenant per tenancy
-  const tenantNameByTenancy = new Map<string, string>()
+  // Tenants per tenancy (for display)
+  const byTenancyMap = new Map<string, any[]>()
   if (tenancyIds.length > 0) {
     const { data: tenants } = await supabase
       .from('tenancy_tenants')
       .select('tenancy_id, tenant_name_encrypted, is_lead_tenant, tenant_order, status')
       .in('tenancy_id', tenancyIds)
       .eq('is_active', true)
-    const byTenancy = new Map<string, any[]>()
     for (const t of (tenants || [])) {
-      const arr = byTenancy.get(t.tenancy_id) || []
+      const arr = byTenancyMap.get(t.tenancy_id) || []
       arr.push(t)
-      byTenancy.set(t.tenancy_id, arr)
-    }
-    for (const [tid, list] of byTenancy.entries()) {
-      const lead = list.find((t: any) => t.is_lead_tenant) || list.sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))[0]
-      if (lead?.tenant_name_encrypted) {
-        tenantNameByTenancy.set(tid, decrypt(lead.tenant_name_encrypted) || 'Tenant')
-      }
+      byTenancyMap.set(t.tenancy_id, arr)
     }
   }
 
@@ -2171,7 +2188,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     no_deposit: 'No Deposit',
   }
 
-  return entries.map((e: any) => {
+  const results = entries.map((e: any) => {
     const ep = e.related_id ? epMap.get(e.related_id) : null
     const tenancy = ep?.tenancy_id ? tenancyMap.get(ep.tenancy_id) : null
     const property = tenancy?.property_id ? propertyMap.get(tenancy.property_id) : null
@@ -2186,10 +2203,11 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     const scheme = (tenancy?.deposit_scheme || '') as string
     const schemeLabel = schemeLabels[scheme] || scheme || 'Not set'
     const isLandlordHeld = scheme === 'landlord_held'
+    const isCustodial = scheme.includes('custodial')
     const isProtected = !!tenancy?.deposit_protected_at
     const paidOut = !!ep?.deposit_payout_at
 
-    let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration'
+    let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration' | 'with_scheme'
     let statusLabel: string
     let nextAction: 'pay_landlord' | 'register_scheme' | 'none' = 'none'
 
@@ -2203,13 +2221,26 @@ export async function getDepositsList(companyId: string): Promise<Array<{
         nextAction = 'pay_landlord'
       }
     } else if (isProtected) {
-      status = 'registered'
-      statusLabel = `Registered with ${schemeLabel}`
+      if (isCustodial) {
+        status = 'with_scheme'
+        statusLabel = `Held by ${schemeLabel} — accruing interest`
+      } else {
+        status = 'registered'
+        statusLabel = `Registered with ${schemeLabel}`
+      }
     } else {
       status = 'awaiting_registration'
       statusLabel = `Awaiting registration with ${schemeLabel}`
       nextAction = 'register_scheme'
     }
+
+    // Build tenant names list (all tenants, not just lead)
+    const tenancyTenants = tenancy ? (byTenancyMap.get(ep?.tenancy_id) || []) : []
+    const tenantNames = tenancyTenants
+      .sort((a: any, b: any) => (a.tenant_order || 99) - (b.tenant_order || 99))
+      .map((t: any) => t.tenant_name_encrypted ? (decrypt(t.tenant_name_encrypted) || '') : '')
+      .filter(Boolean)
+    const tenantDisplay = tenantNames.length > 0 ? tenantNames.join(', ') : 'Tenant'
 
     return {
       id: e.id,
@@ -2217,7 +2248,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       property_id: tenancy?.property_id || null,
       property_address: propertyAddress,
       property_postcode: propertyPostcode,
-      tenant_name: tenantNameByTenancy.get(ep?.tenancy_id || '') || 'Tenant',
+      tenant_name: tenantDisplay,
       amount: parseFloat(e.amount),
       deposit_scheme: scheme || null,
       scheme_label: schemeLabel,
@@ -2229,8 +2260,12 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       expected_payment_id: ep?.id || null,
       received_at: e.created_at,
       next_action: nextAction,
+      is_landlord_held: isLandlordHeld,
     }
   })
+
+  // Exclude landlord-held deposits — they belong in Landlord Payouts
+  return results.filter(d => !d.is_landlord_held)
 }
 
 // ============================================================================
@@ -3303,12 +3338,15 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
   if (fetchErr || !entries || entries.length === 0) return
 
   for (const entry of entries) {
-    const period = new Date(entry.period_start)
-    const newDueDate = new Date(period.getFullYear(), period.getMonth(), newDueDay)
-    // If due day is before period start, push to next month
-    if (newDueDate < period) {
-      newDueDate.setMonth(newDueDate.getMonth() + 1)
-    }
+    const oldStart = new Date(entry.period_start)
+    // New period_start = the new due day in the same month as the old period
+    const newPeriodStart = new Date(oldStart.getFullYear(), oldStart.getMonth(), newDueDay)
+    // New period_end = day before the NEXT month's due day
+    const nextPeriodStart = new Date(newPeriodStart.getFullYear(), newPeriodStart.getMonth() + 1, newDueDay)
+    const newPeriodEnd = new Date(nextPeriodStart)
+    newPeriodEnd.setDate(newPeriodEnd.getDate() - 1)
+
+    const newDueDate = new Date(newPeriodStart)
 
     const todayDate = new Date()
     todayDate.setHours(0, 0, 0, 0)
@@ -3322,6 +3360,8 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
     await supabase
       .from('rent_schedule_entries')
       .update({
+        period_start: newPeriodStart.toISOString().split('T')[0],
+        period_end: newPeriodEnd.toISOString().split('T')[0],
         due_date: newDueDate.toISOString().split('T')[0],
         status: newStatus,
         updated_at: new Date().toISOString()
@@ -3329,7 +3369,7 @@ export async function updateFutureRentDueDates(tenancyId: string, newDueDay: num
       .eq('id', entry.id)
   }
 
-  console.log(`[RentGoose] Updated due dates for ${entries.length} future entries to day ${newDueDay} for tenancy ${tenancyId}`)
+  console.log(`[RentGoose] Updated periods and due dates for ${entries.length} future entries to day ${newDueDay} for tenancy ${tenancyId}`)
 }
 
 // ============================================================================

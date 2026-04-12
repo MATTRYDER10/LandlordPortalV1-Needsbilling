@@ -2,7 +2,7 @@
   <Sidebar>
     <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
       <!-- Header -->
-      <div class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 py-4">
+      <div class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-4 sm:px-6 py-4">
         <div class="flex items-center justify-between">
           <div>
             <div class="flex items-center gap-2">
@@ -162,7 +162,16 @@
                   </span>
                 </div>
                 <!-- Guarantor Section Status Blocks -->
-                <div class="flex items-stretch ml-auto">
+                <!-- Mobile summary indicator -->
+                <div class="flex items-center ml-auto sm:hidden px-2">
+                  <div
+                    class="w-2.5 h-2.5 rounded-full"
+                    :class="ref.status === 'COMPLETED' ? 'bg-green-500' : ref.status === 'ACTION_REQUIRED' || ref.status === 'REJECTED' ? 'bg-red-500' : ref.status === 'IN_PROGRESS' ? 'bg-blue-500' : 'bg-gray-400'"
+                  />
+                  <ChevronRight class="w-4 h-4 text-gray-400 ml-1" />
+                </div>
+                <!-- Desktop section blocks -->
+                <div class="hidden sm:flex items-stretch ml-auto">
                   <div
                     v-for="section in getSortedSections(ref.sections)"
                     :key="section.section_type"
@@ -238,7 +247,16 @@
                 </div>
 
                 <!-- Section Status Blocks -->
-                <div class="flex items-stretch ml-auto">
+                <!-- Mobile summary indicator -->
+                <div class="flex items-center ml-auto sm:hidden px-2">
+                  <div
+                    class="w-2.5 h-2.5 rounded-full"
+                    :class="ref.status === 'COMPLETED' ? 'bg-green-500' : ref.status === 'ACTION_REQUIRED' || ref.status === 'REJECTED' ? 'bg-red-500' : ref.status === 'IN_PROGRESS' ? 'bg-blue-500' : 'bg-gray-400'"
+                  />
+                  <ChevronRight class="w-4 h-4 text-gray-400 ml-1" />
+                </div>
+                <!-- Desktop section blocks -->
+                <div class="hidden sm:flex items-stretch ml-auto">
                   <div
                     v-for="section in getSortedSections(ref.sections)"
                     :key="section.section_type"
@@ -277,7 +295,7 @@
       <!-- Delete Confirmation Modal -->
       <div v-if="referenceToDelete" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-black/50" @click="referenceToDelete = null"></div>
-        <div class="relative bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl">
+        <div class="relative bg-white dark:bg-slate-900 rounded-xl max-w-sm sm:max-w-md w-full mx-4 p-6 shadow-2xl">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Reference</h3>
           <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Are you sure you want to delete the reference for
@@ -475,7 +493,7 @@
                       ← Back to Search
                     </button>
                   </div>
-                  <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="col-span-2">
                       <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property Address *</label>
                       <input
@@ -514,7 +532,7 @@
                 </div>
 
                 <!-- Rent and Move-in Date (Always visible) -->
-                <div v-if="selectedProperty || isManualEntry" class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                <div v-if="selectedProperty || isManualEntry" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monthly Rent (£) *</label>
                     <input
@@ -559,7 +577,7 @@
 
                 <!-- Single Tenant -->
                 <div v-if="tenantCount === 1" class="space-y-4">
-                  <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name *</label>
                       <input
@@ -609,7 +627,7 @@
                       <span class="font-medium text-gray-900 dark:text-white">Tenant {{ index + 1 }}</span>
                       <span class="text-sm text-gray-500">Rent share: £{{ tenant.rent_share || 0 }}</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">First Name *</label>
                         <input

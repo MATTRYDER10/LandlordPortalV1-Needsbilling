@@ -20,7 +20,7 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'text/csv']
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif', 'image/webp', 'image/gif', 'image/bmp', 'text/csv']
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true)
     } else {

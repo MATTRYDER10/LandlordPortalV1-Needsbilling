@@ -56,6 +56,7 @@ import apex27SyncRoutes from './routes/apex27-sync'
 import igSettingsRoutes from './routes/ig-settings'
 import igRoutes from './routes/ig'
 import igWebhooksRoutes from './routes/ig-webhooks'
+import publicOffersRoutes from './routes/public-offers'
 import rentgooseRoutes from './routes/rentgoose'
 import contractorsRoutes from './routes/contractors'
 import jmiSettingsRoutes from './routes/jmi-settings'
@@ -71,6 +72,7 @@ import { startArrearsChaseScheduler } from './services/arrearsChaseScheduler'
 import { startWeeklyReportScheduler } from './services/weeklyReportService'
 import { startErrorGithubScheduler } from './services/errorGithubScheduler'
 import { startLandlordAmlChaseScheduler } from './services/landlordAmlChaseScheduler'
+import { startApex27DocPushScheduler } from './services/apex27DocPushScheduler'
 
 dotenv.config()
 
@@ -199,6 +201,9 @@ app.use('/api/integrations/ig', express.json({
 
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
+
+// Public offer form (no auth — token identifies company)
+app.use('/api/public', publicOffersRoutes)
 
 // Middleware - 50mb limit to support 25MB file uploads (base64 encoded)
 app.use(express.json({ limit: '50mb' }))
@@ -336,6 +341,7 @@ app.listen(PORT, '0.0.0.0', () => {
     startWeeklyReportScheduler()
     startErrorGithubScheduler()
     startLandlordAmlChaseScheduler()
+    startApex27DocPushScheduler()
     console.log('[Scheduler] All background schedulers started (production)')
   } else {
     console.log('[Scheduler] Skipping background schedulers (non-production)')

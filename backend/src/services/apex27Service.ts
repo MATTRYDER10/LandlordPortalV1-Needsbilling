@@ -1441,6 +1441,239 @@ export async function updateListingStatus(
 }
 
 // ============================================================================
+// OFFER PUSH TO APEX27
+// ============================================================================
+
+/**
+ * Create a contact in Apex27 from tenant offer data.
+ * Returns the created contact ID.
+ */
+export async function createApex27Contact(
+  apiKey: string,
+  tenant: {
+    first_name: string
+    last_name: string
+    email?: string
+    phone?: string
+    address?: string
+  }
+): Promise<{ success: boolean; contactId?: number; error?: string }> {
+  console.log(`[Apex27] Creating contact: ${tenant.first_name} ${tenant.last_name}`)
+
+  const body: Record<string, any> = {
+    firstName: tenant.first_name,
+    lastName: tenant.last_name,
+    isLettingsApplicant: true,
+    source: 'API'
+  }
+  if (tenant.email) body.email = tenant.email
+  if (tenant.phone) body.mobile = tenant.phone
+  if (tenant.address) body.address1 = tenant.address
+
+  const result = await apex27Fetch<any>(apiKey, '/contacts', undefined, 'POST', body)
+
+  if (!result.success) {
+    console.error(`[Apex27] Failed to create contact: ${result.error}`)
+    return { success: false, error: result.error }
+  }
+
+  const contactId = result.data?.id
+  if (!contactId) {
+    return { success: false, error: 'No contact ID returned from Apex27' }
+  }
+
+  console.log(`[Apex27] Created contact ${contactId} for ${tenant.first_name} ${tenant.last_name}`)
+  return { success: true, contactId }
+}
+
+/**
+ * Create an offer on a listing in Apex27.
+ */
+export async function createApex27Offer(
+  apiKey: string,
+  listingId: string | number,
+  contactId: number,
+  amount: number,
+  notes?: string
+): Promise<{ success: boolean; offerId?: number; error?: string }> {
+  console.log(`[Apex27] Creating offer on listing ${listingId} for contact ${contactId}, amount: ${amount}`)
+
+  const body = {
+    contactId,
+    currency: 'GBP',
+    amount,
+    status: 'new' as const,
+    notes: notes || undefined,
+    dtsOffer: new Date().toISOString().replace('T', ' ').substring(0, 19)
+  }
+
+  const result = await apex27Fetch<any>(apiKey, `/listings/${listingId}/offers`, undefined, 'POST', body)
+
+  if (!result.success) {
+    console.error(`[Apex27] Failed to create offer: ${result.error}`)
+    return { success: false, error: result.error }
+  }
+
+  const offerId = result.data?.id
+  console.log(`[Apex27] Created offer ${offerId} on listing ${listingId}`)
+  return { success: true, offerId }
+}
+
+/**
+ * Push a new pending offer to Apex27.
+ * Creates the lead tenant as a contact, then creates the offer on the listing.
+ * Only runs if: company has Apex27 config, property has apex27_listing_id.
+ */
+export async function pushOfferToApex27(
+  companyId: string,
+  offer: {
+    linked_property_id: string | null
+    offered_rent_amount: number
+    proposed_move_in_date?: string
+    proposed_tenancy_length_months?: number
+    special_conditions?: string
+    deposit_amount?: number
+    deposit_replacement_requested?: boolean
+    unihomes_interested?: boolean
+    tenants: Array<{
+      first_name: string
+      last_name: string
+      email?: string
+      phone?: string
+      address?: string
+      annual_income?: string
+      job_title?: string
+      is_student?: boolean
+      has_guarantor?: boolean
+    }>
+  }
+): Promise<{ success: boolean; error?: string; apex27OfferId?: number; apex27ListingId?: string | number }> {
+  // 1. Check if company has Apex27 configured
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) {
+    console.log('[Apex27 Offer Push] Company has no Apex27 config, skipping')
+    return { success: true } // Not an error — just not an Apex27 user
+  }
+
+  // 2. Check if property is linked and has apex27_listing_id
+  if (!offer.linked_property_id) {
+    console.log('[Apex27 Offer Push] No linked property, skipping')
+    return { success: true }
+  }
+
+  const { data: property } = await supabase
+    .from('properties')
+    .select('apex27_listing_id')
+    .eq('id', offer.linked_property_id)
+    .single()
+
+  if (!property?.apex27_listing_id) {
+    console.log('[Apex27 Offer Push] Property has no apex27_listing_id, skipping')
+    return { success: true }
+  }
+
+  const listingId = property.apex27_listing_id
+
+  // 3. Create contact from lead tenant
+  const leadTenant = offer.tenants[0]
+  if (!leadTenant) {
+    return { success: false, error: 'No tenants on offer' }
+  }
+
+  const contactResult = await createApex27Contact(config.apiKey, leadTenant)
+  if (!contactResult.success || !contactResult.contactId) {
+    return { success: false, error: `Failed to create Apex27 contact: ${contactResult.error}` }
+  }
+
+  // 4. Build detailed notes
+  const noteLines: string[] = ['Via PropertyGoose']
+
+  if (offer.proposed_move_in_date) {
+    const d = new Date(offer.proposed_move_in_date)
+    noteLines.push(`Move-in: ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+  }
+  if (offer.proposed_tenancy_length_months) {
+    noteLines.push(`Term: ${offer.proposed_tenancy_length_months} month${offer.proposed_tenancy_length_months !== 1 ? 's' : ''}`)
+  }
+  if (offer.deposit_amount != null && offer.deposit_amount > 0) {
+    noteLines.push(`Deposit: £${offer.deposit_amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`)
+  }
+
+  // Tenant details
+  for (let i = 0; i < offer.tenants.length; i++) {
+    const t = offer.tenants[i]
+    const tenantLabel = offer.tenants.length > 1 ? `Tenant ${i + 1}` : 'Tenant'
+    const parts = [`${tenantLabel}: ${t.first_name} ${t.last_name}`]
+    if (t.email) parts.push(t.email)
+    if (t.phone) parts.push(t.phone)
+    if (t.is_student) {
+      parts.push('Student')
+    } else if (t.annual_income) {
+      parts.push(`Income: £${t.annual_income}`)
+    }
+    if (t.job_title) parts.push(t.job_title)
+    if (t.has_guarantor) parts.push('Has guarantor')
+    if (t.address) parts.push(`Address: ${t.address}`)
+    noteLines.push(parts.join(' | '))
+  }
+
+  if (offer.deposit_replacement_requested != null) {
+    noteLines.push(`Reposit: ${offer.deposit_replacement_requested ? 'Yes' : 'No'}`)
+  }
+  if (offer.unihomes_interested != null) {
+    noteLines.push(`UniHomes: ${offer.unihomes_interested ? 'Yes' : 'No'}`)
+  }
+
+  if (offer.special_conditions) {
+    noteLines.push(`Special conditions: ${offer.special_conditions}`)
+  }
+
+  const notes = noteLines.join('\n')
+
+  const offerResult = await createApex27Offer(
+    config.apiKey,
+    listingId,
+    contactResult.contactId,
+    offer.offered_rent_amount,
+    notes
+  )
+
+  if (!offerResult.success) {
+    return { success: false, error: `Failed to create Apex27 offer: ${offerResult.error}` }
+  }
+
+  console.log(`[Apex27 Offer Push] Successfully pushed offer to Apex27 (listing ${listingId}, contact ${contactResult.contactId}, offer ${offerResult.offerId})`)
+  return { success: true, apex27OfferId: offerResult.offerId, apex27ListingId: listingId }
+}
+
+/**
+ * Update an offer's status on Apex27 (accepted/rejected).
+ */
+export async function updateApex27OfferStatus(
+  apiKey: string,
+  listingId: string | number,
+  offerId: number,
+  status: 'accepted' | 'rejected'
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`[Apex27] Updating offer ${offerId} on listing ${listingId} to "${status}"`)
+
+  const body: Record<string, any> = { status }
+  if (status === 'accepted') {
+    body.dtsAccepted = new Date().toISOString().replace('T', ' ').substring(0, 19)
+  }
+
+  const result = await apex27Fetch(apiKey, `/listings/${listingId}/offers/${offerId}`, undefined, 'PUT', body)
+
+  if (!result.success) {
+    console.error(`[Apex27] Failed to update offer status: ${result.error}`)
+    return { success: false, error: result.error }
+  }
+
+  console.log(`[Apex27] Successfully updated offer ${offerId} to "${status}"`)
+  return { success: true }
+}
+
+// ============================================================================
 // TENANCY SYNC
 // ============================================================================
 

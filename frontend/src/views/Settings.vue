@@ -1,18 +1,37 @@
 <template>
   <Sidebar>
-    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 transition-colors duration-300">
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8 transition-colors duration-300">
       <div class="mb-8">
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Settings</h2>
-        <p class="mt-2 text-gray-600 dark:text-slate-400">Manage your account, team, and company settings</p>
+        <p class="mt-2 text-gray-600 dark:text-slate-300">Manage your account, team, and company settings</p>
       </div>
+
+      <!-- Mobile Tab Bar -->
+      <nav class="md:hidden mb-4">
+        <div class="flex overflow-x-auto gap-2 pb-2 -mx-2 px-2">
+          <template v-for="group in tabs" :key="group.category">
+            <router-link
+              v-for="tab in group.items"
+              :key="tab.id"
+              :to="`/settings/${tab.id}`"
+              class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap"
+              :class="activeTab === tab.id
+                ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-md shadow-primary/30'
+                : 'text-gray-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:bg-primary/10 dark:hover:bg-white/10'"
+            >
+              {{ tab.name }}
+            </router-link>
+          </template>
+        </div>
+      </nav>
 
       <!-- Tabs Layout -->
       <div class="flex gap-6">
-        <!-- Vertical Tabs -->
-        <nav class="w-64 flex-shrink-0">
+        <!-- Vertical Tabs (desktop only) -->
+        <nav class="hidden md:block w-64 flex-shrink-0">
           <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2">
             <template v-for="group in tabs" :key="group.category">
-              <p class="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 first:pt-1">
+              <p class="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-400 first:pt-1">
                 {{ group.category }}
               </p>
               <router-link
@@ -41,7 +60,7 @@
               </div>
             </div>
             <h3 class="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">Access Denied</h3>
-            <p class="text-gray-600 dark:text-slate-400 text-center mb-6">
+            <p class="text-gray-600 dark:text-slate-300 text-center mb-6">
               You don't have permission to access this section. Please contact your company owner or admin for access.
             </p>
             <div class="flex justify-center">
@@ -57,7 +76,7 @@
 
         <!-- Profile Tab -->
         <div v-else-if="activeTab === 'profile'" class="max-w-3xl">
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6 mb-6">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4 sm:p-6 mb-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Personal Information</h3>
             <form @submit.prevent="handleUpdateProfile" class="space-y-4">
               <div>
@@ -67,9 +86,9 @@
                   v-model="profileData.email"
                   type="email"
                   disabled
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md bg-gray-100 dark:bg-slate-800 dark:text-slate-400 cursor-not-allowed"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md bg-gray-100 dark:bg-slate-800 dark:text-slate-300 cursor-not-allowed"
                 />
-                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email cannot be changed</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Email cannot be changed</p>
               </div>
 
               <div>
@@ -110,7 +129,7 @@
             </form>
           </div>
 
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4 sm:p-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Change Password</h3>
             <form @submit.prevent="handleChangePassword" class="space-y-4">
               <div>
@@ -156,7 +175,7 @@
 
         <!-- Company Tab -->
         <div v-else-if="activeTab === 'company'" class="max-w-3xl">
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4 sm:p-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Company Information</h3>
             <form @submit.prevent="handleUpdateCompany" class="space-y-4">
               <div>
@@ -180,7 +199,7 @@
                 ></textarea>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label for="city" class="block text-sm font-medium text-gray-700 dark:text-slate-300">City</label>
                   <input
@@ -232,7 +251,7 @@
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="notifications@example.com or slack-channel@example.com"
                 />
-                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email address to receive notifications when tenant offers are completed. Can be set to a Slack channel email or any notification service.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Email address to receive notifications when tenant offers are completed. Can be set to a Slack channel email or any notification service.</p>
               </div>
 
               <div>
@@ -244,13 +263,13 @@
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="notifications@example.com or slack-channel@example.com"
                 />
-                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email address to receive notifications when references are completed. Can be set to a Slack channel email or any notification service.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Email address to receive notifications when references are completed. Can be set to a Slack channel email or any notification service.</p>
               </div>
 
               <!-- Bank Details Section -->
               <div class="border-t dark:border-slate-700 pt-6">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Bank Details (for Agreements)</h4>
-                <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">These details will be used when generating tenancy agreements for fully managed properties.</p>
+                <p class="text-sm text-gray-600 dark:text-slate-300 mb-4">These details will be used when generating tenancy agreements for fully managed properties.</p>
 
                 <div class="space-y-4">
                   <div>
@@ -264,7 +283,7 @@
                     />
                   </div>
 
-                  <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label for="bank-account-number" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account Number</label>
                       <input
@@ -310,7 +329,7 @@
                     </label>
                   </div>
                 </div>
-                <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                <p class="text-sm text-gray-600 dark:text-slate-300 mb-4">
                   The message below will be sent to your managed tenants in the move-in pack to tell them how to report maintenance issues. Please describe your process.
                 </p>
                 <div>
@@ -322,7 +341,7 @@
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                     placeholder="e.g. For any maintenance issues, please report them via email to maintenance@company.com or call 01onal23 456789 during office hours (Mon-Fri 9am-5pm). For emergencies outside of hours, please call our 24/7 line on 01234 567890."
                   ></textarea>
-                  <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">This is only shown for managed tenancies. Let Only tenancies will show landlord contact details instead.</p>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">This is only shown for managed tenancies. Let Only tenancies will show landlord contact details instead.</p>
                 </div>
 
                 <!-- VAT Registration -->
@@ -346,9 +365,9 @@
                       class="mt-1 block w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       placeholder="e.g. GB123456789"
                     />
-                    <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Displayed on all statements and invoices. Fees will show + VAT.</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Displayed on all statements and invoices. Fees will show + VAT.</p>
                   </div>
-                  <p v-else class="text-sm text-gray-500 dark:text-slate-500">All fees will display as inclusive (no VAT breakdown).</p>
+                  <p v-else class="text-sm text-gray-500 dark:text-slate-400">All fees will display as inclusive (no VAT breakdown).</p>
                 </div>
               </div>
 
@@ -373,9 +392,9 @@
 
         <!-- Branding Tab -->
         <div v-else-if="activeTab === 'branding'" class="max-w-3xl">
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4 sm:p-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding Settings</h3>
-            <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
+            <p class="text-sm text-gray-600 dark:text-slate-300 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
 
             <form @submit.prevent="handleUpdateBranding" class="space-y-6">
               <!-- Logo Upload -->
@@ -386,8 +405,8 @@
                     <div class="w-32 h-32 border-2 border-gray-300 dark:border-slate-700 border-dashed rounded-lg flex items-center justify-center bg-gray-50 dark:bg-slate-800">
                       <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="w-full h-full object-contain rounded-lg" />
                       <div v-else class="text-center">
-                        <Image class="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500" />
-                        <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">No logo</p>
+                        <Image class="mx-auto h-12 w-12 text-gray-400 dark:text-slate-400" />
+                        <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">No logo</p>
                       </div>
                     </div>
                   </div>
@@ -398,7 +417,7 @@
                       accept="image/png,image/jpeg,image/jpg,image/webp"
                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90"
                     />
-                    <p class="mt-2 text-xs text-gray-500 dark:text-slate-500">PNG, JPG, or WEBP. Max 2MB.</p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-slate-400">PNG, JPG, or WEBP. Max 2MB.</p>
                     <button
                       v-if="logoPreview"
                       type="button"
@@ -428,7 +447,7 @@
                     placeholder="#fe7a0f"
                   />
                 </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">Used for headings and key UI elements</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Used for headings and key UI elements</p>
               </div>
 
               <!-- Button Color -->
@@ -448,7 +467,7 @@
                     placeholder="#fe7a0f"
                   />
                 </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">Used for action buttons throughout forms</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Used for action buttons throughout forms</p>
               </div>
 
               <!-- Preview -->
@@ -461,7 +480,7 @@
                   <h3 class="text-xl font-bold mb-4" :style="{ color: brandingData.primary_color }">
                     Reference Request Form
                   </h3>
-                  <p class="text-gray-600 dark:text-slate-400 mb-4">This is how your forms will appear to recipients.</p>
+                  <p class="text-gray-600 dark:text-slate-300 mb-4">This is how your forms will appear to recipients.</p>
                   <button
                     type="button"
                     class="px-4 py-2 rounded-md text-white font-medium"
@@ -520,19 +539,20 @@
 
           <!-- Team Members List -->
           <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden mb-8">
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
               <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Joined</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Role</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Joined</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="teamMembers.length === 0">
-                  <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
+                  <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-300">
                     No team members yet. Invite your first user!
                   </td>
                 </tr>
@@ -547,7 +567,7 @@
                       </div>
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ member.email }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{{ member.email }}</td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                       :class="{
@@ -558,7 +578,7 @@
                       {{ member.role }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(member.joined) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{{ formatDate(member.joined) }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       v-if="member.role !== 'owner'"
@@ -571,6 +591,7 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
 
           <!-- Negotiators -->
@@ -584,23 +605,24 @@
                 Add Negotiator
               </button>
             </div>
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
               <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="negotiators.length === 0">
-                  <td colspan="3" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                  <td colspan="3" class="px-6 py-8 text-center text-gray-500 dark:text-slate-300">
                     No negotiators added yet. Add your first negotiator to track deal ownership.
                   </td>
                 </tr>
                 <tr v-for="neg in negotiators" :key="neg.id">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ neg.name }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ neg.email }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{{ neg.email }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       @click="removeNegotiator(neg)"
@@ -612,6 +634,7 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
 
           <!-- Add Negotiator Modal -->
@@ -662,19 +685,20 @@
             <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pending Invitations</h3>
             </div>
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
               <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invited</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Expires</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Role</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Invited</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Expires</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="pendingInvitations.length === 0">
-                  <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                  <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-slate-300">
                     No pending invitations
                   </td>
                 </tr>
@@ -685,8 +709,8 @@
                       {{ invite.role }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(invite.created) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(invite.expires) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{{ formatDate(invite.created) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{{ formatDate(invite.expires) }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       @click="handleResendInvite(invite)"
@@ -704,13 +728,14 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         <!-- Audit Logs Tab -->
         <div v-else-if="activeTab === 'audit-logs'">
           <!-- Filters -->
-          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6 mb-6">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4 sm:p-6 mb-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
@@ -772,7 +797,7 @@
             <div class="mt-4 flex justify-between items-center">
               <button
                 @click="resetAuditFilters"
-                class="text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
+                class="text-sm text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
               >
                 Reset Filters
               </button>
@@ -789,7 +814,7 @@
           <!-- Loading State -->
           <div v-if="auditLoading" class="text-center py-12">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p class="mt-2 text-gray-600 dark:text-slate-400">Loading audit logs...</p>
+            <p class="mt-2 text-gray-600 dark:text-slate-300">Loading audit logs...</p>
           </div>
 
           <!-- Error State -->
@@ -803,16 +828,16 @@
               <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                 <thead class="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Date/Time</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">User</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">IP Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Date/Time</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-300 uppercase tracking-wider">IP Address</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                   <tr v-if="auditLogs.length === 0">
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-300">
                       No audit logs found
                     </td>
                   </tr>
@@ -827,7 +852,7 @@
                         </div>
                         <div class="ml-3">
                           <div class="text-sm font-medium text-gray-900 dark:text-white">{{ log.user?.name || 'System' }}</div>
-                          <div class="text-xs text-gray-500 dark:text-slate-400">{{ log.user?.email || '-' }}</div>
+                          <div class="text-xs text-gray-500 dark:text-slate-300">{{ log.user?.email || '-' }}</div>
                         </div>
                       </div>
                     </td>
@@ -840,7 +865,7 @@
                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                       {{ log.description }}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">
                       {{ log.ip_address || '-' }}
                     </td>
                   </tr>
@@ -997,7 +1022,7 @@
     <div v-if="showAddToBranchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Existing User to Branch</h3>
-        <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+        <p class="text-sm text-gray-600 dark:text-slate-300 mb-4">
           Add a user who already has a PropertyGoose account to this branch. They will gain access immediately.
         </p>
         <form @submit.prevent="handleAddToBranch" class="space-y-4">
@@ -1062,7 +1087,7 @@
           </div>
           <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Reset to Default Branding?</h3>
         </div>
-        <p class="text-gray-600 dark:text-slate-400 mb-6">
+        <p class="text-gray-600 dark:text-slate-300 mb-6">
           This will remove your custom logo and reset colors to PropertyGoose orange. This action cannot be undone.
         </p>
         <div class="flex justify-end space-x-3">

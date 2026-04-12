@@ -577,7 +577,10 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     const now = new Date()
     const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 0)
     const endDateStr = endDate.toISOString().split('T')[0]
-    const startDateStr = now.toISOString().split('T')[0]
+    // Start from the 1st of the current month so move-ins earlier this
+    // month still appear in the calendar (not just future dates)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startDateStr = monthStart.toISOString().split('T')[0]
 
     // Helper to take a flat list of references and collapse group children
     // into their parent — same logic for V1 and V2 since both use the same
@@ -767,18 +770,14 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     // Tenancies — third source for the move-in calendar.
     // ========================================================================
     // Includes any pending or active tenancy with a tenancy_start_date in
-    // the next 12 months. After fetching we deduplicate against V1+V2 by
-    // skipping any tenancy whose id is already represented by a reference's
-    // converted_to_tenancy_id (the canonical link). This prevents the same
-    // move-in showing twice when a reference has been converted into a
-    // tenancy.
-    const convertedTenancyIds = new Set<string>()
-    for (const r of (v2Refs || [])) {
-      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
-    }
-    for (const r of (v1Refs || [])) {
-      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
-    }
+    // Pull ALL draft (pending) tenancies with a start date in range.
+    // No pre-filtering against references here — dedup happens at the
+    // END via surname matching. The previous approach was removing
+    // tenancies whose primary_reference_id matched a V1/V2 ref, which
+    // dropped 25 of 26 entries for RG Bristol because nearly every draft
+    // tenancy was converted from a reference. The user wants to see
+    // every upcoming move-in from ALL sources, deduped only by tenant
+    // surname + date at the end.
 
     let tenancyEntries: any[] = []
     try {
@@ -794,7 +793,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           primary_reference_id
         `)
         .eq('company_id', companyId)
-        .in('status', ['pending', 'active'])
+        .eq('status', 'pending')
         .is('deleted_at', null)
         .not('tenancy_start_date', 'is', null)
         .gte('tenancy_start_date', startDateStr)
@@ -805,19 +804,8 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
         console.error('[References] Tenancies calendar query error (non-fatal):', tenErr.message)
       }
 
-      // Drop tenancies already covered by a reference, then dedupe by
-      // primary_reference_id (covers the case where a reference id matches
-      // a V1/V2 row id even when converted_to_tenancy_id wasn't backfilled).
-      const tenanciesToShow = (tenancies || []).filter((t: any) => {
-        if (convertedTenancyIds.has(t.id)) return false
-        if (t.primary_reference_id) {
-          // If we already returned a reference with this id, skip the tenancy
-          const inV2 = (v2Refs || []).some((r: any) => r.id === t.primary_reference_id)
-          const inV1 = (v1Refs || []).some((r: any) => r.id === t.primary_reference_id)
-          if (inV2 || inV1) return false
-        }
-        return true
-      })
+      const tenanciesToShow = tenancies || []
+      // No explicit dedup here — surname-based dedup at the end handles it
 
       // Need property + tenant data to build calendar entries
       const tenancyIds = tenanciesToShow.map((t: any) => t.id)
@@ -890,29 +878,90 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // ========================================================================
-    // Merge V2 + V1 + tenancies, then dedupe by (linked_property_id, moveInDate)
-    // as a final safety net for any orphan duplicates the explicit join
-    // didn't catch.
+    // Merge V2 + V1 + tenancies, then dedupe by TENANT SURNAME + move-in
+    // date. The previous approach (address + date) incorrectly collapsed
+    // multi-unit properties where different tenants move in on the same
+    // day at the same address (e.g. Room 1 + Room 2 at 51 Warren Road).
+    //
+    // Surname-based dedup: extract the lead tenant's surname (last word
+    // of their name), combine with move-in date. Two entries with the
+    // same surname + date are treated as duplicates (same person
+    // appearing in both a reference and a tenancy). Different surnames
+    // at the same address/date are preserved (different tenants).
+    //
+    // Priority order: V2 > V1 > tenancy (sources are already in this
     // ========================================================================
-    const entries = [...v2Entries, ...v1Entries, ...tenancyEntries]
+    // THREE-PASS DEDUP
+    //
+    // Pass 1: Drop references whose converted tenancy is in our results.
+    //         If a V1/V2 ref was converted to a draft tenancy, the TENANCY
+    //         wins and the reference is removed.
+    //
+    // Pass 2: Surname + date dedup. If the same lead-tenant surname appears
+    //         on the same move-in date across sources, keep only one.
+    //         Tenancies > V2 > V1 priority (tenancies first in the array).
+    //
+    // Pass 3: Address + date dedup. If the same property address line 1
+    //         appears on the same date (e.g. "38a Lambrook Road" as both a
+    //         group ref and a tenancy), collapse to one entry.
+    // ========================================================================
 
-    // Soft dedupe: if two entries share the same property address + move-in
-    // date, keep the highest-priority one (V2 > V1 > tenancy). Sources are
-    // already in priority order in the array above so a Map insert from
-    // first to last preserves the winner.
-    const dedupedByKey = new Map<string, any>()
+    // Build set of tenancy IDs in our results for pass 1
+    const tenancyIdsInResults = new Set<string>()
+    for (const te of tenancyEntries) {
+      if (te.tenancyId) tenancyIdsInResults.add(te.tenancyId)
+    }
+
+    // Pass 1: drop references that have a converted tenancy in our results
+    const v2Filtered = v2Entries.filter((e: any) => {
+      if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      return true
+    })
+    const v1Filtered = v1Entries.filter((e: any) => {
+      if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      return true
+    })
+
+    // Tenancies first so they win in the Map on ties
+    const entries = [...tenancyEntries, ...v2Filtered, ...v1Filtered]
+
+    const extractSurname = (tenants: any[]): string => {
+      if (!tenants || tenants.length === 0) return ''
+      const leadName = (tenants[0]?.name || '').trim()
+      if (!leadName) return ''
+      const parts = leadName.split(/\s+/)
+      return (parts[parts.length - 1] || '').toLowerCase()
+    }
+
+    const extractAddress = (e: any): string => {
+      return (e.property?.address || '').trim().toLowerCase()
+    }
+
+    // Pass 2: surname + date
+    const afterSurname = new Map<string, any>()
     for (const e of entries) {
-      const addr = (e.property?.address || '').trim().toLowerCase()
-      const key = `${addr}|${e.moveInDate}`
-      // Without a property address there's no reliable way to dedupe, so
-      // pass these through unchanged using the unique entry id
-      const finalKey = addr ? key : `unique-${e.referenceId || e.tenancyId || Math.random()}`
-      if (!dedupedByKey.has(finalKey)) {
-        dedupedByKey.set(finalKey, e)
+      const surname = extractSurname(e.tenants)
+      const key = surname
+        ? `${surname}|${e.moveInDate}`
+        : `unique-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!afterSurname.has(key)) {
+        afterSurname.set(key, e)
       }
     }
 
-    const dedupedEntries = Array.from(dedupedByKey.values())
+    // Pass 3: address + date (catches multi-group entries at same property)
+    const afterAddress = new Map<string, any>()
+    for (const e of afterSurname.values()) {
+      const addr = extractAddress(e)
+      const key = addr
+        ? `${addr}|${e.moveInDate}`
+        : `unique2-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!afterAddress.has(key)) {
+        afterAddress.set(key, e)
+      }
+    }
+
+    const dedupedEntries = Array.from(afterAddress.values())
     dedupedEntries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
 
     res.json({
