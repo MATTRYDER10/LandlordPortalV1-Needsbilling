@@ -890,10 +890,40 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     // at the same address/date are preserved (different tenants).
     //
     // Priority order: V2 > V1 > tenancy (sources are already in this
-    // order in the array, so a Map.set from first to last preserves
-    // the highest-priority entry).
     // ========================================================================
-    const entries = [...v2Entries, ...v1Entries, ...tenancyEntries]
+    // THREE-PASS DEDUP
+    //
+    // Pass 1: Drop references whose converted tenancy is in our results.
+    //         If a V1/V2 ref was converted to a draft tenancy, the TENANCY
+    //         wins and the reference is removed.
+    //
+    // Pass 2: Surname + date dedup. If the same lead-tenant surname appears
+    //         on the same move-in date across sources, keep only one.
+    //         Tenancies > V2 > V1 priority (tenancies first in the array).
+    //
+    // Pass 3: Address + date dedup. If the same property address line 1
+    //         appears on the same date (e.g. "38a Lambrook Road" as both a
+    //         group ref and a tenancy), collapse to one entry.
+    // ========================================================================
+
+    // Build set of tenancy IDs in our results for pass 1
+    const tenancyIdsInResults = new Set<string>()
+    for (const te of tenancyEntries) {
+      if (te.tenancyId) tenancyIdsInResults.add(te.tenancyId)
+    }
+
+    // Pass 1: drop references that have a converted tenancy in our results
+    const v2Filtered = v2Entries.filter((e: any) => {
+      if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      return true
+    })
+    const v1Filtered = v1Entries.filter((e: any) => {
+      if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      return true
+    })
+
+    // Tenancies first so they win in the Map on ties
+    const entries = [...tenancyEntries, ...v2Filtered, ...v1Filtered]
 
     const extractSurname = (tenants: any[]): string => {
       if (!tenants || tenants.length === 0) return ''
@@ -903,20 +933,35 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       return (parts[parts.length - 1] || '').toLowerCase()
     }
 
-    const dedupedByKey = new Map<string, any>()
+    const extractAddress = (e: any): string => {
+      return (e.property?.address || '').trim().toLowerCase()
+    }
+
+    // Pass 2: surname + date
+    const afterSurname = new Map<string, any>()
     for (const e of entries) {
       const surname = extractSurname(e.tenants)
-      // Without a surname there's no reliable way to dedupe, so pass
-      // through with a unique key
       const key = surname
         ? `${surname}|${e.moveInDate}`
         : `unique-${e.referenceId || e.tenancyId || Math.random()}`
-      if (!dedupedByKey.has(key)) {
-        dedupedByKey.set(key, e)
+      if (!afterSurname.has(key)) {
+        afterSurname.set(key, e)
       }
     }
 
-    const dedupedEntries = Array.from(dedupedByKey.values())
+    // Pass 3: address + date (catches multi-group entries at same property)
+    const afterAddress = new Map<string, any>()
+    for (const e of afterSurname.values()) {
+      const addr = extractAddress(e)
+      const key = addr
+        ? `${addr}|${e.moveInDate}`
+        : `unique2-${e.referenceId || e.tenancyId || Math.random()}`
+      if (!afterAddress.has(key)) {
+        afterAddress.set(key, e)
+      }
+    }
+
+    const dedupedEntries = Array.from(afterAddress.values())
     dedupedEntries.sort((a, b) => (a.moveInDate < b.moveInDate ? -1 : a.moveInDate > b.moveInDate ? 1 : 0))
 
     res.json({
