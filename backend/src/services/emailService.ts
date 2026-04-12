@@ -1252,28 +1252,32 @@ export async function sendDraftAgreementNotification(params: {
     try {
       const { pdfGenerationService } = await import('./pdfGenerationService')
       cachedDraftAptaPdf = await pdfGenerationService.generateAgreementPDF({
-        templateType: 'ast',
-        agreementType: 'apta',
-        language: 'english',
-        propertyAddress: {
-          line1: '[Property Address]',
-          line2: '',
-          city: '[City]',
-          county: '',
-          postcode: '[Postcode]',
+        agreementData: {
+          templateType: 'dps',
+          agreementType: 'apta',
+          language: 'english',
+          propertyAddress: {
+            line1: '[Property Address]',
+            line2: '',
+            city: '[City]',
+            county: '',
+            postcode: '[Postcode]',
+          },
+          landlords: [{ name: '[Landlord Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
+          tenants: [{ name: '[Tenant Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
+          guarantors: [],
+          depositAmount: 0,
+          rentAmount: 0,
+          tenancyStartDate: '2026-05-01',
+          rentDueDay: '1st',
+          depositSchemeType: 'dps_custodial',
+          bankAccountName: '[Bank Account Name]',
+          bankAccountNumber: '[Account Number]',
+          bankSortCode: '[Sort Code]',
+          managementType: 'let_only',
         },
-        landlords: [{ name: '[Landlord Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
-        tenants: [{ name: '[Tenant Name]', email: '', phone: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
-        guarantors: [],
-        depositAmount: 0,
-        rentAmount: 0,
-        tenancyStartDate: '[Start Date]',
-        rentDueDay: '1st',
-        depositSchemeType: 'dps_custodial',
-        bankAccountName: '[Bank Account Name]',
-        bankAccountNumber: '[Account Number]',
-        bankSortCode: '[Sort Code]',
-        managementType: 'let_only',
+        signatures: [],
+        includeAuditPage: false,
       } as any)
       console.log('[DraftAPTA] Generated draft PDF, size:', cachedDraftAptaPdf?.length, 'bytes')
     } catch (pdfErr) {

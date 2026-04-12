@@ -1577,8 +1577,12 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
         if (deposit_amount !== undefined) updateData.deposit_amount = deposit_amount ? parseFloat(deposit_amount) : null
         if (special_conditions !== undefined) updateData.special_conditions_encrypted = special_conditions ? encrypt(special_conditions) : null
 
-        // If status is pending, change to accepted_with_changes
-        if (offer.status === 'pending') {
+        // Only transition to accepted_with_changes if the caller explicitly
+        // requested it (e.g. the "Accept with Changes" modal) — NOT when the
+        // agent is just inline-editing a single field like rent amount.
+        // Previously this fired on EVERY PUT regardless of intent, which broke
+        // inline rent editing by silently mutating the offer status.
+        if (req.body.accept_with_changes && offer.status === 'pending') {
             updateData.status = 'accepted_with_changes'
             updateData.accepted_with_changes_at = new Date().toISOString()
             updateData.accepted_with_changes_by = userId
