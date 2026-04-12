@@ -2143,7 +2143,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   if (tenancyIds.length > 0) {
     const { data: tens, error: tenErr } = await supabase
       .from('tenancies')
-      .select('id, property_id, deposit_scheme, deposit_protected_at, deposit_protection_id')
+      .select('id, property_id, deposit_scheme, deposit_protected_at, deposit_reference')
       .in('id', tenancyIds)
     console.log(`[Deposits Debug] tenancyIds: ${tenancyIds.length}, tenancies returned: ${tens?.length || 0}, tenErr: ${tenErr?.message || 'none'}`)
     for (const t of (tens || [])) tenancyMap.set(t.id, t)
@@ -2259,7 +2259,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       scheme_label: schemeLabel,
       status,
       status_label: statusLabel,
-      registration_ref: tenancy?.deposit_protection_id || null,
+      registration_ref: tenancy?.deposit_reference || null,
       registered_at: tenancy?.deposit_protected_at || null,
       paid_to_landlord_at: null, // deposit_payout_at column not yet migrated
       expected_payment_id: ep?.id || null,
