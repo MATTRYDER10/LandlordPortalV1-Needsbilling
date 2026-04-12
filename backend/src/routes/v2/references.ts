@@ -767,18 +767,14 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     // Tenancies — third source for the move-in calendar.
     // ========================================================================
     // Includes any pending or active tenancy with a tenancy_start_date in
-    // the next 12 months. After fetching we deduplicate against V1+V2 by
-    // skipping any tenancy whose id is already represented by a reference's
-    // converted_to_tenancy_id (the canonical link). This prevents the same
-    // move-in showing twice when a reference has been converted into a
-    // tenancy.
-    const convertedTenancyIds = new Set<string>()
-    for (const r of (v2Refs || [])) {
-      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
-    }
-    for (const r of (v1Refs || [])) {
-      if (r.converted_to_tenancy_id) convertedTenancyIds.add(r.converted_to_tenancy_id)
-    }
+    // Pull ALL draft (pending) tenancies with a start date in range.
+    // No pre-filtering against references here — dedup happens at the
+    // END via surname matching. The previous approach was removing
+    // tenancies whose primary_reference_id matched a V1/V2 ref, which
+    // dropped 25 of 26 entries for RG Bristol because nearly every draft
+    // tenancy was converted from a reference. The user wants to see
+    // every upcoming move-in from ALL sources, deduped only by tenant
+    // surname + date at the end.
 
     let tenancyEntries: any[] = []
     try {
@@ -794,7 +790,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           primary_reference_id
         `)
         .eq('company_id', companyId)
-        .eq('status', 'pending') // Draft tenancies only — active ones have already moved in
+        .eq('status', 'pending')
         .is('deleted_at', null)
         .not('tenancy_start_date', 'is', null)
         .gte('tenancy_start_date', startDateStr)
@@ -805,19 +801,8 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
         console.error('[References] Tenancies calendar query error (non-fatal):', tenErr.message)
       }
 
-      // Drop tenancies already covered by a reference, then dedupe by
-      // primary_reference_id (covers the case where a reference id matches
-      // a V1/V2 row id even when converted_to_tenancy_id wasn't backfilled).
-      const tenanciesToShow = (tenancies || []).filter((t: any) => {
-        if (convertedTenancyIds.has(t.id)) return false
-        if (t.primary_reference_id) {
-          // If we already returned a reference with this id, skip the tenancy
-          const inV2 = (v2Refs || []).some((r: any) => r.id === t.primary_reference_id)
-          const inV1 = (v1Refs || []).some((r: any) => r.id === t.primary_reference_id)
-          if (inV2 || inV1) return false
-        }
-        return true
-      })
+      const tenanciesToShow = tenancies || []
+      // No explicit dedup here — surname-based dedup at the end handles it
 
       // Need property + tenant data to build calendar entries
       const tenancyIds = tenanciesToShow.map((t: any) => t.id)
