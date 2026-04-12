@@ -2676,60 +2676,89 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                         listingId = prop.apex27_listing_id
                         console.log(`[HoldingDeposit→Apex27] Using linked listing ${listingId}`)
                     } else if (prop?.postcode) {
-                        // Backup search: find listing by postcode + address with branch filter
+                        // Backup search: Apex27's postalCode filter doesn't
+                        // work reliably when branchId is set — it returns ALL
+                        // branch listings regardless. So we paginate through
+                        // the full branch listing set, filter by postcode
+                        // client-side, then match by address line 1.
                         const address = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : null
                         const normAddr = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
                         const targetAddr = normAddr(address || '')
                         const targetPostcode = prop.postcode.toLowerCase().replace(/\s/g, '')
 
-                        // Search params — include branch and don't filter by transactionType
-                        // (listings may be in any status, we want to find them regardless)
-                        const searchParams: Record<string, any> = {
-                            postalCode: prop.postcode,
-                            pageSize: 100
-                        }
-                        if (config.branchId) searchParams.branchId = config.branchId
-
                         console.log(`[HoldingDeposit→Apex27] Backup search: postcode=${prop.postcode}, branch=${config.branchId}, addr=${address}`)
 
-                        const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', searchParams)
-                        const listings = (searchResult.success && Array.isArray(searchResult.data)) ? searchResult.data : []
+                        // Paginate through ALL listings (100 per page).
+                        // Apex27's postalCode filter is broken — it ignores
+                        // all search params and returns everything sorted by
+                        // recency. So we must fetch the full set and filter
+                        // client-side. RG Bristol has 1,424 listings (15 pages).
+                        let allListings: any[] = []
+                        let page = 1
+                        const maxPages = 20 // up to 2,000 listings
+                        while (page <= maxPages) {
+                            // Don't pass branchId — the API ignores filters
+                            // anyway and branchId may limit the result set
+                            const searchResult = await apex27Fetch<any[]>(config.apiKey, '/listings', { pageSize: 100, page })
+                            const batch = (searchResult.success && Array.isArray(searchResult.data)) ? searchResult.data : []
+                            allListings.push(...batch)
+                            if (batch.length < 100) break // Last page
+                            page++
+                        }
 
-                        if (listings.length > 0) {
-                            // Try exact address match first
-                            let match = targetAddr
-                                ? listings.find((l: any) => l.address1 && normAddr(l.address1) === targetAddr)
-                                : null
+                        console.log(`[HoldingDeposit→Apex27] Fetched ${allListings.length} total listings across ${page} page(s)`)
 
-                            // Try partial address match (line1 contains target or vice versa)
-                            if (!match && targetAddr) {
-                                match = listings.find((l: any) => {
+                        // Filter to listings matching this postcode
+                        const samePostcode = allListings.filter((l: any) =>
+                            (l.postalCode || '').toLowerCase().replace(/\s/g, '') === targetPostcode
+                        )
+                        console.log(`[HoldingDeposit→Apex27] ${samePostcode.length} listing(s) match postcode ${prop.postcode}`)
+
+                        let match: any = null
+
+                        if (samePostcode.length > 0 && targetAddr) {
+                            // Try exact address match
+                            match = samePostcode.find((l: any) => l.address1 && normAddr(l.address1) === targetAddr)
+
+                            // Try partial match (one contains the other)
+                            if (!match) {
+                                match = samePostcode.find((l: any) => {
                                     const la = normAddr(l.address1 || '')
                                     return la && (la.includes(targetAddr) || targetAddr.includes(la))
                                 })
                             }
 
-                            // Try postcode-only match if there's exactly one listing for this postcode
+                            // Try house number match — extract leading number
+                            // from both addresses and compare
                             if (!match) {
-                                const samePostcode = listings.filter((l: any) =>
-                                    (l.postalCode || '').toLowerCase().replace(/\s/g, '') === targetPostcode
-                                )
-                                if (samePostcode.length === 1) match = samePostcode[0]
+                                const extractNum = (s: string) => {
+                                    const m = s.match(/^(\d+)/)
+                                    return m ? m[1] : null
+                                }
+                                const targetNum = extractNum(address || '')
+                                if (targetNum) {
+                                    match = samePostcode.find((l: any) =>
+                                        extractNum(l.address1 || '') === targetNum
+                                    )
+                                }
                             }
+                        }
 
-                            if (match) {
-                                listingId = String(match.id)
-                                console.log(`[HoldingDeposit→Apex27] Backup search matched listing ${listingId} (${match.address1})`)
-                                // Self-heal: persist the match for future
-                                await supabase
-                                    .from('properties')
-                                    .update({ apex27_listing_id: listingId })
-                                    .eq('id', propertyId)
-                            } else {
-                                console.log(`[HoldingDeposit→Apex27] Backup search returned ${listings.length} listings but none matched address "${address}"`)
-                            }
+                        // If only one listing at this postcode, use it
+                        if (!match && samePostcode.length === 1) {
+                            match = samePostcode[0]
+                        }
+
+                        if (match) {
+                            listingId = String(match.id)
+                            console.log(`[HoldingDeposit→Apex27] Matched listing ${listingId} (${match.address1}, ${match.postalCode})`)
+                            // Self-heal: persist for future lookups
+                            await supabase
+                                .from('properties')
+                                .update({ apex27_listing_id: listingId })
+                                .eq('id', propertyId)
                         } else {
-                            console.log(`[HoldingDeposit→Apex27] Backup search returned 0 listings for postcode ${prop.postcode}`)
+                            console.log(`[HoldingDeposit→Apex27] No match found for "${address}" in ${samePostcode.length} postcode-matched listing(s)`)
                         }
                     }
                 }
