@@ -2132,7 +2132,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
   if (epIds.length > 0) {
     const { data: eps, error: epErr } = await supabase
       .from('expected_payments')
-      .select('id, tenancy_id, property_id, deposit_payout_at')
+      .select('id, tenancy_id, property_id')
       .in('id', epIds)
     console.log(`[Deposits Debug] entries: ${entries.length}, epIds: ${epIds.length}, eps returned: ${eps?.length || 0}, epErr: ${epErr?.message || 'none'}`)
     for (const ep of (eps || [])) epMap.set(ep.id, ep)
@@ -2210,7 +2210,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     const isLandlordHeld = scheme === 'landlord_held'
     const isCustodial = scheme.includes('custodial')
     const isProtected = !!tenancy?.deposit_protected_at
-    const paidOut = !!ep?.deposit_payout_at
+    const paidOut = false // deposit_payout_at column not yet migrated
 
     let status: 'in_client_account' | 'paid_to_landlord' | 'registered' | 'awaiting_registration' | 'with_scheme'
     let statusLabel: string
@@ -2261,7 +2261,7 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       status_label: statusLabel,
       registration_ref: tenancy?.deposit_protection_id || null,
       registered_at: tenancy?.deposit_protected_at || null,
-      paid_to_landlord_at: ep?.deposit_payout_at || null,
+      paid_to_landlord_at: null, // deposit_payout_at column not yet migrated
       expected_payment_id: ep?.id || null,
       received_at: e.created_at,
       next_action: nextAction,
