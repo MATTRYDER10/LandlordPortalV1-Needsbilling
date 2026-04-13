@@ -1230,8 +1230,22 @@
               </div>
             </div>
 
+            <!-- Deal Owner Assignment -->
+            <div v-if="negotiators.length > 0 && (selectedOffer.status === 'pending' || selectedOffer.status === 'accepted_with_changes')"
+              class="px-6 py-3 border-t border-gray-200 dark:border-slate-700 flex items-center gap-3">
+              <span class="text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">Deal Owner:</span>
+              <select
+                :value="selectedOffer.negotiator_id || ''"
+                @change="assignDealOwner(selectedOffer.id, ($event.target as HTMLSelectElement).value)"
+                class="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm"
+              >
+                <option value="">Not assigned</option>
+                <option v-for="neg in negotiators" :key="neg.id" :value="neg.id">{{ neg.name }}</option>
+              </select>
+            </div>
+
             <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-between gap-3">
+            <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between gap-3">
               <div class="flex gap-2">
                 <button
                   @click="closeDetailModal"
@@ -2338,6 +2352,31 @@ async function submitAcceptWithChanges() {
 }
 
 // ============================================================================
+// ASSIGN DEAL OWNER
+// ============================================================================
+
+async function assignDealOwner(offerId: string, negotiatorId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/tenant-offers/${offerId}/assign-negotiator`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      },
+      body: JSON.stringify({ negotiator_id: negotiatorId || null })
+    })
+    if (response.ok) {
+      if (selectedOffer.value) {
+        selectedOffer.value.negotiator_id = negotiatorId || null
+      }
+      toast.success('Deal owner updated')
+    }
+  } catch (err) {
+    console.error('Failed to assign deal owner:', err)
+  }
+}
+
 // APPROVE OFFER
 // ============================================================================
 
