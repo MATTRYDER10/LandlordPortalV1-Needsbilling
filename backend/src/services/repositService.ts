@@ -470,9 +470,10 @@ export async function getRepositRegistration(tenancyId: string): Promise<any | n
     .from('reposit_registrations')
     .select('*')
     .eq('tenancy_id', tenancyId)
+    .not('status', 'in', '("cancelled","closed","deactivated")')
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     return null
