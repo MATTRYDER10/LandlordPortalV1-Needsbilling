@@ -759,19 +759,43 @@ const filteredReferences = computed(() => {
   })
 })
 
-// Filtered properties based on search - no limit, show all matching
-const filteredProperties = computed(() => {
-  if (!propertySearch.value.trim()) {
-    return properties.value
+// Server-side property search with debounce
+const filteredProperties = ref<any[]>([])
+const searchingProperties = ref(false)
+let propertySearchTimeout: ReturnType<typeof setTimeout> | null = null
+
+watch(propertySearch, (val) => {
+  if (propertySearchTimeout) clearTimeout(propertySearchTimeout)
+  const q = (val || '').trim()
+  if (q.length < 1) {
+    // Show all loaded properties when search is empty
+    filteredProperties.value = properties.value
+    return
   }
-  const search = propertySearch.value.toLowerCase().trim()
-  return properties.value.filter(prop => {
-    const address = (prop.address_line1 || '').toLowerCase()
-    const city = (prop.city || '').toLowerCase()
-    const postcode = (prop.postcode || '').toLowerCase()
-    return address.includes(search) || city.includes(search) || postcode.includes(search)
-  })
-})
+  searchingProperties.value = true
+  propertySearchTimeout = setTimeout(async () => {
+    try {
+      const token = authStore.session?.access_token
+      if (!token) return
+      const response = await authFetch(`${API_URL}/api/properties/search?q=${encodeURIComponent(q)}&limit=50`, { token })
+      if (response.ok) {
+        const data = await response.json()
+        filteredProperties.value = data.properties || []
+      }
+    } catch (err) {
+      console.error('Property search error:', err)
+    } finally {
+      searchingProperties.value = false
+    }
+  }, 200)
+}, { immediate: false })
+
+// Initialize with all properties when loaded
+watch(properties, (val) => {
+  if (!propertySearch.value.trim()) {
+    filteredProperties.value = val
+  }
+}, { immediate: true })
 
 const isValid = computed(() => {
   // Allow pending property creation or existing property
