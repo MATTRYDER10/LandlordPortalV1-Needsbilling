@@ -742,6 +742,50 @@ export async function updateTenancy(
     }
   }
 
+  // When deposit scheme changes away from reposit, clear Reposit data and restore deposit
+  if (input.depositScheme !== undefined && input.depositScheme !== 'reposit') {
+    try {
+      // Check if there was an active Reposit registration for this tenancy
+      const { data: repositReg } = await supabase
+        .from('reposit_registrations')
+        .select('id, status')
+        .eq('tenancy_id', tenancyId)
+        .in('status', ['awaiting_payment', 'active', 'pending', 'created'])
+        .limit(1)
+        .maybeSingle()
+
+      if (repositReg) {
+        // Mark Reposit registration as cancelled
+        await supabase
+          .from('reposit_registrations')
+          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+          .eq('id', repositReg.id)
+
+        console.log(`[TenancyService] Cancelled Reposit registration ${repositReg.id} for tenancy ${tenancyId}`)
+      }
+
+      // If deposit is currently £0 (Reposit replaces deposit), recalculate to 5 weeks rent
+      if (data.deposit_amount === 0 || data.deposit_amount === '0' || data.deposit_amount === null) {
+        const monthlyRent = parseFloat(data.monthly_rent) || 0
+        if (monthlyRent > 0) {
+          const fiveWeeksDeposit = Math.floor((monthlyRent * 12 / 52) * 5)
+          await supabase
+            .from('tenancies')
+            .update({
+              deposit_amount: fiveWeeksDeposit,
+              deposit_protected_at: null,
+              deposit_reference: null
+            })
+            .eq('id', tenancyId)
+
+          console.log(`[TenancyService] Restored deposit to £${fiveWeeksDeposit} for tenancy ${tenancyId} (was Reposit)`)
+        }
+      }
+    } catch (err) {
+      console.error('[TenancyService] Failed to clear Reposit data:', err)
+    }
+  }
+
   return formatTenancy(data)
 }
 
