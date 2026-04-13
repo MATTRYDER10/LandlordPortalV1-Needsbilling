@@ -937,9 +937,25 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       return (e.property?.address || '').trim().toLowerCase()
     }
 
+    // Pass 1.5: If the same surname has both a reference AND a tenancy
+    // (regardless of date), drop the reference. The tenancy is the source
+    // of truth once created — the reference's move-in date may be stale.
+    const surnameHasTenancy = new Set<string>()
+    for (const e of tenancyEntries) {
+      const surname = extractSurname(e.tenants)
+      if (surname) surnameHasTenancy.add(surname)
+    }
+    const entriesAfterPass1_5 = entries.filter((e: any) => {
+      if (e.referenceId && !e.tenancyId) {
+        const surname = extractSurname(e.tenants)
+        if (surname && surnameHasTenancy.has(surname)) return false
+      }
+      return true
+    })
+
     // Pass 2: surname + date
     const afterSurname = new Map<string, any>()
-    for (const e of entries) {
+    for (const e of entriesAfterPass1_5) {
       const surname = extractSurname(e.tenants)
       const key = surname
         ? `${surname}|${e.moveInDate}`
