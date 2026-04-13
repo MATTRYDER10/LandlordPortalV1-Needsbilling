@@ -745,27 +745,30 @@ export async function updateTenancy(
   // When deposit scheme changes away from reposit, clear Reposit data and restore deposit
   if (input.depositScheme !== undefined && input.depositScheme !== 'reposit') {
     try {
-      // Check if there was an active Reposit registration for this tenancy
-      const { data: repositReg } = await supabase
+      console.log(`[TenancyService] Deposit scheme changed to "${input.depositScheme}" for tenancy ${tenancyId}, checking for Reposit registrations to cancel`)
+
+      // Cancel ALL non-terminal Reposit registrations for this tenancy
+      const { data: repositRegs } = await supabase
         .from('reposit_registrations')
         .select('id, status')
         .eq('tenancy_id', tenancyId)
-        .in('status', ['awaiting_payment', 'active', 'pending', 'created'])
-        .limit(1)
-        .maybeSingle()
+        .not('status', 'in', '("cancelled","closed","deactivated")')
 
-      if (repositReg) {
-        // Mark Reposit registration as cancelled
-        await supabase
-          .from('reposit_registrations')
-          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('id', repositReg.id)
-
-        console.log(`[TenancyService] Cancelled Reposit registration ${repositReg.id} for tenancy ${tenancyId}`)
+      if (repositRegs && repositRegs.length > 0) {
+        for (const reg of repositRegs) {
+          await supabase
+            .from('reposit_registrations')
+            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('id', reg.id)
+          console.log(`[TenancyService] Cancelled Reposit registration ${reg.id} (was ${reg.status}) for tenancy ${tenancyId}`)
+        }
+      } else {
+        console.log(`[TenancyService] No active Reposit registrations found for tenancy ${tenancyId}`)
       }
 
       // If deposit is currently £0 (Reposit replaces deposit), recalculate to 5 weeks rent
-      if (data.deposit_amount === 0 || data.deposit_amount === '0' || data.deposit_amount === null) {
+      const currentDeposit = parseFloat(data.deposit_amount) || 0
+      if (currentDeposit === 0) {
         const monthlyRent = parseFloat(data.monthly_rent) || 0
         if (monthlyRent > 0) {
           const fiveWeeksDeposit = Math.floor((monthlyRent * 12 / 52) * 5)
