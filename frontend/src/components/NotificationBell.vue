@@ -329,7 +329,7 @@ const handleNotificationClick = async (notification: Notification) => {
     router.push(`/properties/${propertyId}`)
     isOpen.value = false
   } else if (notification.resource_type === 'tenant_offer') {
-    router.push(`/offers/${notification.resource_id}`)
+    router.push(`/tenant-offers/${notification.resource_id}`)
     isOpen.value = false
   } else if (notification.resource_type === 'tenancy') {
     router.push(`/tenancies?id=${notification.resource_id}`)

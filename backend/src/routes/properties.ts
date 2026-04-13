@@ -1647,6 +1647,58 @@ router.post('/:id/landlord-move-in-pack', authenticateToken, requireMember, asyn
       `
     }
 
+    // For Let Only tenancies, include tenant contact details in the pack
+    let tenantInfoHtml = ''
+    const { data: activeTenancy } = await supabase
+      .from('tenancies')
+      .select('id, management_type')
+      .eq('property_id', propertyId)
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+      .in('status', ['active', 'pending'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (activeTenancy?.management_type === 'let_only') {
+      const { data: tenants } = await supabase
+        .from('tenancy_tenants')
+        .select('tenant_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, is_lead_tenant, tenant_order')
+        .eq('tenancy_id', activeTenancy.id)
+        .eq('is_active', true)
+        .order('tenant_order', { ascending: true })
+
+      if (tenants && tenants.length > 0) {
+        let tenantRows = ''
+        for (const t of tenants) {
+          const name = t.tenant_name_encrypted ? decrypt(t.tenant_name_encrypted) || '' : ''
+          const email = t.tenant_email_encrypted ? decrypt(t.tenant_email_encrypted) || '' : ''
+          const phone = t.tenant_phone_encrypted ? decrypt(t.tenant_phone_encrypted) || '' : ''
+          const leadBadge = t.is_lead_tenant ? ' <span style="background: #f0fdf4; color: #16a34a; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LEAD</span>' : ''
+
+          tenantRows += `
+            <tr>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6;">
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #111827;">${name}${leadBadge}</p>
+                ${email ? `<p style="margin: 2px 0 0 0; font-size: 13px; color: #6b7280;"><a href="mailto:${email}" style="color: #2563eb; text-decoration: none;">${email}</a></p>` : ''}
+                ${phone ? `<p style="margin: 2px 0 0 0; font-size: 13px; color: #6b7280;"><a href="tel:${phone}" style="color: #2563eb; text-decoration: none;">${phone}</a></p>` : ''}
+              </td>
+            </tr>`
+        }
+
+        tenantInfoHtml = `
+          <tr>
+            <td style="padding: 20px 0; border-bottom: 1px solid #e5e7eb;">
+              <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Tenant Details</h3>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                ${tenantRows}
+              </table>
+            </td>
+          </tr>
+        `
+      }
+    }
+
     // Send email via email service
     const { sendLandlordMoveInPack } = await import('../services/emailService')
     await sendLandlordMoveInPack(
@@ -1656,7 +1708,8 @@ router.post('/:id/landlord-move-in-pack', authenticateToken, requireMember, asyn
       { name: companyName, email: companyEmail, phone: companyPhone },
       companyName,
       company?.logo_url,
-      additionalInfoHtml
+      additionalInfoHtml,
+      tenantInfoHtml
     )
 
     // Log activity

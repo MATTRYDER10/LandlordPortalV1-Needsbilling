@@ -1444,7 +1444,15 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         }
 
         if (!offer.negotiator_id) {
-            return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be approved.' })
+            // Only enforce if company has negotiators configured
+            const { count } = await supabase
+                .from('negotiators')
+                .select('id', { count: 'exact', head: true })
+                .eq('company_id', companyId)
+                .eq('is_active', true)
+            if (count && count > 0) {
+                return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be approved.' })
+            }
         }
 
         // Build update object
@@ -1722,7 +1730,14 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
         }
 
         if (!offer.negotiator_id) {
-            return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be declined.' })
+            const { count } = await supabase
+                .from('negotiators')
+                .select('id', { count: 'exact', head: true })
+                .eq('company_id', companyId)
+                .eq('is_active', true)
+            if (count && count > 0) {
+                return res.status(400).json({ error: 'A deal owner must be assigned before the offer can be declined.' })
+            }
         }
 
         // Update offer status
