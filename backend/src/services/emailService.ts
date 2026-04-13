@@ -2630,7 +2630,8 @@ export async function sendLandlordMoveInPack(
   contactDetails: { name: string; email: string; phone: string },
   companyName: string,
   agentLogoUrl: string | null | undefined,
-  additionalInfoHtml: string
+  additionalInfoHtml: string,
+  tenantInfoHtml: string = ''
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2664,7 +2665,8 @@ export async function sendLandlordMoveInPack(
       ContactBlock: contactBlock,
       CompanyName: companyName,
       AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
-      AdditionalInfoSection: additionalInfoHtml
+      AdditionalInfoSection: additionalInfoHtml,
+      TenantInfoSection: tenantInfoHtml
     })
 
     await sendEmail({

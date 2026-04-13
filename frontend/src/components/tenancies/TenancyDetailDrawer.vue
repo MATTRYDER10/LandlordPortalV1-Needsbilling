@@ -3391,25 +3391,9 @@ const isRepositRegistered = computed(() => {
 })
 
 const showRepositSection = computed(() => {
-  // Only show Reposit section when:
-  // 1. Reposit is already registered for this tenancy, OR
-  // 2. Deposit scheme is set to 'reposit', OR
-  // 3. Deposit replacement was offered/requested in the offer
-
-  // Always show if already registered
+  // Show Reposit section when there's an active registration OR scheme is reposit
   if (repositRegistration.value) return true
-
-  // Show if deposit scheme is 'reposit'
   if (isRepositScheme.value) return true
-
-  // Check if deposit replacement was part of the offer
-  const offer = props.tenancy?.offer
-  if (offer?.deposit_replacement_offered || offer?.deposit_replacement_requested) return true
-
-  // Also check primary reference offer
-  const primaryRef = props.tenancy?.primary_reference
-  if (primaryRef?.offer?.deposit_replacement_requested) return true
-
   return false
 })
 
