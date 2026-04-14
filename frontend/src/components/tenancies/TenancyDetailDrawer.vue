@@ -5917,9 +5917,9 @@ const submitChangeRent = async () => {
     const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}`,
       {
-        method: 'PATCH',
+        method: 'PUT',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -5929,14 +5929,15 @@ const submitChangeRent = async () => {
     )
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to change rent')
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to change rent')
     }
 
     toast.success('Rent amount updated successfully')
     showChangeRentModal.value = false
     changeRentNewAmount.value = null
     changeRentConfirmed.value = false
+    await loadFullTenancyData()
     emit('updated')
   } catch (error: any) {
     console.error('Error changing rent:', error)
