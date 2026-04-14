@@ -328,7 +328,7 @@ router.post('/:id/email', authenticateStaff, async (req: StaffAuthRequest, res) 
     const formTokenHash = hash(formToken)
     // Update the referee with new token so the link works
     if (referee) {
-      await supabase.from('referees_v2').update({ form_token_hash: formTokenHash }).eq('id', referee.id)
+      await supabase.from('referees_v2').update({ form_token: formToken, form_token_hash: formTokenHash }).eq('id', referee.id)
     }
     const formUrl = `${frontendUrl}/${refereePath}/${formToken}`
 
@@ -416,7 +416,7 @@ router.post('/:id/sms', authenticateStaff, async (req: StaffAuthRequest, res) =>
     const _chaseToken = generateToken()
     const _chaseTokenHash = hash(_chaseToken)
     const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token: _chaseToken, form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
     const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     // Send SMS based on referee type
@@ -802,7 +802,7 @@ router.post('/:id/send', authenticateStaff, async (req: StaffAuthRequest, res) =
     const _chaseToken = generateToken()
     const _chaseTokenHash = hash(_chaseToken)
     const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token: _chaseToken, form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
     const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     if (method === 'EMAIL') {
@@ -954,7 +954,7 @@ router.post('/:id/resend-email', authenticateStaff, async (req: StaffAuthRequest
     const _chaseToken = generateToken()
     const _chaseTokenHash = hash(_chaseToken)
     const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token: _chaseToken, form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
     const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     switch (chaseItem.referee_type) {
@@ -1032,7 +1032,7 @@ router.post('/:id/send-sms', authenticateStaff, async (req: StaffAuthRequest, re
     const _chaseToken = generateToken()
     const _chaseTokenHash = hash(_chaseToken)
     const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token: _chaseToken, form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
     const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     switch (chaseItem.referee_type) {

@@ -43,6 +43,7 @@ import ConfirmRentDueDateChange from '../views/ConfirmRentDueDateChange.vue'
 import ConfirmTenantChangeFee from '../views/ConfirmTenantChangeFee.vue'
 import SelectMoveInTime from '../views/public/SelectMoveInTime.vue'
 import ConfirmMoveInTime from '../views/public/ConfirmMoveInTime.vue'
+import Verify from '../views/Verify.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
 import AdminCustomerManagement from '../views/AdminCustomerManagement.vue'
@@ -160,6 +161,12 @@ const router = createRouter({
       path: '/upload/:token',
       name: 'FileUpload',
       component: () => import('../views/public/FileUploadPage.vue')
+    },
+    {
+      path: '/verify/:referenceId',
+      name: 'Verify',
+      component: Verify,
+      meta: { public: true }
     },
     {
       path: '/tenancy/payment-confirmed/:id',
@@ -739,6 +746,7 @@ router.beforeEach(async (to, _from, next) => {
                                  to.path.startsWith('/landlord-decision') ||
                                  to.path.startsWith('/mobile-capture') ||
                                  to.path.startsWith('/upload/') ||
+                                 to.path.startsWith('/verify/') ||
                                  to.path.startsWith('/agent-reference') ||
                                  to.path.startsWith('/employer-reference') ||
                                  to.path.startsWith('/submit-employer-reference') ||

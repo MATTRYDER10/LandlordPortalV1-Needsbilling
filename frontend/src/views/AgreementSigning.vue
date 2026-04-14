@@ -75,14 +75,14 @@
     </div>
 
     <!-- Main Signing Interface -->
-    <div v-else-if="signingData" class="flex-1 flex flex-col">
+    <div v-else-if="signingData" class="flex-1 flex flex-col overflow-auto">
       <!-- Document Viewer -->
-      <div class="flex-1 overflow-hidden">
+      <div class="flex-shrink-0">
         <PdfViewer
           v-if="pdfUrl"
           :src="pdfUrl"
           class="w-full"
-          style="height: calc(100vh - 140px);"
+          style="height: calc(100vh - 280px); min-height: 300px;"
         />
         <div v-else class="flex items-center justify-center py-16 bg-white dark:bg-slate-900">
           <div class="text-center">

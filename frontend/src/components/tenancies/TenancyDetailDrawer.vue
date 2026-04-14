@@ -603,7 +603,12 @@
                   @save="(v) => updateTenancyField('monthlyRent', v)"
                 >
                   <template #display>
-                    <span class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">&pound;{{ rentAmount?.toLocaleString() || '0' }}</span>
+                    <div class="flex items-end justify-between">
+                      <span class="text-xl font-semibold text-gray-900 dark:text-white">&pound;{{ rentAmount?.toLocaleString() || '0' }}</span>
+                      <button v-if="!isDraftTenancy" @click="showChangeRentModal = true" class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50">
+                        Change
+                      </button>
+                    </div>
                   </template>
                 </EditableField>
                 <!-- Pending Rent Increase Indicator -->
@@ -3074,6 +3079,59 @@
       </div>
     </div>
   </div>
+
+  <!-- Change Rent Modal -->
+  <Teleport to="body">
+    <div v-if="showChangeRentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 max-w-sm w-full mx-4">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Change Monthly Rent</h3>
+
+        <div class="space-y-4">
+          <div>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-2">Current Rent</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">&pound;{{ rentAmount?.toLocaleString() }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">New Monthly Rent *</label>
+            <input
+              v-model.number="changeRentNewAmount"
+              type="number"
+              min="0"
+              step="0.01"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter new rent amount"
+            />
+          </div>
+
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              v-model="changeRentConfirmed"
+              type="checkbox"
+              class="rounded border-gray-300"
+            />
+            <span class="text-sm text-gray-700 dark:text-slate-300">I confirm this change is agreed with the tenant</span>
+          </label>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+          <button
+            @click="showChangeRentModal = false"
+            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitChangeRent"
+            :disabled="!changeRentNewAmount || changeRentNewAmount === rentAmount || !changeRentConfirmed"
+            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+          >
+            Change Rent
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -3135,6 +3193,9 @@ const activeTab = ref<'overview' | 'tenants' | 'landlord' | 'property' | 'docume
 const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
+const showChangeRentModal = ref(false)
+const changeRentNewAmount = ref<number | null>(null)
+const changeRentConfirmed = ref(false)
 const showProtectDepositModal = ref(false)
 const showRegisterWithTDSModal = ref(false)
 
@@ -5842,6 +5903,44 @@ const activateTenancy = async () => {
     toast.error(error.message || 'Failed to activate tenancy')
   } finally {
     activating.value = false
+  }
+}
+
+// Change rent amount on active tenancy
+const submitChangeRent = async () => {
+  if (!tenancy.value?.id || !changeRentNewAmount.value) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(
+      `${API_URL}/api/tenancies/records/${tenancy.value.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          monthlyRent: changeRentNewAmount.value
+        })
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to change rent')
+    }
+
+    toast.success('Rent amount updated successfully')
+    showChangeRentModal.value = false
+    changeRentNewAmount.value = null
+    changeRentConfirmed.value = false
+    emit('updated')
+  } catch (error: any) {
+    console.error('Error changing rent:', error)
+    toast.error(error.message || 'Failed to change rent')
   }
 }
 
