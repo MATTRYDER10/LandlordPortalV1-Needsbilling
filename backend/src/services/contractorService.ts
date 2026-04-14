@@ -121,6 +121,10 @@ export async function updateContractor(id: string, companyId: string, input: Par
   if (input.bank_account_name !== undefined) updateData.bank_account_name_encrypted = input.bank_account_name ? encrypt(input.bank_account_name) : null
   if (input.bank_account_number !== undefined) updateData.bank_account_number_encrypted = input.bank_account_number ? encrypt(input.bank_account_number) : null
   if (input.bank_sort_code !== undefined) updateData.bank_sort_code_encrypted = input.bank_sort_code ? encrypt(input.bank_sort_code) : null
+  if ((input as any).pi_policy_number !== undefined) updateData.pi_policy_number = (input as any).pi_policy_number
+  if ((input as any).pi_expiry_date !== undefined) updateData.pi_expiry_date = (input as any).pi_expiry_date
+  if ((input as any).pli_policy_number !== undefined) updateData.pli_policy_number = (input as any).pli_policy_number
+  if ((input as any).pli_expiry_date !== undefined) updateData.pli_expiry_date = (input as any).pli_expiry_date
 
   const { data, error } = await supabase
     .from('contractors')

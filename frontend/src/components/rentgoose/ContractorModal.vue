@@ -63,6 +63,16 @@
               <input v-model="form.pi_expiry_date" type="date" :class="inputClass" />
             </div>
           </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label :class="labelClass">PLI Policy Number</label>
+              <input v-model="form.pli_policy_number" type="text" :class="inputClass" placeholder="e.g. PLI-12345678" />
+            </div>
+            <div>
+              <label :class="labelClass">PLI Expiry Date</label>
+              <input v-model="form.pli_expiry_date" type="date" :class="inputClass" />
+            </div>
+          </div>
           <div>
             <label :class="labelClass">Notes</label>
             <textarea v-model="form.notes" :class="inputClass" rows="2"></textarea>
@@ -101,6 +111,8 @@ const form = ref({
   commission_vat: false,
   pi_policy_number: '',
   pi_expiry_date: '',
+  pli_policy_number: '',
+  pli_expiry_date: '',
   notes: '',
 })
 
@@ -118,6 +130,8 @@ onMounted(() => {
       commission_vat: props.contractor.commission_vat,
       pi_policy_number: (props.contractor as any).pi_policy_number || '',
       pi_expiry_date: (props.contractor as any).pi_expiry_date || '',
+      pli_policy_number: (props.contractor as any).pli_policy_number || '',
+      pli_expiry_date: (props.contractor as any).pli_expiry_date || '',
       notes: props.contractor.notes || '',
     }
   }
