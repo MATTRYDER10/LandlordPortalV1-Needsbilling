@@ -200,6 +200,60 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
   }
 })
 
+/**
+ * Get form link for a chase item's referee
+ */
+router.get('/:id/form-link', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get chase item to find the referee
+    const { data: chaseItem } = await supabase
+      .from('chase_items_v2')
+      .select('id, reference_id, referee_type')
+      .eq('id', id)
+      .single()
+
+    if (!chaseItem) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    // Find the referee with a form token
+    const { data: referee } = await supabase
+      .from('referees_v2')
+      .select('id, referee_type, form_token')
+      .eq('reference_id', chaseItem.reference_id)
+      .eq('referee_type', chaseItem.referee_type)
+      .is('completed_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!referee?.form_token) {
+      return res.json({ formUrl: null })
+    }
+
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://app.propertygoose.co.uk'
+      : 'http://localhost:5173'
+
+    const formTypeMap: Record<string, string> = {
+      EMPLOYER: 'employer-reference',
+      LANDLORD: 'landlord-reference',
+      ACCOUNTANT: 'accountant-reference',
+      AGENT: 'agent-reference'
+    }
+
+    const formType = formTypeMap[chaseItem.referee_type] || 'employer-reference'
+    const formUrl = `${frontendUrl}/v2/${formType}/${referee.form_token}`
+
+    res.json({ formUrl })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error getting form link:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // ============================================================================
 // CHASE ACTIONS
 // ============================================================================

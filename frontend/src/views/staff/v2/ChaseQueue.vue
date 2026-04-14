@@ -226,6 +226,20 @@
               <XCircle class="w-4 h-4" />
               Unable to Obtain
             </button>
+            <button
+              @click="copyFormLink(item)"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300"
+            >
+              <Copy class="w-4 h-4" />
+              Copy Link
+            </button>
+            <button
+              @click="openFormLink(item)"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300"
+            >
+              <ExternalLink class="w-4 h-4" />
+              Open Form
+            </button>
           </div>
 
           <!-- Chase Note (last note) -->
@@ -445,7 +459,9 @@ import {
   Phone,
   FileText,
   XCircle,
-  ChevronDown
+  ChevronDown,
+  Copy,
+  ExternalLink
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -763,6 +779,41 @@ function markUnable(item: any) {
   unableModalItem.value = item
   unableReason.value = ''
   showUnableModal.value = true
+}
+
+async function copyFormLink(item: any) {
+  try {
+    const response = await fetch(`${API_URL}/api/v2/chase/${item.id}/form-link`, {
+      headers: { 'Authorization': `Bearer ${authStore.session?.access_token}` }
+    })
+    if (!response.ok) throw new Error()
+    const data = await response.json()
+    if (data.formUrl) {
+      await navigator.clipboard.writeText(data.formUrl)
+      toast.success('Form link copied to clipboard')
+    } else {
+      toast.error('No form link available')
+    }
+  } catch {
+    toast.error('Failed to get form link')
+  }
+}
+
+async function openFormLink(item: any) {
+  try {
+    const response = await fetch(`${API_URL}/api/v2/chase/${item.id}/form-link`, {
+      headers: { 'Authorization': `Bearer ${authStore.session?.access_token}` }
+    })
+    if (!response.ok) throw new Error()
+    const data = await response.json()
+    if (data.formUrl) {
+      window.open(data.formUrl, '_blank')
+    } else {
+      toast.error('No form link available')
+    }
+  } catch {
+    toast.error('Failed to get form link')
+  }
 }
 
 async function submitUnable() {
