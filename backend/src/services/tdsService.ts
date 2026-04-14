@@ -126,6 +126,7 @@ interface TDSCreateDepositPayload {
   api_key: string
   region: 'EW'
   scheme_type: 'Custodial'
+  invoice: boolean
   tenancy: TenancyPayload[]
 }
 
@@ -562,6 +563,7 @@ export async function createDeposit(
     api_key: config.apiKey,
     region: 'EW',
     scheme_type: 'Custodial',
+    invoice: true,
     tenancy: [tenancyPayload]
   }
 
