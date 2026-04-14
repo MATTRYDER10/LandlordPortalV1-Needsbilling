@@ -784,6 +784,7 @@ async function createRefereeRequest(
         referee_type: refereeType,
         referee_email_encrypted: encrypt(email),
         referee_name: name || null,
+        form_token: formToken,
         form_token_hash: formTokenHash
       })
       .select()
