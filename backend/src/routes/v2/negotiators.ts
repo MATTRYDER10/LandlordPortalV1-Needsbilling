@@ -146,9 +146,12 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
         rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
         break
       case 'weekly':
-        const weekAgo = new Date(now)
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        rangeStart = weekAgo.toISOString()
+        const monday = new Date(now)
+        const dayOfWeek = monday.getDay()
+        const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+        monday.setDate(monday.getDate() - diffToMonday)
+        monday.setHours(0, 0, 0, 0)
+        rangeStart = monday.toISOString()
         break
       case 'monthly':
         rangeStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
