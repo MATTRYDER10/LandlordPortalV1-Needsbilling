@@ -49,7 +49,7 @@
             <div class="flex items-end pb-1">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="form.commission_vat" class="rounded text-primary" />
-                <span class="text-sm">VAT on commission</span>
+                <span :class="['text-sm', isDark ? 'text-slate-300' : 'text-gray-700']">VAT on commission</span>
               </label>
             </div>
           </div>

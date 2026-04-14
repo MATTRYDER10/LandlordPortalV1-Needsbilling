@@ -23,7 +23,9 @@
     <div
       v-if="isOpen"
       :class="[
-        'absolute -left-48 bottom-full mb-2 w-72 rounded-xl shadow-2xl border z-50 overflow-hidden',
+        'absolute bottom-full mb-2 rounded-xl shadow-2xl border z-50 overflow-hidden',
+        'sm:-left-48 -right-0 sm:right-auto w-72 sm:max-w-full max-w-[calc(100vw-2rem)]',
+        'max-h-[80vh] overflow-y-auto',
         isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
       ]"
     >

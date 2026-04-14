@@ -54,6 +54,7 @@
         'w-64 flex-shrink-0 transition-all duration-300',
         'md:relative md:translate-x-0',
         'fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out',
+        isDark ? 'bg-[#1a2e44]' : 'bg-gray-50',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       ]"
     >

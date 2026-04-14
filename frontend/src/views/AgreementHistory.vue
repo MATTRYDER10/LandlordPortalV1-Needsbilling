@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 transition-colors duration-300">
-    <div class="mb-8 flex justify-between items-start">
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 transition-colors duration-300">
+    <div class="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
       <div>
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Standalone Agreements</h2>
         <p class="mt-2 text-gray-600 dark:text-slate-400">View, sign, and manage previously generated agreements</p>
