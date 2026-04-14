@@ -1044,6 +1044,43 @@ router.post('/:id/decision', authenticateStaff, async (req: StaffAuthRequest, re
         .eq('id', id)
     }
 
+    // Gate: INCOME section cannot be passed while employer reference is still pending
+    if (decision === 'PASS' || decision === 'PASS_WITH_CONDITION') {
+      const { data: section } = await supabase
+        .from('reference_sections_v2')
+        .select('section_type, reference_id')
+        .eq('id', id)
+        .single()
+
+      if (section?.section_type === 'INCOME') {
+        // Check if there's a pending employer reference for this reference
+        const { data: pendingEmployer } = await supabase
+          .from('reference_sections_v2')
+          .select('id, queue_status, section_data')
+          .eq('reference_id', section.reference_id)
+          .eq('section_type', 'INCOME')
+          .single()
+
+        const sectionData = (pendingEmployer?.section_data as Record<string, any>) || {}
+        const employerRefStatus = sectionData?.employer_reference_status || sectionData?.employerReferenceStatus
+
+        // Check chase_dependencies for pending employer refs
+        const { data: pendingChases } = await supabase
+          .from('chase_dependencies_v2')
+          .select('id, status')
+          .eq('reference_id', section.reference_id)
+          .eq('dependency_type', 'EMPLOYER_REF')
+          .in('status', ['PENDING', 'SENT', 'CHASING'])
+          .limit(1)
+
+        if (pendingChases && pendingChases.length > 0) {
+          return res.status(400).json({
+            error: 'Cannot pass INCOME section while employer reference is still pending. The employer reference must be received first.'
+          })
+        }
+      }
+    }
+
     const success = await submitSectionDecision({
       sectionId: id,
       decision,
