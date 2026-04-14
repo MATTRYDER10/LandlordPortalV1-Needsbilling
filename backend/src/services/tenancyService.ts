@@ -633,7 +633,10 @@ export async function updateTenancy(
   if (input.endDate !== undefined) updateData.tenancy_end_date = input.endDate
   if (input.actualEndDate !== undefined) updateData.actual_end_date = input.actualEndDate
   if (input.tenancyType !== undefined) updateData.tenancy_type = input.tenancyType
-  if (input.monthlyRent !== undefined) updateData.monthly_rent = input.monthlyRent
+  if (input.monthlyRent !== undefined) {
+    updateData.monthly_rent = input.monthlyRent
+    updateData.rent_amount = input.monthlyRent  // Keep both columns in sync
+  }
   if (input.rentDueDay !== undefined) updateData.rent_due_day = input.rentDueDay
   if (input.depositAmount !== undefined) updateData.deposit_amount = input.depositAmount
   if (input.depositScheme !== undefined) updateData.deposit_scheme = input.depositScheme
@@ -1401,7 +1404,7 @@ function formatTenancy(data: any): Tenancy {
     fixed_term_end_date: data.fixed_term_end_date,
     actual_end_date: data.actual_end_date,
     notice_period_days: data.notice_period_days || 30,
-    monthly_rent: parseFloat(data.rent_amount || data.monthly_rent || 0),
+    monthly_rent: parseFloat(data.monthly_rent || data.rent_amount || 0),
     deposit_amount: data.deposit_amount ? parseFloat(data.deposit_amount) : null,
     deposit_scheme: data.deposit_scheme,
     deposit_reference: data.deposit_reference,
