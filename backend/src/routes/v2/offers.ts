@@ -671,37 +671,51 @@ router.post('/landlord-decision/:token', async (req, res) => {
       return res.status(400).json({ error: 'Reason is required when declining' })
     }
 
-    // Find the offer - either by individual token or by offerId + group token
+    // Find the offer - try individual token first, then group token (mirrors GET logic)
     let offer: any = null
+    const offerFields = 'id, landlord_decision, company_id, property_address_encrypted, created_by'
 
     if (offerId) {
-      // Multi-offer: verify the offerId belongs to this group token
-      const { data } = await supabase
+      // Multi-offer: verify the offerId belongs to this token (try both token types)
+      const { data: groupMatch } = await supabase
         .from('tenant_offers')
-        .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+        .select(offerFields)
         .eq('id', offerId)
         .eq('landlord_group_token', token)
-        .single()
-      offer = data
+        .maybeSingle()
+      offer = groupMatch
 
-      // Also try individual token match
       if (!offer) {
-        const { data: singleData } = await supabase
+        const { data: singleMatch } = await supabase
           .from('tenant_offers')
-          .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+          .select(offerFields)
           .eq('id', offerId)
           .eq('landlord_decision_token', token)
-          .single()
-        offer = singleData
+          .maybeSingle()
+        offer = singleMatch
       }
     } else {
-      // Single-offer: use the token directly
-      const { data } = await supabase
+      // Single-offer: try individual token first, then group token
+      const { data: singleMatch } = await supabase
         .from('tenant_offers')
-        .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+        .select(offerFields)
         .eq('landlord_decision_token', token)
-        .single()
-      offer = data
+        .maybeSingle()
+      offer = singleMatch
+
+      if (!offer) {
+        // Could be a group token with only one offer — match like the GET does
+        const { data: groupOffers } = await supabase
+          .from('tenant_offers')
+          .select(offerFields)
+          .eq('landlord_group_token', token)
+          .is('landlord_decision', null)
+          .limit(1)
+
+        if (groupOffers && groupOffers.length === 1) {
+          offer = groupOffers[0]
+        }
+      }
     }
 
     if (!offer) {
