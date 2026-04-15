@@ -128,10 +128,10 @@ onMounted(() => {
       bank_account_number: props.contractor.bank_details.account_number || '',
       commission_percent: props.contractor.commission_percent,
       commission_vat: props.contractor.commission_vat,
-      pi_policy_number: (props.contractor as any).pi_policy_number || '',
-      pi_expiry_date: (props.contractor as any).pi_expiry_date || '',
-      pli_policy_number: (props.contractor as any).pli_policy_number || '',
-      pli_expiry_date: (props.contractor as any).pli_expiry_date || '',
+      pi_policy_number: props.contractor.pi_policy_number || '',
+      pi_expiry_date: props.contractor.pi_expiry_date || '',
+      pli_policy_number: props.contractor.pli_policy_number || '',
+      pli_expiry_date: props.contractor.pli_expiry_date || '',
       notes: props.contractor.notes || '',
     }
   }

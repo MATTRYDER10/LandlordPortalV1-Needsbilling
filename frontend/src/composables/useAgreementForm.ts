@@ -360,9 +360,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
       l.name &&
       l.email &&
       isValidEmail(l.email) &&
-      l.address.line1 &&
-      l.address.city &&
-      l.address.postcode
+      l.address.line1
     )
   })
 

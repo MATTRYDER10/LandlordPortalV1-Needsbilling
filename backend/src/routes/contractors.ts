@@ -1,8 +1,11 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import * as contractorService from '../services/contractorService'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 
 const router = Router()
 
@@ -180,6 +183,105 @@ router.post('/:id/restore', authenticateToken, async (req: AuthRequest, res) => 
   } catch (err: any) {
     console.error('Error restoring contractor:', err)
     res.status(500).json({ error: 'Failed to restore contractor' })
+  }
+})
+
+// GET /api/contractors/:id/documents — list documents for a contractor
+router.get('/:id/documents', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { data, error } = await supabase
+      .from('contractor_documents')
+      .select('*')
+      .eq('contractor_id', req.params.id)
+      .eq('company_id', companyId)
+      .order('uploaded_at', { ascending: false })
+
+    if (error) throw error
+    res.json({ documents: data || [] })
+  } catch (err: any) {
+    console.error('Error fetching contractor documents:', err)
+    res.status(500).json({ error: 'Failed to fetch documents' })
+  }
+})
+
+// POST /api/contractors/:id/documents — upload a document
+router.post('/:id/documents', authenticateToken, upload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const file = req.file
+    if (!file) return res.status(400).json({ error: 'No file provided' })
+
+    const fileName = req.body.name || file.originalname
+    const ext = file.originalname.split('.').pop()
+    const storagePath = `contractor-docs/${companyId}/${req.params.id}/${Date.now()}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      })
+
+    if (uploadError) throw uploadError
+
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(storagePath)
+
+    const { data: doc, error: insertError } = await supabase
+      .from('contractor_documents')
+      .insert({
+        contractor_id: req.params.id,
+        company_id: companyId,
+        name: fileName,
+        url: urlData.publicUrl,
+        storage_path: storagePath,
+        type: file.mimetype,
+        uploaded_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (insertError) throw insertError
+    res.json({ document: doc })
+  } catch (err: any) {
+    console.error('Error uploading contractor document:', err)
+    res.status(500).json({ error: 'Failed to upload document' })
+  }
+})
+
+// DELETE /api/contractors/:id/documents/:docId — delete a document
+router.delete('/:id/documents/:docId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const { data: doc } = await supabase
+      .from('contractor_documents')
+      .select('storage_path')
+      .eq('id', req.params.docId)
+      .eq('contractor_id', req.params.id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (doc?.storage_path) {
+      await supabase.storage.from('documents').remove([doc.storage_path])
+    }
+
+    await supabase
+      .from('contractor_documents')
+      .delete()
+      .eq('id', req.params.docId)
+      .eq('contractor_id', req.params.id)
+      .eq('company_id', companyId)
+
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error deleting contractor document:', err)
+    res.status(500).json({ error: 'Failed to delete document' })
   }
 })
 

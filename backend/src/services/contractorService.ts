@@ -15,6 +15,12 @@ export interface Contractor {
   }
   commission_percent: number
   commission_vat: boolean
+  pi_policy_number: string | null
+  pi_expiry_date: string | null
+  pli_policy_number: string | null
+  pli_expiry_date: string | null
+  pli_certificate_url: string | null
+  documents: any[]
   notes: string | null
   created_at: string
   updated_at: string
@@ -48,6 +54,12 @@ function mapContractor(row: any): Contractor {
     },
     commission_percent: parseFloat(row.commission_percent) || 0,
     commission_vat: row.commission_vat || false,
+    pi_policy_number: row.pi_policy_number || null,
+    pi_expiry_date: row.pi_expiry_date || null,
+    pli_policy_number: row.pli_policy_number || null,
+    pli_expiry_date: row.pli_expiry_date || null,
+    pli_certificate_url: row.pli_certificate_url || null,
+    documents: row.contractor_documents || [],
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -57,7 +69,7 @@ function mapContractor(row: any): Contractor {
 export async function listContractors(companyId: string, includeArchived = false): Promise<Contractor[]> {
   let query = supabase
     .from('contractors')
-    .select('*')
+    .select('*, contractor_documents(*)')
     .eq('company_id', companyId)
     .order('name', { ascending: true })
 
@@ -67,7 +79,11 @@ export async function listContractors(companyId: string, includeArchived = false
 
   const { data, error } = await query
   if (error) throw error
-  return (data || []).map(c => ({ ...mapContractor(c), archived_at: c.archived_at || null }))
+  return (data || []).map(c => ({
+    ...mapContractor(c),
+    documents: c.contractor_documents || [],
+    archived_at: c.archived_at || null
+  }))
 }
 
 export async function getContractor(id: string, companyId: string): Promise<Contractor | null> {
@@ -97,6 +113,10 @@ export async function createContractor(companyId: string, input: CreateContracto
   if (input.bank_account_name) insertData.bank_account_name_encrypted = encrypt(input.bank_account_name)
   if (input.bank_account_number) insertData.bank_account_number_encrypted = encrypt(input.bank_account_number)
   if (input.bank_sort_code) insertData.bank_sort_code_encrypted = encrypt(input.bank_sort_code)
+  if ((input as any).pi_policy_number) insertData.pi_policy_number = (input as any).pi_policy_number
+  if ((input as any).pi_expiry_date) insertData.pi_expiry_date = (input as any).pi_expiry_date
+  if ((input as any).pli_policy_number) insertData.pli_policy_number = (input as any).pli_policy_number
+  if ((input as any).pli_expiry_date) insertData.pli_expiry_date = (input as any).pli_expiry_date
 
   const { data, error } = await supabase
     .from('contractors')

@@ -137,7 +137,22 @@ export interface Contractor {
   }
   commission_percent: number
   commission_vat: boolean
+  pi_policy_number: string | null
+  pi_expiry_date: string | null
+  pli_policy_number: string | null
+  pli_expiry_date: string | null
+  pli_certificate_url: string | null
+  documents: ContractorDocument[]
   notes: string | null
+}
+
+export interface ContractorDocument {
+  id: string
+  contractor_id: string
+  name: string
+  url: string
+  type: string
+  uploaded_at: string
 }
 
 export const useRentGooseStore = defineStore('rentgoose', () => {

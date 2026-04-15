@@ -250,11 +250,30 @@ const selectSuggestion = async (suggestion: Predictions) => {
     // Keep the current query value (the manually typed address)
     emit('update:modelValue', query.value)
 
-    // Emit addressSelected with minimal data (just what was typed)
+    // Try to extract postcode and city from the typed text
+    const typed = query.value.trim()
+    const ukPostcodeRegex = /\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i
+    const postcodeMatch = typed.match(ukPostcodeRegex)
+    const postcode = postcodeMatch ? postcodeMatch[1].toUpperCase() : ''
+
+    // Remove postcode from text, split by commas to find parts
+    const withoutPostcode = typed.replace(ukPostcodeRegex, '').replace(/,\s*,/g, ',').trim()
+    const parts = withoutPostcode.split(',').map(p => p.trim()).filter(Boolean)
+
+    // Heuristic: last part is likely city, rest is address line 1
+    let addressLine1 = typed
+    let city = ''
+    if (parts.length >= 2) {
+      city = parts[parts.length - 1]
+      addressLine1 = parts.slice(0, -1).join(', ')
+    } else if (parts.length === 1) {
+      addressLine1 = parts[0]
+    }
+
     emit('addressSelected', {
-      addressLine1: query.value,
-      city: '',
-      postcode: '',
+      addressLine1,
+      city,
+      postcode,
       country: {
         code: 'GB',
         name: 'United Kingdom'
