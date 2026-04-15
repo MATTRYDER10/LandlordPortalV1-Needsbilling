@@ -1026,16 +1026,18 @@ router.get('/references/search', authenticateStaff, async (req: StaffAuthRequest
 
       references = data || []
     } else {
-      // Search V2 references
+      // Search V2 references — must fetch all and filter in memory because
+      // fields are encrypted. Order by most recent first for relevance.
       const { data: v2Refs } = await supabase
         .from('tenant_references_v2')
         .select(`
           id, status, created_at, company_id,
           tenant_first_name_encrypted, tenant_last_name_encrypted,
           tenant_email_encrypted, property_address_encrypted,
-          companies!inner(name)
+          companies(name)
         `)
-        .limit(50)
+        .order('created_at', { ascending: false })
+        .limit(500)
 
       // Filter and decrypt - searching encrypted fields requires fetching and filtering in-memory
       references = (v2Refs || []).filter(ref => {
