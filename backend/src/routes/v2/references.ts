@@ -937,6 +937,12 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       return (e.property?.address || '').trim().toLowerCase()
     }
 
+    // Extract just the first line of the address for dedup (before first comma)
+    const extractAddressLine1 = (e: any): string => {
+      const addr = (e.property?.address || '').trim().toLowerCase()
+      return addr.split(',')[0].trim()
+    }
+
     // Pass 1.5: If the same surname has both a reference AND a tenancy
     // (regardless of date), drop the reference. The tenancy is the source
     // of truth once created — the reference's move-in date may be stale.
@@ -953,9 +959,25 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       return true
     })
 
+    // Pass 1.75: Address line 1 dedup — if same address line 1 appears in both
+    // a reference AND a tenancy, drop the reference. Tenancies are already first
+    // in the array so they win in the Set check.
+    const addressLine1HasTenancy = new Set<string>()
+    for (const e of tenancyEntries) {
+      const line1 = extractAddressLine1(e)
+      if (line1) addressLine1HasTenancy.add(line1)
+    }
+    const entriesAfterAddrDedup = entriesAfterPass1_5.filter((e: any) => {
+      if (e.referenceId && !e.tenancyId) {
+        const line1 = extractAddressLine1(e)
+        if (line1 && addressLine1HasTenancy.has(line1)) return false
+      }
+      return true
+    })
+
     // Pass 2: surname + date
     const afterSurname = new Map<string, any>()
-    for (const e of entriesAfterPass1_5) {
+    for (const e of entriesAfterAddrDedup) {
       const surname = extractSurname(e.tenants)
       const key = surname
         ? `${surname}|${e.moveInDate}`
@@ -965,10 +987,10 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
-    // Pass 3: address + date (catches multi-group entries at same property)
+    // Pass 3: address line 1 + date (catches multi-group entries at same property)
     const afterAddress = new Map<string, any>()
     for (const e of afterSurname.values()) {
-      const addr = extractAddress(e)
+      const addr = extractAddressLine1(e)
       const key = addr
         ? `${addr}|${e.moveInDate}`
         : `unique2-${e.referenceId || e.tenancyId || Math.random()}`
