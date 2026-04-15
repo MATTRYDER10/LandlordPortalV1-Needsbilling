@@ -723,7 +723,8 @@ router.post('/landlord-decision/:token', async (req, res) => {
     }
 
     if (offer.landlord_decision) {
-      return res.status(400).json({ error: 'Decision has already been submitted for this offer' })
+      const alreadyDecision = offer.landlord_decision === 'approved' ? 'accepted' : 'declined'
+      return res.status(400).json({ error: `This offer has already been ${alreadyDecision}. No further action is required.` })
     }
 
     // Update the offer with landlord decision
