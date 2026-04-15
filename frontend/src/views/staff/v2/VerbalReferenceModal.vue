@@ -94,10 +94,10 @@
                       class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     >
                       <option value="">Select...</option>
-                      <option value="PERMANENT">Permanent</option>
-                      <option value="CONTRACT">Contract</option>
-                      <option value="TEMPORARY">Temporary</option>
-                      <option value="PART_TIME">Part Time</option>
+                      <option value="permanent">Permanent</option>
+                      <option value="contract">Contract</option>
+                      <option value="temporary">Temporary</option>
+                      <option value="part_time">Part Time</option>
                     </select>
                   </div>
                 </div>
@@ -181,20 +181,20 @@
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Rent paid on time? *</label>
                   <div class="flex gap-4">
                     <label class="flex items-center gap-2">
-                      <input v-model="form.rentOnTime" type="radio" value="ALWAYS" class="text-primary" />
+                      <input v-model="form.rentOnTime" type="radio" value="always" class="text-primary" />
                       <span>Always</span>
                     </label>
                     <label class="flex items-center gap-2">
-                      <input v-model="form.rentOnTime" type="radio" value="MOSTLY" class="text-primary" />
-                      <span>Mostly</span>
+                      <input v-model="form.rentOnTime" type="radio" value="usually" class="text-primary" />
+                      <span>Usually</span>
                     </label>
                     <label class="flex items-center gap-2">
-                      <input v-model="form.rentOnTime" type="radio" value="SOMETIMES" class="text-primary" />
+                      <input v-model="form.rentOnTime" type="radio" value="sometimes" class="text-primary" />
                       <span>Sometimes Late</span>
                     </label>
                     <label class="flex items-center gap-2">
-                      <input v-model="form.rentOnTime" type="radio" value="OFTEN_LATE" class="text-primary" />
-                      <span>Often Late</span>
+                      <input v-model="form.rentOnTime" type="radio" value="rarely" class="text-primary" />
+                      <span>Rarely</span>
                     </label>
                   </div>
                 </div>
@@ -217,6 +217,27 @@
                     placeholder="Amount (£)"
                     class="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property condition? *</label>
+                  <div class="flex gap-4">
+                    <label class="flex items-center gap-2">
+                      <input v-model="form.propertyCondition" type="radio" value="excellent" class="text-primary" />
+                      <span>Excellent</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                      <input v-model="form.propertyCondition" type="radio" value="good" class="text-primary" />
+                      <span>Good</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                      <input v-model="form.propertyCondition" type="radio" value="fair" class="text-primary" />
+                      <span>Fair</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                      <input v-model="form.propertyCondition" type="radio" value="poor" class="text-primary" />
+                      <span>Poor</span>
+                    </label>
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Would you rent to them again? *</label>
@@ -317,6 +338,7 @@ const form = reactive({
   tenancyEndDate: '',
   monthlyRent: null as number | null,
   rentOnTime: '',
+  propertyCondition: '',
   hasArrears: false,
   arrearsAmount: null as number | null,
   wouldRentAgain: true,
@@ -334,7 +356,7 @@ const canSubmit = computed(() => {
   }
 
   if (props.item?.referee_type === 'LANDLORD' || props.item?.referee_type === 'AGENT') {
-    return form.tenancyStartDate && form.monthlyRent && form.rentOnTime && form.wouldRentAgain !== undefined
+    return form.tenancyStartDate && form.monthlyRent && form.rentOnTime && form.propertyCondition && form.wouldRentAgain !== undefined
   }
 
   return true
@@ -361,14 +383,14 @@ async function submitVerbal() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        referee: {
-          name: form.refereeName,
-          position: form.refereePosition,
-          phone: form.refereePhone
-        },
+        refereeName: form.refereeName,
+        refereePosition: form.refereePosition,
+        refereePhone: form.refereePhone,
         callDatetime: form.callDatetime,
+        assessorNotes: form.assessorNotes,
         responses: props.item.referee_type === 'EMPLOYER'
           ? {
+              is_employed: true,
               job_title: form.jobTitle,
               employment_type: form.employmentType,
               start_date: form.startDate,
@@ -377,16 +399,17 @@ async function submitVerbal() {
               concerns: form.concerns
             }
           : {
+              was_tenant: true,
               tenancy_start_date: form.tenancyStartDate,
               tenancy_end_date: form.tenancyEndDate,
               monthly_rent: form.monthlyRent,
-              rent_on_time: form.rentOnTime,
+              rent_paid_on_time: form.rentOnTime,
+              property_condition: form.propertyCondition,
               has_arrears: form.hasArrears,
               arrears_amount: form.arrearsAmount,
               would_rent_again: form.wouldRentAgain,
               concerns: form.concerns
-            },
-        assessorNotes: form.assessorNotes
+            }
       })
     })
 
