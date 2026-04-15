@@ -1013,17 +1013,17 @@ router.get('/references/search', authenticateStaff, async (req: StaffAuthRequest
 
     if (isUuid) {
       // Search by ID
-      const { data } = await supabase
+      const { data, error: idError } = await supabase
         .from('tenant_references_v2')
         .select(`
           id, status, created_at, company_id,
           tenant_first_name_encrypted, tenant_last_name_encrypted,
-          tenant_email_encrypted, property_address_encrypted,
-          companies!inner(name)
+          tenant_email_encrypted, property_address_encrypted
         `)
         .eq('id', searchTerm)
         .limit(1)
 
+      if (idError) console.error('[V2 Admin Search] UUID lookup error:', idError)
       references = data || []
     } else {
       // Search V2 references — must fetch all and filter in memory because
