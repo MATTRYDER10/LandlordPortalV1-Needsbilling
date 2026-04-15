@@ -960,10 +960,14 @@ async function checkAllGroupMembersComplete(parentReferenceId: string): Promise<
 
     if (!children || children.length === 0) return false
 
-    // Check all children are INDIVIDUAL_COMPLETE
+    // Statuses that count as "individually complete" — INDIVIDUAL_COMPLETE is canonical,
+    // but children may already be ACCEPTED if processed earlier
+    const completedStatuses = ['INDIVIDUAL_COMPLETE', 'ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'GROUP_ASSESSMENT']
+
+    // Check all children are individually complete
     for (const child of children) {
-      if (child.status !== 'INDIVIDUAL_COMPLETE') {
-        console.log(`[V2 FinalReview] Child ${child.id} status is ${child.status}, not INDIVIDUAL_COMPLETE`)
+      if (!completedStatuses.includes(child.status)) {
+        console.log(`[V2 FinalReview] Child ${child.id} status is ${child.status}, not yet complete`)
         return false
       }
 
@@ -975,14 +979,14 @@ async function checkAllGroupMembersComplete(parentReferenceId: string): Promise<
         .eq('is_guarantor', true)
         .maybeSingle()
 
-      if (childGuarantor && childGuarantor.status !== 'INDIVIDUAL_COMPLETE') {
-        console.log(`[V2 FinalReview] Guarantor ${childGuarantor.id} for child ${child.id} status is ${childGuarantor.status}, not INDIVIDUAL_COMPLETE`)
+      if (childGuarantor && !completedStatuses.includes(childGuarantor.status)) {
+        console.log(`[V2 FinalReview] Guarantor ${childGuarantor.id} for child ${child.id} status is ${childGuarantor.status}, not yet complete`)
         return false
       }
     }
 
     // If parent is not a pure group parent (it also has sections), check its status too
-    if (!parent.is_group_parent && parent.status !== 'INDIVIDUAL_COMPLETE') {
+    if (!parent.is_group_parent && !completedStatuses.includes(parent.status)) {
       return false
     }
 
@@ -995,8 +999,8 @@ async function checkAllGroupMembersComplete(parentReferenceId: string): Promise<
         .eq('is_guarantor', true)
         .maybeSingle()
 
-      if (parentGuarantor && parentGuarantor.status !== 'INDIVIDUAL_COMPLETE') {
-        console.log(`[V2 FinalReview] Parent guarantor ${parentGuarantor.id} status is ${parentGuarantor.status}, not INDIVIDUAL_COMPLETE`)
+      if (parentGuarantor && !completedStatuses.includes(parentGuarantor.status)) {
+        console.log(`[V2 FinalReview] Parent guarantor ${parentGuarantor.id} status is ${parentGuarantor.status}, not yet complete`)
         return false
       }
     }

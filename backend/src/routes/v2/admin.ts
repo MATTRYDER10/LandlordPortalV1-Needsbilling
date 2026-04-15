@@ -11,7 +11,7 @@ import { supabase } from '../../config/supabase'
 import { decrypt } from '../../services/encryption'
 import { V2SectionType, V2QueueStatus, V2WorkType, TENANT_SECTIONS, GUARANTOR_SECTIONS } from '../../services/v2/types'
 import { editReferenceField } from '../../services/v2/referenceServiceV2'
-import { getActivityForReference } from '../../services/v2/activityServiceV2'
+import { getActivityForReference, logActivity } from '../../services/v2/activityServiceV2'
 
 const router = Router()
 
@@ -1224,6 +1224,184 @@ router.get('/references/:id/activity', authenticateStaff, async (req: StaffAuthR
     res.json({ activity })
   } catch (error: any) {
     console.error('[V2 Admin] Error getting activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get full reference detail for staff (decrypted fields, sections, referees, company, group members)
+ */
+router.get('/references/:id/detail', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+
+    // 1. Get the reference
+    const { data: ref, error: refError } = await supabase
+      .from('tenant_references_v2')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (refError || !ref) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // 2. Get sections
+    const { data: sections } = await supabase
+      .from('reference_sections_v2')
+      .select('*')
+      .eq('reference_id', id)
+      .order('section_order', { ascending: true })
+
+    // 3. Get referees
+    const { data: referees } = await supabase
+      .from('referees_v2')
+      .select('*')
+      .eq('reference_id', id)
+
+    // 4. Get company name
+    let companyName = 'Unknown'
+    if (ref.company_id) {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', ref.company_id)
+        .single()
+      if (company) {
+        const co = company as any
+        companyName = co.name || (co.name_encrypted ? decrypt(co.name_encrypted) : null) || co.company_name || 'Unknown'
+      }
+    }
+
+    // 5. Get activity
+    const activity = await getActivityForReference(id)
+
+    // 6. Get group members if this is a group parent or child
+    let groupMembers: any[] = []
+    const parentId = ref.parent_reference_id || (ref.is_group_parent ? id : null)
+    if (parentId) {
+      const { data: members } = await supabase
+        .from('tenant_references_v2')
+        .select('id, status, tenant_first_name_encrypted, tenant_last_name_encrypted, is_group_parent, is_guarantor, parent_reference_id, guarantor_for_reference_id, final_decision_notes')
+        .or(`id.eq.${parentId},parent_reference_id.eq.${parentId}`)
+
+      groupMembers = (members || []).map(m => ({
+        id: m.id,
+        status: m.status,
+        tenant_first_name: decrypt(m.tenant_first_name_encrypted || ''),
+        tenant_last_name: decrypt(m.tenant_last_name_encrypted || ''),
+        is_group_parent: m.is_group_parent,
+        is_guarantor: m.is_guarantor,
+        is_current: m.id === id,
+        final_decision_notes: m.final_decision_notes
+      }))
+    }
+
+    // 7. Get verbal references for sections
+    const { data: verbalRefs } = await supabase
+      .from('verbal_references_v2')
+      .select('*')
+      .eq('reference_id', id)
+
+    // Decrypt and format
+    const decryptedRef = {
+      id: ref.id,
+      status: ref.status,
+      created_at: ref.created_at,
+      updated_at: ref.updated_at,
+      company_id: ref.company_id,
+      company_name: companyName,
+      is_group_parent: ref.is_group_parent,
+      is_guarantor: ref.is_guarantor,
+      parent_reference_id: ref.parent_reference_id,
+      guarantor_for_reference_id: ref.guarantor_for_reference_id,
+      linked_property_id: ref.linked_property_id,
+      tenant_first_name: decrypt(ref.tenant_first_name_encrypted || ''),
+      tenant_last_name: decrypt(ref.tenant_last_name_encrypted || ''),
+      tenant_email: decrypt(ref.tenant_email_encrypted || ''),
+      tenant_phone: decrypt(ref.tenant_phone_encrypted || ''),
+      property_address: decrypt(ref.property_address_encrypted || ''),
+      property_city: decrypt(ref.property_city_encrypted || ''),
+      property_postcode: decrypt(ref.property_postcode_encrypted || ''),
+      monthly_rent: ref.monthly_rent,
+      rent_share: ref.rent_share,
+      move_in_date: ref.move_in_date,
+      term_years: ref.term_years,
+      term_months: ref.term_months,
+      bills_included: ref.bills_included,
+      final_decision_notes: ref.final_decision_notes,
+      final_decision_at: ref.final_decision_at,
+      final_decision_by: ref.final_decision_by
+    }
+
+    // Decrypt referee details
+    const decryptedReferees = (referees || []).map(r => ({
+      id: r.id,
+      referee_type: r.referee_type,
+      referee_name: r.referee_name,
+      referee_email: decrypt(r.referee_email_encrypted || ''),
+      referee_phone: decrypt(r.referee_phone_encrypted || ''),
+      status: r.status,
+      sent_at: r.sent_at,
+      completed_at: r.completed_at,
+      form_data: r.form_data
+    }))
+
+    res.json({
+      reference: decryptedRef,
+      sections: sections || [],
+      referees: decryptedReferees,
+      activity: activity || [],
+      groupMembers,
+      verbalReferences: verbalRefs || []
+    })
+  } catch (error: any) {
+    console.error('[V2 Admin] Error getting reference detail:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Override reference status (staff admin action)
+ */
+router.patch('/references/:id/status', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { status, notes } = req.body
+    const staffUser = req.staffUser
+
+    const validStatuses = ['SENT', 'COLLECTING_EVIDENCE', 'ACTION_REQUIRED', 'INDIVIDUAL_COMPLETE', 'GROUP_ASSESSMENT', 'ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED']
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' })
+    }
+
+    const now = new Date().toISOString()
+    const updateData: any = { status, updated_at: now }
+
+    if (['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED'].includes(status)) {
+      updateData.final_decision_at = now
+      updateData.final_decision_by = staffUser?.id
+      if (notes) updateData.final_decision_notes = notes
+    }
+
+    const { error } = await supabase
+      .from('tenant_references_v2')
+      .update(updateData)
+      .eq('id', id)
+
+    if (error) throw error
+
+    await logActivity({
+      referenceId: id,
+      action: 'STATUS_OVERRIDE',
+      performedBy: staffUser?.id || 'system',
+      performedByType: 'staff',
+      notes: `Status changed to ${status}${notes ? ': ' + notes : ''}`
+    })
+
+    res.json({ success: true, status })
+  } catch (error: any) {
+    console.error('[V2 Admin] Error overriding status:', error)
     res.status(500).json({ error: error.message })
   }
 })
