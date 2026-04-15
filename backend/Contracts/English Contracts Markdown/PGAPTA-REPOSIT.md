@@ -343,21 +343,7 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 (d) shall not cause any damage or contamination to any oil tank for example by running out of oil. This obligation does not require the Tenant to carry out any works or repairs for which the Landlord is liable under clause 15.8.
 
-**12\. Utilities and outgoings**
-
-**12.1** The Tenant shall pay to the authorities to whom they are due, the council tax and outgoings for the supply of gas, electricity, oil, solid fuel, water, telephone and broadband (if applicable) relating to the Property during the Tenancy. The Tenant will be responsible for any Green Deal (following notification from the Agent/Landlord) charge and any other charges relating to the Property during the Tenancy.
-
-**12.2** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.
-
-**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \[AGENT\_OR\_LANDLORD\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \[AGENT\_OR\_LANDLORD\].
-
-**12.4** Where the Tenant allows, either by default of payment or specific instruction, the utility or other services to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.
-
-**12.5** The Tenant shall pay for a television licence for the Property if a licence is required.
-
-**12.6** The Tenant shall pay to the relevant local authority the council tax for the Property.
-
-NOTE: Where the Landlord is responsible for some or all of the utilities and/or outgoings in respect of the Property, Schedule 1 of this Agreement includes confirmation as to whether any payment by the Tenant in respect of those utilities and outgoings are included in the Rent or payable in addition to the Rent.
+[SECTION_12_UTILITIES]
 
 **13\. Locks and Keys**
 

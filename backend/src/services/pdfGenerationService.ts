@@ -484,6 +484,62 @@ class PDFGenerationService {
       : `No utility bills or services are included within the monthly Rent. All utilities and services are the responsibility of the Tenant and must be paid directly by the Tenant.`
     result = result.replace(/\[BILLS_STATEMENT\]/gi, billsStatement)
 
+    // [SECTION_12_UTILITIES] — conditional Section 12 based on bills_included
+    const agentOrLandlord = data.managementType === 'managed' ? 'Agent' : 'Landlord'
+    const includesCouncilTax = includedKeys.includes('council_tax')
+    const includesTvLicence = includedKeys.includes('tv_licence')
+
+    let section12 = `**12\\. Utilities and outgoings**\n\n`
+
+    if (hasBillsIncluded && billsUtilities.length > 0) {
+      // Bills included — landlord pays listed utilities, tenant pays the rest
+      const tenantResponsibleUtils = excludedLabels.length > 0
+        ? excludedLabels.join(', ')
+        : null
+
+      section12 += `**12.1** The Landlord shall be responsible for the payment of the following utilities and services during the Tenancy: **${billsListStr}**. These costs are included within the monthly Rent as set out in this Agreement.`
+
+      if (tenantResponsibleUtils) {
+        section12 += ` The Tenant shall pay to the relevant authorities or suppliers all charges for: ${tenantResponsibleUtils}, and any other utilities or services not listed above, relating to the Property during the Tenancy.`
+      }
+
+      section12 += ` The Tenant will be responsible for any Green Deal (following notification from the ${agentOrLandlord}) charge and any other charges relating to the Property during the Tenancy not covered by the included utilities.\n\n`
+
+      // Fair usage clause
+      section12 += `**12.2** Where utilities are included within the Rent, the Tenant shall use such utilities reasonably and not excessively. The Landlord reserves the right to review the arrangement if consumption is unreasonably high and to require additional payment or to renegotiate the Rent if consumption exceeds reasonable domestic use.\n\n`
+
+      section12 += `**12.3** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
+
+      section12 += `**12.4** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+
+      section12 += `**12.5** Where the Tenant allows, either by default of payment or specific instruction, any utility or other service for which the Tenant is responsible to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
+
+      if (!includesTvLicence) {
+        section12 += `**12.6** The Tenant shall pay for a television licence for the Property if a licence is required.\n\n`
+      }
+
+      if (!includesCouncilTax) {
+        section12 += `**12.${includesTvLicence ? '6' : '7'}** The Tenant shall pay to the relevant local authority the council tax for the Property.\n\n`
+      }
+    } else {
+      // No bills included — standard tenant-pays-all clauses
+      section12 += `**12.1** The Tenant shall pay to the authorities to whom they are due, the council tax and outgoings for the supply of gas, electricity, oil, solid fuel, water, telephone and broadband (if applicable) relating to the Property during the Tenancy. The Tenant will be responsible for any Green Deal (following notification from the ${agentOrLandlord}) charge and any other charges relating to the Property during the Tenancy.\n\n`
+
+      section12 += `**12.2** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
+
+      section12 += `**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+
+      section12 += `**12.4** Where the Tenant allows, either by default of payment or specific instruction, the utility or other services to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
+
+      section12 += `**12.5** The Tenant shall pay for a television licence for the Property if a licence is required.\n\n`
+
+      section12 += `**12.6** The Tenant shall pay to the relevant local authority the council tax for the Property.\n\n`
+
+      section12 += `NOTE: Where the Landlord is responsible for some or all of the utilities and/or outgoings in respect of the Property, Schedule 1 of this Agreement includes confirmation as to whether any payment by the Tenant in respect of those utilities and outgoings are included in the Rent or payable in addition to the Rent.`
+    }
+
+    result = result.replace(/\[SECTION_12_UTILITIES\]/gi, section12)
+
     // Legacy individual placeholders (AST templates still use these)
     result = result.replace(/\[BILLS_INCLUDED\]/gi, hasBillsIncluded ? 'included' : 'not included')
     result = result.replace(/\[BILLS_INCLUDED_LIST\]/gi, billsUtilities.length > 0 ? billsListStr : 'None')
