@@ -49,7 +49,7 @@
               {{ contractor.commission_percent }}%{{ contractor.commission_vat ? ' + VAT' : '' }}
             </span>
             <span v-if="!contractor.pi_policy_number" class="bg-[#fef3c7] text-[#b45309] rounded-full text-xs font-medium px-2.5 py-0.5">
-              ⚠ No PI on file
+              No PI
             </span>
             <template v-else>
               <span v-if="isPIExpired(contractor.pi_expiry_date)" class="bg-[#fee2e2] text-[#b91c1c] rounded-full text-xs font-medium px-2.5 py-0.5">
@@ -57,6 +57,17 @@
               </span>
               <span v-else class="text-xs text-gray-400 dark:text-slate-500">
                 PI Exp: {{ formatDate(contractor.pi_expiry_date) }}
+              </span>
+            </template>
+            <span v-if="!contractor.pli_policy_number" class="bg-[#fef3c7] text-[#b45309] rounded-full text-xs font-medium px-2.5 py-0.5">
+              No PLI
+            </span>
+            <template v-else>
+              <span v-if="isPIExpired(contractor.pli_expiry_date)" class="bg-[#fee2e2] text-[#b91c1c] rounded-full text-xs font-medium px-2.5 py-0.5">
+                PLI Expired
+              </span>
+              <span v-else class="text-xs text-gray-400 dark:text-slate-500">
+                PLI Exp: {{ formatDate(contractor.pli_expiry_date) }}
               </span>
             </template>
             <span v-if="contractor.archived_at" class="bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-full text-xs font-medium px-2.5 py-0.5">Archived</span>
@@ -176,6 +187,45 @@
               </table>
             </div>
           </div>
+
+          <!-- Documents section -->
+          <div class="px-5 py-4 border-t" :class="isDark ? 'border-slate-700' : 'border-gray-200'">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Documents</p>
+              <label class="cursor-pointer text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1">
+                <Upload class="w-3.5 h-3.5" />
+                Upload Document
+                <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" @change="(e) => uploadDocument(contractor, e)" />
+              </label>
+            </div>
+
+            <div v-if="uploadingDocFor === contractor.id" class="text-center py-3">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto"></div>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Uploading...</p>
+            </div>
+
+            <div v-else-if="!contractor.documents || contractor.documents.length === 0" class="text-[13px] text-gray-500 dark:text-slate-400 py-3 text-center">
+              No documents uploaded. Upload PLI certificates, agreements, or other files.
+            </div>
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="doc in contractor.documents"
+                :key="doc.id"
+                :class="['flex items-center justify-between p-2.5 rounded-lg border', isDark ? 'border-slate-700 bg-slate-800/50' : 'border-gray-200 bg-gray-50']"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <FileText class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span class="text-sm truncate">{{ doc.name }}</span>
+                  <span class="text-xs text-gray-400 dark:text-slate-500 flex-shrink-0">{{ formatDate(doc.uploaded_at) }}</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <a :href="doc.url" target="_blank" class="text-xs text-primary hover:underline">View</a>
+                  <button @click="deleteDocument(contractor, doc)" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -206,6 +256,7 @@ import { useRentGooseStore, type Contractor } from '../../stores/rentgoose'
 import { useApi } from '../../composables/useApi'
 import ContractorModal from './ContractorModal.vue'
 import InvoiceUploadModal from './InvoiceUploadModal.vue'
+import { Upload, FileText } from 'lucide-vue-next'
 
 const { isDark } = useDarkMode()
 const store = useRentGooseStore()
@@ -326,6 +377,43 @@ function formatDate(dateStr: string) {
 function isPIExpired(dateStr: string) {
   if (!dateStr) return false
   return new Date(dateStr) < new Date()
+}
+
+const uploadingDocFor = ref<string | null>(null)
+
+async function uploadDocument(contractor: Contractor, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input?.files?.[0]
+  if (!file) return
+
+  uploadingDocFor.value = contractor.id
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('name', file.name)
+
+    const result = await post<any>(`/api/contractors/${contractor.id}/documents`, formData)
+    if (result?.document) {
+      if (!contractor.documents) contractor.documents = []
+      contractor.documents.push(result.document)
+    }
+  } catch (err) {
+    console.error('Failed to upload document:', err)
+    alert('Failed to upload document')
+  } finally {
+    uploadingDocFor.value = null
+    input.value = ''
+  }
+}
+
+async function deleteDocument(contractor: Contractor, doc: any) {
+  if (!confirm(`Delete "${doc.name}"?`)) return
+  try {
+    await del(`/api/contractors/${contractor.id}/documents/${doc.id}`)
+    contractor.documents = (contractor.documents || []).filter((d: any) => d.id !== doc.id)
+  } catch (err) {
+    console.error('Failed to delete document:', err)
+  }
 }
 
 onMounted(() => {
