@@ -1040,6 +1040,17 @@ router.get('/references/search', authenticateStaff, async (req: StaffAuthRequest
         .limit(500)
 
       // Filter and decrypt - searching encrypted fields requires fetching and filtering in-memory
+      console.log(`[V2 Admin Search] Fetched ${v2Refs?.length || 0} refs, searching for "${searchTerm}"`)
+
+      // Log first 3 decrypted names to verify decrypt is working
+      if (v2Refs && v2Refs.length > 0) {
+        for (let i = 0; i < Math.min(3, v2Refs.length); i++) {
+          const fn = decrypt(v2Refs[i].tenant_first_name_encrypted || '') || ''
+          const ln = decrypt(v2Refs[i].tenant_last_name_encrypted || '') || ''
+          console.log(`[V2 Admin Search] Sample ref ${i}: "${fn} ${ln}" (id: ${v2Refs[i].id})`)
+        }
+      }
+
       references = (v2Refs || []).filter(ref => {
         const firstName = (decrypt(ref.tenant_first_name_encrypted || '') || '').toLowerCase()
         const lastName = (decrypt(ref.tenant_last_name_encrypted || '') || '').toLowerCase()
@@ -1052,6 +1063,8 @@ router.get('/references/search', authenticateStaff, async (req: StaffAuthRequest
                address.includes(searchTerm) ||
                `${firstName} ${lastName}`.includes(searchTerm)
       }).slice(0, 20)
+
+      console.log(`[V2 Admin Search] Found ${references.length} matches for "${searchTerm}"`)
     }
 
     // Decrypt and format results

@@ -382,8 +382,12 @@ function onSearchInput() {
       if (response.ok) {
         const data = await response.json()
         searchResults.value = data.references || []
+      } else {
+        console.error('[Dashboard] Search failed:', response.status, await response.text().catch(() => ''))
       }
-    } catch {}
+    } catch (err) {
+      console.error('[Dashboard] Search error:', err)
+    }
   }, 300)
 }
 
