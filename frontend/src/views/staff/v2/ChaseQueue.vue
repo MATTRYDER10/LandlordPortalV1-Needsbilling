@@ -446,6 +446,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import UKTimeClock from './components/UKTimeClock.vue'
 import VerbalReferenceModal from './VerbalReferenceModal.vue'
@@ -466,6 +467,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const router = useRouter()
+const toast = useToast()
 const authStore = useAuthStore()
 
 const loading = ref(false)
