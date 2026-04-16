@@ -1184,13 +1184,17 @@ export async function confirmSync(
 /**
  * Fetch all landlord contacts from Apex27
  */
-export async function fetchAllContacts(apiKey: string): Promise<{ success: boolean; contacts?: Apex27Contact[]; error?: string }> {
+export async function fetchAllContacts(apiKey: string, branchId?: string | null): Promise<{ success: boolean; contacts?: Apex27Contact[]; error?: string }> {
   const allContacts: Apex27Contact[] = []
   let page = 1
   let totalPages = 1
 
   while (page <= totalPages) {
-    const result = await apex27Fetch<Apex27Contact[]>(apiKey, '/contacts', { page, pageSize: 250 })
+    const params: Record<string, any> = { page, pageSize: 250 }
+    if (branchId) {
+      params.branchId = branchId
+    }
+    const result = await apex27Fetch<Apex27Contact[]>(apiKey, '/contacts', params)
 
     if (!result.success) {
       return { success: false, error: result.error }
@@ -1243,7 +1247,7 @@ export async function syncLandlords(companyId: string): Promise<{ success: boole
   }
 
   try {
-    const contactsResult = await fetchAllContacts(config.apiKey)
+    const contactsResult = await fetchAllContacts(config.apiKey, config.branchId)
     if (!contactsResult.success) {
       throw new Error(contactsResult.error || 'Failed to fetch contacts')
     }
