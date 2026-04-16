@@ -1064,13 +1064,14 @@ router.post('/:id/decision', authenticateStaff, async (req: StaffAuthRequest, re
         const sectionData = (pendingEmployer?.section_data as Record<string, any>) || {}
         const employerRefStatus = sectionData?.employer_reference_status || sectionData?.employerReferenceStatus
 
-        // Check chase_dependencies for pending employer refs
+        // Check chase_items_v2 for pending employer refs.
+        // Statuses 'WAITING' and 'IN_CHASE_QUEUE' mean the referee hasn't responded yet.
         const { data: pendingChases } = await supabase
-          .from('chase_dependencies_v2')
+          .from('chase_items_v2')
           .select('id, status')
           .eq('reference_id', section.reference_id)
-          .eq('dependency_type', 'EMPLOYER_REF')
-          .in('status', ['PENDING', 'SENT', 'CHASING'])
+          .eq('referee_type', 'EMPLOYER')
+          .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
           .limit(1)
 
         if (pendingChases && pendingChases.length > 0) {

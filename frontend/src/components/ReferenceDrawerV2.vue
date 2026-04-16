@@ -1500,12 +1500,32 @@ function getSectionLabel(type: string) {
   return labels[type] || type
 }
 
+const EVIDENCE_STATUS_LABELS: Record<string, string> = {
+  AWAITING_EVIDENCE: 'Awaiting Evidence',
+  AWAITING_REFEREE: 'Awaiting Referee',
+  AWAITING_UPLOAD: 'Awaiting Upload',
+  REFEREE_RECEIVED: 'Referee Received',
+  EVIDENCE_UPLOADED: 'Evidence Uploaded',
+  AUTO_PASSED: 'Auto-Passed',
+  STUDENT_EXEMPT: 'Student Exempt'
+}
+
+function getEvidenceStatus(section: any): string | null {
+  if (section.queue_status === 'COMPLETED') return null
+  const es = section.section_data?.evidence_status
+  return es && EVIDENCE_STATUS_LABELS[es] ? es : null
+}
+
 function getSectionStatusLabel(section: any) {
   if (section.decision === 'PASS') return 'Passed'
   if (section.decision === 'PASS_WITH_CONDITION') return 'Conditional Pass'
   if (section.decision === 'FAIL' || section.decision === 'REJECT') return 'Failed'
   if (section.status === 'IN_REVIEW') return 'In Review'
   if (section.is_ready_for_review) return 'Ready for Review'
+
+  const es = getEvidenceStatus(section)
+  if (es) return EVIDENCE_STATUS_LABELS[es]
+
   if (section.status === 'COLLECTING') return 'Collecting'
   return 'Pending'
 }
@@ -1544,6 +1564,18 @@ function getSectionBadgeClass(section: any) {
   if (section.is_ready_for_review) {
     return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   }
+
+  const es = getEvidenceStatus(section)
+  if (es === 'AWAITING_EVIDENCE') {
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+  }
+  if (es === 'AWAITING_REFEREE' || es === 'AWAITING_UPLOAD') {
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+  }
+  if (es === 'REFEREE_RECEIVED' || es === 'EVIDENCE_UPLOADED' || es === 'AUTO_PASSED' || es === 'STUDENT_EXEMPT') {
+    return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+  }
+
   return 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'
 }
 
