@@ -228,6 +228,17 @@ async function saveRegistrationAndUpdateTenancy(
   schemeType: 'custodial' | 'insured',
   rawResponse: any
 ) {
+  // If depositAmount is 0/missing, look it up from the tenancy record
+  let resolvedDepositAmount = depositAmount
+  if (!resolvedDepositAmount) {
+    const { data: tenancyRow } = await supabase
+      .from('tenancies')
+      .select('deposit_amount')
+      .eq('id', tenancyId)
+      .single()
+    resolvedDepositAmount = tenancyRow?.deposit_amount || 0
+  }
+
   // Check if we have an existing pending registration to update
   const { data: existingReg } = await supabase
     .from('tds_registrations')
@@ -257,7 +268,7 @@ async function saveRegistrationAndUpdateTenancy(
         registered_by: userId,
         dan,
         batch_id: referenceId,
-        deposit_amount: depositAmount,
+        deposit_amount: resolvedDepositAmount,
         deposit_received_date: depositReceivedDate,
         status: 'registered',
         scheme_type: schemeType,
@@ -1315,11 +1326,14 @@ async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: st
   // Get tenancy + property + tenant details
   const { data: tenancy } = await supabase
     .from('tenancies')
-    .select('property_id, tenancy_start_date')
+    .select('property_id, tenancy_start_date, deposit_amount')
     .eq('id', tenancyId)
     .single()
 
   if (!tenancy) return
+
+  // Use tenancy deposit_amount from DB as fallback when param is 0
+  const resolvedDepositAmount = depositAmount > 0 ? depositAmount : (tenancy.deposit_amount || 0)
 
   const { data: property } = await supabase
     .from('properties')
@@ -1352,7 +1366,7 @@ async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: st
     CompanyName: companyName,
     AgentLogoUrl: companyLogo,
     PropertyAddress: propertyAddress,
-    DepositAmount: depositAmount.toFixed(2),
+    DepositAmount: resolvedDepositAmount.toFixed(2),
     DAN: dan,
     TenantNames: tenantNames,
     TenancyStartDate: startDate,
