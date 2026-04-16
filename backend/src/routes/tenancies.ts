@@ -6169,7 +6169,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
 
     await sendEmail({
       to: leadTenantEmail,
-      subject: `Rent Due Date Change Request - ${propertyAddress}`,
+      subject: `${companyName} - Rent Due Date Change Request - ${propertyAddress}`,
       html
     })
 
@@ -6594,7 +6594,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
 
       await sendEmail({
         to: tenantEmail,
-        subject: `Rent Due Date Changed - ${propertyAddress}`,
+        subject: `${company?.name || 'PropertyGoose'} - Rent Due Date Changed - ${propertyAddress}`,
         html
       })
     }
@@ -6883,7 +6883,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
 
     await sendEmail({
       to: leadTenantEmail,
-      subject: `Reminder: Rent Due Date Change Request - ${propertyAddress}`,
+      subject: `${company?.name || 'PropertyGoose'} - Reminder: Rent Due Date Change Request - ${propertyAddress}`,
       html
     })
 
@@ -7241,7 +7241,7 @@ router.post('/records/:id/rent-increase-notice', authenticateToken, async (req: 
         console.log('[rent-increase-notice] Calling sendCustomTenantEmail with PDF attachment size:', pdfBuffer.length)
         await emailService.sendCustomTenantEmail({
           to: leadTenantEmail,
-          subject: `Section 13 Rent Increase Notice - ${propertyAddress}`,
+          subject: `${company?.name || 'PropertyGoose'} - Section 13 Rent Increase Notice - ${propertyAddress}`,
           message: `Dear ${tenantNames},
 
 Please find attached your formal Section 13 Rent Increase Notice (Form 4) under the Housing Act 1988.

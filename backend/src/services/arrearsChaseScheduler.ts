@@ -167,7 +167,7 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
       // Use default template
       try {
         html = loadEmailTemplate(templateName, templateVars)
-        subject = getDefaultSubject(dayTrigger, propertyAddress)
+        subject = getDefaultSubject(dayTrigger, propertyAddress, companyName)
       } catch {
         console.error(`[ArrearsChase] Template ${templateName} not found, skipping`)
         return
@@ -196,13 +196,14 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
   }
 }
 
-function getDefaultSubject(dayTrigger: number, propertyAddress: string): string {
+function getDefaultSubject(dayTrigger: number, propertyAddress: string, companyName?: string): string {
+  const prefix = companyName ? `${companyName} - ` : ''
   switch (dayTrigger) {
-    case 7:  return `Rent Payment Reminder — ${propertyAddress}`
-    case 14: return `Rent Payment Outstanding — ${propertyAddress}`
-    case 21: return `Rent Arrears Notice — ${propertyAddress}`
-    case 28: return `Rent Arrears — 28 Days Outstanding — ${propertyAddress}`
-    case 90: return `Notice of Escalation — ${propertyAddress}`
-    default: return `Rent Arrears Notice — ${propertyAddress}`
+    case 7:  return `${prefix}Rent Payment Reminder — ${propertyAddress}`
+    case 14: return `${prefix}Rent Payment Outstanding — ${propertyAddress}`
+    case 21: return `${prefix}Rent Arrears Notice — ${propertyAddress}`
+    case 28: return `${prefix}Rent Arrears — 28 Days Outstanding — ${propertyAddress}`
+    case 90: return `${prefix}Notice of Escalation — ${propertyAddress}`
+    default: return `${prefix}Rent Arrears Notice — ${propertyAddress}`
   }
 }

@@ -1490,7 +1490,7 @@ export async function markPayoutPaid(companyId: string, input: {
 
           await sendEmail({
             to: payout.landlord_email,
-            subject: `Rental Statement - ${payout.property_address}`,
+            subject: `${companyName} - Rental Statement - ${payout.property_address}`,
             html,
             companyId,
             emailCategory: 'landlord_statement',
@@ -3053,7 +3053,7 @@ export async function markContractorPaid(companyId: string, input: {
 
           await sendEmail({
             to: contractorEmail,
-            subject: `Remittance Advice - Invoice #${invoice.invoice_number}`,
+            subject: `${companyName} - Remittance Advice - Invoice #${invoice.invoice_number}`,
             html,
             companyId,
             emailCategory: 'contractor_remittance',
@@ -3230,7 +3230,7 @@ async function sendTenantReceipt(companyId: string, scheduleEntryId: string): Pr
 
       await sendEmail({
         to: email,
-        subject: `Payment Receipt - ${propertyAddress}`,
+        subject: `${companyName} - Payment Receipt - ${propertyAddress}`,
         html,
         companyId,
         emailCategory: 'tenant_receipt',

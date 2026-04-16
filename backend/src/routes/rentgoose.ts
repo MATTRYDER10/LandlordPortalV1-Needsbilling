@@ -176,7 +176,7 @@ router.post('/chase-email', authenticateToken, async (req: AuthRequest, res) => 
 
       await sendEmail({
         to: tenantEmail,
-        subject: `Rent Overdue Notice — ${propertyFull}`,
+        subject: `${companyName} - Rent Overdue Notice — ${propertyFull}`,
         html,
         companyId,
         emailCategory: 'arrears_chase',
@@ -1772,7 +1772,7 @@ router.post('/landlord/:id/annual-statement/email', authenticateToken, async (re
 
     await sendEmail({
       to: landlordEmail,
-      subject: `Annual Tax Statement ${taxYear - 1}/${taxYear} — ${companyName}`,
+      subject: `${companyName} - Annual Tax Statement ${taxYear - 1}/${taxYear}`,
       html,
       companyId,
       emailCategory: 'annual_statement',
