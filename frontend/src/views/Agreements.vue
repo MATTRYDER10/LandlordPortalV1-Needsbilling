@@ -920,6 +920,29 @@
                 </label>
               </div>
             </div>
+
+            <!-- Property Features -->
+            <div v-if="formData.agreementType === 'apta' || formData.agreementType === 'ast'" class="mt-4">
+              <p class="text-sm font-medium text-gray-700 mb-2">Property features</p>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="formData.hasOilTank"
+                    class="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span class="text-sm text-gray-700">Oil tank present</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="formData.hasSepticTank"
+                    class="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span class="text-sm text-gray-700">Septic tank / cess pit present</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1661,6 +1684,8 @@ const formData = ref<{
   specialClauses?: string
   billsIncluded: boolean
   billsIncludedUtilities: string[]
+  hasOilTank: boolean
+  hasSepticTank: boolean
   agreementType: 'ast' | 'apta' | 'company_let' | 'lodger'
   landlords: Party[]
   tenants: Party[]
@@ -1701,6 +1726,8 @@ const formData = ref<{
   specialClauses: '',
   billsIncluded: false,
   billsIncludedUtilities: [],
+  hasOilTank: false,
+  hasSepticTank: false,
   agreementType: 'ast',
   landlords: [
     {

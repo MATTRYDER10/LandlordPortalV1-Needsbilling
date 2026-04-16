@@ -317,6 +317,29 @@
                   </label>
                 </div>
               </div>
+
+              <!-- Property Features -->
+              <div v-if="formData.agreementType === 'apta' || formData.agreementType === 'ast'">
+                <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Property features</p>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="formData.hasOilTank"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <span class="text-sm text-gray-700 dark:text-slate-300">Oil tank present</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="formData.hasSepticTank"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <span class="text-sm text-gray-700 dark:text-slate-300">Septic tank / cess pit present</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <!-- Step 3: Parties -->

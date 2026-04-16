@@ -106,6 +106,9 @@ export interface AgreementPDFData {
   forfeitureDays?: number
   breakNoticeMonths?: number
   breakEarliestMonth?: number
+  // Property features (conditional clauses)
+  hasOilTank?: boolean
+  hasSepticTank?: boolean
 }
 
 export interface PDFGenerationOptions {
@@ -550,6 +553,30 @@ class PDFGenerationService {
     result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
     result = result.replace(/\[AGENT_OR_LANDLORD\]/gi, data.managementType === 'managed' ? 'Agent' : 'Landlord')
     result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
+
+    // Conditional property feature clauses (septic tank / oil tank)
+    if (data.hasSepticTank) {
+      result = result.replace(/\[SEPTIC_TANK_CLAUSE\]/gi,
+        `**11.18** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.`)
+    } else {
+      result = result.replace(/\[SEPTIC_TANK_CLAUSE\]\n*/gi, '')
+    }
+
+    const hasDepositScheme = data.templateType !== 'no_deposit' && data.templateType !== 'reposit'
+    if (data.hasOilTank) {
+      const oilClauseB = hasDepositScheme
+        ? `(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Landlord may deduct the reasonable cost of replenishing the oil from the Security Deposit;`
+        : `(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Tenant shall reimburse the Landlord the reasonable cost of replenishing the oil;`
+
+      result = result.replace(/\[OIL_TANK_CLAUSE\]/gi,
+        `**11.19** Where there is an oil tank(s), the Tenant:-\n\n` +
+        `(a) shall pay to have the oil tanks filled throughout the Tenancy to ensure sufficient oil is maintained throughout the Tenancy to operate the heating and hot water systems safely and efficiently and avoid consequential repairs to the oil fired system;\n\n` +
+        `${oilClauseB}\n\n` +
+        `(c) shall pay to have the oil system and boiler bled to restore the boiler to full working order if the Tenant allows the oil supply to run out;\n\n` +
+        `(d) shall not cause any damage or contamination to any oil tank for example by running out of oil. This obligation does not require the Tenant to carry out any works or repairs for which the Landlord is liable under clause 15.8.`)
+    } else {
+      result = result.replace(/\[OIL_TANK_CLAUSE\]\n*/gi, '')
+    }
 
     // Agent details block
     const agentDetailsStr = data.managementType === 'managed' && data.companyName
