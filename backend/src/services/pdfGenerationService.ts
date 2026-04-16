@@ -551,10 +551,10 @@ class PDFGenerationService {
     result = result.replace(/\[TENANCY_TYPE_LABEL\]/gi, data.agreementType === 'apta' ? 'Assured Periodic Tenancy' : 'Assured Shorthold Tenancy')
     result = result.replace(/\[NOTICE_PERIOD\]/gi, data.agreementType === 'apta' ? '2 months' : 'As per agreement terms')
     result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
-    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\]
+    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\].
+    // Optional backslashes around the brackets/underscores; underscores required.
     const agentOrLandlordValue = data.managementType === 'managed' ? 'Agent' : 'Landlord'
-    result = result.replace(/\\?\[AGENT_?OR_?LANDLORD\\?\]/gi, agentOrLandlordValue)
-    result = result.replace(/\\?\[AGENT\\_OR\\_LANDLORD\\?\]/g, agentOrLandlordValue)
+    result = result.replace(/\\?\[AGENT(?:\\?_)OR(?:\\?_)LANDLORD\\?\]/gi, agentOrLandlordValue)
     result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
 
     // Conditional property feature clauses (septic tank / oil tank).
