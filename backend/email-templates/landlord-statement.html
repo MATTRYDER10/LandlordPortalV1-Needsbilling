@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rental Statement - PropertyGoose</title>
+    <title>Rental Statement - {{ CompanyName }}</title>
 </head>
 
 <body
@@ -18,8 +18,8 @@
 
                     <!-- Header with Logo -->
                     <tr>
-                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto;">
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 3px solid {{ BrandColor }};">
+                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="max-height: 80px; max-width: 220px; width: auto;">
                         </td>
                     </tr>
 
@@ -29,6 +29,7 @@
                             <h1
                                 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">
                                 Rental Statement</h1>
+                            <p style="margin: 0 0 24px; font-size: 13px; color: {{ BrandColor }}; text-align: center; font-weight: 600;">{{ CompanyName }}</p>
 
                             <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
                                 Dear {{ LandlordName }},

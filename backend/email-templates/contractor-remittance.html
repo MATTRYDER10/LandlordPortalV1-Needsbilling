@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remittance Advice - PropertyGoose</title>
+    <title>Remittance Advice - {{ CompanyName }}</title>
 </head>
 
 <body
@@ -18,8 +18,8 @@
 
                     <!-- Header with Logo -->
                     <tr>
-                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto;">
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 3px solid {{ BrandColor }};">
+                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="max-height: 80px; max-width: 220px; width: auto;">
                         </td>
                     </tr>
 

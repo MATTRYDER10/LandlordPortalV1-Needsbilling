@@ -118,12 +118,13 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
     // Get company client account details
     const { data: company } = await supabase
       .from('companies')
-      .select('name_encrypted, bank_account_name, bank_account_number, bank_sort_code, logo_url, phone_encrypted, email_encrypted')
+      .select('name_encrypted, bank_account_name, bank_account_number, bank_sort_code, logo_url, phone_encrypted, email_encrypted, primary_color')
       .eq('id', tenancy.company_id)
       .single()
 
     const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
     const companyLogo = company?.logo_url || ''
+    const brandColor = company?.primary_color || '#f97316'
     const clientAccountDetails = company
       ? `Account Name: ${company.bank_account_name || 'N/A'}\nSort Code: ${company.bank_sort_code || 'N/A'}\nAccount Number: ${company.bank_account_number || 'N/A'}`
       : ''
@@ -147,6 +148,7 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
       GuarantorName: guarantorName || '',
       CompanyName: companyName,
       AgentLogoUrl: companyLogo,
+      BrandColor: brandColor,
     }
 
     let html: string

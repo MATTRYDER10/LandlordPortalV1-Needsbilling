@@ -1448,11 +1448,12 @@ export async function markPayoutPaid(companyId: string, input: {
       // Get company details for email
       const { data: company } = await supabase
         .from('companies')
-        .select('name_encrypted, logo_url')
+        .select('name_encrypted, logo_url, primary_color')
         .eq('id', companyId)
         .single()
       const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
       const companyLogo = company?.logo_url || ''
+      const brandColor = company?.primary_color || '#f97316'
 
       // Generate statement PDF
       let pdfPath: string | undefined
@@ -1484,6 +1485,7 @@ export async function markPayoutPaid(companyId: string, input: {
             NetPayout: payout.net_payout.toFixed(2),
             CompanyName: companyName,
             AgentLogoUrl: companyLogo,
+            BrandColor: brandColor,
           })
 
           await sendEmail({
@@ -3024,11 +3026,12 @@ export async function markContractorPaid(companyId: string, input: {
         try {
           const { data: company } = await supabase
             .from('companies')
-            .select('name_encrypted, logo_url')
+            .select('name_encrypted, logo_url, primary_color')
             .eq('id', companyId)
             .single()
           const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
           const companyLogo = company?.logo_url || ''
+          const brandColor = company?.primary_color || '#f97316'
 
           const commissionTotal = parseFloat(invoice.commission_net) + parseFloat(invoice.commission_vat_amount || 0)
           const invoiceDateFmt = new Date(invoice.invoice_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -3045,6 +3048,7 @@ export async function markContractorPaid(companyId: string, input: {
             PayoutAmount: parseFloat(invoice.payout_to_contractor).toFixed(2),
             CompanyName: companyName,
             AgentLogoUrl: companyLogo,
+            BrandColor: brandColor,
           })
 
           await sendEmail({
@@ -3178,11 +3182,12 @@ async function sendTenantReceipt(companyId: string, scheduleEntryId: string): Pr
 
   const { data: company } = await supabase
     .from('companies')
-    .select('name_encrypted, logo_url')
+    .select('name_encrypted, logo_url, primary_color')
     .eq('id', companyId)
     .single()
   const companyName = (company?.name_encrypted ? decrypt(company.name_encrypted) : null) || 'PropertyGoose'
   const companyLogo = company?.logo_url || ''
+  const brandColor = company?.primary_color || '#f97316'
 
   const { data: tenants } = await supabase
     .from('tenancy_tenants')
@@ -3220,6 +3225,7 @@ async function sendTenantReceipt(companyId: string, scheduleEntryId: string): Pr
         NextDueDate: nextDueDate.toLocaleDateString('en-GB'),
         CompanyName: companyName,
         AgentLogoUrl: companyLogo,
+        BrandColor: brandColor,
       })
 
       await sendEmail({

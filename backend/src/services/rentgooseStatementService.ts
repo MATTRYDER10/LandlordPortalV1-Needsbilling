@@ -118,7 +118,7 @@ export async function generateLandlordStatement(companyId: string, payout: Payou
       // === HEADER ===
       let hx = L
       if (logoBuffer) {
-        try { doc.image(logoBuffer, L, 40, { width: 45, height: 45 }); hx = L + 55 } catch { /* skip */ }
+        try { doc.image(logoBuffer, L, 36, { fit: [120, 60] }); hx = L + 130 } catch { /* skip */ }
       }
       doc.fontSize(16).fillColor(primaryColor).font('Helvetica-Bold').text(companyName, hx, 42)
       doc.fontSize(8).fillColor('#6b7280').font('Helvetica')

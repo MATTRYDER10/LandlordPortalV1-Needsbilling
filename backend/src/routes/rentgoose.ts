@@ -1686,7 +1686,7 @@ router.post('/landlord/:id/annual-statement/email', authenticateToken, async (re
     // Get company branding
     const { data: company } = await supabase
       .from('companies')
-      .select('name_encrypted, logo_url, email_encrypted, phone_encrypted')
+      .select('name_encrypted, logo_url, email_encrypted, phone_encrypted, primary_color')
       .eq('id', companyId)
       .single()
 
@@ -1694,6 +1694,7 @@ router.post('/landlord/:id/annual-statement/email', authenticateToken, async (re
     const companyLogo = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
     const companyEmail = (company?.email_encrypted ? decrypt(company.email_encrypted) : null) || ''
     const companyPhone = (company?.phone_encrypted ? decrypt(company.phone_encrypted) : null) || ''
+    const brandColor = company?.primary_color || '#f97316'
 
     // Fetch payouts for tax year
     const { data: payouts } = await supabase
@@ -1765,6 +1766,7 @@ router.post('/landlord/:id/annual-statement/email', authenticateToken, async (re
       AgentLogoUrl: companyLogo,
       CompanyEmail: companyEmail,
       CompanyPhone: companyPhone,
+      BrandColor: brandColor,
       Year: new Date().getFullYear().toString(),
     })
 
