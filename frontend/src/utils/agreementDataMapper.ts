@@ -50,6 +50,9 @@ export interface AgreementFormData {
   breakClause?: string
   specialClauses?: string
   billsIncluded: boolean
+  // Property features
+  hasOilTank: boolean
+  hasSepticTank: boolean
   // NHA / Company Let specific
   tenantCompanyNumber?: string
   nhaNoticePeriodMonths?: number
@@ -143,6 +146,8 @@ export function getDefaultFormData(): AgreementFormData {
     breakClause: '',
     specialClauses: '',
     billsIncluded: false,
+    hasOilTank: false,
+    hasSepticTank: false,
     tenantCompanyNumber: '',
     nhaNoticePeriodMonths: undefined,
     nhaBreakNoticePeriod: undefined,
@@ -310,6 +315,8 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     billsIncluded: formData.billsIncluded,
     agreementType: formData.agreementType,
     billsIncludedUtilities: formData.billsIncludedUtilities,
+    hasOilTank: formData.hasOilTank || false,
+    hasSepticTank: formData.hasSepticTank || false,
     // NHA / Company Let specific
     tenantCompanyNumber: formData.tenantCompanyNumber || undefined,
     nhaNoticePeriodMonths: formData.nhaNoticePeriodMonths,

@@ -64,6 +64,9 @@ export interface AgreementData {
   // Bills
   billsIncluded?: boolean
   billsIncludedUtilities?: string[]
+  // Property features
+  hasOilTank?: boolean
+  hasSepticTank?: boolean
   // Company details (for managed properties)
   companyName?: string
   companyAddress?: PropertyAddress
@@ -135,6 +138,8 @@ export class AgreementService {
       special_clauses: agreementData.specialClauses,
       bills_included: agreementData.billsIncluded || (agreementData.billsIncludedUtilities && agreementData.billsIncludedUtilities.length > 0) || false,
       bills_included_utilities: agreementData.billsIncludedUtilities || null,
+      has_oil_tank: agreementData.hasOilTank || false,
+      has_septic_tank: agreementData.hasSepticTank || false,
       language: agreementData.language || 'english',
       company_id: companyId,
       reference_id: referenceId || null,

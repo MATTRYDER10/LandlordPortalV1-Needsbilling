@@ -347,17 +347,9 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **11.17** The Tenant shall not cause avoidable call-outs by a contractor, including any call outs made out of hours unless in the case of an emergency i.e. uncontrollable escape of gas or water.
 
-**11.18** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.
+[SEPTIC_TANK_CLAUSE]
 
-**11.19** Where there is an oil tank(s), the Tenant:-
-
-(a) shall pay to have the oil tanks filled throughout the Tenancy to ensure sufficient oil is maintained throughout the Tenancy to operate the heating and hot water systems safely and efficiently and avoid consequential repairs to the oil fired system;
-
-(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Landlord may deduct the reasonable cost of replenishing the oil from the Security Deposit;
-
-(c) shall pay to have the oil system and boiler bled to restore the boiler to full working order if the Tenant allows the oil supply to run out;
-
-(d) shall not cause any damage or contamination to any oil tank for example by running out of oil. This obligation does not require the Tenant to carry out any works or repairs for which the Landlord is liable under clause 15.8.
+[OIL_TANK_CLAUSE]
 
 [SECTION_12_UTILITIES]
 
