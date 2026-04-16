@@ -551,16 +551,20 @@ class PDFGenerationService {
     result = result.replace(/\[TENANCY_TYPE_LABEL\]/gi, data.agreementType === 'apta' ? 'Assured Periodic Tenancy' : 'Assured Shorthold Tenancy')
     result = result.replace(/\[NOTICE_PERIOD\]/gi, data.agreementType === 'apta' ? '2 months' : 'As per agreement terms')
     result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
-    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\]
+    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\].
+    // Optional backslashes around the brackets/underscores; underscores required.
     const agentOrLandlordValue = data.managementType === 'managed' ? 'Agent' : 'Landlord'
-    result = result.replace(/\\?\[AGENT_?OR_?LANDLORD\\?\]/gi, agentOrLandlordValue)
-    result = result.replace(/\\?\[AGENT\\_OR\\_LANDLORD\\?\]/g, agentOrLandlordValue)
+    result = result.replace(/\\?\[AGENT(?:\\?_)OR(?:\\?_)LANDLORD\\?\]/gi, agentOrLandlordValue)
     result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
 
-    // Conditional property feature clauses (septic tank / oil tank)
+    // Conditional property feature clauses (septic tank / oil tank).
+    // Numbered dynamically from 11.18 so there's never a gap — e.g. oil-only
+    // renders as 11.18, not 11.19 skipping 11.18.
+    let propertyClauseNum = 18
+
     if (data.hasSepticTank) {
       result = result.replace(/\[SEPTIC_TANK_CLAUSE\]/gi,
-        `**11.18** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.`)
+        `**11.${propertyClauseNum++}** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.`)
     } else {
       result = result.replace(/\[SEPTIC_TANK_CLAUSE\]\n*/gi, '')
     }
@@ -572,7 +576,7 @@ class PDFGenerationService {
         : `(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Tenant shall reimburse the Landlord the reasonable cost of replenishing the oil;`
 
       result = result.replace(/\[OIL_TANK_CLAUSE\]/gi,
-        `**11.19** Where there is an oil tank(s), the Tenant:-\n\n` +
+        `**11.${propertyClauseNum++}** Where there is an oil tank(s), the Tenant:-\n\n` +
         `(a) shall pay to have the oil tanks filled throughout the Tenancy to ensure sufficient oil is maintained throughout the Tenancy to operate the heating and hot water systems safely and efficiently and avoid consequential repairs to the oil fired system;\n\n` +
         `${oilClauseB}\n\n` +
         `(c) shall pay to have the oil system and boiler bled to restore the boiler to full working order if the Tenant allows the oil supply to run out;\n\n` +

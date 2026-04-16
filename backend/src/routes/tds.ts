@@ -236,7 +236,8 @@ async function saveRegistrationAndUpdateTenancy(
       .select('deposit_amount')
       .eq('id', tenancyId)
       .single()
-    resolvedDepositAmount = tenancyRow?.deposit_amount || 0
+    // Supabase returns DECIMAL as a string — cast so downstream math/.toFixed() works
+    resolvedDepositAmount = Number(tenancyRow?.deposit_amount) || 0
   }
 
   // Check if we have an existing pending registration to update
@@ -1332,8 +1333,13 @@ async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: st
 
   if (!tenancy) return
 
-  // Use tenancy deposit_amount from DB as fallback when param is 0
-  const resolvedDepositAmount = depositAmount > 0 ? depositAmount : (tenancy.deposit_amount || 0)
+  // Use tenancy deposit_amount from DB as fallback when param is 0.
+  // Supabase returns DECIMAL as a string, so cast before any .toFixed() call.
+  const fallback = Number(tenancy.deposit_amount) || 0
+  const resolvedDepositAmount = depositAmount > 0 ? depositAmount : fallback
+  if (resolvedDepositAmount === 0) {
+    console.warn(`[TDS] Payment email for DAN ${dan} sending with £0.00 — neither param nor tenancy.deposit_amount was set`)
+  }
 
   const { data: property } = await supabase
     .from('properties')
