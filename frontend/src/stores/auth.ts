@@ -53,7 +53,13 @@ export const useAuthStore = defineStore('auth', () => {
         if (branches.value.length === 1 && !activeBranchId.value) {
           setActiveBranch(branches.value[0]!.id)
         }
-        // Multiple branches with no selection: leave null — router guard will redirect to branch selector
+        // Multiple branches: restore previous selection from localStorage if valid
+        if (branches.value.length > 1 && !activeBranchId.value) {
+          const savedBranchId = localStorage.getItem('activeBranchId')
+          if (savedBranchId && branches.value.find(b => b.id === savedBranchId)) {
+            setActiveBranch(savedBranchId)
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch branches:', err)
