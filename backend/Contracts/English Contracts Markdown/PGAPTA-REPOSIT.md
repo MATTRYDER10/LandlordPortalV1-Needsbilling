@@ -543,6 +543,31 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **23.1** The Tenant's, Landlord's and Guarantor's personal data, which will be processed in the execution of this Agreement will be handled in accordance with the Data Protection Act 2018. Further details regarding this processing activity is set out in the associated Privacy Notice, which can be found on the Agent's/Landlord's website.
 
+## Schedule 1: Special Terms and Conditions
+
+The parties agree that the following specific terms and conditions will apply for the duration of the Tenancy. It is also agreed that, where equivalent clauses in the Agreement apply, the terms and conditions outlined below shall supersede them. Where there is no equivalent clause, the terms and conditions below shall be in addition to the clauses in this Agreement.
+
+Please note that these clauses have been negotiated individually between the Landlord/Agent and the Tenant.
+
+If the rest of this Schedule is blank, there are no special terms and conditions for this Tenancy.
+
+\[special\_terms\_numbered\_clauses\]
+
+## Schedule 2: Checklist
+
+In addition to this Agreement, the Tenant will be provided with copies of the following documentation:
+
+| Document | Status |
+| :---- | :---- |
+| Energy Performance Certificate ("EPC") | Provided |
+| Gas Safety Certificate (if there is a gas supply to the Property) | Provided |
+| Electrical Installation Conditions Report ("EICR") | Provided |
+| Any other relevant document from time to time that may be applicable | Provided |
+
+If the Tenant has not been provided with these documents by the start of the Tenancy, they should contact the Agent as soon as possible to request them.
+
+Once these documents have been provided, they must be retained by the Tenant for the duration of the Tenancy.
+
 This Agreement has been entered into when all the parties have signed it and is dated on the date that the Agreement is signed by or on behalf of the Landlord as detailed in the execution clause below.
 
 ## Signatures
@@ -578,28 +603,3 @@ DATED: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 \[Anchor: TENANT\_SIGNATURE {{id}}\]
 
 {{/tenants}}
-
-## Schedule 1: Special Terms and Conditions
-
-The parties agree that the following specific terms and conditions will apply for the duration of the Tenancy. It is also agreed that, where equivalent clauses in the Agreement apply, the terms and conditions outlined below shall supersede them. Where there is no equivalent clause, the terms and conditions below shall be in addition to the clauses in this Agreement.
-
-Please note that these clauses have been negotiated individually between the Landlord/Agent and the Tenant.
-
-If the rest of this Schedule is blank, there are no special terms and conditions for this Tenancy.
-
-\[special\_terms\_numbered\_clauses\]
-
-## Schedule 2: Checklist
-
-In addition to this Agreement, the Tenant will be provided with copies of the following documentation:
-
-| Document | Status |
-| :---- | :---- |
-| Energy Performance Certificate ("EPC") | Provided |
-| Gas Safety Certificate (if there is a gas supply to the Property) | Provided |
-| Electrical Installation Conditions Report ("EICR") | Provided |
-| Any other relevant document from time to time that may be applicable | Provided |
-
-If the Tenant has not been provided with these documents by the start of the Tenancy, they should contact the Agent as soon as possible to request them.
-
-Once these documents have been provided, they must be retained by the Tenant for the duration of the Tenancy.

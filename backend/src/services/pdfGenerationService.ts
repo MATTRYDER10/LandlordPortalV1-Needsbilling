@@ -510,7 +510,7 @@ class PDFGenerationService {
 
       section12 += `**12.3** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
 
-      section12 += `**12.4** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+      section12 += `**12.4** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the ${agentOrLandlord} of the decision to do so, and also provide full details of the new supplier and change of supply date to the ${agentOrLandlord}.\n\n`
 
       section12 += `**12.5** Where the Tenant allows, either by default of payment or specific instruction, any utility or other service for which the Tenant is responsible to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
 
@@ -527,7 +527,7 @@ class PDFGenerationService {
 
       section12 += `**12.2** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
 
-      section12 += `**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+      section12 += `**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the ${agentOrLandlord} of the decision to do so, and also provide full details of the new supplier and change of supply date to the ${agentOrLandlord}.\n\n`
 
       section12 += `**12.4** Where the Tenant allows, either by default of payment or specific instruction, the utility or other services to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
 
@@ -548,7 +548,10 @@ class PDFGenerationService {
     result = result.replace(/\[TENANCY_TYPE_LABEL\]/gi, data.agreementType === 'apta' ? 'Assured Periodic Tenancy' : 'Assured Shorthold Tenancy')
     result = result.replace(/\[NOTICE_PERIOD\]/gi, data.agreementType === 'apta' ? '2 months' : 'As per agreement terms')
     result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
-    result = result.replace(/\[AGENT_OR_LANDLORD\]/gi, data.managementType === 'managed' ? 'Agent' : 'Landlord')
+    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\]
+    const agentOrLandlordValue = data.managementType === 'managed' ? 'Agent' : 'Landlord'
+    result = result.replace(/\\?\[AGENT_?OR_?LANDLORD\\?\]/gi, agentOrLandlordValue)
+    result = result.replace(/\\?\[AGENT\\_OR\\_LANDLORD\\?\]/g, agentOrLandlordValue)
     result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
 
     // Agent details block
@@ -707,7 +710,7 @@ class PDFGenerationService {
     if (data.breakClause?.trim()) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
-        : `**11.${clauseNumber + 1}**`
+        : `**${clauseNumber}.**`
       specialTermsClauses.push(`${prefix} **Break Clause:** ${data.breakClause}`)
       clauseNumber++
       console.log('[PDF Gen] Added break clause to special terms')
@@ -718,7 +721,7 @@ class PDFGenerationService {
     if (rentShareClause) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
-        : `**11.${clauseNumber + 1}**`
+        : `**${clauseNumber}.**`
       specialTermsClauses.push(`${prefix} ${rentShareClause}`)
       clauseNumber++
       console.log('[PDF Gen] Added rent share clause to special terms')
@@ -735,7 +738,7 @@ class PDFGenerationService {
       clausesList.forEach((clause) => {
         const prefix = data.language === 'welsh'
           ? `**Additional Term ${clauseNumber}:**`
-          : `**11.${clauseNumber + 1}**`
+          : `**${clauseNumber}.**`
         specialTermsClauses.push(`${prefix} ${clause}`)
         clauseNumber++
       })
