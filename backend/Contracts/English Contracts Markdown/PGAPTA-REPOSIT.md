@@ -331,17 +331,9 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **11.17** The Tenant shall not cause avoidable call-outs by a contractor, including any call outs made out of hours unless in the case of an emergency i.e. uncontrollable escape of gas or water.
 
-**11.18** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.
+[SEPTIC_TANK_CLAUSE]
 
-**11.19** Where there is an oil tank(s), the Tenant:-
-
-(a) shall pay to have the oil tanks filled throughout the Tenancy to ensure sufficient oil is maintained throughout the Tenancy to operate the heating and hot water systems safely and efficiently and avoid consequential repairs to the oil fired system;
-
-(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Tenant shall reimburse the Landlord the reasonable cost of replenishing the oil;
-
-(c) shall pay to have the oil system and boiler bled to restore the boiler to full working order if the Tenant allows the oil supply to run out;
-
-(d) shall not cause any damage or contamination to any oil tank for example by running out of oil. This obligation does not require the Tenant to carry out any works or repairs for which the Landlord is liable under clause 15.8.
+[OIL_TANK_CLAUSE]
 
 [SECTION_12_UTILITIES]
 
@@ -543,6 +535,31 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **23.1** The Tenant's, Landlord's and Guarantor's personal data, which will be processed in the execution of this Agreement will be handled in accordance with the Data Protection Act 2018. Further details regarding this processing activity is set out in the associated Privacy Notice, which can be found on the Agent's/Landlord's website.
 
+## Schedule 1: Special Terms and Conditions
+
+The parties agree that the following specific terms and conditions will apply for the duration of the Tenancy. It is also agreed that, where equivalent clauses in the Agreement apply, the terms and conditions outlined below shall supersede them. Where there is no equivalent clause, the terms and conditions below shall be in addition to the clauses in this Agreement.
+
+Please note that these clauses have been negotiated individually between the Landlord/Agent and the Tenant.
+
+If the rest of this Schedule is blank, there are no special terms and conditions for this Tenancy.
+
+\[special\_terms\_numbered\_clauses\]
+
+## Schedule 2: Checklist
+
+In addition to this Agreement, the Tenant will be provided with copies of the following documentation:
+
+| Document | Status |
+| :---- | :---- |
+| Energy Performance Certificate ("EPC") | Provided |
+| Gas Safety Certificate (if there is a gas supply to the Property) | Provided |
+| Electrical Installation Conditions Report ("EICR") | Provided |
+| Any other relevant document from time to time that may be applicable | Provided |
+
+If the Tenant has not been provided with these documents by the start of the Tenancy, they should contact the Agent as soon as possible to request them.
+
+Once these documents have been provided, they must be retained by the Tenant for the duration of the Tenancy.
+
 This Agreement has been entered into when all the parties have signed it and is dated on the date that the Agreement is signed by or on behalf of the Landlord as detailed in the execution clause below.
 
 ## Signatures
@@ -578,28 +595,3 @@ DATED: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 \[Anchor: TENANT\_SIGNATURE {{id}}\]
 
 {{/tenants}}
-
-## Schedule 1: Special Terms and Conditions
-
-The parties agree that the following specific terms and conditions will apply for the duration of the Tenancy. It is also agreed that, where equivalent clauses in the Agreement apply, the terms and conditions outlined below shall supersede them. Where there is no equivalent clause, the terms and conditions below shall be in addition to the clauses in this Agreement.
-
-Please note that these clauses have been negotiated individually between the Landlord/Agent and the Tenant.
-
-If the rest of this Schedule is blank, there are no special terms and conditions for this Tenancy.
-
-\[special\_terms\_numbered\_clauses\]
-
-## Schedule 2: Checklist
-
-In addition to this Agreement, the Tenant will be provided with copies of the following documentation:
-
-| Document | Status |
-| :---- | :---- |
-| Energy Performance Certificate ("EPC") | Provided |
-| Gas Safety Certificate (if there is a gas supply to the Property) | Provided |
-| Electrical Installation Conditions Report ("EICR") | Provided |
-| Any other relevant document from time to time that may be applicable | Provided |
-
-If the Tenant has not been provided with these documents by the start of the Tenancy, they should contact the Agent as soon as possible to request them.
-
-Once these documents have been provided, they must be retained by the Tenant for the duration of the Tenancy.

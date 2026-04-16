@@ -228,6 +228,18 @@ async function saveRegistrationAndUpdateTenancy(
   schemeType: 'custodial' | 'insured',
   rawResponse: any
 ) {
+  // If depositAmount is 0/missing, look it up from the tenancy record
+  let resolvedDepositAmount = depositAmount
+  if (!resolvedDepositAmount) {
+    const { data: tenancyRow } = await supabase
+      .from('tenancies')
+      .select('deposit_amount')
+      .eq('id', tenancyId)
+      .single()
+    // Supabase returns DECIMAL as a string — cast so downstream math/.toFixed() works
+    resolvedDepositAmount = Number(tenancyRow?.deposit_amount) || 0
+  }
+
   // Check if we have an existing pending registration to update
   const { data: existingReg } = await supabase
     .from('tds_registrations')
@@ -257,7 +269,7 @@ async function saveRegistrationAndUpdateTenancy(
         registered_by: userId,
         dan,
         batch_id: referenceId,
-        deposit_amount: depositAmount,
+        deposit_amount: resolvedDepositAmount,
         deposit_received_date: depositReceivedDate,
         status: 'registered',
         scheme_type: schemeType,
@@ -1315,11 +1327,19 @@ async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: st
   // Get tenancy + property + tenant details
   const { data: tenancy } = await supabase
     .from('tenancies')
-    .select('property_id, tenancy_start_date')
+    .select('property_id, tenancy_start_date, deposit_amount')
     .eq('id', tenancyId)
     .single()
 
   if (!tenancy) return
+
+  // Use tenancy deposit_amount from DB as fallback when param is 0.
+  // Supabase returns DECIMAL as a string, so cast before any .toFixed() call.
+  const fallback = Number(tenancy.deposit_amount) || 0
+  const resolvedDepositAmount = depositAmount > 0 ? depositAmount : fallback
+  if (resolvedDepositAmount === 0) {
+    console.warn(`[TDS] Payment email for DAN ${dan} sending with £0.00 — neither param nor tenancy.deposit_amount was set`)
+  }
 
   const { data: property } = await supabase
     .from('properties')
@@ -1352,7 +1372,7 @@ async function sendTDSPaymentEmail(tenancyId: string, companyId: string, dan: st
     CompanyName: companyName,
     AgentLogoUrl: companyLogo,
     PropertyAddress: propertyAddress,
-    DepositAmount: depositAmount.toFixed(2),
+    DepositAmount: resolvedDepositAmount.toFixed(2),
     DAN: dan,
     TenantNames: tenantNames,
     TenancyStartDate: startDate,

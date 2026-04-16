@@ -106,6 +106,9 @@ export interface AgreementPDFData {
   forfeitureDays?: number
   breakNoticeMonths?: number
   breakEarliestMonth?: number
+  // Property features (conditional clauses)
+  hasOilTank?: boolean
+  hasSepticTank?: boolean
 }
 
 export interface PDFGenerationOptions {
@@ -510,7 +513,7 @@ class PDFGenerationService {
 
       section12 += `**12.3** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
 
-      section12 += `**12.4** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+      section12 += `**12.4** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the ${agentOrLandlord} of the decision to do so, and also provide full details of the new supplier and change of supply date to the ${agentOrLandlord}.\n\n`
 
       section12 += `**12.5** Where the Tenant allows, either by default of payment or specific instruction, any utility or other service for which the Tenant is responsible to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
 
@@ -527,7 +530,7 @@ class PDFGenerationService {
 
       section12 += `**12.2** The Tenant shall comply with all laws and recommendations of the relevant suppliers relating to the use of those services and utilities.\n\n`
 
-      section12 += `**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the \\[AGENT\\_OR\\_LANDLORD\\] of the decision to do so, and also provide full details of the new supplier and change of supply date to the \\[AGENT\\_OR\\_LANDLORD\\].\n\n`
+      section12 += `**12.3** The Tenant agrees not to change utility suppliers (e.g. gas, electricity, water) or to change from or to a pre-paid meter without first informing the ${agentOrLandlord} of the decision to do so, and also provide full details of the new supplier and change of supply date to the ${agentOrLandlord}.\n\n`
 
       section12 += `**12.4** Where the Tenant allows, either by default of payment or specific instruction, the utility or other services to be cut off, the Tenant shall pay the costs associated with reconnecting or resuming those services.\n\n`
 
@@ -548,8 +551,39 @@ class PDFGenerationService {
     result = result.replace(/\[TENANCY_TYPE_LABEL\]/gi, data.agreementType === 'apta' ? 'Assured Periodic Tenancy' : 'Assured Shorthold Tenancy')
     result = result.replace(/\[NOTICE_PERIOD\]/gi, data.agreementType === 'apta' ? '2 months' : 'As per agreement terms')
     result = result.replace(/\[LEAD_TENANT_NAME\]/gi, data.tenants?.[0]?.name || 'Tenant')
-    result = result.replace(/\[AGENT_OR_LANDLORD\]/gi, data.managementType === 'managed' ? 'Agent' : 'Landlord')
+    // Handle both raw [AGENT_OR_LANDLORD] and markdown-escaped \[AGENT\_OR\_LANDLORD\].
+    // Optional backslashes around the brackets/underscores; underscores required.
+    const agentOrLandlordValue = data.managementType === 'managed' ? 'Agent' : 'Landlord'
+    result = result.replace(/\\?\[AGENT(?:\\?_)OR(?:\\?_)LANDLORD\\?\]/gi, agentOrLandlordValue)
     result = result.replace(/\[POSSESSIONS_REMOVAL_PERIOD\]/gi, '1 month')
+
+    // Conditional property feature clauses (septic tank / oil tank).
+    // Numbered dynamically from 11.18 so there's never a gap — e.g. oil-only
+    // renders as 11.18, not 11.19 skipping 11.18.
+    let propertyClauseNum = 18
+
+    if (data.hasSepticTank) {
+      result = result.replace(/\[SEPTIC_TANK_CLAUSE\]/gi,
+        `**11.${propertyClauseNum++}** Where appropriate, the Tenant shall (where there is a septic tank or cess pit) pay for the emptying of the septic tank or cess pit throughout the Tenancy and at the end of the Tenancy provided it has been emptied prior to the start of the Tenancy and proof has been provided by a copy of an invoice from the relevant company.`)
+    } else {
+      result = result.replace(/\[SEPTIC_TANK_CLAUSE\]\n*/gi, '')
+    }
+
+    const hasDepositScheme = data.templateType !== 'no_deposit' && data.templateType !== 'reposit'
+    if (data.hasOilTank) {
+      const oilClauseB = hasDepositScheme
+        ? `(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Landlord may deduct the reasonable cost of replenishing the oil from the Security Deposit;`
+        : `(b) shall leave the oil tank filled to the same level at the end of the Tenancy as recorded in the Check-In Inventory and Schedule of Condition at the commencement. If lower, the Tenant shall reimburse the Landlord the reasonable cost of replenishing the oil;`
+
+      result = result.replace(/\[OIL_TANK_CLAUSE\]/gi,
+        `**11.${propertyClauseNum++}** Where there is an oil tank(s), the Tenant:-\n\n` +
+        `(a) shall pay to have the oil tanks filled throughout the Tenancy to ensure sufficient oil is maintained throughout the Tenancy to operate the heating and hot water systems safely and efficiently and avoid consequential repairs to the oil fired system;\n\n` +
+        `${oilClauseB}\n\n` +
+        `(c) shall pay to have the oil system and boiler bled to restore the boiler to full working order if the Tenant allows the oil supply to run out;\n\n` +
+        `(d) shall not cause any damage or contamination to any oil tank for example by running out of oil. This obligation does not require the Tenant to carry out any works or repairs for which the Landlord is liable under clause 15.8.`)
+    } else {
+      result = result.replace(/\[OIL_TANK_CLAUSE\]\n*/gi, '')
+    }
 
     // Agent details block
     const agentDetailsStr = data.managementType === 'managed' && data.companyName
@@ -707,7 +741,7 @@ class PDFGenerationService {
     if (data.breakClause?.trim()) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
-        : `**11.${clauseNumber + 1}**`
+        : `**${clauseNumber}.**`
       specialTermsClauses.push(`${prefix} **Break Clause:** ${data.breakClause}`)
       clauseNumber++
       console.log('[PDF Gen] Added break clause to special terms')
@@ -718,7 +752,7 @@ class PDFGenerationService {
     if (rentShareClause) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
-        : `**11.${clauseNumber + 1}**`
+        : `**${clauseNumber}.**`
       specialTermsClauses.push(`${prefix} ${rentShareClause}`)
       clauseNumber++
       console.log('[PDF Gen] Added rent share clause to special terms')
@@ -735,7 +769,7 @@ class PDFGenerationService {
       clausesList.forEach((clause) => {
         const prefix = data.language === 'welsh'
           ? `**Additional Term ${clauseNumber}:**`
-          : `**11.${clauseNumber + 1}**`
+          : `**${clauseNumber}.**`
         specialTermsClauses.push(`${prefix} ${clause}`)
         clauseNumber++
       })
