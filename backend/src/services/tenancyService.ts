@@ -880,70 +880,68 @@ export async function deleteTenancy(
 // ============================================================================
 
 /**
- * Add a tenant to a tenancy
+ * Return all tenant_order values currently in use on a tenancy (active + removed),
+ * so we never collide with the UNIQUE (tenancy_id, tenant_order) constraint when
+ * inserting or demoting.
+ */
+async function getUsedTenantOrders(tenancyId: string): Promise<Set<number>> {
+  const { data } = await supabase
+    .from('tenancy_tenants')
+    .select('tenant_order')
+    .eq('tenancy_id', tenancyId)
+  return new Set((data || []).map(r => r.tenant_order).filter((n): n is number => typeof n === 'number'))
+}
+
+/**
+ * Find the first tenant_order >= startFrom that isn't already used on the tenancy.
+ * Skips gaps caused by removed tenants whose rows still occupy a slot.
+ */
+function firstFreeOrder(used: Set<number>, startFrom: number): number {
+  let n = startFrom
+  while (used.has(n)) n++
+  return n
+}
+
+/**
+ * Add a tenant to a tenancy.
+ *
+ * The tenancy_tenants table has a UNIQUE(tenancy_id, tenant_order) index
+ * (idx_tenancy_tenants_order), so the order we pick must not collide with
+ * ANY existing row on the tenancy — including removed ones whose rows are
+ * soft-deleted via status but still occupy a slot.
  */
 export async function addTenantToTenancy(
   tenancyId: string,
   tenant: TenancyTenantInput,
   tenantOrder?: number
 ): Promise<TenancyTenant> {
-  // Combine first and last name for the database
   const fullName = `${tenant.firstName} ${tenant.lastName}`.trim()
 
-  // Determine tenant_order: always calculate based on existing tenants
-  let resolvedOrder = tenantOrder as number | undefined
+  // Read every order currently in use on this tenancy (active OR removed).
+  const used = await getUsedTenantOrders(tenancyId)
 
-  if (resolvedOrder === undefined) {
-    // Find the highest current tenant_order for this tenancy
-    const { data: existingTenants, error: fetchError } = await supabase
-      .from('tenancy_tenants')
-      .select('tenant_order')
-      .eq('tenancy_id', tenancyId)
-      .order('tenant_order', { ascending: false })
-      .limit(1)
-
-    if (fetchError) {
-      console.error('[TenancyService] Failed to fetch existing tenants for order calculation:', fetchError)
-    }
-
-    // Handle null tenant_order values gracefully
-    const maxOrder = (existingTenants?.[0]?.tenant_order != null) ? existingTenants[0].tenant_order : 0
-
-    if (tenant.isLeadTenant) {
-      resolvedOrder = 1
-    } else {
-      resolvedOrder = maxOrder + 1
-      // Ensure non-lead tenants never get order 1 if there are existing tenants
-      if (resolvedOrder! <= 1 && existingTenants && existingTenants.length > 0) {
-        resolvedOrder = maxOrder + 1 > 1 ? maxOrder + 1 : 2
-      }
-    }
-  }
-
-  // Fallback — should never be reached but satisfies TypeScript
-  if (resolvedOrder === undefined) {
+  // If caller passed an explicit order and it's free, honour it.
+  let resolvedOrder: number
+  if (typeof tenantOrder === 'number' && !used.has(tenantOrder)) {
+    resolvedOrder = tenantOrder
+  } else if (tenant.isLeadTenant) {
+    // Lead goes to 1. If something is already there (active or removed),
+    // demote it to the first free slot >= 2 below.
     resolvedOrder = 1
+  } else {
+    // Non-lead: first free slot >= 2 (so order 1 stays reserved for lead).
+    resolvedOrder = firstFreeOrder(used, 2)
   }
 
-  // If this tenant should be lead, demote the existing lead tenant first
-  if (tenant.isLeadTenant && resolvedOrder === 1) {
-    // First, find the next available order for the demoted tenant
-    const { data: allTenants } = await supabase
-      .from('tenancy_tenants')
-      .select('tenant_order')
-      .eq('tenancy_id', tenancyId)
-      .order('tenant_order', { ascending: false })
-      .limit(1)
-
-    const nextOrder = ((allTenants?.[0]?.tenant_order != null) ? allTenants[0].tenant_order : 0) + 1
-    const demoteOrder = nextOrder > 1 ? nextOrder : 2
-
+  // If this tenant should be lead and slot 1 is occupied, demote the occupant.
+  if (tenant.isLeadTenant && resolvedOrder === 1 && used.has(1)) {
+    const demoteOrder = firstFreeOrder(used, 2)
     const { error: demoteError } = await supabase
       .from('tenancy_tenants')
       .update({
         tenant_order: demoteOrder,
         is_lead_tenant: false,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('tenancy_id', tenancyId)
       .eq('tenant_order', 1)
@@ -952,36 +950,50 @@ export async function addTenantToTenancy(
       console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
       throw new Error(`Failed to demote current lead tenant: ${demoteError.message}`)
     }
+    // Mark the demoted slot as used so any retry below doesn't pick it.
+    used.add(demoteOrder)
+    used.delete(1)
   }
 
-  const { data, error } = await supabase
-    .from('tenancy_tenants')
-    .insert({
-      tenancy_id: tenancyId,
-      tenant_reference_id: tenant.referenceId || null,
-      tenant_name_encrypted: encrypt(fullName),
-      tenant_email_encrypted: tenant.email ? encrypt(tenant.email) : null,
-      tenant_phone_encrypted: tenant.phone ? encrypt(tenant.phone) : null,
-      tenant_order: resolvedOrder,
-      is_lead_tenant: resolvedOrder === 1,
-      rent_share_amount: tenant.rentShare,
-      rent_share_percentage: tenant.rentSharePercentage,
-      is_active: true,
-      // Residential address
-      residential_address_line1_encrypted: tenant.residentialAddressLine1 ? encrypt(tenant.residentialAddressLine1) : null,
-      residential_address_line2_encrypted: tenant.residentialAddressLine2 ? encrypt(tenant.residentialAddressLine2) : null,
-      residential_city_encrypted: tenant.residentialCity ? encrypt(tenant.residentialCity) : null,
-      residential_postcode_encrypted: tenant.residentialPostcode ? encrypt(tenant.residentialPostcode) : null
-    })
-    .select()
-    .single()
+  // Insert with a small retry loop: if a concurrent add raced us to the same
+  // order, recompute against fresh DB state and try again (up to 3 attempts).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase
+      .from('tenancy_tenants')
+      .insert({
+        tenancy_id: tenancyId,
+        tenant_reference_id: tenant.referenceId || null,
+        tenant_name_encrypted: encrypt(fullName),
+        tenant_email_encrypted: tenant.email ? encrypt(tenant.email) : null,
+        tenant_phone_encrypted: tenant.phone ? encrypt(tenant.phone) : null,
+        tenant_order: resolvedOrder,
+        is_lead_tenant: resolvedOrder === 1,
+        rent_share_amount: tenant.rentShare,
+        rent_share_percentage: tenant.rentSharePercentage,
+        is_active: true,
+        residential_address_line1_encrypted: tenant.residentialAddressLine1 ? encrypt(tenant.residentialAddressLine1) : null,
+        residential_address_line2_encrypted: tenant.residentialAddressLine2 ? encrypt(tenant.residentialAddressLine2) : null,
+        residential_city_encrypted: tenant.residentialCity ? encrypt(tenant.residentialCity) : null,
+        residential_postcode_encrypted: tenant.residentialPostcode ? encrypt(tenant.residentialPostcode) : null,
+      })
+      .select()
+      .single()
 
-  if (error) {
+    if (!error) return formatTenancyTenant(data)
+
+    // 23505 = unique_violation — another request beat us to this slot.
+    if ((error as any).code === '23505' && attempt < 2) {
+      console.warn(`[TenancyService] tenant_order ${resolvedOrder} collided, recomputing (attempt ${attempt + 1}/3)`)
+      const fresh = await getUsedTenantOrders(tenancyId)
+      resolvedOrder = firstFreeOrder(fresh, resolvedOrder === 1 ? 2 : resolvedOrder + 1)
+      continue
+    }
+
     console.error('[TenancyService] Failed to add tenant:', error)
     throw new Error(`Failed to add tenant: ${error.message}`)
   }
 
-  return formatTenancyTenant(data)
+  throw new Error('Failed to add tenant: exhausted retries finding a free tenant_order')
 }
 
 /**
