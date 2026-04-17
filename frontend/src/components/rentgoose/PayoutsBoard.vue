@@ -164,6 +164,24 @@
 
     <!-- AGENT PAYOUTS -->
     <div v-else-if="payoutTab === 'agent'" class="space-y-4">
+      <!-- Month-at-a-glance tiles -->
+      <div class="grid grid-cols-2 gap-4">
+        <div :class="['rounded-[10px] border px-5 py-4', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
+          <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Est. Remaining This Month</p>
+          <p class="text-[22px] font-bold text-primary tabular-nums mt-1">&pound;{{ formatMoney(agentFeesSummary.estimatedRemainingThisMonth) }}</p>
+          <p :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+            {{ agentFeesSummary.charge_count_remaining }} charge{{ agentFeesSummary.charge_count_remaining !== 1 ? 's' : '' }} due by {{ monthEndLabel }}
+          </p>
+        </div>
+        <div :class="['rounded-[10px] border px-5 py-4', isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200']">
+          <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Paid This Month</p>
+          <p class="text-[22px] font-bold text-[#15803d] tabular-nums mt-1">&pound;{{ formatMoney(agentFeesSummary.paidThisMonth) }}</p>
+          <p :class="['text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-gray-500']">
+            {{ agentFeesSummary.payout_count_this_month }} payout{{ agentFeesSummary.payout_count_this_month !== 1 ? 's' : '' }} processed
+          </p>
+        </div>
+      </div>
+
       <!-- Pending agent payout -->
       <div v-if="pendingAgentCharges.length === 0 && agentPayoutHistory.length === 0" class="flex flex-col items-center justify-center py-16">
         <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
@@ -477,9 +495,21 @@ const totalPayoutValue = computed(() => landlordPayouts.value.reduce((s, p) => s
 // Pending agent charges — fetched from API (charges where landlord has been paid AND agent_paid_at is null)
 const pendingAgentCharges = ref<any[]>([])
 const agentPayoutHistory = ref<any[]>([])
+const agentFeesSummary = ref<{
+  estimatedRemainingThisMonth: number
+  paidThisMonth: number
+  charge_count_remaining: number
+  payout_count_this_month: number
+}>({ estimatedRemainingThisMonth: 0, paidThisMonth: 0, charge_count_remaining: 0, payout_count_this_month: 0 })
 const showAgentPayoutModal = ref(false)
 const expandedHistoryId = ref<string | null>(null)
 const payoutDetailsCache = ref<Record<string, any>>({})
+
+const monthEndLabel = computed(() => {
+  const d = new Date()
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return last.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+})
 
 async function fetchPendingAgentCharges() {
   try {
@@ -499,6 +529,15 @@ async function fetchAgentPayoutHistory() {
     agentPayoutHistory.value = data.payouts || []
   } catch (err) {
     console.error('Failed to fetch agent payout history:', err)
+  }
+}
+
+async function fetchAgentFeesSummary() {
+  try {
+    const data = await get<typeof agentFeesSummary.value>('/api/rentgoose/agent-fees-summary')
+    if (data) agentFeesSummary.value = data
+  } catch (err) {
+    console.error('Failed to fetch agent fees summary:', err)
   }
 }
 
@@ -525,8 +564,11 @@ function formatPayoutDate(dateStr: string): string {
 
 async function onAgentPayoutComplete() {
   showAgentPayoutModal.value = false
-  await fetchPendingAgentCharges()
-  await fetchAgentPayoutHistory()
+  await Promise.all([
+    fetchPendingAgentCharges(),
+    fetchAgentPayoutHistory(),
+    fetchAgentFeesSummary(),
+  ])
 }
 
 const pendingAgentChargesByProperty = computed(() => {
@@ -672,6 +714,7 @@ onMounted(async () => {
   await fetchHeldRents()
   await fetchPendingAgentCharges()
   await fetchAgentPayoutHistory()
+  await fetchAgentFeesSummary()
   await fetchDeposits()
 })
 </script>

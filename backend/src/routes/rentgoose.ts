@@ -1213,6 +1213,20 @@ router.get('/agent-payouts', authenticateToken, async (req: AuthRequest, res) =>
   }
 })
 
+// GET /api/rentgoose/agent-fees-summary — remaining-by-month-end + paid-this-month totals
+router.get('/agent-fees-summary', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const summary = await rentgooseService.getAgentFeesSummary(companyId)
+    res.json(summary)
+  } catch (err: any) {
+    console.error('Error fetching agent fees summary:', err)
+    res.status(500).json({ error: 'Failed to fetch agent fees summary' })
+  }
+})
+
 // GET /api/rentgoose/agent-payout/:id — details of a single agent payout
 router.get('/agent-payout/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
