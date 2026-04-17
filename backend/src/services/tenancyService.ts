@@ -917,47 +917,39 @@ export async function addTenantToTenancy(
 ): Promise<TenancyTenant> {
   const fullName = `${tenant.firstName} ${tenant.lastName}`.trim()
 
-  // Read every order currently in use on this tenancy (active OR removed).
-  const used = await getUsedTenantOrders(tenancyId)
-
-  // If caller passed an explicit order and it's free, honour it.
-  let resolvedOrder: number
-  if (typeof tenantOrder === 'number' && !used.has(tenantOrder)) {
-    resolvedOrder = tenantOrder
-  } else if (tenant.isLeadTenant) {
-    // Lead goes to 1. If something is already there (active or removed),
-    // demote it to the first free slot >= 2 below.
-    resolvedOrder = 1
-  } else {
-    // Non-lead: first free slot >= 2 (so order 1 stays reserved for lead).
-    resolvedOrder = firstFreeOrder(used, 2)
-  }
-
-  // If this tenant should be lead and slot 1 is occupied, demote the occupant.
-  if (tenant.isLeadTenant && resolvedOrder === 1 && used.has(1)) {
-    const demoteOrder = firstFreeOrder(used, 2)
-    const { error: demoteError } = await supabase
-      .from('tenancy_tenants')
-      .update({
-        tenant_order: demoteOrder,
-        is_lead_tenant: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('tenancy_id', tenancyId)
-      .eq('tenant_order', 1)
-
-    if (demoteError) {
-      console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
-      throw new Error(`Failed to demote current lead tenant: ${demoteError.message}`)
-    }
-    // Mark the demoted slot as used so any retry below doesn't pick it.
-    used.add(demoteOrder)
-    used.delete(1)
-  }
-
-  // Insert with a small retry loop: if a concurrent add raced us to the same
-  // order, recompute against fresh DB state and try again (up to 3 attempts).
+  // Each retry re-reads the order list and re-does any demotion. This keeps
+  // concurrent lead-tenant adds correct: if another request demoted & took
+  // slot 1 between our attempts, we still land as lead at the next free 1
+  // by demoting whoever is there now.
   for (let attempt = 0; attempt < 3; attempt++) {
+    const used = await getUsedTenantOrders(tenancyId)
+
+    let resolvedOrder: number
+    if (typeof tenantOrder === 'number' && !used.has(tenantOrder)) {
+      // Caller requested a specific order and it's free — honour it.
+      resolvedOrder = tenantOrder
+    } else if (tenant.isLeadTenant) {
+      resolvedOrder = 1
+      if (used.has(1)) {
+        const demoteOrder = firstFreeOrder(used, 2)
+        const { error: demoteError } = await supabase
+          .from('tenancy_tenants')
+          .update({
+            tenant_order: demoteOrder,
+            is_lead_tenant: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('tenancy_id', tenancyId)
+          .eq('tenant_order', 1)
+        if (demoteError) {
+          console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
+          throw new Error(`Failed to demote current lead tenant: ${demoteError.message}`)
+        }
+      }
+    } else {
+      resolvedOrder = firstFreeOrder(used, 2)
+    }
+
     const { data, error } = await supabase
       .from('tenancy_tenants')
       .insert({
@@ -981,11 +973,10 @@ export async function addTenantToTenancy(
 
     if (!error) return formatTenancyTenant(data)
 
-    // 23505 = unique_violation — another request beat us to this slot.
+    // 23505 = unique_violation — another request beat us here. Retry with a
+    // fresh read (which will also redo demotion if needed).
     if ((error as any).code === '23505' && attempt < 2) {
-      console.warn(`[TenancyService] tenant_order ${resolvedOrder} collided, recomputing (attempt ${attempt + 1}/3)`)
-      const fresh = await getUsedTenantOrders(tenancyId)
-      resolvedOrder = firstFreeOrder(fresh, resolvedOrder === 1 ? 2 : resolvedOrder + 1)
+      console.warn(`[TenancyService] tenant_order ${resolvedOrder} collided, retrying (${attempt + 1}/3)`)
       continue
     }
 

@@ -462,7 +462,7 @@ const canSubmit = computed(() => {
   return !!newTenant.value.firstName && !!newTenant.value.lastName
 })
 
-// Reset on open
+// Reset on open / cleanup on close
 watch(() => props.isOpen, (open) => {
   if (open) {
     actionType.value = 'remove'
@@ -481,6 +481,11 @@ watch(() => props.isOpen, (open) => {
       startDate: new Date().toISOString().split('T')[0],
       isLeadTenant: false
     }
+  } else if (referenceSearchTimer) {
+    // Modal closing — cancel any pending search debounce so we don't fire a
+    // stale request after the user cancels.
+    clearTimeout(referenceSearchTimer)
+    referenceSearchTimer = null
   }
 })
 
