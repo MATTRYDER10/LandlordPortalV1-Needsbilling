@@ -1874,6 +1874,71 @@ export async function getAgentPayoutHistory(companyId: string): Promise<Array<{
 }
 
 /**
+ * Summary of agent fees for the current calendar month:
+ *   - estimatedRemainingThisMonth: sum(gross) of unpaid agent_charges whose
+ *     linked schedule entry has due_date <= end-of-month (or no schedule entry).
+ *   - paidThisMonth: sum(total_gross) of agent_payouts created this month.
+ */
+export async function getAgentFeesSummary(companyId: string): Promise<{
+  estimatedRemainingThisMonth: number
+  paidThisMonth: number
+  charge_count_remaining: number
+  payout_count_this_month: number
+}> {
+  const now = new Date()
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999)).toISOString()
+
+  // Unpaid agent charges for the company
+  const { data: charges } = await supabase
+    .from('agent_charges')
+    .select('gross_amount, schedule_entry_id')
+    .eq('company_id', companyId)
+    .eq('included', true)
+    .is('agent_paid_at', null)
+
+  let estimatedRemainingThisMonth = 0
+  let chargeCount = 0
+  if (charges && charges.length > 0) {
+    // Filter to charges whose schedule entry is due by month-end, or that
+    // have no schedule entry (ad-hoc — assume due now).
+    const entryIds = [...new Set(charges.map(c => c.schedule_entry_id).filter(Boolean))]
+    const { data: entries } = entryIds.length > 0
+      ? await supabase
+          .from('rent_schedule_entries')
+          .select('id, due_date')
+          .in('id', entryIds)
+          .lte('due_date', monthEnd.split('T')[0])
+      : { data: [] }
+    const dueThisMonth = new Set((entries || []).map(e => e.id))
+
+    for (const c of charges) {
+      if (!c.schedule_entry_id || dueThisMonth.has(c.schedule_entry_id)) {
+        estimatedRemainingThisMonth += parseFloat(c.gross_amount)
+        chargeCount++
+      }
+    }
+  }
+
+  // Payouts processed this calendar month
+  const { data: payouts } = await supabase
+    .from('agent_payouts')
+    .select('total_gross')
+    .eq('company_id', companyId)
+    .gte('created_at', monthStart)
+    .lte('created_at', monthEnd)
+
+  const paidThisMonth = (payouts || []).reduce((s, p) => s + parseFloat(p.total_gross), 0)
+
+  return {
+    estimatedRemainingThisMonth,
+    paidThisMonth,
+    charge_count_remaining: chargeCount,
+    payout_count_this_month: (payouts || []).length,
+  }
+}
+
+/**
  * Get details of a single agent payout including all linked charges with property info.
  */
 export async function getAgentPayoutDetails(companyId: string, payoutId: string): Promise<{

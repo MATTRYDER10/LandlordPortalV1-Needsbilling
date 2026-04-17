@@ -166,7 +166,32 @@
 
             <!-- Add Tenant Section -->
             <div v-if="actionType === 'add'" class="space-y-4">
-              <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
+              <!-- Source toggle: new vs link existing V2 reference -->
+              <div class="flex rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  @click="addMode = 'new'"
+                  class="flex-1 px-3 py-2 font-medium transition-colors"
+                  :class="addMode === 'new'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  New tenant
+                </button>
+                <button
+                  type="button"
+                  @click="addMode = 'link'"
+                  class="flex-1 px-3 py-2 font-medium transition-colors border-l border-gray-200 dark:border-slate-700"
+                  :class="addMode === 'link'
+                    ? 'bg-primary text-white'
+                    : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'"
+                >
+                  Link existing V2 reference
+                </button>
+              </div>
+
+              <!-- New tenant form -->
+              <div v-if="addMode === 'new'" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
                 <h4 class="text-sm font-medium text-blue-800 dark:text-blue-400">New Tenant Details</h4>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -216,6 +241,66 @@
                 </div>
                 <div>
                   <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 cursor-pointer">
+                    <input
+                      v-model="newTenant.isLeadTenant"
+                      type="checkbox"
+                      class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-900"
+                    />
+                    Make this the lead tenant
+                  </label>
+                </div>
+              </div>
+
+              <!-- Link existing V2 reference -->
+              <div v-else class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
+                <h4 class="text-sm font-medium text-blue-800 dark:text-blue-400">Find an existing V2 reference</h4>
+                <input
+                  v-model="referenceQuery"
+                  type="search"
+                  placeholder="Search by name, email, or reference number…"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
+                />
+                <div v-if="referenceSearching" class="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-2">
+                  <Loader2 class="w-3 h-3 animate-spin" /> Searching…
+                </div>
+                <div v-else-if="referenceResults.length === 0 && referenceQuery.length > 0" class="text-xs text-gray-500 dark:text-slate-400">
+                  No unlinked references match "{{ referenceQuery }}".
+                </div>
+                <div v-else-if="referenceResults.length > 0 && !selectedReference" class="max-h-56 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-lg divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                  <button
+                    v-for="r in referenceResults"
+                    :key="r.id"
+                    type="button"
+                    @click="selectReference(r)"
+                    class="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ r.first_name }} {{ r.last_name }}</p>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 truncate">{{ r.email || 'No email' }}</p>
+                        <p v-if="r.property_address" class="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">{{ r.property_address }}</p>
+                      </div>
+                      <div class="flex-shrink-0 text-right">
+                        <p class="text-xs font-mono text-gray-400">{{ r.reference_number }}</p>
+                        <p class="text-xs mt-0.5 uppercase tracking-wide text-gray-500 dark:text-slate-400">{{ r.status }}</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <div v-if="selectedReference" class="border border-primary/40 dark:border-primary/60 bg-white dark:bg-slate-900 rounded-lg p-3 space-y-2">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedReference.first_name }} {{ selectedReference.last_name }}</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 truncate">{{ selectedReference.email || 'No email' }}</p>
+                      <p class="text-xs font-mono text-gray-400 mt-0.5">{{ selectedReference.reference_number }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      @click="selectedReference = null"
+                      class="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                    >Change</button>
+                  </div>
+                  <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 cursor-pointer pt-1 border-t border-gray-100 dark:border-slate-700">
                     <input
                       v-model="newTenant.isLeadTenant"
                       type="checkbox"
@@ -286,6 +371,7 @@ const toast = useToast()
 const authStore = useAuthStore()
 // State
 const actionType = ref<'remove' | 'add'>('remove')
+const addMode = ref<'new' | 'link'>('new')
 const selectedTenantId = ref<string | null>(null)
 const leftDate = ref(new Date().toISOString().split('T')[0])
 const addReplacement = ref(false)
@@ -300,6 +386,62 @@ const newTenant = ref({
   isLeadTenant: false
 })
 
+// V2 reference search state
+interface V2ReferenceResult {
+  id: string
+  reference_number: string
+  status: string
+  first_name: string
+  last_name: string
+  email: string
+  property_address: string
+  final_decision_notes?: string | null
+}
+const referenceQuery = ref('')
+const referenceResults = ref<V2ReferenceResult[]>([])
+const referenceSearching = ref(false)
+const selectedReference = ref<V2ReferenceResult | null>(null)
+let referenceSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function runReferenceSearch(q: string) {
+  referenceSearching.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await fetch(`${API_URL}/api/tenancies/search-references?q=${encodeURIComponent(q)}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      referenceResults.value = []
+      return
+    }
+    const data = await response.json()
+    referenceResults.value = data.references || []
+  } catch (err) {
+    console.error('Reference search failed:', err)
+    referenceResults.value = []
+  } finally {
+    referenceSearching.value = false
+  }
+}
+
+watch(referenceQuery, (q) => {
+  if (referenceSearchTimer) clearTimeout(referenceSearchTimer)
+  // If query is empty, still run once to show recent unlinked refs.
+  referenceSearchTimer = setTimeout(() => runReferenceSearch(q), 200)
+})
+
+function selectReference(r: V2ReferenceResult) {
+  selectedReference.value = r
+}
+
+// When the "Link existing" tab becomes active, fetch an initial list.
+watch(addMode, (mode) => {
+  if (mode === 'link' && referenceResults.value.length === 0 && !referenceSearching.value) {
+    runReferenceSearch('')
+  }
+})
+
 // Computed
 const activeTenants = computed(() => {
   return props.tenants.filter(t => t.status === 'active')
@@ -312,18 +454,25 @@ const canSubmit = computed(() => {
       return !!newTenant.value.firstName && !!newTenant.value.lastName
     }
     return true
-  } else {
-    return !!newTenant.value.firstName && !!newTenant.value.lastName
   }
+  // add flow
+  if (addMode.value === 'link') {
+    return !!selectedReference.value
+  }
+  return !!newTenant.value.firstName && !!newTenant.value.lastName
 })
 
-// Reset on open
+// Reset on open / cleanup on close
 watch(() => props.isOpen, (open) => {
   if (open) {
     actionType.value = 'remove'
+    addMode.value = 'new'
     selectedTenantId.value = null
     leftDate.value = new Date().toISOString().split('T')[0]
     addReplacement.value = false
+    referenceQuery.value = ''
+    referenceResults.value = []
+    selectedReference.value = null
     newTenant.value = {
       firstName: '',
       lastName: '',
@@ -332,6 +481,11 @@ watch(() => props.isOpen, (open) => {
       startDate: new Date().toISOString().split('T')[0],
       isLeadTenant: false
     }
+  } else if (referenceSearchTimer) {
+    // Modal closing — cancel any pending search debounce so we don't fire a
+    // stale request after the user cancels.
+    clearTimeout(referenceSearchTimer)
+    referenceSearchTimer = null
   }
 })
 
@@ -397,6 +551,29 @@ const submit = async () => {
       }
 
       toast.success(addReplacement.value ? 'Tenant replaced successfully' : 'Tenant removed successfully')
+    } else if (addMode.value === 'link' && selectedReference.value) {
+      // Link an existing V2 reference as a tenant
+      const response = await fetch(
+        `${API_URL}/api/tenancies/records/${props.tenancyId}/tenants/from-reference`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            referenceId: selectedReference.value.id,
+            isLeadTenant: newTenant.value.isLeadTenant,
+          })
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to link reference')
+      }
+
+      toast.success('Tenant linked from reference')
     } else {
       // Add new tenant
       const response = await fetch(

@@ -2357,6 +2357,128 @@ router.post('/records/:id/tenants', authenticateToken, async (req: AuthRequest, 
 })
 
 /**
+ * GET /api/tenancies/search-references?q=<name-or-email>
+ * Search unlinked V2 tenant references for the current company so they can
+ * be attached to a tenancy via the "+ Add Tenant → Link existing reference" flow.
+ * Filters out guarantor references and any reference already converted to a tenancy.
+ */
+router.get('/search-references', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const q = String(req.query.q || '').trim().toLowerCase()
+
+    const { data: refs, error } = await supabase
+      .from('tenant_references_v2')
+      .select('id, reference_number, status, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, property_address_encrypted, property_postcode_encrypted, final_decision_notes, is_guarantor, created_at')
+      .eq('company_id', companyId)
+      .eq('is_guarantor', false)
+      .is('converted_to_tenancy_id', null)
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    if (error) {
+      console.error('Error searching references:', error)
+      return res.status(500).json({ error: 'Failed to search references' })
+    }
+
+    const results = (refs || []).map(r => {
+      const firstName = decrypt(r.tenant_first_name_encrypted) || ''
+      const lastName = decrypt(r.tenant_last_name_encrypted) || ''
+      const email = decrypt(r.tenant_email_encrypted) || ''
+      const propertyAddress = decrypt(r.property_address_encrypted) || ''
+      const propertyPostcode = decrypt(r.property_postcode_encrypted) || ''
+      return {
+        id: r.id,
+        reference_number: r.reference_number,
+        status: r.status,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        property_address: [propertyAddress, propertyPostcode].filter(Boolean).join(', '),
+        final_decision_notes: r.final_decision_notes,
+        created_at: r.created_at,
+      }
+    }).filter(r => {
+      if (!q) return true
+      const hay = `${r.first_name} ${r.last_name} ${r.email} ${r.reference_number}`.toLowerCase()
+      return hay.includes(q)
+    }).slice(0, 50)
+
+    res.json({ references: results })
+  } catch (error: any) {
+    console.error('Error in GET /api/tenancies/search-references:', error)
+    res.status(500).json({ error: error.message || 'Failed to search references' })
+  }
+})
+
+/**
+ * POST /api/tenancies/records/:id/tenants/from-reference
+ * Add a tenant to the tenancy using fields decrypted from an existing V2 reference.
+ * Also sets the V2 reference's converted_to_tenancy_id so the reference shows
+ * as linked and no longer appears in future search results.
+ */
+router.post('/records/:id/tenants/from-reference', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
+    if (!tenancy) return res.status(404).json({ error: 'Tenancy not found' })
+
+    const { referenceId, isLeadTenant } = req.body || {}
+    if (!referenceId) return res.status(400).json({ error: 'referenceId is required' })
+
+    const { data: ref, error: refError } = await supabase
+      .from('tenant_references_v2')
+      .select('id, company_id, is_guarantor, converted_to_tenancy_id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, rent_share')
+      .eq('id', referenceId)
+      .maybeSingle()
+
+    if (refError || !ref) return res.status(404).json({ error: 'Reference not found' })
+    if (ref.company_id !== companyId) return res.status(403).json({ error: 'Reference belongs to a different company' })
+    if (ref.is_guarantor) return res.status(400).json({ error: 'Guarantor references cannot be linked as tenants' })
+    if (ref.converted_to_tenancy_id) return res.status(400).json({ error: 'This reference is already linked to a tenancy' })
+
+    const firstName = decrypt(ref.tenant_first_name_encrypted) || ''
+    const lastName = decrypt(ref.tenant_last_name_encrypted) || ''
+    if (!firstName || !lastName) return res.status(400).json({ error: 'Reference is missing tenant name' })
+
+    const tenant = await tenancyService.addTenantToTenancy(req.params.id, {
+      firstName,
+      lastName,
+      email: decrypt(ref.tenant_email_encrypted) || undefined,
+      phone: decrypt(ref.tenant_phone_encrypted) || undefined,
+      isLeadTenant: !!isLeadTenant,
+      rentShare: ref.rent_share || undefined,
+    })
+
+    // Mark the reference as linked to this tenancy so it stops appearing in search.
+    await supabase
+      .from('tenant_references_v2')
+      .update({ converted_to_tenancy_id: req.params.id, converted_at: new Date().toISOString() })
+      .eq('id', referenceId)
+
+    await tenancyService.logTenancyActivity(req.params.id, {
+      action: 'TENANT_ADDED',
+      category: 'tenant',
+      title: 'Tenant Added from V2 Reference',
+      description: `${firstName} ${lastName} was added from V2 reference`,
+      metadata: { tenantId: tenant.id, referenceId, firstName, lastName, isLeadTenant: !!isLeadTenant },
+      performedBy: req.user?.id,
+    })
+
+    res.status(201).json({ tenant })
+  } catch (error: any) {
+    console.error('Error in POST /records/:id/tenants/from-reference:', error)
+    const message = error.message || 'Failed to link tenant from reference'
+    const statusCode = message.includes('Failed to') ? 400 : 500
+    res.status(statusCode).json({ error: message })
+  }
+})
+
+/**
  * PATCH /api/tenancies/records/:id/tenants/:tenantId
  * Update a tenant's details
  */

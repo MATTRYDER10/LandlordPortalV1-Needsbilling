@@ -3,6 +3,7 @@ import multer from 'multer'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import * as rentgooseService from '../services/rentgooseService'
 import { isRentGooseEnabled } from '../services/rentgooseAccess'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -1134,13 +1135,44 @@ router.get('/pending-agent-charges', authenticateToken, async (req: AuthRequest,
 
     if (!charges || charges.length === 0) return res.json([])
 
-    // Show all unpaid charges — agent can collect their fee independently of landlord payout
-    res.json(charges.map(c => ({
-      ...c,
-      net_amount: parseFloat(c.net_amount),
-      vat_amount: parseFloat(c.vat_amount),
-      gross_amount: parseFloat(c.gross_amount),
-    })))
+    // Resolve property_address for each charge via schedule_entry → tenancy → property.
+    // Doing this server-side (instead of letting the frontend cross-ref the landlord-payout
+    // queue) ensures charges whose landlord payout has already completed still show the
+    // correct property instead of falling back to "Unknown property".
+    const entryIds = [...new Set(charges.map(c => c.schedule_entry_id).filter(Boolean))]
+    const { data: entries } = entryIds.length > 0
+      ? await supabase.from('rent_schedule_entries').select('id, tenancy_id').in('id', entryIds)
+      : { data: [] }
+    const entryToTenancy = new Map((entries || []).map(e => [e.id, e.tenancy_id]))
+
+    const tenancyIds = [...new Set((entries || []).map(e => e.tenancy_id).filter(Boolean))]
+    const { data: tenancies } = tenancyIds.length > 0
+      ? await supabase.from('tenancies').select('id, property_id').in('id', tenancyIds)
+      : { data: [] }
+    const tenancyToProp = new Map((tenancies || []).map(t => [t.id, t.property_id]))
+
+    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+    const { data: properties } = propertyIds.length > 0
+      ? await supabase.from('properties').select('id, address_line1_encrypted, postcode').in('id', propertyIds)
+      : { data: [] }
+    const propMap = new Map((properties || []).map(p => [p.id, {
+      id: p.id,
+      address: `${decrypt(p.address_line1_encrypted) || ''}, ${p.postcode || ''}`.replace(/^, |, $/g, ''),
+    }]))
+
+    res.json(charges.map(c => {
+      const tenancyId = entryToTenancy.get(c.schedule_entry_id)
+      const propertyId = tenancyId ? tenancyToProp.get(tenancyId) : null
+      const prop = propertyId ? propMap.get(propertyId) : null
+      return {
+        ...c,
+        net_amount: parseFloat(c.net_amount),
+        vat_amount: parseFloat(c.vat_amount),
+        gross_amount: parseFloat(c.gross_amount),
+        property_address: prop?.address || 'Unknown property',
+        property_id: prop?.id || null,
+      }
+    }))
   } catch (err: any) {
     console.error('Error fetching pending agent charges:', err)
     res.status(500).json({ error: 'Failed to fetch agent charges' })
@@ -1178,6 +1210,20 @@ router.get('/agent-payouts', authenticateToken, async (req: AuthRequest, res) =>
   } catch (err: any) {
     console.error('Error fetching agent payout history:', err)
     res.status(500).json({ error: 'Failed to fetch agent payout history' })
+  }
+})
+
+// GET /api/rentgoose/agent-fees-summary — remaining-by-month-end + paid-this-month totals
+router.get('/agent-fees-summary', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    const summary = await rentgooseService.getAgentFeesSummary(companyId)
+    res.json(summary)
+  } catch (err: any) {
+    console.error('Error fetching agent fees summary:', err)
+    res.status(500).json({ error: 'Failed to fetch agent fees summary' })
   }
 })
 
