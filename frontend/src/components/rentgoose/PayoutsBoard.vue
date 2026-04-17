@@ -483,23 +483,11 @@ const payoutDetailsCache = ref<Record<string, any>>({})
 
 async function fetchPendingAgentCharges() {
   try {
+    // Backend returns property_address + property_id resolved via the
+    // schedule_entry → tenancy → property chain, so we don't need to cross-ref
+    // the landlord-payout queue (which is empty once the landlord has been paid).
     const data = await get<any[]>('/api/rentgoose/pending-agent-charges')
-    // Enrich with property info from current payouts queue (best effort)
-    const propertyByEntry = new Map<string, { address: string; id: string }>()
-    for (const p of store.payouts) {
-      propertyByEntry.set(p.schedule_entry_id, {
-        address: `${p.property_address}, ${p.property_postcode}`,
-        id: p.property_id,
-      })
-    }
-    pendingAgentCharges.value = (data || []).map(c => {
-      const prop = propertyByEntry.get(c.schedule_entry_id)
-      return {
-        ...c,
-        property_address: prop?.address || 'Unknown property',
-        property_id: prop?.id || null,
-      }
-    })
+    pendingAgentCharges.value = data || []
   } catch (err) {
     console.error('Failed to fetch pending agent charges:', err)
   }
