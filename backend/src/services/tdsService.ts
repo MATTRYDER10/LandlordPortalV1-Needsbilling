@@ -385,17 +385,17 @@ export async function mapTenancyToTDSPayload(
       person_title: landlord.title || 'Mr',
       person_firstname: decrypt(landlord.first_name_encrypted) || landlord.first_name || '',
       person_surname: decrypt(landlord.last_name_encrypted) || landlord.last_name || '',
-      person_email: landlordEmail,
-      person_mobile: decrypt(landlord.phone_encrypted) || landlord.phone || '',
+      person_email: landlordEmail || undefined,
+      person_mobile: decrypt(landlord.phone_encrypted) || landlord.phone || undefined,
       is_business: isCompany ? 'Y' : 'N',
       business_name: isCompany ? landlord.company_name : undefined,
       // Landlord address fields (mandatory for landlords)
       person_paon: landlordAddressParts.paon,
-      person_saon: decrypt(landlord.address_line2_encrypted) || landlord.address_line2 || '',
+      person_saon: decrypt(landlord.address_line2_encrypted) || landlord.address_line2 || undefined,
       person_street: landlordAddressParts.street,
       person_town: decrypt(landlord.city_encrypted) || landlord.city || 'N/A',
       person_administrative_area: landlord.county || decrypt(landlord.city_encrypted) || landlord.city || 'N/A',
-      person_postcode: decrypt(landlord.postcode_encrypted) || landlord.postcode || '',
+      person_postcode: decrypt(landlord.postcode_encrypted) || landlord.postcode || undefined,
       person_country: 'United Kingdom'
     })
   }
@@ -435,8 +435,8 @@ export async function mapTenancyToTDSPayload(
       person_title: tenant.title || 'Mr',
       person_firstname: tenantFirstName,
       person_surname: tenantLastName,
-      person_email: tenantEmail,
-      person_mobile: tenantPhone,
+      person_email: tenantEmail || undefined,
+      person_mobile: tenantPhone || undefined,
       is_business: 'N'
     })
   })
