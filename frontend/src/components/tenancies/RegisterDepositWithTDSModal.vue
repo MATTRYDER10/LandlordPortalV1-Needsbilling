@@ -624,7 +624,10 @@ const populateFormFromTenancy = () => {
         primaryLandlord.address_line1,
         primaryLandlord.city,
         primaryLandlord.postcode
-      ].filter(Boolean).join(', ')
+      ].filter(Boolean).join(', '),
+      addressLine1: primaryLandlord.address_line1 || '',
+      city: primaryLandlord.city || '',
+      postcode: primaryLandlord.postcode || ''
     }
   }
 

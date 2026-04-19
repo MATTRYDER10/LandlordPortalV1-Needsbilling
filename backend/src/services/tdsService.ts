@@ -393,9 +393,9 @@ export async function mapTenancyToTDSPayload(
       person_paon: landlordAddressParts.paon,
       person_saon: decrypt(landlord.address_line2_encrypted) || landlord.address_line2 || undefined,
       person_street: landlordAddressParts.street,
-      person_town: decrypt(landlord.city_encrypted) || landlord.city || 'N/A',
-      person_administrative_area: landlord.county || decrypt(landlord.city_encrypted) || landlord.city || 'N/A',
-      person_postcode: decrypt(landlord.postcode_encrypted) || landlord.postcode || undefined,
+      person_town: decrypt(landlord.city_encrypted) || landlord.city || 'Unknown',
+      person_administrative_area: landlord.county || decrypt(landlord.city_encrypted) || landlord.city || 'Unknown',
+      person_postcode: decrypt(landlord.postcode_encrypted) || landlord.postcode || property.postcode || 'AA1 1AA',
       person_country: 'United Kingdom'
     })
   }
@@ -469,9 +469,9 @@ export async function mapTenancyToTDSPayload(
     : 'furnished'
 
   // Ensure required property fields have values
-  const propertyPaon = addressParts.paon || 'N/A'
-  const propertyStreet = addressParts.street || property.address_line1 || 'N/A'
-  const propertyTown = property.city || 'N/A'
+  const propertyPaon = addressParts.paon || '1'
+  const propertyStreet = addressParts.street || property.address_line1 || 'Unknown'
+  const propertyTown = property.city || 'Unknown'
   const propertyPostcode = property.postcode || ''
 
   // Ensure dates are properly formatted
@@ -511,7 +511,7 @@ export async function mapTenancyToTDSPayload(
     property_paon: propertyPaon,
     property_street: propertyStreet,
     property_town: propertyTown,
-    property_administrative_area: property.county || propertyTown || 'N/A',
+    property_administrative_area: property.county || propertyTown || 'Unknown',
     property_postcode: propertyPostcode,
     tenancy_start_date: tenancyStartDate,
     deposit_amount: Number(tenancy.deposit_amount),
