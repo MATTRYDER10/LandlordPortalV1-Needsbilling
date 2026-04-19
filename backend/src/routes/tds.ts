@@ -506,11 +506,16 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
 
     console.log('[TDS Custodial] Creating deposit for tenancy:', tenancyId, 'with form data - landlord:', landlord.firstName, landlord.lastName, ', tenants:', tenants.length)
 
-    // Parse landlord address into components (address might be combined like "3 Road, City, BS1 1AA")
-    const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
-    const landlordAddressLine1 = landlordAddressParts[0] || ''
-    const landlordCity = landlordAddressParts[1] || ''
-    const landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+    // Use separate landlord address fields if available, fallback to parsing combined string
+    let landlordAddressLine1 = landlord.addressLine1 || ''
+    let landlordCity = landlord.city || ''
+    let landlordPostcode = landlord.postcode || ''
+    if (!landlordAddressLine1 && landlord.address) {
+      const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
+      landlordAddressLine1 = landlordAddressParts[0] || ''
+      landlordCity = landlordAddressParts[1] || ''
+      landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+    }
 
     // Build tenancy data from form - USE FORM DATA, not database lookups
     const formTenancyData = {
