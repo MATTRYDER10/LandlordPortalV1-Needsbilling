@@ -32,6 +32,64 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
+    // Backfill: find V1 chase_dependencies missing verification_sections and create them
+    try {
+      const { data: orphanDeps } = await supabase
+        .from('chase_dependencies')
+        .select('reference_id, dependency_type, contact_name_encrypted, contact_email_encrypted, contact_phone_encrypted, initial_request_sent_at')
+        .in('dependency_type', ['EMPLOYER_REF', 'RESIDENTIAL_REF', 'ACCOUNTANT_REF'])
+        .in('status', ['PENDING', 'IN_PROGRESS'])
+
+      if (orphanDeps && orphanDeps.length > 0) {
+        const depRefIds = [...new Set(orphanDeps.map(d => d.reference_id))]
+
+        // Check which of these already have verification_sections
+        const { data: existingSections } = await supabase
+          .from('verification_sections')
+          .select('reference_id, section_type')
+          .in('reference_id', depRefIds)
+
+        const existingSet = new Set((existingSections || []).map(s => `${s.reference_id}:${s.section_type}`))
+
+        const sectionTypeMap: Record<string, { sectionType: string; order: number }> = {
+          'EMPLOYER_REF': { sectionType: 'EMPLOYER_REFERENCE', order: 1 },
+          'RESIDENTIAL_REF': { sectionType: 'LANDLORD_REFERENCE', order: 2 },
+          'ACCOUNTANT_REF': { sectionType: 'ACCOUNTANT_REFERENCE', order: 3 }
+        }
+
+        const sectionsToCreate = orphanDeps
+          .filter(dep => {
+            const mapped = sectionTypeMap[dep.dependency_type]
+            return mapped && !existingSet.has(`${dep.reference_id}:${mapped.sectionType}`)
+          })
+          .map(dep => ({
+            reference_id: dep.reference_id,
+            person_type: 'TENANT',
+            section_type: sectionTypeMap[dep.dependency_type].sectionType,
+            section_order: sectionTypeMap[dep.dependency_type].order,
+            decision: 'NOT_REVIEWED',
+            contact_name_encrypted: dep.contact_name_encrypted,
+            contact_email_encrypted: dep.contact_email_encrypted,
+            contact_phone_encrypted: dep.contact_phone_encrypted,
+            initial_request_sent_at: dep.initial_request_sent_at || new Date().toISOString()
+          }))
+
+        if (sectionsToCreate.length > 0) {
+          const { error: backfillError } = await supabase
+            .from('verification_sections')
+            .upsert(sectionsToCreate, { onConflict: 'reference_id,section_type' })
+
+          if (backfillError) {
+            console.error('[ChaseQueue] Backfill verification_sections error:', backfillError)
+          } else {
+            console.log(`[ChaseQueue] Backfilled ${sectionsToCreate.length} missing verification_sections for V1 chase dependencies`)
+          }
+        }
+      }
+    } catch (backfillError) {
+      console.error('[ChaseQueue] Backfill check failed:', backfillError)
+    }
+
     const items = await getChaseQueue();
 
     res.json({
