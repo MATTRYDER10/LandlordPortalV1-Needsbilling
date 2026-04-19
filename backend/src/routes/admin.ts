@@ -2070,4 +2070,98 @@ router.post('/reposit/:companyId/test', authenticateAdmin, async (req: AdminAuth
   }
 })
 
+/**
+ * POST /api/admin/v1-references/push-to-verify
+ * Find all incomplete V1 references and push them to the verify queue.
+ * This is a one-time cleanup endpoint for closing out the V1 system.
+ */
+router.post('/v1-references/push-to-verify', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    // Find all V1 references that are NOT in a terminal state
+    const { data: refs, error: refsError } = await supabase
+      .from('tenant_references')
+      .select('id, status, verification_state, tenant_first_name_encrypted, tenant_last_name_encrypted, is_guarantor')
+      .not('status', 'in', '("completed","rejected","cancelled")')
+      .is('deleted_at', null)
+
+    if (refsError) throw refsError
+
+    if (!refs || refs.length === 0) {
+      return res.json({ message: 'No incomplete V1 references found', pushed: 0 })
+    }
+
+    console.log(`[Admin] Found ${refs.length} incomplete V1 references to push to verify`)
+
+    let pushed = 0
+    let skipped = 0
+    const results: any[] = []
+
+    for (const ref of refs) {
+      const tenantName = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+
+      // Check if there's already an active VERIFY work item for this reference
+      const { data: existingWorkItem } = await supabase
+        .from('work_items')
+        .select('id, status')
+        .eq('reference_id', ref.id)
+        .eq('work_type', 'VERIFY')
+        .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS'])
+        .maybeSingle()
+
+      if (existingWorkItem) {
+        skipped++
+        results.push({ id: ref.id, name: tenantName, action: 'skipped', reason: 'already in verify queue' })
+        continue
+      }
+
+      // Update reference to READY_FOR_REVIEW so it appears in verify queue
+      await supabase
+        .from('tenant_references')
+        .update({
+          verification_state: 'READY_FOR_REVIEW',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ref.id)
+
+      // Create VERIFY work item
+      const { error: createError } = await supabase
+        .from('work_items')
+        .insert({
+          reference_id: ref.id,
+          work_type: 'VERIFY',
+          status: 'AVAILABLE',
+          priority: 'HIGH'
+        })
+
+      if (createError) {
+        console.error(`[Admin] Failed to create verify work item for ${ref.id}:`, createError)
+        results.push({ id: ref.id, name: tenantName, action: 'error', reason: createError.message })
+        continue
+      }
+
+      // Also reset any verification_sections to NOT_REVIEWED so they appear in pending responses
+      await supabase
+        .from('verification_sections')
+        .update({ decision: 'NOT_REVIEWED' })
+        .eq('reference_id', ref.id)
+        .neq('decision', 'NOT_REVIEWED')
+
+      pushed++
+      results.push({ id: ref.id, name: tenantName, status: ref.status, action: 'pushed to verify' })
+      console.log(`[Admin] Pushed V1 reference ${ref.id} (${tenantName}) to verify queue`)
+    }
+
+    res.json({
+      message: `Pushed ${pushed} V1 references to verify queue, ${skipped} already in queue`,
+      pushed,
+      skipped,
+      total: refs.length,
+      results
+    })
+  } catch (error: any) {
+    console.error('[Admin] Error pushing V1 references to verify:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
