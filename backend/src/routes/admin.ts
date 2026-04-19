@@ -1530,13 +1530,13 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     if (guarantorRefIds.length > 0) {
       const { data: guarantors } = await supabase
         .from('tenant_references')
-        .select('guarantor_for_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
+        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
         .eq('is_guarantor', true)
-        .in('guarantor_for_reference_id', guarantorRefIds)
+        .in('parent_reference_id', guarantorRefIds)
 
       if (guarantors) {
         guarantors.forEach(g => {
-          guarantorMap[g.guarantor_for_reference_id] = {
+          guarantorMap[g.parent_reference_id] = {
             name: `${decrypt(g.tenant_first_name_encrypted) || ''} ${decrypt(g.tenant_last_name_encrypted) || ''}`.trim(),
             status: g.status,
             tas_category: g.tas_category
@@ -1591,9 +1591,97 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
       enrichedRefs = enrichedRefs.slice(offsetNum, offsetNum + limitNum)
     }
 
+    // Also search V2 references
+    let v2Refs: any[] = []
+    try {
+      let v2Query = supabase
+        .from('tenant_references_v2')
+        .select(`
+          id,
+          reference_number,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          tenant_email_encrypted,
+          tenant_phone_encrypted,
+          property_address_encrypted,
+          status,
+          move_in_date,
+          created_at,
+          updated_at,
+          is_guarantor,
+          company_id,
+          companies (
+            id,
+            name_encrypted
+          )
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+
+      if (status && status !== 'all') {
+        v2Query = v2Query.eq('status', status)
+      }
+
+      const { data: v2Data, count: v2Count } = await v2Query
+
+      if (v2Data) {
+        v2Refs = v2Data.map(ref => {
+          const tenantFirstName = decrypt(ref.tenant_first_name_encrypted) || ''
+          const tenantLastName = decrypt(ref.tenant_last_name_encrypted) || ''
+          const tenantEmail = decrypt(ref.tenant_email_encrypted) || ''
+          const tenantPhone = decrypt(ref.tenant_phone_encrypted) || ''
+          const propertyAddress = decrypt(ref.property_address_encrypted) || ''
+
+          return {
+            id: ref.reference_number || ref.id,
+            raw_id: ref.id,
+            tenant_name: `${tenantFirstName} ${tenantLastName}`.trim(),
+            tenant_first_name: tenantFirstName,
+            tenant_last_name: tenantLastName,
+            tenant_email: tenantEmail,
+            tenant_phone: tenantPhone,
+            property_address: propertyAddress,
+            status: ref.status,
+            move_in_date: ref.move_in_date,
+            created_at: ref.created_at,
+            updated_at: ref.updated_at,
+            is_guarantor: ref.is_guarantor,
+            requires_guarantor: false,
+            parent_reference_id: null,
+            company_name: decrypt((ref.companies as any)?.name_encrypted) || 'Unknown',
+            company_id: ref.company_id,
+            guarantor: null,
+            is_v2: true
+          }
+        })
+
+        // Apply search filter to V2 refs
+        if (hasSearchQuery) {
+          const searchLower = (query as string).toLowerCase()
+          v2Refs = v2Refs.filter(ref =>
+            ref.id.toLowerCase().includes(searchLower) ||
+            ref.tenant_name.toLowerCase().includes(searchLower) ||
+            ref.property_address.toLowerCase().includes(searchLower) ||
+            ref.company_name.toLowerCase().includes(searchLower) ||
+            ref.tenant_email.toLowerCase().includes(searchLower)
+          )
+        }
+      }
+    } catch (v2Error) {
+      console.error('Error searching V2 references:', v2Error)
+    }
+
+    // Combine V1 + V2 results, sorted by created_at desc
+    const allRefs = [...enrichedRefs, ...v2Refs]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    const combinedTotal = totalCount + v2Refs.length
+    const paginatedRefs = hasSearchQuery
+      ? allRefs.slice(offsetNum, offsetNum + limitNum)
+      : allRefs.slice(0, limitNum)
+
     res.json({
-      references: enrichedRefs,
-      total: totalCount,
+      references: paginatedRefs,
+      total: combinedTotal,
       limit: limitNum,
       offset: offsetNum
     })
