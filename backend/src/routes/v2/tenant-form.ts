@@ -425,7 +425,12 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       .limit(1)
 
     if (!existingSections.data?.length) {
-      await initializeSections(reference.id, reference.is_guarantor || false)
+      const sections = await initializeSections(reference.id, reference.is_guarantor || false)
+      if (!sections) {
+        console.error(`[V2] CRITICAL: Failed to initialize sections for reference ${reference.id} — chase items may not be created`)
+      } else {
+        console.log(`[V2] Initialized ${sections.length} sections for reference ${reference.id}`)
+      }
     }
 
     // Build tenant name for referee emails
@@ -871,13 +876,25 @@ async function createRefereeRequest(
     }
     const sectionType = sectionTypeMap[refereeType]
 
-    // Look up the section ID
-    const { data: section } = await supabase
+    // Look up the section ID — if missing, create sections then retry
+    let { data: section } = await supabase
       .from('reference_sections_v2')
       .select('id')
       .eq('reference_id', referenceId)
       .eq('section_type', sectionType)
       .single()
+
+    if (!section) {
+      console.warn(`[V2] Section ${sectionType} missing for ${referenceId}, initializing sections now`)
+      await initializeSections(referenceId, false)
+      const retry = await supabase
+        .from('reference_sections_v2')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .eq('section_type', sectionType)
+        .single()
+      section = retry.data
+    }
 
     if (section) {
       await createChaseItem(
@@ -891,7 +908,7 @@ async function createRefereeRequest(
       )
       console.log(`[V2] Created chase item for ${refereeType} referee`)
     } else {
-      console.warn(`[V2] Could not find ${sectionType} section for reference ${referenceId}, skipping chase item`)
+      console.error(`[V2] CRITICAL: Could not create ${sectionType} section for reference ${referenceId} — chase item NOT created`)
     }
 
     console.log(`[V2] Created ${refereeType} referee request for ${email}`)
