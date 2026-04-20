@@ -320,6 +320,11 @@ export async function publishReposit(
 
     if (!response.ok) {
       const errorText = await response.text()
+      // 409 = already published — treat as success
+      if (response.status === 409) {
+        console.log(`[Reposit] Reposit ${repositId} already published (409)`)
+        return { success: true }
+      }
       return { success: false, error: `Publish API error (${response.status}): ${errorText.substring(0, 100)}` }
     }
 

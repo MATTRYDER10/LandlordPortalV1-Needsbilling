@@ -491,6 +491,17 @@ router.post('/:id/publish', authenticateToken, async (req: AuthRequest, res) => 
 
     const repositId = req.params.id
 
+    // Check if already published before calling API
+    const { data: existing } = await supabase
+      .from('reposit_registrations')
+      .select('status')
+      .eq('reposit_id', repositId)
+      .maybeSingle()
+
+    if (existing?.status === 'published') {
+      return res.json({ success: true, message: 'Already published' })
+    }
+
     const config = await getCompanyRepositConfig(companyId)
     if (!config) {
       return res.status(400).json({ error: 'Reposit is not configured' })
