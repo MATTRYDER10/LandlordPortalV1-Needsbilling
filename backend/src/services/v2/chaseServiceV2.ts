@@ -117,6 +117,9 @@ export async function getChaseItemForSection(sectionId: string): Promise<V2Chase
  */
 export async function getChaseQueue(limit: number = 50): Promise<any[]> {
   try {
+    // Backfill: create chase_items_v2 for referees_v2 that never got chase items
+    await backfillMissingChaseItems()
+
     const { data, error } = await supabase
       .from('chase_items_v2')
       .select(`
@@ -1013,5 +1016,91 @@ export function getSectionRefereeType(sectionType: V2SectionType): V2RefereeType
       return 'LANDLORD' // Could also be AGENT
     default:
       return null
+  }
+}
+
+// ============================================================================
+// BACKFILL
+// ============================================================================
+
+/**
+ * Create missing chase_items_v2 for referees_v2 that never got chase items.
+ * This covers V2 references that submitted forms before the chase item
+ * creation fix was deployed.
+ */
+async function backfillMissingChaseItems(): Promise<void> {
+  try {
+    // Find all referees that haven't submitted and are on active references
+    const { data: orphanReferees } = await supabase
+      .from('referees_v2')
+      .select('id, reference_id, referee_type, referee_name, referee_email_encrypted, referee_phone_encrypted')
+      .is('submitted_at', null)
+
+    if (!orphanReferees || orphanReferees.length === 0) return
+
+    // Check which references are still COLLECTING_EVIDENCE
+    const refIds = [...new Set(orphanReferees.map(r => r.reference_id))]
+    const { data: refs } = await supabase
+      .from('tenant_references_v2')
+      .select('id, status')
+      .in('id', refIds)
+      .eq('status', 'COLLECTING_EVIDENCE')
+
+    const activeRefIds = new Set((refs || []).map(r => r.id))
+    const activeOrphans = orphanReferees.filter(r => activeRefIds.has(r.reference_id))
+
+    if (activeOrphans.length === 0) return
+
+    // Check which already have chase items
+    const { data: existingItems } = await supabase
+      .from('chase_items_v2')
+      .select('reference_id, referee_type')
+      .in('reference_id', [...activeRefIds])
+
+    const existingSet = new Set((existingItems || []).map(i => `${i.reference_id}:${i.referee_type}`))
+    const missing = activeOrphans.filter(r => !existingSet.has(`${r.reference_id}:${r.referee_type}`))
+
+    if (missing.length === 0) return
+
+    const sectionTypeMap: Record<string, string> = {
+      'EMPLOYER': 'INCOME',
+      'ACCOUNTANT': 'INCOME',
+      'LANDLORD': 'RESIDENTIAL'
+    }
+
+    let backfilled = 0
+    for (const referee of missing) {
+      const sectionType = sectionTypeMap[referee.referee_type]
+      if (!sectionType) continue
+
+      const { data: section } = await supabase
+        .from('reference_sections_v2')
+        .select('id')
+        .eq('reference_id', referee.reference_id)
+        .eq('section_type', sectionType)
+        .maybeSingle()
+
+      if (!section) {
+        console.warn(`[ChaseServiceV2] No ${sectionType} section for ${referee.reference_id}, skipping backfill`)
+        continue
+      }
+
+      const refereeName = referee.referee_name || 'Referee'
+      const refereeEmail = decrypt(referee.referee_email_encrypted) || ''
+
+      await createChaseItem(
+        referee.reference_id,
+        section.id,
+        referee.referee_type as V2RefereeType,
+        { name: refereeName, email: refereeEmail }
+      )
+      backfilled++
+    }
+
+    if (backfilled > 0) {
+      console.log(`[ChaseServiceV2] Backfilled ${backfilled} missing chase items`)
+    }
+  } catch (err) {
+    console.error('[ChaseServiceV2] Backfill error:', err)
   }
 }
