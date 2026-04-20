@@ -13,6 +13,7 @@ import {
   getChaseQueue,
   getChaseItemDecrypted,
   getChaseItem,
+  createChaseItem,
   recordChaseAction,
   markChaseUnable,
   completeChaseCycle
