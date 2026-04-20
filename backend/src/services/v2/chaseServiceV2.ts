@@ -515,8 +515,7 @@ export async function createTenantChaseItems(): Promise<number> {
         .from('chase_items_v2')
         .insert({
           reference_id: ref.id,
-          section_id: null,
-          referee_type: 'TENANT',
+          referee_type: 'EMPLOYER',
           chase_type: 'TENANT',
           referee_name_encrypted: encrypt(tenantName),
           referee_email_encrypted: encrypt(tenantEmail),
@@ -526,7 +525,11 @@ export async function createTenantChaseItems(): Promise<number> {
           initial_sent_at: now
         })
 
-      if (!insertError) created++
+      if (insertError) {
+        console.error(`[ChaseServiceV2] Failed to create tenant chase for ${ref.id}:`, insertError)
+      } else {
+        created++
+      }
     }
 
     return created
@@ -636,8 +639,7 @@ export async function createGuarantorChaseItems(): Promise<number> {
         .from('chase_items_v2')
         .insert({
           reference_id: ref.id,
-          section_id: null,
-          referee_type: 'GUARANTOR',
+          referee_type: 'EMPLOYER',
           chase_type: 'GUARANTOR',
           referee_name_encrypted: encrypt(guarantorName),
           referee_email_encrypted: encrypt(guarantorEmail),
@@ -647,7 +649,11 @@ export async function createGuarantorChaseItems(): Promise<number> {
           initial_sent_at: now
         })
 
-      if (!insertError) created++
+      if (insertError) {
+        console.error(`[ChaseServiceV2] Failed to create guarantor chase for ${ref.id}:`, insertError)
+      } else {
+        created++
+      }
     }
 
     return created

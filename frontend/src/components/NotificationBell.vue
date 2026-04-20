@@ -1,6 +1,7 @@
 <template>
   <div class="relative">
     <button
+      ref="bellButton"
       @click="toggleDropdown"
       class="relative p-2 rounded-lg transition-all duration-200"
       :class="[
@@ -19,15 +20,15 @@
       </span>
     </button>
 
-    <!-- Dropdown (opens upward, positioned to fit in sidebar) -->
+    <!-- Dropdown (opens upward, fixed position to escape sidebar overflow) -->
     <div
       v-if="isOpen"
       :class="[
-        'absolute bottom-full mb-2 rounded-xl shadow-2xl border z-50 overflow-hidden',
-        'sm:-left-48 -right-0 sm:right-auto w-72 sm:max-w-full max-w-[calc(100vw-2rem)]',
-        'max-h-[80vh] overflow-y-auto',
+        'fixed rounded-xl shadow-2xl border z-[9999] overflow-hidden',
+        'w-80 max-h-[80vh] overflow-y-auto',
         isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
       ]"
+      :style="dropdownStyle"
     >
       <!-- Header -->
       <div :class="[
@@ -159,6 +160,15 @@ interface Notification {
 const router = useRouter()
 const authStore = useAuthStore()
 const isOpen = ref(false)
+const bellButton = ref<HTMLElement | null>(null)
+const dropdownStyle = computed(() => {
+  if (!bellButton.value) return {}
+  const rect = bellButton.value.getBoundingClientRect()
+  return {
+    bottom: `${window.innerHeight - rect.top + 8}px`,
+    left: `${rect.left}px`
+  }
+})
 const loading = ref(false)
 const markingAllRead = ref(false)
 const notifications = ref<Notification[]>([])
