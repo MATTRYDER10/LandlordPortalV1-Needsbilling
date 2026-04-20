@@ -546,21 +546,25 @@ router.post('/submit', async (req, res) => {
         const calculatedDeposit = Math.floor((rentAmount * 12 / 52) * 5)
         const finalDepositAmount = depositReplacementRequested ? 0 : (deposit_amount ? parseFloat(deposit_amount) : calculatedDeposit)
 
-        // Look up negotiator_id from sent_offer_forms
+        // Look up negotiator_id and linked_property_id from sent_offer_forms
         let negotiatorId: string | null = null
+        let sentFormPropertyId: string | null = null
         if (form_ref) {
           const { data: sentForm } = await supabase
             .from('sent_offer_forms')
-            .select('negotiator_id')
+            .select('negotiator_id, linked_property_id')
             .eq('form_ref', form_ref)
             .maybeSingle()
           if (sentForm?.negotiator_id) {
             negotiatorId = sentForm.negotiator_id
           }
+          if (sentForm?.linked_property_id) {
+            sentFormPropertyId = sentForm.linked_property_id
+          }
         }
 
         // Auto-match property if not already linked
-        let resolvedPropertyId = linked_property_id || null
+        let resolvedPropertyId = linked_property_id || sentFormPropertyId || null
         if (!resolvedPropertyId && property_address && property_postcode) {
             try {
                 const { matchOrCreateProperty } = await import('../services/propertyMatchingService')
