@@ -1073,15 +1073,17 @@ export async function updateTenancyTenant(
 
   // Handle lead tenant update - needs atomic swap to avoid unique constraint violation
   if (input.isLeadTenant !== undefined) {
+    const tenancyId = existing.tenancy_id
+    const usedOrders = await getUsedTenantOrders(tenancyId)
+
     if (input.isLeadTenant) {
       // When promoting to lead, first demote the current lead tenant
-      const tenancyId = existing.tenancy_id
+      const demoteOrder = firstFreeOrder(usedOrders, 2)
 
-      // Find and demote the current lead tenant (tenant_order = 1)
       const { error: demoteError } = await supabase
         .from('tenancy_tenants')
         .update({
-          tenant_order: 2,
+          tenant_order: demoteOrder,
           is_lead_tenant: false,
           updated_at: new Date().toISOString()
         })
@@ -1099,8 +1101,9 @@ export async function updateTenancyTenant(
       updateData.tenant_order = 1
       updateData.is_lead_tenant = true
     } else {
-      // Demoting from lead
-      updateData.tenant_order = 2
+      // Demoting from lead — find a free order slot
+      const demoteOrder = firstFreeOrder(usedOrders, 2)
+      updateData.tenant_order = demoteOrder
       updateData.is_lead_tenant = false
     }
   }
