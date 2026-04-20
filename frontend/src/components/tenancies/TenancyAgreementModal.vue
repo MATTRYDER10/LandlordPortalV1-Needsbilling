@@ -1409,11 +1409,35 @@ watch(() => props.show, async (show) => {
     // Defensive: explicitly clear special clauses BEFORE prefill to guarantee no
     // stale state leaks across modal re-opens (e.g. when recalling an agreement)
     formData.value.specialClauses = ''
+
+    // Fetch guarantors directly from tenancy_guarantors to avoid timing issues
+    // where the parent's guarantor data hasn't loaded yet
+    let guarantorsData = props.guarantorsData
+    if ((!guarantorsData || guarantorsData.length === 0) && props.tenancy?.id) {
+      try {
+        const token = authStore.session?.access_token
+        if (token) {
+          const gResp = await authFetch(
+            `${API_URL}/api/tenancies/records/${props.tenancy.id}/guarantors`,
+            { token }
+          )
+          if (gResp.ok) {
+            const gData = await gResp.json()
+            if (gData.guarantors && gData.guarantors.length > 0) {
+              guarantorsData = gData.guarantors
+            }
+          }
+        }
+      } catch (gErr) {
+        console.error('[AgreementModal] Failed to fetch guarantors:', gErr)
+      }
+    }
+
     prefillFromTenancy(props.tenancy, {
       landlords: props.landlords,
       specialClauses: props.specialClauses,
       tenantAddresses: props.tenantAddresses,
-      guarantorsData: props.guarantorsData
+      guarantorsData
     })
 
     // Authoritative re-fetch of special clauses directly from the property,

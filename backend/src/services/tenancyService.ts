@@ -1071,13 +1071,14 @@ export async function updateTenancyTenant(
     updateData.tenant_phone_encrypted = input.phone ? encrypt(input.phone) : null
   }
 
-  // Handle lead tenant update - needs atomic swap to avoid unique constraint violation
+  // Handle lead tenant update - only if lead status is actually changing
   if (input.isLeadTenant !== undefined) {
-    const tenancyId = existing.tenancy_id
-    const usedOrders = await getUsedTenantOrders(tenancyId)
+    const currentIsLead = existing.is_lead_tenant || existing.tenant_order === 1
 
-    if (input.isLeadTenant) {
-      // When promoting to lead, first demote the current lead tenant
+    if (input.isLeadTenant && !currentIsLead) {
+      // Promoting to lead — first demote the current lead tenant
+      const tenancyId = existing.tenancy_id
+      const usedOrders = await getUsedTenantOrders(tenancyId)
       const demoteOrder = firstFreeOrder(usedOrders, 2)
 
       const { error: demoteError } = await supabase
@@ -1090,22 +1091,23 @@ export async function updateTenancyTenant(
         .eq('tenancy_id', tenancyId)
         .eq('tenant_order', 1)
         .eq('is_active', true)
-        .neq('id', tenantId) // Don't demote the tenant we're promoting
+        .neq('id', tenantId)
 
       if (demoteError) {
         console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
-        // Continue anyway - there might not be an existing lead
       }
 
-      // Now set this tenant as lead
       updateData.tenant_order = 1
       updateData.is_lead_tenant = true
-    } else {
+    } else if (!input.isLeadTenant && currentIsLead) {
       // Demoting from lead — find a free order slot
+      const tenancyId = existing.tenancy_id
+      const usedOrders = await getUsedTenantOrders(tenancyId)
       const demoteOrder = firstFreeOrder(usedOrders, 2)
       updateData.tenant_order = demoteOrder
       updateData.is_lead_tenant = false
     }
+    // If lead status isn't changing, don't touch tenant_order at all
   }
 
   // Handle rent share updates
