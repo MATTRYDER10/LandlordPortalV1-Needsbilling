@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
-    "build": "tsc && cp -r email-templates dist/email-templates && cp -r sms-templates dist/sms-templates && cp -r assets dist/assets && cp -r Contracts dist/Contracts",
+    "build": "tsc && cp -r email-templates dist/email-templates && cp -r sms-templates dist/sms-templates && cp -r assets dist/assets && cp -r Contracts dist/Contracts && cp src/services/goosebot-knowledge.md dist/services/goosebot-knowledge.md",
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
