@@ -177,7 +177,44 @@
             </button>
           </div>
 
-          <!-- REFEREE Actions (only for referee chase type, not in cooldown) -->
+          <!-- TENANT/GUARANTOR/UPLOAD Actions (resend form, SMS, call) -->
+          <div v-if="(item.chase_type === 'TENANT' || item.chase_type === 'GUARANTOR' || item.chase_type === 'UPLOAD') && !item.in_cooldown" class="mt-3 flex flex-wrap gap-2">
+            <button
+              @click="resendForm(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 disabled:opacity-50"
+            >
+              <Mail class="w-4 h-4" />
+              Resend Email
+            </button>
+            <button
+              v-if="item.referee_phone"
+              @click="sendSms(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 disabled:opacity-50"
+            >
+              <MessageSquare class="w-4 h-4" />
+              Send SMS
+            </button>
+            <button
+              @click="logCall(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 disabled:opacity-50"
+            >
+              <Phone class="w-4 h-4" />
+              Log Call
+            </button>
+            <button
+              @click="markReceived(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400 disabled:opacity-50"
+            >
+              <CheckCircle class="w-4 h-4" />
+              Received
+            </button>
+          </div>
+
+          <!-- REFEREE Actions (full action set including verbal reference) -->
           <div v-if="item.chase_type === 'REFEREE' && !item.in_cooldown" class="mt-3 flex flex-wrap gap-2">
             <button
               @click="resendEmail(item)"
