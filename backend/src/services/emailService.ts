@@ -125,14 +125,11 @@ const LOCAL_URL_PATTERN = /(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\
 type ReferenceType = 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
 
 /**
- * Check if we should allow local URLs (for local testing only)
- * NEVER allow in production, even if USE_LOCAL_EMAIL_LINKS is set
+ * NEVER allow local URLs in emails — always rewrite to production.
+ * Emails go to real people, even when running locally.
  */
 function shouldAllowLocalUrls(): boolean {
-  if (process.env.NODE_ENV === 'production') {
-    return false;
-  }
-  return process.env.USE_LOCAL_EMAIL_LINKS === 'true';
+  return false;
 }
 
 function containsLocalUrl(input?: string): boolean {
