@@ -182,45 +182,77 @@ async function uploadFile() {
 
   uploading.value = true
   uploadProgress.value = 0
+  error.value = ''
 
-  try {
-    // Convert file to base64
-    const base64 = await fileToBase64(file.value)
+  const maxAttempts = 2
+  let attempt = 0
 
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      if (uploadProgress.value < 90) {
-        uploadProgress.value += 10
-      }
-    }, 100)
+  while (attempt < maxAttempts) {
+    attempt++
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 min timeout
 
-    const response = await fetch(props.uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        section: props.section,
-        fileType: file.value.type,
-        fileName: file.value.name,
-        fileData: base64.split(',')[1] // Remove data URL prefix
+    try {
+      // Convert file to base64
+      const base64 = await fileToBase64(file.value)
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        if (uploadProgress.value < 90) {
+          uploadProgress.value += 10
+        }
+      }, 100)
+
+      const response = await fetch(props.uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: props.section,
+          fileType: file.value.type,
+          fileName: file.value.name,
+          fileData: base64.split(',')[1] // Remove data URL prefix
+        }),
+        signal: controller.signal
       })
-    })
 
-    clearInterval(progressInterval)
+      clearTimeout(timeoutId)
+      clearInterval(progressInterval)
 
-    if (response.ok) {
-      uploadProgress.value = 100
-      uploaded.value = true
-      const data = await response.json()
-      emit('uploaded', data)
-    } else {
-      throw new Error('Upload failed')
+      if (response.ok) {
+        uploadProgress.value = 100
+        uploaded.value = true
+        const data = await response.json()
+        emit('uploaded', data)
+        return
+      } else if (response.status === 413) {
+        const data = await response.json().catch(() => ({}))
+        error.value = data.error || 'File is too large. Maximum size is 25MB.'
+        emit('error', error.value)
+        uploading.value = false
+        return
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError' && attempt < maxAttempts) {
+        console.warn(`[FileUpload] Upload timed out, retrying (attempt ${attempt}/${maxAttempts})...`)
+        uploadProgress.value = 0
+        continue
+      }
+
+      if (err.name === 'AbortError') {
+        error.value = 'Upload timed out. Please check your connection and try again.'
+      } else if (!navigator.onLine) {
+        error.value = 'No internet connection. Please reconnect and try again.'
+      } else {
+        error.value = 'Failed to upload file. Please try again.'
+      }
+      emit('error', error.value)
+      break
     }
-  } catch (err) {
-    error.value = 'Failed to upload file'
-    emit('error', error.value)
-  } finally {
-    uploading.value = false
   }
+
+  uploading.value = false
 }
 
 function fileToBase64(file: File): Promise<string> {

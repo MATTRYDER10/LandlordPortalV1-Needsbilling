@@ -565,11 +565,74 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
     // Also extract document URLs from form_data (re-sign if they're Supabase URLs)
     if (sectionFormData.selfieUrl) evidence.selfie = { url: await resignUrl(sectionFormData.selfieUrl), filename: 'Selfie' }
     if (sectionFormData.idDocumentUrl) evidence.id_document = { url: await resignUrl(sectionFormData.idDocumentUrl), filename: 'ID Document' }
+
+    // Fallback: If no id_document from form_data, check Identity section form_data and evidence_v2
+    if (!evidence.id_document && section.section_type === 'IDENTITY') {
+      const identityFormData: any = formData.identity || {}
+      if (identityFormData.idDocumentUrl) {
+        evidence.id_document = { url: await resignUrl(identityFormData.idDocumentUrl), filename: 'ID Document' }
+      }
+      // Also check evidence_v2 table
+      if (!evidence.id_document) {
+        const { data: idEvidence } = await supabase
+          .from('evidence_v2')
+          .select('file_path, file_name, file_type')
+          .eq('reference_id', section.reference_id)
+          .eq('section_type', 'IDENTITY')
+          .or('evidence_type.eq.id_document,evidence_type.eq.document')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (idEvidence) {
+          const { data: urlData } = await supabase.storage.from('reference-documents').createSignedUrl(idEvidence.file_path, 3600)
+          evidence.id_document = { url: urlData?.signedUrl || idEvidence.file_path, filename: idEvidence.file_name || 'ID Document' }
+        }
+      }
+    }
     if (sectionFormData.passportDocUrl) evidence.rtr_document = { url: await resignUrl(sectionFormData.passportDocUrl), filename: 'Passport' }
     if (sectionFormData.alternativeDocUrl) evidence.rtr_document = { url: await resignUrl(sectionFormData.alternativeDocUrl), filename: 'Alternative ID' }
     if (sectionFormData.proofOfAddressUrl) evidence.proof_of_address = { url: await resignUrl(sectionFormData.proofOfAddressUrl), filename: 'Proof of Address' }
     if (sectionFormData.payslipsUrl) evidence.payslips = { url: await resignUrl(sectionFormData.payslipsUrl), filename: 'Payslips' }
     if (sectionFormData.taxReturnUrl) evidence.tax_return = { url: await resignUrl(sectionFormData.taxReturnUrl), filename: 'Tax Return' }
+
+    // Override with newer issue_document evidence — tenant's issue response takes priority over original form_data
+    const { data: issueDocuments } = await supabase
+      .from('evidence_v2')
+      .select('id, evidence_type, file_path, file_name, notes, created_at')
+      .eq('reference_id', section.reference_id)
+      .eq('section_type', section.section_type)
+      .in('evidence_type', ['issue_document', 'tenant_response'])
+      .order('created_at', { ascending: false })
+
+    if (issueDocuments && issueDocuments.length > 0) {
+      for (const issueDoc of issueDocuments) {
+        if (issueDoc.evidence_type === 'issue_document' && issueDoc.file_path) {
+          const { data: signedUrl } = await supabase.storage.from('reference-documents').createSignedUrl(issueDoc.file_path, 3600)
+          const url = signedUrl?.signedUrl || issueDoc.file_path
+
+          if (section.section_type === 'RTR') {
+            evidence.rtr_replacement_document = { url, filename: issueDoc.file_name || 'Updated RTR Document', isReplacement: true }
+            // Also set as main rtr_document so it's the primary display
+            evidence.rtr_document = { url, filename: issueDoc.file_name || 'Updated RTR Document', isReplacement: true }
+          } else if (section.section_type === 'IDENTITY') {
+            evidence.id_document = { url, filename: issueDoc.file_name || 'Updated ID Document', isReplacement: true }
+          } else if (section.section_type === 'INCOME') {
+            evidence.payslips = { url, filename: issueDoc.file_name || 'Updated Income Evidence', isReplacement: true }
+          } else if (section.section_type === 'RESIDENTIAL' || section.section_type === 'ADDRESS') {
+            evidence.proof_of_address = { url, filename: issueDoc.file_name || 'Updated Address Evidence', isReplacement: true }
+          }
+        }
+      }
+    }
+
+    // For RTR sections: include DOB from identity form_data for RTR verification
+    if (section.section_type === 'RTR') {
+      const identityDob = (formData.identity || {} as any).dateOfBirth
+      if (identityDob) {
+        try { sectionFormData.dateOfBirth = decrypt(identityDob) } catch { sectionFormData.dateOfBirth = identityDob }
+      }
+    }
 
     // For RTR sections: also pull the passport/ID from the Identity section if not already present
     if (section.section_type === 'RTR') {
@@ -754,6 +817,38 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
       previous_landlord_email: decrypt(reference.previous_landlord_email_encrypted)
     }
 
+    // Include pending/outstanding referee info and chase items for this section
+    let pendingReferees: any[] = []
+    let sectionChaseItems: any[] = []
+    if (section.section_type === 'INCOME' || section.section_type === 'RESIDENTIAL') {
+      const refereeTypeFilter = section.section_type === 'INCOME' ? ['EMPLOYER', 'ACCOUNTANT'] : ['LANDLORD']
+
+      // Get all referees for this section type (submitted or not)
+      const { data: allReferees } = await supabase
+        .from('referees_v2')
+        .select('id, referee_type, referee_name, referee_email_encrypted, completed_at, form_data')
+        .eq('reference_id', section.reference_id)
+        .in('referee_type', refereeTypeFilter)
+
+      pendingReferees = (allReferees || []).map(r => ({
+        id: r.id,
+        referee_type: r.referee_type,
+        referee_name: r.referee_name,
+        referee_email: decrypt(r.referee_email_encrypted) || '',
+        submitted: !!r.completed_at,
+        submitted_at: r.completed_at
+      }))
+
+      // Get chase items for this section
+      const { data: chaseItems } = await supabase
+        .from('chase_items_v2')
+        .select('id, referee_type, status, chase_count, emails_sent, sms_sent, calls_made, initial_sent_at, last_chased_at, resolved_at, resolution_type')
+        .eq('reference_id', section.reference_id)
+        .in('referee_type', refereeTypeFilter)
+
+      sectionChaseItems = chaseItems || []
+    }
+
     res.json({
       ...section,
       section_data: section.section_data || sectionFormData,
@@ -765,6 +860,8 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
       proof_of_address_for_credit: proofOfAddressForCredit,
       aml_check: amlCheck,
       referee_submissions: refereeFormData,
+      pending_referees: pendingReferees,
+      chase_items: sectionChaseItems,
       rent_share: reference.rent_share || reference.monthly_rent,
       monthly_rent: reference.monthly_rent,
       company_name: companyName,
@@ -1773,6 +1870,79 @@ router.post('/:id/review-response', authenticateStaff, async (req: StaffAuthRequ
         }
       }
 
+      // Merge new evidence from issue response into form_data so verify page shows updated data
+      try {
+        const { data: issueEvidence } = await supabase
+          .from('evidence_v2')
+          .select('id, evidence_type, file_path, file_name, notes, section_type')
+          .eq('reference_id', section.reference_id)
+          .eq('section_type', section.section_type)
+          .in('evidence_type', ['issue_document', 'tenant_response'])
+          .order('created_at', { ascending: false })
+
+        if (issueEvidence && issueEvidence.length > 0) {
+          // Get the reference to update form_data
+          const { data: reference } = await supabase
+            .from('tenant_references_v2')
+            .select('form_data')
+            .eq('id', section.reference_id)
+            .single()
+
+          if (reference?.form_data) {
+            const updatedFormData = { ...reference.form_data }
+            const sectionKey = section.section_type === 'ADDRESS' ? 'residential'
+              : section.section_type.toLowerCase()
+            const sectionFormData = { ...(updatedFormData[sectionKey] || {}) }
+
+            for (const ev of issueEvidence) {
+              if (ev.evidence_type === 'issue_document' && ev.file_path) {
+                // Get public URL for the new document
+                const { data: urlData } = supabase.storage
+                  .from('reference-documents')
+                  .getPublicUrl(ev.file_path)
+                const newUrl = urlData?.publicUrl || ev.file_path
+
+                // Update the appropriate URL field based on section type
+                if (section.section_type === 'RTR') {
+                  sectionFormData.supportingDocUrl = newUrl
+                  sectionFormData.issueReplacementDocUrl = newUrl
+                  sectionFormData.issueReplacementDocName = ev.file_name
+                } else if (section.section_type === 'IDENTITY') {
+                  sectionFormData.idDocumentUrl = newUrl
+                } else if (section.section_type === 'INCOME') {
+                  sectionFormData.payslipsUrl = newUrl
+                } else if (section.section_type === 'RESIDENTIAL' || section.section_type === 'ADDRESS') {
+                  sectionFormData.proofOfAddressUrl = newUrl
+                }
+              }
+
+              if (ev.evidence_type === 'tenant_response' && ev.notes) {
+                // Text response — could be updated share code, address, etc.
+                if (section.section_type === 'RTR') {
+                  // Store new share code (encrypt it like the original)
+                  sectionFormData.shareCode = encrypt(ev.notes.trim())
+                  sectionFormData.shareCodeUpdatedAt = new Date().toISOString()
+                }
+                sectionFormData.tenantResponseText = ev.notes
+              }
+            }
+
+            sectionFormData.evidenceUpdatedFromIssueResponse = true
+            sectionFormData.evidenceUpdatedAt = new Date().toISOString()
+            updatedFormData[sectionKey] = sectionFormData
+
+            await supabase
+              .from('tenant_references_v2')
+              .update({ form_data: updatedFormData })
+              .eq('id', section.reference_id)
+
+            console.log(`[V2 Sections] Merged ${issueEvidence.length} issue evidence record(s) into form_data for section ${id}`)
+          }
+        }
+      } catch (mergeErr) {
+        console.error('[V2 Sections] Failed to merge issue evidence into form_data (non-fatal):', mergeErr)
+      }
+
       // Set section back to READY so it enters the verify queue
       sectionData.issue_status = 'RESOLVED'
       const now = new Date().toISOString()
@@ -1781,7 +1951,7 @@ router.post('/:id/review-response', authenticateStaff, async (req: StaffAuthRequ
         .update({
           queue_status: 'READY',
           queue_entered_at: now,
-          evidence_submitted_at: section.evidence_submitted_at || now,
+          evidence_submitted_at: now,
           section_data: sectionData,
           updated_at: now
         })

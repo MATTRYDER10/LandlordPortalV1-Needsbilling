@@ -2136,6 +2136,9 @@ const calculatedAnnualIncome = computed(() => {
   if (formData.value.income.sources.includes('benefits') && formData.value.income.benefitsAmount) {
     total += formData.value.income.benefitsAmount * 12
   }
+  if (formData.value.income.sources.includes('savings') && formData.value.income.savingsAmount) {
+    total += Math.round(formData.value.income.savingsAmount * 0.9) // 90% of declared savings
+  }
   if (formData.value.income.sources.includes('pension') && formData.value.income.pensionAmount) {
     total += formData.value.income.pensionAmount * 12
   }

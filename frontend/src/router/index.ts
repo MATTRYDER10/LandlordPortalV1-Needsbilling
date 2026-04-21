@@ -841,7 +841,9 @@ const handleChunkError = (err: any) => {
   try {
     const alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG)
     if (alreadyReloaded) {
-      console.error('[Router] Chunk load error after reload — not retrying:', err)
+      // Second failure — show visible update banner instead of failing silently
+      console.error('[Router] Chunk load error after reload — showing update banner:', err)
+      showUpdateBanner()
       return
     }
     sessionStorage.setItem(RELOAD_FLAG, '1')
@@ -851,6 +853,20 @@ const handleChunkError = (err: any) => {
   } catch (e) {
     console.error('[Router] Failed to recover from chunk error:', e)
   }
+}
+
+function showUpdateBanner() {
+  if (document.getElementById('pg-update-banner')) return
+  const banner = document.createElement('div')
+  banner.id = 'pg-update-banner'
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f97316;color:white;padding:12px 16px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;'
+  banner.innerHTML = `
+    <span>A new version of PropertyGoose is available.</span>
+    <button onclick="sessionStorage.removeItem('pg_chunk_reload_attempted');window.location.reload()" style="padding:6px 16px;background:white;color:#f97316;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">
+      Update Now
+    </button>
+  `
+  document.body.prepend(banner)
 }
 
 // Clear the reload flag on any successful navigation so future stale-chunk

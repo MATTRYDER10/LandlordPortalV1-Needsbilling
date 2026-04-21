@@ -39,6 +39,23 @@
         <p class="detail-value">{{ nationality }}</p>
       </div>
 
+      <!-- Date of Birth -->
+      <div v-if="dateOfBirth" class="detail-item">
+        <p class="detail-label">Date of Birth</p>
+        <p class="detail-value">{{ formatDate(dateOfBirth) }}</p>
+      </div>
+
+      <!-- ID Document (from Identity section, shown here for RTR verification) -->
+      <div v-if="idDocumentUrl" class="document-section">
+        <h4 class="subsection-title">ID Document</h4>
+        <div class="image-container">
+          <img :src="idDocumentUrl" alt="ID Document" class="document-image" @error="idImageError = true" />
+        </div>
+        <a :href="idDocumentUrl" target="_blank" class="download-link">
+          <Download :size="14" /> Download Document
+        </a>
+      </div>
+
       <!-- BRITISH CITIZEN SECTION -->
       <template v-if="isBritishCitizen">
         <!-- British Passport -->
@@ -241,9 +258,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FileText, Check, X, Minus } from 'lucide-vue-next'
+import { FileText, Check, X, Minus, Download } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
+
+const idImageError = ref(false)
 
 const props = defineProps<{
   section: VerificationSection
@@ -270,6 +289,9 @@ const props = defineProps<{
   rtrIndefiniteLeave?: boolean
   rtrVerificationMethod?: string
   rtrVerificationNotes?: string
+  // Cross-section data for RTR verification
+  dateOfBirth?: string
+  idDocumentUrl?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -630,6 +652,24 @@ const britishAltDocTypeLabel = computed(() => {
   max-width: 100%;
   max-height: 300px;
   object-fit: contain;
+}
+
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.download-link:hover {
+  background: #e5e7eb;
 }
 
 .evidence-list,

@@ -978,7 +978,7 @@
             </div>
 
             <!-- Landlord/Rental Income -->
-            <div v-if="formData.income.sources.includes('landlord_rental')" class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg space-y-4">
+            <div v-if="formData.income.sources.includes('rental_income')" class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg space-y-4">
               <h3 class="font-medium text-gray-900 dark:text-white">Landlord/Rental Income</h3>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Annual Rental Income (£) *</label>
@@ -1250,7 +1250,7 @@ const incomeSourceOptions = [
   { value: 'self_employed', label: 'Self-Employed' },
   { value: 'pension', label: 'Pension' },
   { value: 'savings', label: 'Savings' },
-  { value: 'landlord_rental', label: 'Landlord/Rental Income' }
+  { value: 'rental_income', label: 'Landlord/Rental Income' }
 ]
 
 // 4 steps for guarantors: Identity, Address, Income, Consent
@@ -1353,11 +1353,14 @@ const calculatedAnnualIncome = computed(() => {
   if (formData.value.income.sources.includes('self_employed') && formData.value.income.selfEmployedIncome) {
     total += formData.value.income.selfEmployedIncome
   }
+  if (formData.value.income.sources.includes('savings') && formData.value.income.savingsAmount) {
+    total += Math.round(formData.value.income.savingsAmount * 0.9) // 90% of declared savings
+  }
   if (formData.value.income.sources.includes('pension') && formData.value.income.pensionAmount) {
     total += formData.value.income.pensionAmount * 12
   }
-  if (formData.value.income.sources.includes('landlord_rental') && formData.value.income.rentalIncome) {
-    total += formData.value.income.rentalIncome
+  if (formData.value.income.sources.includes('rental_income') && formData.value.income.rentalIncome) {
+    total += formData.value.income.rentalIncome * 12
   }
 
   return total

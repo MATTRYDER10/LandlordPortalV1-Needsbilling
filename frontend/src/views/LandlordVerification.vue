@@ -222,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
@@ -355,17 +355,30 @@ const startCamera = async () => {
   cameraError.value = ''
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user' }, // Front-facing camera
+      video: {
+        facingMode: 'user',
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
       audio: false
     })
     cameraStream.value = stream
     showCameraStream.value = true
 
-    // Wait for next tick to ensure video element is rendered
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for Vue to render the video element
+    await nextTick()
 
     if (videoElement.value) {
       videoElement.value.srcObject = stream
+      // Wait for video metadata to load (dimensions become available)
+      await new Promise<void>((resolve) => {
+        const video = videoElement.value!
+        if (video.readyState >= 2) {
+          resolve()
+        } else {
+          video.addEventListener('loadeddata', () => resolve(), { once: true })
+        }
+      })
     }
   } catch (error: any) {
     console.error('Camera access error:', error)
@@ -373,8 +386,10 @@ const startCamera = async () => {
       cameraError.value = 'Camera access denied. Please allow camera access to take a selfie.'
     } else if (error.name === 'NotFoundError') {
       cameraError.value = 'No camera found on this device.'
+    } else if (error.name === 'NotReadableError' || error.name === 'AbortError') {
+      cameraError.value = 'Camera is in use by another app. Please close other apps using the camera and try again.'
     } else {
-      cameraError.value = 'Unable to access camera. Please try again.'
+      cameraError.value = `Unable to access camera: ${error.message || 'Please try again.'}`
     }
   }
 }
@@ -388,12 +403,21 @@ const stopCamera = () => {
 }
 
 const capturePhoto = () => {
-  if (!videoElement.value || !canvasElement.value) return
+  if (!videoElement.value || !canvasElement.value) {
+    cameraError.value = 'Camera not ready. Please try again.'
+    return
+  }
 
   const video = videoElement.value
   const canvas = canvasElement.value
   const context = canvas.getContext('2d')
   if (!context) return
+
+  // Validate video dimensions are available
+  if (!video.videoWidth || !video.videoHeight) {
+    cameraError.value = 'Camera still loading. Please wait a moment and try again.'
+    return
+  }
 
   // Set canvas size to match video
   canvas.width = video.videoWidth
@@ -416,6 +440,8 @@ const capturePhoto = () => {
 
       // Stop camera and hide stream
       stopCamera()
+    } else {
+      cameraError.value = 'Failed to capture photo. Please try again.'
     }
   }, 'image/jpeg', 0.9)
 }

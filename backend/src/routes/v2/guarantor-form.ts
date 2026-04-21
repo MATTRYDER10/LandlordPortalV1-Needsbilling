@@ -471,6 +471,39 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       })
     }
 
+    // Resolve any GUARANTOR chase items on this reference (guarantor has now submitted)
+    try {
+      const now = new Date().toISOString()
+      const { data: resolvedChases, error: chaseResolveError } = await supabase
+        .from('chase_items_v2')
+        .update({
+          status: 'RECEIVED',
+          resolution_type: 'GUARANTOR_SUBMITTED',
+          resolved_at: now,
+          updated_at: now
+        })
+        .eq('reference_id', reference.id)
+        .eq('chase_type', 'GUARANTOR')
+        .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
+        .select('id')
+
+      if (resolvedChases && resolvedChases.length > 0) {
+        console.log(`[V2 GuarantorForm] Resolved ${resolvedChases.length} GUARANTOR chase item(s) for ref ${reference.id}`)
+        await logActivity({
+          referenceId: reference.id,
+          action: 'CHASE_ITEM_RESOLVED',
+          performedBy: 'system',
+          performedByType: 'system',
+          notes: `Guarantor chase item auto-resolved: form submitted by ${identity.firstName} ${identity.lastName}`
+        })
+      }
+      if (chaseResolveError) {
+        console.error('[V2 GuarantorForm] Error resolving guarantor chase:', chaseResolveError)
+      }
+    } catch (chaseErr) {
+      console.error('[V2 GuarantorForm] Failed to resolve guarantor chase items (non-fatal):', chaseErr)
+    }
+
     return res.json({
       success: true,
       message: 'Guarantor reference submitted successfully'
@@ -735,20 +768,36 @@ async function createRefereeRequest(
       console.error(`[V2 Guarantor] Failed to send ${refereeType} referee email:`, emailError)
     }
 
-    // Create chase item
+    // Create chase item for follow-up tracking
     const sectionTypeMap: Record<string, string> = { 'EMPLOYER': 'INCOME', 'ACCOUNTANT': 'INCOME' }
     const sectionType = sectionTypeMap[refereeType]
     if (sectionType) {
-      const { data: section } = await supabase
+      let { data: section } = await supabase
         .from('reference_sections_v2')
         .select('id')
         .eq('reference_id', referenceId)
         .eq('section_type', sectionType)
         .single()
 
+      // If section missing, initialize sections then retry
+      if (!section) {
+        console.warn(`[V2 Guarantor] Section ${sectionType} missing for ${referenceId}, initializing sections now`)
+        await initializeSections(referenceId, true)
+        const retry = await supabase
+          .from('reference_sections_v2')
+          .select('id')
+          .eq('reference_id', referenceId)
+          .eq('section_type', sectionType)
+          .single()
+        section = retry.data
+      }
+
       if (section) {
         const { createChaseItem } = await import('../../services/v2/chaseServiceV2')
         await createChaseItem(referenceId, section.id, refereeType as any, { name: refereeName, email, phone: undefined })
+        console.log(`[V2 Guarantor] Created chase item for ${refereeType} referee on section ${section.id}`)
+      } else {
+        console.error(`[V2 Guarantor] CRITICAL: Could not create ${sectionType} section for guarantor ${referenceId} — chase item NOT created`)
       }
     }
 
@@ -873,9 +922,16 @@ async function triggerAutomatedChecks(
         console.error('[V2 GuarantorChecks] Failed to store AML result:', storeErr)
       }
 
-      // Update section status
+      // Update section status — auto-pass if clear with zero matches
       if (amlSection) {
-        const sectionData = {
+        const amlAutoPassEligible = (
+          result.risk_level === 'clear' &&
+          (result.total_matches || 0) === 0 &&
+          (result.sanctions_matches?.length || 0) === 0 &&
+          !sanctionsService.requiresManualReview(result)
+        )
+
+        const sectionData: Record<string, any> = {
           riskLevel: result.risk_level,
           sanctionsMatches: result.sanctions_matches?.length || 0,
           donationMatches: result.donation_matches?.length || 0,
@@ -885,10 +941,34 @@ async function triggerAutomatedChecks(
           shouldReject: sanctionsService.shouldReject(result),
           checkedAt: new Date().toISOString()
         }
-        await updateSectionStatus(amlSection.id, {
-          status: 'READY',
-          sectionData
-        })
+
+        if (amlAutoPassEligible) {
+          sectionData.autoPassApplied = true
+          sectionData.autoPassReason = 'AML screening returned CLEAR with zero matches — no PEP, sanctions, or adverse media hits'
+          sectionData.autoPassAt = new Date().toISOString()
+          sectionData.autoPassSystemVersion = process.env.npm_package_version || 'unknown'
+
+          await updateSectionStatus(amlSection.id, {
+            decision: 'PASS',
+            sectionData
+          })
+
+          await logActivity({
+            referenceId,
+            sectionId: amlSection.id,
+            action: 'AML_AUTO_PASS',
+            performedBy: 'system',
+            performedByType: 'system',
+            notes: `AML auto-passed for guarantor: risk_level=clear, total_matches=0, sanctions_matches=0.`
+          })
+
+          console.log(`[V2 GuarantorChecks] AML auto-passed for guarantor reference ${referenceId}`)
+        } else {
+          await updateSectionStatus(amlSection.id, {
+            status: 'READY',
+            sectionData
+          })
+        }
       }
 
       console.log(`[V2 GuarantorChecks] AML check completed: ${result.risk_level}`)
