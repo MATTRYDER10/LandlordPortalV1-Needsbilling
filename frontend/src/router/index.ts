@@ -304,6 +304,12 @@ const router = createRouter({
       meta: { public: true }
     },
     {
+      path: '/chat/staff/:token',
+      name: 'StaffChat',
+      component: () => import('../views/StaffChatPage.vue'),
+      meta: { public: true }
+    },
+    {
       path: '/agreements',
       component: AgreementsLayout,
       meta: { requiresAuth: true },

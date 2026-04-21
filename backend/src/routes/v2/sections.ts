@@ -535,7 +535,7 @@ router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
         : file.file_name?.includes('id') || file.evidence_type === 'id_document' ? 'id_document'
         : file.section_type === 'RTR' ? 'rtr_document'
         : file.section_type === 'INCOME' ? 'payslips'
-        : file.section_type === 'RESIDENTIAL' ? 'proof_of_address'
+        : (file.section_type === 'RESIDENTIAL' || file.section_type === 'ADDRESS') ? 'proof_of_address'
         : 'document'
 
       // Get signed URL (1 hour expiry)

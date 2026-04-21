@@ -186,7 +186,7 @@ router.get('/section-detail/:sectionId', authenticateStaff, requireFinalReviewRo
         : file.file_name?.includes('id') || file.evidence_type === 'id_document' ? 'id_document'
         : file.section_type === 'RTR' ? 'rtr_document'
         : file.section_type === 'INCOME' ? 'payslips'
-        : file.section_type === 'RESIDENTIAL' ? 'proof_of_address'
+        : (file.section_type === 'RESIDENTIAL' || file.section_type === 'ADDRESS') ? 'proof_of_address'
         : 'document'
 
       const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(file.file_path)

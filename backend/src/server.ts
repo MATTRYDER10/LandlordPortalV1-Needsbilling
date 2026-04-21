@@ -63,6 +63,7 @@ import igSettingsRoutes from './routes/ig-settings'
 import igRoutes from './routes/ig'
 import igWebhooksRoutes from './routes/ig-webhooks'
 import publicOffersRoutes from './routes/public-offers'
+import chatRoutes from './routes/chat'
 import rentgooseRoutes from './routes/rentgoose'
 import contractorsRoutes from './routes/contractors'
 import jmiSettingsRoutes from './routes/jmi-settings'
@@ -264,6 +265,7 @@ app.use('/api/review-links', reviewLinksRoutes)
 app.use('/api/settings/mydeposits', mydepositsSettingsRoutes)
 app.use('/api/mydeposits', mydepositsRoutes)
 app.use('/api/support', supportRoutes)
+app.use('/api/chat', chatRoutes)
 app.use('/api/settings/apex27', apex27SettingsRoutes)
 app.use('/api/apex27', apex27SyncRoutes)
 app.use('/api/settings/ig', igSettingsRoutes)
