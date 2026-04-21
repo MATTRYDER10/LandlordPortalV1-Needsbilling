@@ -1,3 +1,9 @@
+// Suppress EPIPE errors on stdout (occurs during deployments/restarts)
+process.stdout.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') return
+  throw err
+})
+
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'

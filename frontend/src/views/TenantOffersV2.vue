@@ -2194,7 +2194,9 @@ function openOffer(offer: any) {
 
 function closeDetailModal() {
   showDetailModal.value = false
-  selectedOffer.value = null
+  nextTick(() => {
+    selectedOffer.value = null
+  })
 }
 
 function copyToClipboard(text: string) {
