@@ -406,7 +406,14 @@ function startPolling() {
     try {
       const lastMsg = messages.value[messages.value.length - 1]
       const since = lastMsg?.created_at || ''
-      const response = await fetch(`${API_URL}/api/chat/${conversationId.value}/messages?since=${encodeURIComponent(since)}`)
+      const pollHeaders: Record<string, string> = {}
+      if (authStore.session?.access_token) {
+        pollHeaders['Authorization'] = `Bearer ${authStore.session.access_token}`
+      }
+      if (props.formToken) {
+        pollHeaders['x-chat-form-token'] = props.formToken
+      }
+      const response = await fetch(`${API_URL}/api/chat/${conversationId.value}/messages?since=${encodeURIComponent(since)}`, { headers: pollHeaders })
       const data = await response.json()
 
       if (data.messages?.length) {

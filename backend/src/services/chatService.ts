@@ -884,7 +884,7 @@ async function reportBug(
   const token = process.env.GITHUB_ISSUES_TOKEN
   if (!token) return 'Bug report noted. Our team will investigate.'
 
-  const body = `## User-Reported Issue\n\n**Reported via:** GooseBot chat\n**User type:** ${context.userType}\n**Conversation:** ${context.conversationId}\n\n### Description\n\n${description}`
+  const body = `## User-Reported Issue\n\n**Reported via:** GooseBot chat\n\n### Description\n\n${description}`
 
   const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/issues`, {
     method: 'POST',
