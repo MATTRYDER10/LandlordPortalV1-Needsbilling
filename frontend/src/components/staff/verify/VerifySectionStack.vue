@@ -49,6 +49,8 @@
       :rtr-indefinite-leave="referenceData.rtrIndefiniteLeave"
       :rtr-verification-method="referenceData.rtrVerificationMethod"
       :rtr-verification-notes="referenceData.rtrVerificationNotes"
+      :date-of-birth="referenceData.dateOfBirth"
+      :id-document-url="referenceData.idDocumentUrl"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"

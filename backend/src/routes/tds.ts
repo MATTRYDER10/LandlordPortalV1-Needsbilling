@@ -522,6 +522,7 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
       id: tenancyId,
       property: {
         address_line1: property.addressLine1,
+        address_line2: property.addressLine2 || '',
         city: property.city,
         county: property.county,
         postcode: property.postcode
@@ -835,6 +836,7 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
       id: tenancyId,
       property: {
         address_line1: property.addressLine1,
+        address_line2: property.addressLine2 || '',
         city: property.city,
         county: property.county,
         postcode: property.postcode

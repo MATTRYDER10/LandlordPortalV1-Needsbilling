@@ -219,7 +219,7 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the INCOME section to READY if it's PENDING (with evidence_status merge)
+    // Move INCOME section to READY — employer submitted their form, verify staff need to see it
     const { data: empIncSection } = await supabase
       .from('reference_sections_v2')
       .select('id, section_data')
@@ -238,11 +238,22 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
           queue_entered_at: now,
           section_data: {
             ...(empIncSection.section_data || {}),
-            evidence_status: 'REFEREE_RECEIVED'
+            evidence_status: 'REFEREE_RECEIVED',
+            employer_reference_received: true,
+            employer_reference_received_at: now
           },
           updated_at: now
         })
         .eq('id', empIncSection.id)
+
+      await logActivity({
+        referenceId: referee.reference_id,
+        sectionId: empIncSection.id,
+        action: 'INCOME_MOVED_TO_READY',
+        performedBy: 'system',
+        performedByType: 'system',
+        notes: `Employer reference submitted by ${formData.refereeName || 'employer'} — INCOME section moved to READY for verification`
+      })
     }
 
     // Resolve any chase items for this referee
@@ -361,7 +372,7 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the RESIDENTIAL section to READY if it's PENDING (with evidence_status merge)
+    // Move RESIDENTIAL section to READY — landlord submitted their form, verify staff need to see it
     const { data: llResSection } = await supabase
       .from('reference_sections_v2')
       .select('id, section_data')
@@ -380,11 +391,22 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
           queue_entered_at: now,
           section_data: {
             ...(llResSection.section_data || {}),
-            evidence_status: 'REFEREE_RECEIVED'
+            evidence_status: 'REFEREE_RECEIVED',
+            landlord_reference_received: true,
+            landlord_reference_received_at: now
           },
           updated_at: now
         })
         .eq('id', llResSection.id)
+
+      await logActivity({
+        referenceId: referee.reference_id,
+        sectionId: llResSection.id,
+        action: 'RESIDENTIAL_MOVED_TO_READY',
+        performedBy: 'system',
+        performedByType: 'system',
+        notes: `Landlord reference submitted — RESIDENTIAL section moved to READY for verification`
+      })
     }
 
     // Resolve any chase items for this referee
@@ -503,7 +525,7 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
       return res.status(500).json({ error: 'Failed to submit reference' })
     }
 
-    // Update the INCOME section to READY if it's PENDING (with evidence_status merge)
+    // Move INCOME section to READY — accountant submitted their form, verify staff need to see it
     const { data: accIncSection } = await supabase
       .from('reference_sections_v2')
       .select('id, section_data')
@@ -522,11 +544,22 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
           queue_entered_at: now,
           section_data: {
             ...(accIncSection.section_data || {}),
-            evidence_status: 'REFEREE_RECEIVED'
+            evidence_status: 'REFEREE_RECEIVED',
+            accountant_reference_received: true,
+            accountant_reference_received_at: now
           },
           updated_at: now
         })
         .eq('id', accIncSection.id)
+
+      await logActivity({
+        referenceId: referee.reference_id,
+        sectionId: accIncSection.id,
+        action: 'INCOME_MOVED_TO_READY',
+        performedBy: 'system',
+        performedByType: 'system',
+        notes: `Accountant reference submitted — INCOME section moved to READY for verification`
+      })
     }
 
     // Resolve any chase items for this referee

@@ -75,6 +75,41 @@
         </div>
       </div>
 
+      <!-- Multi-Address Score Aggregation -->
+      <div v-if="section.sectionData?.multiAddressCheck" class="multi-address-section">
+        <div class="multi-address-header">
+          <MapPin class="multi-address-icon" />
+          <h4 class="subsection-title">Multi-Address Credit Check</h4>
+          <span class="multi-address-badge">Averaged</span>
+        </div>
+        <div class="multi-address-grid">
+          <div class="address-score-item">
+            <p class="address-score-label">Current Address</p>
+            <p :class="['address-score-value', getScoreLevel(section.sectionData?.currentAddressScore)]">
+              {{ section.sectionData?.currentAddressScore ?? '—' }}
+            </p>
+          </div>
+          <div class="address-score-item">
+            <p class="address-score-label">Previous Address</p>
+            <p :class="['address-score-value', getScoreLevel(section.sectionData?.previousAddressScore)]">
+              {{ section.sectionData?.previousAddressScore ?? '—' }}
+            </p>
+          </div>
+          <div class="address-score-item highlight">
+            <p class="address-score-label">Averaged Score</p>
+            <p :class="['address-score-value', getScoreLevel(section.sectionData?.aggregatedScore)]">
+              {{ section.sectionData?.aggregatedScore ?? '—' }}
+            </p>
+          </div>
+          <div class="address-score-item">
+            <p class="address-score-label">Electoral Match (Best)</p>
+            <p :class="['address-score-value', section.sectionData?.bestElectoralMatch ? 'success' : 'warning']">
+              {{ section.sectionData?.bestElectoralMatch ? 'Matched' : 'Not Found' }}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Credit Summary -->
       <div v-if="creditSummary" class="credit-summary">
         <h4 class="subsection-title">Credit Summary</h4>
@@ -211,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle, AlertCircle, Check, FileText, Info } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle, AlertCircle, Check, FileText, Info, MapPin } from 'lucide-vue-next'
 import { computed } from 'vue'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
@@ -431,6 +466,73 @@ const formatStatus = (status?: string) => {
   font-size: 0.625rem;
   color: #9ca3af;
 }
+
+.multi-address-section {
+  padding: 1rem;
+  background: #eff6ff;
+  border-radius: 0.5rem;
+  border: 1px solid #bfdbfe;
+}
+
+.multi-address-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.multi-address-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #3b82f6;
+}
+
+.multi-address-badge {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  background: #3b82f6;
+  color: white;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.multi-address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.address-score-item {
+  padding: 0.5rem;
+  background: white;
+  border-radius: 0.375rem;
+}
+
+.address-score-item.highlight {
+  border: 2px solid #3b82f6;
+}
+
+.address-score-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 0.25rem;
+}
+
+.address-score-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.address-score-value.good { color: #059669; }
+.address-score-value.fair { color: #d97706; }
+.address-score-value.poor { color: #dc2626; }
+.address-score-value.very-poor { color: #991b1b; }
+.address-score-value.success { color: #059669; }
+.address-score-value.warning { color: #d97706; }
 
 .credit-summary,
 .flags-section,

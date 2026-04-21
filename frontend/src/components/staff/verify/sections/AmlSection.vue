@@ -22,6 +22,18 @@
         Anti-money laundering, politically exposed person (PEP), and sanctions screening results.
       </p>
 
+      <!-- Auto-Pass Banner -->
+      <div v-if="section.sectionData?.autoPassApplied" class="auto-pass-banner">
+        <CheckCircle class="auto-pass-icon" />
+        <div class="auto-pass-content">
+          <span class="auto-pass-label">Auto-Passed by System</span>
+          <p class="auto-pass-detail">{{ section.sectionData?.autoPassReason || 'AML clear with zero matches' }}</p>
+          <p v-if="section.sectionData?.autoPassAt" class="auto-pass-time">
+            {{ formatDateTime(section.sectionData.autoPassAt) }}
+          </p>
+        </div>
+      </div>
+
       <!-- Overall AML Status -->
       <div class="aml-status-card">
         <div class="aml-status-header">
@@ -120,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, FileText } from 'lucide-vue-next'
+import { Check, FileText, CheckCircle } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 
@@ -218,6 +230,48 @@ const getScoreClass = (score: number) => {
 .section-description {
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+.auto-pass-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.5rem;
+}
+
+.auto-pass-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #059669;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.auto-pass-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.auto-pass-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #065f46;
+}
+
+.auto-pass-detail {
+  font-size: 0.8rem;
+  color: #047857;
+  margin: 0;
+}
+
+.auto-pass-time {
+  font-size: 0.75rem;
+  color: #6ee7b7;
+  margin: 0;
 }
 
 .aml-status-card {

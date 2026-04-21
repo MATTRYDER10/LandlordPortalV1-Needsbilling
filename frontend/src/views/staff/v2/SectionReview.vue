@@ -103,12 +103,39 @@
           <div class="grid grid-cols-2 gap-4">
             <div v-if="section.evidence?.id_document" class="text-center">
               <p class="text-xs text-gray-500 mb-2 font-medium">ID Document</p>
-              <img
-                :src="section.evidence.id_document.url"
-                alt="ID Document"
-                class="w-full rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
-                @click="viewImage(section.evidence.id_document.url)"
-              />
+              <!-- PDF documents: show embedded viewer + download link -->
+              <template v-if="isDocumentPdf(section.evidence.id_document)">
+                <iframe
+                  :src="section.evidence.id_document.url"
+                  class="w-full rounded-lg border border-gray-200"
+                  style="height: 400px;"
+                  title="ID Document PDF"
+                />
+                <a
+                  :href="section.evidence.id_document.url"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <Download class="w-4 h-4" /> Download Document
+                </a>
+              </template>
+              <!-- Image documents: show as image -->
+              <template v-else>
+                <img
+                  :src="section.evidence.id_document.url"
+                  alt="ID Document"
+                  class="w-full rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+                  @click="viewImage(section.evidence.id_document.url)"
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                />
+                <a
+                  :href="section.evidence.id_document.url"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <Download class="w-4 h-4" /> Download Document
+                </a>
+              </template>
             </div>
             <div v-if="section.evidence?.selfie" class="text-center">
               <p class="text-xs text-gray-500 mb-2 font-medium">Selfie Photo</p>
@@ -126,13 +153,31 @@
         <!-- RTR Evidence + Gov.uk link -->
         <div v-else-if="section?.section_type === 'RTR'" class="space-y-4">
           <div v-if="section.evidence?.rtr_document" class="text-center">
-            <img
-              :src="section.evidence.rtr_document.url"
-              alt="Right to Rent Evidence"
-              class="max-h-64 mx-auto rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
-              @click="viewImage(section.evidence.rtr_document.url)"
-            />
+            <template v-if="isDocumentPdf(section.evidence.rtr_document)">
+              <iframe
+                :src="section.evidence.rtr_document.url"
+                class="w-full rounded-lg border border-gray-200"
+                style="height: 400px;"
+                title="RTR Document PDF"
+              />
+            </template>
+            <template v-else>
+              <img
+                :src="section.evidence.rtr_document.url"
+                alt="Right to Rent Evidence"
+                class="max-h-64 mx-auto rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+                @click="viewImage(section.evidence.rtr_document.url)"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+            </template>
             <p class="text-xs text-gray-400 mt-2">{{ section.evidence.rtr_document.filename || 'Right to Rent Document' }}</p>
+            <a
+              :href="section.evidence.rtr_document.url"
+              target="_blank"
+              class="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <Download class="w-4 h-4" /> Download Document
+            </a>
           </div>
           <!-- Passport from Identity section (UK citizens using passport as RTR proof) -->
           <div v-if="section.evidence?.passport" class="text-center">
@@ -622,13 +667,21 @@ import {
   ExternalLink,
   AlertCircle,
   ChevronDown,
-  RefreshCcw
+  RefreshCcw,
+  Download
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+function isDocumentPdf(doc: any): boolean {
+  if (!doc) return false
+  const url = (doc.url || '').split('?')[0].toLowerCase()
+  const filename = (doc.filename || '').toLowerCase()
+  return url.endsWith('.pdf') || filename.endsWith('.pdf') || doc.type === 'application/pdf'
+}
 
 const loading = ref(true)
 const submitting = ref(false)
@@ -1066,15 +1119,8 @@ const checklistSteps = computed(() => {
           : null
 
         incomeSteps.push({
-          title: isEmployer ? 'Review Employer Reference' : 'Review Accountant Reference',
-          checklistItems: isEmployer ? [
-            { label: 'Employment confirmed', hint: 'Employer confirms active employment' },
-            { label: 'Job title matches application', hint: 'Compare stated role' },
-            { label: 'Salary matches income evidence', hint: 'Check for consistency' }
-          ] : [
-            { label: 'Client confirmed', hint: 'Accountant confirms client relationship' },
-            { label: 'Income matches evidence', hint: 'Compare declared income' }
-          ],
+          title: isEmployer ? 'Employer Reference' : 'Accountant Reference',
+          checklistItems: [],
           evidence: {
             type: 'data',
             data: formattedData
@@ -1089,15 +1135,38 @@ const checklistSteps = computed(() => {
       // Fallback to old employer_reference field if no referee_submissions
       if (incomeReferees.length === 0 && section.value.employer_reference) {
         incomeSteps.push({
-          title: 'Review Employer Reference',
-          checklistItems: [
-            { label: 'Employment confirmed', hint: 'Employer confirms active employment' },
-            { label: 'Job title matches application', hint: 'Compare stated role' },
-            { label: 'Salary matches income evidence', hint: 'Check for consistency' }
-          ],
+          title: 'Employer Reference',
+          checklistItems: [],
           evidence: {
             type: 'data',
             data: section.value.employer_reference
+          },
+          inputFields: []
+        })
+      }
+
+      // Show pending referees that haven't submitted yet
+      const pendingIncomeReferees = (section.value.pending_referees || []).filter(
+        (r: any) => !r.submitted && (r.referee_type === 'EMPLOYER' || r.referee_type === 'ACCOUNTANT')
+      )
+      for (const pending of pendingIncomeReferees) {
+        const chaseItem = (section.value.chase_items || []).find(
+          (c: any) => c.referee_type === pending.referee_type
+        )
+        incomeSteps.push({
+          title: `Awaiting ${pending.referee_type === 'EMPLOYER' ? 'Employer' : 'Accountant'} Reference`,
+          isPending: true,
+          checklistItems: [],
+          evidence: {
+            type: 'data',
+            data: {
+              'Referee Name': pending.referee_name || 'Not provided',
+              'Referee Email': pending.referee_email || 'Not provided',
+              'Status': 'Not yet submitted',
+              'Chase Status': chaseItem?.status || 'No chase item',
+              'Times Chased': chaseItem ? `${chaseItem.chase_count || 0} (${chaseItem.emails_sent || 0} emails, ${chaseItem.sms_sent || 0} SMS, ${chaseItem.calls_made || 0} calls)` : 'N/A',
+              'First Sent': chaseItem?.initial_sent_at ? new Date(chaseItem.initial_sent_at).toLocaleDateString('en-GB') : 'Unknown'
+            }
           },
           inputFields: []
         })
@@ -1115,26 +1184,25 @@ const checklistSteps = computed(() => {
         ? `£${confirmedSavings.toLocaleString('en-GB')} (90% of £${tenantSavings.toLocaleString('en-GB')} declared)`
         : 'e.g. 10000'
 
-      // Build checklist items with savings helper if applicable
-      const incomeChecklist = [
-        { label: 'Income evidence is present', hint: 'Payslips, bank statements, or tax returns' },
-        { label: 'Evidence covers required period', hint: '3 months for employed, 12 months for self-employed' },
-        { label: 'Income amounts are consistent', hint: 'Check for irregularities' }
-      ]
-      if (tenantSavings > 0) {
-        incomeChecklist.push({
-          label: `Tenant declared £${tenantSavings.toLocaleString('en-GB')} savings — 90% (£${confirmedSavings.toLocaleString('en-GB')}) can be accounted as income`,
-          hint: 'Auto-populated below. Verify savings evidence matches declaration.'
-        })
-      }
-
       // Calculate required income for the affordability threshold
       // Required = multiplier × monthly rent (e.g. 30 × £1,275 = £38,250)
       const rentShare = section.value.rent_share || section.value.monthly_rent || 0
       const requiredMultiplier = section.value.is_guarantor ? 32 : 30
+      const requiredAnnual = rentShare * requiredMultiplier
+
+      // Single clear affordability checklist question
+      const incomeChecklist = [
+        { label: `Does income proof ${requiredMultiplier}x rent?${requiredAnnual > 0 ? ` (£${requiredAnnual.toLocaleString('en-GB')} required)` : ''}`, hint: 'Total evidenced income must meet affordability threshold' }
+      ]
+      if (tenantSavings > 0) {
+        incomeChecklist.push({
+          label: `Savings declared: £${tenantSavings.toLocaleString('en-GB')} — 90% (£${confirmedSavings.toLocaleString('en-GB')}) counts toward income`,
+          hint: 'Verify savings evidence (bank statement) matches declaration'
+        })
+      }
 
       incomeSteps.push({
-        title: 'Review Income Evidence',
+        title: 'Income Affordability Check',
         checklistItems: incomeChecklist,
         evidence: evidence.payslips ? {
           type: 'document',
@@ -1239,6 +1307,33 @@ const checklistSteps = computed(() => {
             type: 'data',
             data: section.value.landlord_reference
           } : undefined
+        })
+      }
+
+      // Show pending landlord referees that haven't submitted yet
+      const pendingLandlordReferees = (section.value.pending_referees || []).filter(
+        (r: any) => !r.submitted && r.referee_type === 'LANDLORD'
+      )
+      for (const pending of pendingLandlordReferees) {
+        const chaseItem = (section.value.chase_items || []).find(
+          (c: any) => c.referee_type === 'LANDLORD'
+        )
+        residentialSteps.push({
+          title: 'Awaiting Landlord/Agent Reference',
+          isPending: true,
+          checklistItems: [],
+          evidence: {
+            type: 'data',
+            data: {
+              'Referee Name': pending.referee_name || 'Not provided',
+              'Referee Email': pending.referee_email || 'Not provided',
+              'Status': 'Not yet submitted',
+              'Chase Status': chaseItem?.status || 'No chase item',
+              'Times Chased': chaseItem ? `${chaseItem.chase_count || 0} (${chaseItem.emails_sent || 0} emails, ${chaseItem.sms_sent || 0} SMS, ${chaseItem.calls_made || 0} calls)` : 'N/A',
+              'First Sent': chaseItem?.initial_sent_at ? new Date(chaseItem.initial_sent_at).toLocaleDateString('en-GB') : 'Unknown'
+            }
+          },
+          inputFields: []
         })
       }
 

@@ -7,17 +7,28 @@
     >
       <!-- Step Header -->
       <div
-        class="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between"
+        class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between"
+        :class="step.isPending ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-gray-50 dark:bg-slate-800'"
       >
         <div class="flex items-center gap-3">
           <div
+            v-if="step.isPending"
+            class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-400"
+          >
+            <Clock class="w-4 h-4" />
+          </div>
+          <div
+            v-else
             class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium"
             :class="getStepStatusClass(index)"
           >
             <Check v-if="isStepComplete(index)" class="w-4 h-4" />
             <span v-else>{{ index + 1 }}</span>
           </div>
-          <span class="font-medium text-gray-900 dark:text-white">{{ step.title }}</span>
+          <span class="font-medium" :class="step.isPending ? 'text-amber-700 dark:text-amber-400' : 'text-gray-900 dark:text-white'">{{ step.title }}</span>
+          <span v-if="step.isPending" class="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400 rounded-full">
+            Awaiting Response
+          </span>
         </div>
         <button
           v-if="step.hasIssue && !step.issueReason"
@@ -307,7 +318,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { Check, AlertTriangle, XCircle, Info, FileText } from 'lucide-vue-next'
+import { Check, AlertTriangle, XCircle, Info, FileText, Clock } from 'lucide-vue-next'
 
 interface ChecklistItem {
   label: string

@@ -504,6 +504,7 @@ interface TenantForm {
 const formData = ref({
   property: {
     addressLine1: '',
+    addressLine2: '',
     city: '',
     county: '',
     postcode: ''
@@ -579,6 +580,7 @@ const populateFormFromTenancy = () => {
   // Property
   formData.value.property = {
     addressLine1: p.address_line1 || '',
+    addressLine2: p.address_line2 || '',
     city: p.city || '',
     county: p.county || '',
     postcode: p.postcode || ''

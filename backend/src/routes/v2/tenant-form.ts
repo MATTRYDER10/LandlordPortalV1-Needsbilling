@@ -417,7 +417,8 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       notes: `${identity.firstName} ${identity.lastName} submitted their reference form`
     })
 
-    // Initialize sections for verification (if not already done)
+    // Initialize sections for verification — MUST complete before creating referee requests
+    // Chase items link to section IDs, so sections must exist first
     const existingSections = await supabase
       .from('reference_sections_v2')
       .select('id')
@@ -426,28 +427,51 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
 
     if (!existingSections.data?.length) {
       const sections = await initializeSections(reference.id, reference.is_guarantor || false)
-      if (!sections) {
-        console.error(`[V2] CRITICAL: Failed to initialize sections for reference ${reference.id} — chase items may not be created`)
+      if (!sections || sections.length === 0) {
+        console.error(`[V2] CRITICAL: Failed to initialize sections for reference ${reference.id} — retrying once`)
+        // Retry once after a short delay to handle DB replication lag
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const retryResult = await initializeSections(reference.id, reference.is_guarantor || false)
+        if (!retryResult || retryResult.length === 0) {
+          console.error(`[V2] CRITICAL: Section initialization failed on retry for ${reference.id}`)
+        } else {
+          console.log(`[V2] Initialized ${retryResult.length} sections for reference ${reference.id} (on retry)`)
+        }
       } else {
         console.log(`[V2] Initialized ${sections.length} sections for reference ${reference.id}`)
       }
     }
 
+    // Verify sections actually exist before creating referee requests
+    const { data: verifiedSections } = await supabase
+      .from('reference_sections_v2')
+      .select('id, section_type')
+      .eq('reference_id', reference.id)
+
+    if (!verifiedSections || verifiedSections.length === 0) {
+      console.error(`[V2] CRITICAL: No sections found after initialization for reference ${reference.id} — referee chase items cannot be created`)
+    } else {
+      console.log(`[V2] Verified ${verifiedSections.length} sections exist for reference ${reference.id}: ${verifiedSections.map(s => s.section_type).join(', ')}`)
+    }
+
     // Build tenant name for referee emails
     const tenantFullName = `${identity.firstName} ${identity.lastName}`.trim()
 
-    // Create referee requests
-    // Check if income source is student-only (no income verification needed)
+    // Create referee requests — each creates a referees_v2 record, sends email, AND creates a chase item
+    // Student-only or unemployed-only: skip income referees (guarantor handles affordability)
     const incomeSources: string[] = Array.isArray(income.sources) ? income.sources : []
-    const isStudentOnly = incomeSources.length === 1 && incomeSources.includes('student')
+    const isIncomeExempt = (
+      (incomeSources.length === 1 && (incomeSources.includes('student') || incomeSources.includes('unemployed'))) ||
+      (incomeSources.length === 2 && incomeSources.includes('student') && incomeSources.includes('unemployed'))
+    )
 
-    // Employer reference (skip if student-only — no income verification required)
-    if (income.employerRefEmail && !isStudentOnly) {
+    // Employer reference (skip if income-exempt — no income verification required)
+    if (income.employerRefEmail && !isIncomeExempt) {
       await createRefereeRequest(reference.id, reference.company_id, 'EMPLOYER', income.employerRefEmail, tenantFullName, income.employerRefName)
     }
 
-    // Accountant reference (for self-employed, skip if student-only)
-    if (income.accountantEmail && !isStudentOnly) {
+    // Accountant reference (for self-employed, skip if income-exempt)
+    if (income.accountantEmail && !isIncomeExempt) {
       await createRefereeRequest(reference.id, reference.company_id, 'ACCOUNTANT', income.accountantEmail, tenantFullName, income.accountantName)
     }
 
@@ -464,6 +488,49 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       }
     }
 
+    // Final verification: confirm all expected chase items were created
+    const hasEmployer = income.employerRefEmail && !isIncomeExempt
+    const hasAccountant = income.accountantEmail && !isIncomeExempt
+    const hasLandlord = !!(residential.currentLandlordEmail && residential.currentLivingSituation !== 'living_with_family') ||
+      !!(residential.previousAddresses || []).find((addr: any) => addr.landlordEmail && addr.landlordType !== 'Living with Family/Friends')
+
+    const { data: createdChaseItems } = await supabase
+      .from('chase_items_v2')
+      .select('id, referee_type')
+      .eq('reference_id', reference.id)
+      .in('referee_type', ['EMPLOYER', 'ACCOUNTANT', 'LANDLORD'])
+
+    const chaseTypes = new Set((createdChaseItems || []).map(c => c.referee_type))
+    const missing: string[] = []
+    if (hasEmployer && !chaseTypes.has('EMPLOYER')) missing.push('EMPLOYER')
+    if (hasAccountant && !chaseTypes.has('ACCOUNTANT')) missing.push('ACCOUNTANT')
+    if (hasLandlord && !chaseTypes.has('LANDLORD')) missing.push('LANDLORD')
+
+    if (missing.length > 0) {
+      console.error(`[V2] CRITICAL: Missing chase items for reference ${reference.id}: ${missing.join(', ')} — attempting backfill`)
+      for (const missedType of missing) {
+        const sectionTypeMap: Record<string, string> = { 'EMPLOYER': 'INCOME', 'ACCOUNTANT': 'INCOME', 'LANDLORD': 'RESIDENTIAL' }
+        const sectionType = sectionTypeMap[missedType]
+        const matchingSection = verifiedSections?.find(s => s.section_type === sectionType)
+        if (matchingSection) {
+          let refEmail = ''
+          let refName = 'Referee'
+          if (missedType === 'EMPLOYER') { refEmail = income.employerRefEmail; refName = income.employerRefName || 'Employer' }
+          if (missedType === 'ACCOUNTANT') { refEmail = income.accountantEmail; refName = income.accountantName || 'Accountant' }
+          if (missedType === 'LANDLORD') { refEmail = residential.currentLandlordEmail; refName = residential.currentLandlordName || 'Landlord' }
+
+          const backfillResult = await createChaseItem(reference.id, matchingSection.id, missedType as any, { name: refName, email: refEmail })
+          if (backfillResult) {
+            console.log(`[V2] Backfilled missing ${missedType} chase item for reference ${reference.id}`)
+          } else {
+            console.error(`[V2] FAILED to backfill ${missedType} chase item for reference ${reference.id}`)
+          }
+        }
+      }
+    } else {
+      console.log(`[V2] All expected chase items verified for reference ${reference.id}: ${Array.from(chaseTypes).join(', ')}`)
+    }
+
     // Create guarantor reference if provided
     console.log('[V2 TenantForm] Guarantor check:', { hasGuarantor: !!guarantor, firstName: guarantor?.firstName, email: guarantor?.email })
     if (guarantor && guarantor.firstName && guarantor.email) {
@@ -476,6 +543,64 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
         performedByType: 'tenant',
         notes: `Guarantor ${guarantor.firstName} ${guarantor.lastName} added (${guarantor.email})`
       })
+
+      // Create GUARANTOR chase item on the guarantor's own reference to track form submission
+      try {
+        const { data: guarantorRefRow } = await supabase
+          .from('tenant_references_v2')
+          .select('id')
+          .eq('guarantor_for_reference_id', reference.id)
+          .eq('is_guarantor', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (guarantorRefRow) {
+          // Initialize sections early so chase items can link to them later
+          const existingGuarantorSections = await supabase
+            .from('reference_sections_v2')
+            .select('id')
+            .eq('reference_id', guarantorRefRow.id)
+            .limit(1)
+
+          if (!existingGuarantorSections.data?.length) {
+            const gSections = await initializeSections(guarantorRefRow.id, true)
+            if (gSections) {
+              console.log(`[V2 TenantForm] Pre-initialized ${gSections.length} sections for guarantor ${guarantorRefRow.id}`)
+            }
+          }
+
+          // Create chase item on the guarantor reference (chase_type GUARANTOR, no section)
+          const now = new Date()
+          const cooldownUntil = new Date(now.getTime() + 12 * 60 * 60 * 1000)
+          await supabase
+            .from('chase_items_v2')
+            .insert({
+              reference_id: guarantorRefRow.id,
+              referee_type: 'EMPLOYER', // Required field — GUARANTOR type indicated via chase_type
+              chase_type: 'GUARANTOR',
+              referee_name_encrypted: encrypt(`${guarantor.firstName} ${guarantor.lastName}`),
+              referee_email_encrypted: encrypt(guarantor.email),
+              referee_phone_encrypted: guarantor.phone ? encrypt(guarantor.phone) : null,
+              status: 'IN_CHASE_QUEUE',
+              chase_queue_entered_at: now.toISOString(),
+              initial_sent_at: now.toISOString(),
+              cooldown_until: cooldownUntil.toISOString()
+            })
+
+          console.log(`[V2 TenantForm] Created GUARANTOR chase item for guarantor ref ${guarantorRefRow.id}`)
+
+          await logActivity({
+            referenceId: guarantorRefRow.id,
+            action: 'CHASE_ITEM_CREATED',
+            performedBy: 'system',
+            performedByType: 'system',
+            notes: `Guarantor chase item created to track form submission for ${guarantor.firstName} ${guarantor.lastName}`
+          })
+        }
+      } catch (chaseErr) {
+        console.error('[V2 TenantForm] Failed to create guarantor chase item (non-fatal):', chaseErr)
+      }
     }
 
     // Mark IDENTITY and RTR sections as READY (tenant provided evidence in form)
@@ -574,8 +699,13 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
 
       // INCOME evidence gate
       const isStudentIncome = incomeSources.includes('student')
-      const isStudentOnlyIncome = incomeSources.length === 1 && isStudentIncome
-      const hasIncomeReferee = !!(income.employerRefEmail || income.accountantEmail) && !isStudentOnlyIncome
+      const isUnemployedIncome = incomeSources.includes('unemployed')
+      // Student-only or unemployed-only: exempt from income verification (guarantor handles affordability)
+      const isExemptOnlyIncome = (
+        (incomeSources.length === 1 && (isStudentIncome || isUnemployedIncome)) ||
+        (incomeSources.length === 2 && isStudentIncome && isUnemployedIncome)
+      )
+      const hasIncomeReferee = !!(income.employerRefEmail || income.accountantEmail) && !isExemptOnlyIncome
 
       const { data: incSection } = await supabase
         .from('reference_sections_v2')
@@ -586,8 +716,10 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
 
       if (incSection) {
         const now = new Date().toISOString()
-        if (isStudentOnlyIncome) {
-          // Student-only income — no verification needed, move straight to READY
+        if (isExemptOnlyIncome) {
+          // Student/unemployed only — no income verification needed, move straight to READY
+          // Guarantor handles affordability proof
+          const exemptReason = isStudentIncome ? 'student' : 'unemployed'
           await supabase
             .from('reference_sections_v2')
             .update({
@@ -596,13 +728,13 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
               queue_entered_at: now,
               section_data: {
                 ...(incSection.section_data || {}),
-                evidence_status: 'STUDENT_EXEMPT',
-                income_source: 'student'
+                evidence_status: isStudentIncome ? 'STUDENT_EXEMPT' : 'UNEMPLOYED_EXEMPT',
+                income_source: incomeSources.join(', ')
               },
               updated_at: now
             })
             .eq('id', incSection.id)
-          console.log('[V2 TenantForm] Student income - INCOME section moved to READY (student exempt)')
+          console.log(`[V2 TenantForm] ${exemptReason} income - INCOME section moved to READY (exempt)`)
         } else if (hasIncomeReferee) {
           // Has employer/accountant referee — stay PENDING, wait for referee form
           await supabase
@@ -685,7 +817,10 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
 })
 
 // POST /api/v2/tenant-form/:token/upload - Upload evidence file
-router.post('/:token/upload', async (req: Request, res: Response) => {
+router.post('/:token/upload', (req: Request, _res: Response, next: Function) => {
+  req.setTimeout(300000) // 5 minutes for large file uploads
+  next()
+}, async (req: Request, res: Response) => {
   try {
     const { token } = req.params
     const { section, fileType, fileName, fileData } = req.body
@@ -702,6 +837,14 @@ router.post('/:token/upload', async (req: Request, res: Response) => {
 
     // Decode base64 file data
     const buffer = Buffer.from(fileData, 'base64')
+
+    // Validate file size (25MB max decoded)
+    const MAX_FILE_SIZE = 25 * 1024 * 1024
+    if (buffer.length > MAX_FILE_SIZE) {
+      return res.status(413).json({
+        error: `File too large. Maximum size is 25MB, received ${Math.round(buffer.length / 1024 / 1024)}MB`
+      })
+    }
 
     // Resolve content type — browsers sometimes send empty or generic types
     const mimeMap: Record<string, string> = {
@@ -1139,6 +1282,69 @@ async function triggerAutomatedChecks(
           })
 
           console.log(`[V2 AutoChecks] Previous address credit check completed: ${prevResult.status}`)
+
+          // Aggregate scores across both addresses
+          if (creditSection) {
+            const currentScore = result.riskScore ?? 0
+            const previousScore = prevResult.riskScore ?? 0
+            const avgScore = Math.round((currentScore + previousScore) / 2)
+
+            // Take BEST electoral/name match across addresses
+            const bestElectoralMatch = result.electoralRegisterMatch || prevResult.electoralRegisterMatch || false
+
+            // Determine aggregated risk level from averaged score
+            let aggregatedRiskLevel: string
+            if (avgScore >= 80) aggregatedRiskLevel = 'low'
+            else if (avgScore >= 60) aggregatedRiskLevel = 'medium'
+            else if (avgScore >= 40) aggregatedRiskLevel = 'high'
+            else aggregatedRiskLevel = 'very_high'
+
+            // Merge worst-case flags across both addresses
+            const aggregatedCcjMatch = result.ccjMatch || prevResult.ccjMatch || false
+            const aggregatedInsolvencyMatch = result.insolvencyMatch || prevResult.insolvencyMatch || false
+            const aggregatedCcjCount = (result.countyCourtJudgments?.length || 0) + (prevResult.countyCourtJudgments?.length || 0)
+            const aggregatedInsolvencyCount = (result.insolvencies?.length || 0) + (prevResult.insolvencies?.length || 0)
+
+            await updateSectionStatus(creditSection.id, {
+              status: 'READY',
+              sectionData: {
+                status: result.status,
+                riskLevel: aggregatedRiskLevel,
+                riskScore: avgScore,
+                verifyMatch: result.verifyMatch || prevResult.verifyMatch,
+                notFound: result.notFound && prevResult.notFound,
+                ccjMatch: aggregatedCcjMatch,
+                insolvencyMatch: aggregatedInsolvencyMatch,
+                electoralRegisterMatch: bestElectoralMatch,
+                deceasedRegisterMatch: result.deceasedRegisterMatch || prevResult.deceasedRegisterMatch || false,
+                ccjCount: aggregatedCcjCount,
+                insolvencyCount: aggregatedInsolvencyCount,
+                transactionId: result.transactionId || null,
+                checkedAt: new Date().toISOString(),
+                // Multi-address aggregation metadata
+                multiAddressCheck: true,
+                currentAddressScore: currentScore,
+                previousAddressScore: previousScore,
+                aggregatedScore: avgScore,
+                aggregatedRiskLevel,
+                bestElectoralMatch,
+                autoAggregated: true,
+                autoAggregatedAt: new Date().toISOString(),
+                autoAggregatedReason: `Multi-address credit scores aggregated: current=${currentScore}, previous=${previousScore}, averaged=${avgScore}`
+              }
+            })
+
+            await logActivity({
+              referenceId,
+              sectionId: creditSection.id,
+              action: 'CREDIT_MULTI_ADDRESS_AGGREGATED',
+              performedBy: 'system',
+              performedByType: 'system',
+              notes: `Multi-address credit scores aggregated: current=${currentScore}, previous=${previousScore}, averaged=${avgScore}, risk=${aggregatedRiskLevel}. Electoral match: current=${result.electoralRegisterMatch}, previous=${prevResult.electoralRegisterMatch}, best=${bestElectoralMatch}`
+            })
+
+            console.log(`[V2 AutoChecks] Aggregated multi-address credit: current=${currentScore}, previous=${previousScore}, avg=${avgScore}, risk=${aggregatedRiskLevel}`)
+          }
         } catch (prevErr: any) {
           console.error('[V2 AutoChecks] Previous address credit check failed:', prevErr.message)
         }
@@ -1178,9 +1384,16 @@ async function triggerAutomatedChecks(
         console.error('[V2 AutoChecks] Failed to store AML result:', storeErr)
       }
 
-      // Update section status
+      // Update section status — auto-pass if clear with zero matches
       if (amlSection) {
-        const sectionData = {
+        const amlAutoPassEligible = (
+          result.risk_level === 'clear' &&
+          (result.total_matches || 0) === 0 &&
+          (result.sanctions_matches?.length || 0) === 0 &&
+          !sanctionsService.requiresManualReview(result)
+        )
+
+        const sectionData: Record<string, any> = {
           riskLevel: result.risk_level,
           sanctionsMatches: result.sanctions_matches?.length || 0,
           donationMatches: result.donation_matches?.length || 0,
@@ -1190,10 +1403,36 @@ async function triggerAutomatedChecks(
           shouldReject: sanctionsService.shouldReject(result),
           checkedAt: new Date().toISOString()
         }
-        await updateSectionStatus(amlSection.id, {
-          status: 'READY',
-          sectionData
-        })
+
+        if (amlAutoPassEligible) {
+          // Auto-pass: AML clear with zero matches — no manual review needed
+          sectionData.autoPassApplied = true
+          sectionData.autoPassReason = 'AML screening returned CLEAR with zero matches — no PEP, sanctions, or adverse media hits'
+          sectionData.autoPassAt = new Date().toISOString()
+          sectionData.autoPassSystemVersion = process.env.npm_package_version || 'unknown'
+
+          await updateSectionStatus(amlSection.id, {
+            decision: 'PASS',
+            sectionData
+          })
+
+          await logActivity({
+            referenceId,
+            sectionId: amlSection.id,
+            action: 'AML_AUTO_PASS',
+            performedBy: 'system',
+            performedByType: 'system',
+            notes: `AML auto-passed: risk_level=clear, total_matches=0, sanctions_matches=0. No manual review required.`
+          })
+
+          console.log(`[V2 AutoChecks] AML auto-passed for reference ${referenceId}`)
+        } else {
+          // Needs manual review — set to READY for staff verification queue
+          await updateSectionStatus(amlSection.id, {
+            status: 'READY',
+            sectionData
+          })
+        }
       }
 
       console.log(`[V2 AutoChecks] AML check completed: ${result.risk_level}`)

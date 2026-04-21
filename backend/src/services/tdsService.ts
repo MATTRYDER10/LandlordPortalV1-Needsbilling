@@ -104,6 +104,7 @@ export async function searchLandlordByEmail(
 
 interface TenancyPayload {
   user_tenancy_reference: string
+  property_saon?: string
   property_paon: string
   property_street: string
   property_town: string
@@ -265,39 +266,78 @@ function formatDateForTDS(date: string | Date): string {
 /**
  * Parse address line to extract PAON (house number/name) and street
  */
-function parseAddressLine(addressLine1: string): { paon: string; street: string } {
-  // Try to extract house number/name from start of address
-  const match = addressLine1.match(/^(\d+[A-Za-z]?|[A-Za-z\s]+(?:House|Court|Lodge|Villa|Cottage|Flat\s+\d+))\s*,?\s*(.+)$/i)
+/**
+ * Parse address into BS7666 components for TDS.
+ * BS7666 uses: SAON (flat/unit), PAON (building number), Street
+ * Examples:
+ *   "Flat 1, 15b Church Road" → saon="Flat 1", paon="15b", street="Church Road"
+ *   "15b Church Road"         → saon=undefined, paon="15b", street="Church Road"
+ *   "The Lodge, Church Road"  → saon=undefined, paon="The Lodge", street="Church Road"
+ *   "42 High Street"          → saon=undefined, paon="42", street="High Street"
+ */
+function parseAddressLine(addressLine1: string, addressLine2?: string): { saon?: string; paon: string; street: string } {
+  const input = (addressLine1 || '').trim()
 
-  if (match) {
+  // Pattern 1: "Flat/Unit/Apt X, Nb Street" — flat + building number + street
+  const flatWithBuildingMatch = input.match(/^((?:Flat|Unit|Apt|Apartment|Room|Suite)\s+\d+[A-Za-z]?)\s*,\s*(\d+[A-Za-z]?)\s+(.+)$/i)
+  if (flatWithBuildingMatch) {
     return {
-      paon: match[1].trim(),
-      street: match[2].trim()
+      saon: flatWithBuildingMatch[1].trim(),
+      paon: flatWithBuildingMatch[2].trim(),
+      street: flatWithBuildingMatch[3].trim()
     }
   }
 
-  // Fallback: try to split on first comma
-  const commaIndex = addressLine1.indexOf(',')
+  // Pattern 2: "Flat/Unit X, Street Name" — flat + street (no building number)
+  const flatWithStreetMatch = input.match(/^((?:Flat|Unit|Apt|Apartment|Room|Suite)\s+\d+[A-Za-z]?)\s*,\s*(.+)$/i)
+  if (flatWithStreetMatch) {
+    const street = flatWithStreetMatch[2].trim()
+    // Check if the street part starts with a building number
+    const streetParts = street.match(/^(\d+[A-Za-z]?)\s+(.+)$/)
+    if (streetParts) {
+      return {
+        saon: flatWithStreetMatch[1].trim(),
+        paon: streetParts[1],
+        street: streetParts[2]
+      }
+    }
+    return {
+      saon: flatWithStreetMatch[1].trim(),
+      paon: flatWithStreetMatch[1].trim(),
+      street
+    }
+  }
+
+  // Pattern 3: "Nb Street" — simple house number + street (e.g. "15b Church Road", "42 High Street")
+  const numberStreetMatch = input.match(/^(\d+[A-Za-z]?)\s+(.+)$/)
+  if (numberStreetMatch) {
+    return {
+      paon: numberStreetMatch[1],
+      street: numberStreetMatch[2]
+    }
+  }
+
+  // Pattern 4: "Name, Street" — named building (e.g. "The Lodge, Church Road")
+  const commaIndex = input.indexOf(',')
   if (commaIndex > 0) {
     return {
-      paon: addressLine1.substring(0, commaIndex).trim(),
-      street: addressLine1.substring(commaIndex + 1).trim()
+      paon: input.substring(0, commaIndex).trim(),
+      street: input.substring(commaIndex + 1).trim()
     }
   }
 
-  // Last resort: try to extract leading number
-  const numberMatch = addressLine1.match(/^(\d+)\s+(.+)$/)
-  if (numberMatch) {
+  // If address_line2 is provided, use line1 as PAON and line2 as street
+  if (addressLine2) {
     return {
-      paon: numberMatch[1],
-      street: numberMatch[2]
+      paon: input || '1',
+      street: addressLine2
     }
   }
 
-  // Cannot parse - use '1' as default paon (must be valid BS7666 format, not 'N/A')
+  // Cannot parse — use full string as street with default PAON
   return {
     paon: '1',
-    street: addressLine1 || 'Unknown Street'
+    street: input || 'Unknown Street'
   }
 }
 
@@ -326,9 +366,9 @@ export async function mapTenancyToTDSPayload(
   const tenants = tenancy.tenants || []
   const landlords = tenancy.landlords || []
 
-  // Parse address
-  const addressParts = parseAddressLine(property.address_line1 || '')
-  console.log('[TDS] Parsed property address:', { input: property.address_line1, result: addressParts })
+  // Parse address — pass both line1 and line2 for proper BS7666 parsing
+  const addressParts = parseAddressLine(property.address_line1 || '', property.address_line2 || undefined)
+  console.log('[TDS] Parsed property address:', { input: property.address_line1, line2: property.address_line2, result: addressParts })
 
   // Build people array
   const people: PersonObject[] = []
@@ -469,6 +509,7 @@ export async function mapTenancyToTDSPayload(
     : 'furnished'
 
   // Ensure required property fields have values
+  const propertySaon = addressParts.saon || undefined
   const propertyPaon = addressParts.paon || '1'
   const propertyStreet = addressParts.street || property.address_line1 || 'Unknown'
   const propertyTown = property.city || 'Unknown'
@@ -479,6 +520,7 @@ export async function mapTenancyToTDSPayload(
   const depositReceivedDateFormatted = formatDateForTDS(depositReceivedDate)
 
   console.log('[TDS] Final payload fields:', {
+    property_saon: propertySaon,
     property_paon: propertyPaon,
     property_street: propertyStreet,
     property_town: propertyTown,
@@ -508,6 +550,7 @@ export async function mapTenancyToTDSPayload(
 
   const payload: TenancyPayload = {
     user_tenancy_reference: `${tenancy.id.substring(0, 8)}-${Date.now()}`,
+    ...(propertySaon ? { property_saon: propertySaon } : {}),
     property_paon: propertyPaon,
     property_street: propertyStreet,
     property_town: propertyTown,
