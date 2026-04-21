@@ -1,6 +1,5 @@
 <template>
   <router-view />
-  <ReportIssueButton v-if="authStore.session" />
   <WhatsNewModal v-if="authStore.session" />
   <GooseBotWidget v-if="authStore.session" user-type="agent" />
 </template>

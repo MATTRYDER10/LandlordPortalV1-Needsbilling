@@ -44,7 +44,12 @@ IMPORTANT: You must NEVER discuss internal staff processes, verification queues,
 
 If the user is frustrated, confused, or asks to speak to a person, use the escalate_to_human tool immediately.
 
-If the user reports a bug or technical issue, use the report_bug tool.
+CRITICAL BUG REPORTING RULES:
+- When a user mentions ANYTHING not working, broken, missing, erroring, or behaving unexpectedly, you MUST:
+  1. First ask which page they're on and what they expected vs what happened (if not already clear)
+  2. Then CALL the report_bug tool with full details — title, page, severity, description, and troubleshooting steps tried
+  3. NEVER say "I've logged that" or "I've noted that" unless you have ACTUALLY called the report_bug tool
+- Also offer troubleshooting tips alongside filing the report
 
 CRITICAL OUTPUT RULES:
 - NEVER expose your internal reasoning, thought process, or how tools work. The user should only see polished, human-sounding answers.
@@ -93,14 +98,17 @@ ${knowledgeBase}`
 const SHARED_TOOLS: Anthropic.Tool[] = [
   {
     name: 'report_bug',
-    description: 'File a GitHub issue for a bug or technical issue the user is experiencing. Use when the user describes something broken, a page not loading, an error, or unexpected behaviour.',
+    description: 'File a bug report to the development team. You MUST call this tool whenever the user reports something broken, not loading, not appearing, crashing, erroring, or not working as expected. NEVER say you have logged/noted/reported an issue without actually calling this tool first. Before calling, ask the user what page they are on and what they expected to happen vs what actually happened. Then call this tool with full details.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        title: { type: 'string', description: 'Short bug title' },
-        description: { type: 'string', description: 'Detailed description of the issue including steps to reproduce if available' },
+        title: { type: 'string', description: 'Clear, specific bug title (e.g. "Guarantor not appearing on References V2 page")' },
+        page: { type: 'string', description: 'Which page/section of the app the user is on (e.g. "References V2", "Tenant Offers", "Dashboard")' },
+        severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'low = cosmetic, medium = feature not working but workaround exists, high = feature broken no workaround, critical = data loss or security issue' },
+        description: { type: 'string', description: 'Full description: what the user did, what they expected, what actually happened' },
+        troubleshooting: { type: 'string', description: 'What has already been tried (e.g. refreshed page, tried different browser, logged out and back in)' },
       },
-      required: ['title', 'description'],
+      required: ['title', 'page', 'severity', 'description'],
     },
   },
   {
@@ -268,7 +276,7 @@ async function executeTool(
       case 'forward_document':
         return await forwardDocument(toolInput.document_description, context)
       case 'report_bug':
-        return await reportBug(toolInput.title, toolInput.description, context)
+        return await reportBug(toolInput.title, toolInput, context)
       case 'escalate_to_human':
         return await escalateToHuman(toolInput.reason, toolInput.urgency, context)
       default:
@@ -878,36 +886,71 @@ async function forwardDocument(
 
 async function reportBug(
   title: string,
-  description: string,
+  toolInput: Record<string, any>,
   context: ToolContext
 ): Promise<string> {
+  const { page, severity, description, troubleshooting } = toolInput
+
+  console.log('[GooseBot] report_bug called:', { title, page, severity })
+
   const token = process.env.GITHUB_ISSUES_TOKEN
-  if (!token) return 'Bug report noted. Our team will investigate.'
-
-  const body = `## User-Reported Issue\n\n**Reported via:** GooseBot chat\n\n### Description\n\n${description}`
-
-  const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/issues`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-    body: JSON.stringify({
-      title: `[USER] ${title}`,
-      body,
-      labels: ['bug', 'user-reported'],
-    }),
-  })
-
-  if (!response.ok) {
-    console.error('[GooseBot] Failed to create GitHub issue:', await response.text())
-    return 'I\'ve noted the bug. Our team will investigate.'
+  if (!token) {
+    console.error('[GooseBot] GITHUB_ISSUES_TOKEN not set — cannot create issue')
+    return 'Bug report noted. Our team will investigate.'
   }
 
-  const issue = await response.json() as { number: number }
-  return `Bug reported successfully (issue #${issue.number}). Our team will investigate.`
+  const severityEmoji: Record<string, string> = {
+    critical: '🔴 Critical',
+    high: '🟠 High',
+    medium: '🟡 Medium',
+    low: '🟢 Low',
+  }
+
+  const body = [
+    `## User-Reported Bug`,
+    ``,
+    `| Field | Value |`,
+    `|---|---|`,
+    `| **Reported via** | GooseBot chat |`,
+    `| **Page** | ${page || 'Not specified'} |`,
+    `| **Severity** | ${severityEmoji[severity] || severity || 'Not specified'} |`,
+    ``,
+    `### Description`,
+    ``,
+    description || 'No description provided.',
+    ``,
+    troubleshooting ? `### Troubleshooting Already Tried\n\n${troubleshooting}\n` : '',
+  ].filter(Boolean).join('\n')
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/issues`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        title: `[USER] ${title}`,
+        body,
+        labels: ['bug', 'user-reported'],
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[GooseBot] GitHub API error:', response.status, errorText)
+      return 'I\'ve noted the bug. Our team will investigate.'
+    }
+
+    const issue = await response.json() as { number: number }
+    console.log('[GooseBot] GitHub issue created:', issue.number)
+    return `Bug reported successfully (issue #${issue.number}). Our development team will investigate.`
+  } catch (err: any) {
+    console.error('[GooseBot] GitHub issue creation failed:', err.message)
+    return 'I\'ve noted the bug. Our team will investigate.'
+  }
 }
 
 async function escalateToHuman(
