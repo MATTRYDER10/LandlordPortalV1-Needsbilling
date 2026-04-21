@@ -1864,6 +1864,13 @@
       </Transition>
     </div>
   </div>
+  <GooseBotWidget
+    v-if="reference"
+    user-type="tenant"
+    :form-token="token"
+    :user-identifier="reference.tenant_email || ''"
+    :user-name="reference.tenant_name || ''"
+  />
 </template>
 
 <script setup lang="ts">
@@ -1879,6 +1886,7 @@ import FileUpload from '@/components/forms/FileUpload.vue'
 import MultiFileUpload from '@/components/forms/MultiFileUpload.vue'
 import SignaturePad from '@/components/forms/SignaturePad.vue'
 import DeviceHandoffGate from '@/components/DeviceHandoffGate.vue'
+import GooseBotWidget from '@/components/GooseBotWidget.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 import EmailInput from '@/components/EmailInput.vue'

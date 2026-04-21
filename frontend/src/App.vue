@@ -2,6 +2,7 @@
   <router-view />
   <ReportIssueButton v-if="authStore.session" />
   <WhatsNewModal v-if="authStore.session" />
+  <GooseBotWidget v-if="authStore.session" user-type="agent" />
 </template>
 
 <script setup lang="ts">
@@ -11,6 +12,7 @@ import { useAuthStore } from './stores/auth'
 import { useAdminCompanyStore } from './stores/adminCompany'
 import ReportIssueButton from './components/support/ReportIssueButton.vue'
 import WhatsNewModal from './components/WhatsNewModal.vue'
+import GooseBotWidget from './components/GooseBotWidget.vue'
 
 const authStore = useAuthStore()
 const adminCompanyStore = useAdminCompanyStore()

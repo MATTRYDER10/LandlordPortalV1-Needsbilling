@@ -260,12 +260,12 @@
 
         <!-- Address Evidence (Guarantor) -->
         <div v-else-if="section?.section_type === 'ADDRESS'" class="space-y-3">
-          <div v-if="section.evidence?.proofOfAddress" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+          <div v-if="section.evidence?.proof_of_address" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
             <div class="flex items-center gap-2">
               <FileText class="w-4 h-4 text-gray-400" />
-              <span class="text-sm">Proof of Address</span>
+              <span class="text-sm">{{ section.evidence.proof_of_address.filename || 'Proof of Address' }}</span>
             </div>
-            <a :href="section.evidence.proofOfAddress" target="_blank" class="text-primary text-sm hover:underline">View</a>
+            <a :href="section.evidence.proof_of_address.url" target="_blank" class="text-primary text-sm hover:underline">View</a>
           </div>
         </div>
 
