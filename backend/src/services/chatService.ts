@@ -393,9 +393,11 @@ async function lookupOfferStatus(
     query = query.eq('company_id', context.companyId)
   }
 
-  // Date filter
+  // Date filter — ensure we use start of day UTC
   if (input.created_since) {
-    query = query.gte('created_at', input.created_since)
+    const dateStr = input.created_since.includes('T') ? input.created_since : `${input.created_since}T00:00:00.000Z`
+    console.log('[GooseBot] Offer date filter:', dateStr)
+    query = query.gte('created_at', dateStr)
   }
 
   // Map user-friendly status to DB query
@@ -411,6 +413,7 @@ async function lookupOfferStatus(
   }
 
   const { data: offers, error } = await query.order('created_at', { ascending: false }).limit(30)
+  console.log('[GooseBot] Offers query result:', { count: offers?.length || 0, error: error?.message, filters: { status: input.status, created_since: input.created_since, company: context.companyId?.substring(0, 8) } })
   if (error || !offers?.length) return 'No offers found.'
 
   let matches = offers
