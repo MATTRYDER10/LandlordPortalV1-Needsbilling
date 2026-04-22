@@ -4373,7 +4373,8 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
             postcode_encrypted,
             bank_account_name_encrypted,
             bank_account_number_encrypted,
-            bank_sort_code_encrypted
+            bank_sort_code_encrypted,
+            agent_sign_on_behalf
           )
         )
       `)
@@ -4514,6 +4515,11 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
     })
 
     // Create agreement data
+    // Check if any landlord has agent_sign_on_behalf set
+    const anyLandlordSignOnBehalf = (property.property_landlords || []).some(
+      (pl: any) => pl.landlords?.agent_sign_on_behalf === true
+    )
+
     const agreementData = {
       company_id: companyId,
       tenancy_id: tenancy.id,
@@ -4532,7 +4538,10 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       bank_account_name: bankAccountName,
       bank_account_number: bankAccountNumber,
       bank_sort_code: bankSortCode,
-      created_by: userId
+      created_by: userId,
+      management_type: property.management_type || null,
+      agent_signs_on_behalf: anyLandlordSignOnBehalf || property.management_type === 'managed',
+      agent_email: req.user?.email || null
     }
 
     // Create agreement
