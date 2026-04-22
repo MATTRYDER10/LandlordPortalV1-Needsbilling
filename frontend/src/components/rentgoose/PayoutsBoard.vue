@@ -426,9 +426,23 @@
               <span v-else-if="dep.received_at"> &middot; received {{ formatDate(dep.received_at) }}</span>
             </p>
           </div>
-          <div class="text-right">
-            <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
-            <p class="text-[22px] font-bold text-blue-600 dark:text-blue-400">&pound;{{ formatMoney(dep.amount) }}</p>
+          <div class="text-right flex items-center gap-4">
+            <button
+              @click="payDepositToScheme(dep)"
+              :disabled="payingDepositId === dep.id"
+              :class="[
+                'rounded-lg font-semibold px-3 py-2 text-xs transition-colors whitespace-nowrap',
+                confirmingDepositPayId === dep.id
+                  ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                  : 'bg-teal-50 text-teal-700 hover:bg-teal-100 dark:bg-teal-900/20 dark:text-teal-400 dark:hover:bg-teal-900/40'
+              ]"
+            >
+              {{ confirmingDepositPayId === dep.id ? 'Confirm Payout' : 'Pay to Scheme' }}
+            </button>
+            <div>
+              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
+              <p class="text-[22px] font-bold text-blue-600 dark:text-blue-400">&pound;{{ formatMoney(dep.amount) }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -608,6 +622,36 @@ async function fetchDeposits() {
     console.error('Failed to fetch deposits:', err)
   } finally {
     depositsLoading.value = false
+  }
+}
+
+// Deposit pay to scheme — double-click pattern
+const confirmingDepositPayId = ref<string | null>(null)
+const payingDepositId = ref<string | null>(null)
+let confirmDepositPayTimer: ReturnType<typeof setTimeout> | null = null
+
+async function payDepositToScheme(dep: any) {
+  if (confirmingDepositPayId.value === dep.id) {
+    // Second click — actually pay out
+    confirmingDepositPayId.value = null
+    if (confirmDepositPayTimer) { clearTimeout(confirmDepositPayTimer); confirmDepositPayTimer = null }
+    payingDepositId.value = dep.id
+    try {
+      await post(`/api/rentgoose/deposits/${dep.id}/pay-to-scheme`, {})
+      await fetchDeposits()
+    } catch (err) {
+      console.error('Failed to pay deposit to scheme:', err)
+    } finally {
+      payingDepositId.value = null
+    }
+  } else {
+    // First click — enter confirm state
+    confirmingDepositPayId.value = dep.id
+    if (confirmDepositPayTimer) clearTimeout(confirmDepositPayTimer)
+    confirmDepositPayTimer = setTimeout(() => {
+      confirmingDepositPayId.value = null
+      confirmDepositPayTimer = null
+    }, 3000)
   }
 }
 

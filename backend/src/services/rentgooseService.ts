@@ -2422,6 +2422,62 @@ export async function markDepositReturned(
   if (error) throw error
 }
 
+/**
+ * Pay a custodial deposit out to the scheme — creates a deposit_out entry
+ * so the money leaves the client account.
+ */
+export async function payDepositToScheme(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  // Verify the deposit_in entry exists and belongs to this company
+  const { data: depositIn, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, description, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !depositIn) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check not already paid out
+  const { data: existing } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_out')
+    .eq('related_id', depositEntryId)
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    throw new Error('Deposit has already been paid out')
+  }
+
+  const depositAmount = parseFloat(depositIn.amount)
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - depositAmount
+
+  const { error } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: depositAmount,
+      description: `Deposit paid to scheme — ${depositIn.description || 'Security deposit'}`,
+      related_id: depositEntryId,
+      related_type: 'deposit_to_scheme',
+      balance_after: newBalance,
+      created_by: userId || null,
+      is_manual: false,
+    })
+
+  if (error) throw error
+}
+
 // ============================================================================
 // ARREARS
 // ============================================================================

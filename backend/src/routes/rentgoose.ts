@@ -649,6 +649,20 @@ router.post('/deposits/:id/mark-returned', authenticateToken, async (req: AuthRe
   }
 })
 
+// POST /api/rentgoose/deposits/:id/pay-to-scheme — pay out a custodial deposit to the scheme
+router.post('/deposits/:id/pay-to-scheme', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    await rentgooseService.payDepositToScheme(companyId, req.params.id, req.user?.id)
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error paying deposit to scheme:', err)
+    res.status(400).json({ error: err.message || 'Failed to pay deposit to scheme' })
+  }
+})
+
 // POST /api/rentgoose/client-account/reconcile
 router.post('/client-account/reconcile', authenticateToken, async (req: AuthRequest, res) => {
   try {
