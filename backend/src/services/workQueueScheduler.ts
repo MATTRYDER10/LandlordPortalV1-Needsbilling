@@ -434,8 +434,9 @@ export async function sendSigningReminders() {
     const now = new Date().toISOString();
     const { data: pendingSignatures, error: fetchError } = await supabaseAdmin
       .from('agreement_signatures')
-      .select('id, agreement_id, signer_name, signer_email, signer_type, signing_token, token_expires_at, last_email_sent_at, email_send_count')
+      .select('id, agreement_id, signer_name, signer_email, signer_type, signing_token, token_expires_at, last_email_sent_at, email_send_count, signed_at')
       .in('status', ['pending', 'sent', 'viewed'])
+      .is('signed_at', null) // Only chase those who haven't signed
       .gt('token_expires_at', now) // Token not expired
       .lt('last_email_sent_at', reminderThreshold.toISOString());
 

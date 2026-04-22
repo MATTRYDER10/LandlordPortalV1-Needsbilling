@@ -767,7 +767,10 @@ export async function sendFeeInvoice(
       companyName: companyName || undefined,
       email: companyEmail || undefined,
       phone: companyPhone || undefined
-    }
+    },
+    tenancyId: tenantChange.tenancy_id,
+    companyId: tenantChange.company_id,
+    emailCategory: 'tenant_change_fee_invoice'
   })
 
   // Update tenant change record with payment token
@@ -978,7 +981,10 @@ export async function confirmPaymentByTenant(
     await sendEmail({
       to: agentEmail,
       subject: `Payment Confirmed - Change of Tenant at ${propertyAddress}`,
-      html
+      html,
+      tenancyId: tenantChange.tenancy_id,
+      companyId: tenantChange.company_id,
+      emailCategory: 'tenant_change_payment_confirmed'
     })
   }
 
@@ -1485,7 +1491,10 @@ export async function sendAddendumForSigning(
         companyName: companyName || undefined,
         email: companyEmail || undefined,
         phone: companyPhone || undefined
-      }
+      },
+      tenancyId: tenantChange.tenancy_id,
+      companyId: tenantChange.company_id,
+      emailCategory: 'tenant_change_addendum_signing'
     })
 
     // Update signature status
@@ -1918,7 +1927,10 @@ export async function resendSigningEmail(
       companyName: companyName || undefined,
       email: companyEmail || undefined,
       phone: companyPhone || undefined
-    }
+    },
+    tenancyId: tenantChange.tenancy_id,
+    companyId: tenantChange.company_id,
+    emailCategory: 'tenant_change_addendum_reminder'
   })
 
   // Update signature
@@ -2299,7 +2311,10 @@ export async function finalizeTenantChange(
                 to: sig.signer_email,
                 subject: `Signed Addendum - Change of Tenant at ${propertyAddress}`,
                 html,
-                attachments: attachments.length > 0 ? attachments : undefined
+                attachments: attachments.length > 0 ? attachments : undefined,
+                tenancyId: tenantChange.tenancy_id,
+                companyId: tenantChange.company_id,
+                emailCategory: 'tenant_change_addendum_complete'
               })
 
               console.log(`[finalizeTenantChange] Sent signed addendum to ${sig.signer_email}`)

@@ -912,13 +912,34 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       if (te.tenancyId) tenancyIdsInResults.add(te.tenancyId)
     }
 
-    // Pass 1: drop references that have a converted tenancy in our results
+    // Collect all converted tenancy IDs from references to check for fallen_through
+    const refTenancyIds = [
+      ...v2Entries.filter((e: any) => e.tenancyId).map((e: any) => e.tenancyId),
+      ...v1Entries.filter((e: any) => e.tenancyId).map((e: any) => e.tenancyId),
+    ].filter((id: string) => !tenancyIdsInResults.has(id))
+
+    const fallenThroughIds = new Set<string>()
+    if (refTenancyIds.length > 0) {
+      const { data: ftTenancies } = await supabase
+        .from('tenancies')
+        .select('id')
+        .in('id', [...new Set(refTenancyIds)])
+        .eq('status', 'fallen_through')
+      for (const t of ftTenancies || []) {
+        fallenThroughIds.add(t.id)
+      }
+    }
+
+    // Pass 1: drop references whose converted tenancy is in our results
+    // OR whose converted tenancy has fallen through
     const v2Filtered = v2Entries.filter((e: any) => {
       if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      if (e.tenancyId && fallenThroughIds.has(e.tenancyId)) return false
       return true
     })
     const v1Filtered = v1Entries.filter((e: any) => {
       if (e.tenancyId && tenancyIdsInResults.has(e.tenancyId)) return false
+      if (e.tenancyId && fallenThroughIds.has(e.tenancyId)) return false
       return true
     })
 

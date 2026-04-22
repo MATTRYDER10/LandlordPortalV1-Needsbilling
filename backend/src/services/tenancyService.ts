@@ -1824,3 +1824,17 @@ export async function logTenancyActivity(
     console.log('[logTenancyActivity] Success')
   }
 }
+
+export async function getTenancyReferenceIds(tenancyId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('tenancy_tenants')
+    .select('reference_id, guarantor_reference_id')
+    .eq('tenancy_id', tenancyId)
+
+  const ids: string[] = []
+  for (const row of (data || [])) {
+    if (row.reference_id) ids.push(row.reference_id)
+    if (row.guarantor_reference_id) ids.push(row.guarantor_reference_id)
+  }
+  return ids
+}

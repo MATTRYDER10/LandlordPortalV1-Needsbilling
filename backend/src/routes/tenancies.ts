@@ -3003,7 +3003,9 @@ router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthR
       { name: companyName, email: companyEmail, phone: companyPhone },
       companyName,
       company?.logo_url,
-      agentEmail
+      agentEmail,
+      req.params.id,
+      companyId
     )
 
     // Update tenancy to mark compliance pack as sent
@@ -3406,7 +3408,9 @@ router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequ
       managementInfoHtml,
       rentPaymentHtml,
       additionalInfoHtml,
-      agentEmail
+      agentEmail,
+      req.params.id,
+      companyId
     )
 
     // Update tenancy to mark compliance pack as sent
@@ -5948,6 +5952,97 @@ router.get('/records/:id/activity', authenticateToken, async (req: AuthRequest, 
   }
 })
 
+/**
+ * GET /api/tenancies/records/:id/emails
+ * Get paginated email delivery logs for a tenancy
+ */
+router.get('/records/:id/emails', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const page = parseInt(req.query.page as string) || 1
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50)
+    const offset = (page - 1) * limit
+
+    // Get all reference IDs linked to this tenancy (tenants + guarantors)
+    const referenceIds = await tenancyService.getTenancyReferenceIds(req.params.id)
+
+    // Build query: direct tenancy_id match OR reference_id match
+    let query = supabase
+      .from('email_delivery_logs')
+      .select('id, to_email_encrypted, subject, status, email_category, bounce_type, error_message, sent_at, status_updated_at, attachment_names, created_at', { count: 'exact' })
+
+    if (referenceIds.length > 0) {
+      query = query.or(`tenancy_id.eq.${req.params.id},reference_id.in.(${referenceIds.join(',')})`)
+    } else {
+      query = query.eq('tenancy_id', req.params.id)
+    }
+
+    const { data: emails, count, error } = await query
+      .order('sent_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    // Decrypt recipient emails
+    const decryptedEmails = (emails || []).map(email => ({
+      ...email,
+      to_email: decrypt(email.to_email_encrypted) || 'Unknown',
+      to_email_encrypted: undefined
+    }))
+
+    res.json({
+      emails: decryptedEmails,
+      total: count || 0,
+      page,
+      limit
+    })
+  } catch (error: any) {
+    console.error('Error fetching tenancy emails:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * GET /api/tenancies/records/:id/emails/:emailId
+ * Get single email detail with HTML body for preview
+ */
+router.get('/records/:id/emails/:emailId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
+
+    const { data: email, error } = await supabase
+      .from('email_delivery_logs')
+      .select('*')
+      .eq('id', req.params.emailId)
+      .single()
+
+    if (error || !email) {
+      return res.status(404).json({ error: 'Email not found' })
+    }
+
+    // Verify this email belongs to the tenancy
+    const referenceIds = await tenancyService.getTenancyReferenceIds(req.params.id)
+    const belongsToTenancy = email.tenancy_id === req.params.id ||
+      (email.reference_id && referenceIds.includes(email.reference_id))
+
+    if (!belongsToTenancy) {
+      return res.status(403).json({ error: 'Email does not belong to this tenancy' })
+    }
+
+    res.json({
+      ...email,
+      to_email: decrypt(email.to_email_encrypted) || 'Unknown',
+      to_email_encrypted: undefined
+    })
+  } catch (error: any) {
+    console.error('Error fetching email detail:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // ============================================================================
 // RENT DUE DATE CHANGE
 // ============================================================================
@@ -6362,7 +6457,10 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     await sendEmail({
       to: leadTenantEmail,
       subject: `${companyName} - Rent Due Date Change Request - ${propertyAddress}`,
-      html
+      html,
+      tenancyId: req.params.id,
+      companyId,
+      emailCategory: 'rent_due_date_change_request'
     })
 
     // Update email_sent_at
@@ -6787,7 +6885,10 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
       await sendEmail({
         to: tenantEmail,
         subject: `${company?.name || 'PropertyGoose'} - Rent Due Date Changed - ${propertyAddress}`,
-        html
+        html,
+        tenancyId: req.params.id,
+        companyId,
+        emailCategory: 'rent_due_date_changed'
       })
     }
 
@@ -7076,7 +7177,10 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
     await sendEmail({
       to: leadTenantEmail,
       subject: `${company?.name || 'PropertyGoose'} - Reminder: Rent Due Date Change Request - ${propertyAddress}`,
-      html
+      html,
+      tenancyId: req.params.id,
+      companyId,
+      emailCategory: 'rent_due_date_change_reminder'
     })
 
     // Update reminder_sent_at
@@ -7524,7 +7628,10 @@ ${company?.name || 'PropertyGoose'}`,
                 <p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated notification from PropertyGoose</p>
               </div>
             </div>
-          `
+          `,
+          tenancyId: req.params.id,
+          companyId,
+          emailCategory: 'section_13_notice'
         })
         agentEmailSent = true
         console.log('[rent-increase-notice] ✓ Agent notification sent to:', company.email)
