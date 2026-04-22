@@ -176,11 +176,11 @@ async function sendChaseEmail(chase: any, dayTrigger: number): Promise<void> {
 
     // Send to tenant
     const emailCategory = `arrears_day${dayTrigger}`
-    await sendEmail({ to: tenantEmail, subject, html, companyId: tenancy.company_id, emailCategory })
+    await sendEmail({ to: tenantEmail, subject, html, companyId: tenancy.company_id, emailCategory, tenancyId })
 
     // Send to guarantor if exists
     if (guarantorEmail) {
-      await sendEmail({ to: guarantorEmail, subject, html, companyId: tenancy.company_id, emailCategory })
+      await sendEmail({ to: guarantorEmail, subject, html, companyId: tenancy.company_id, emailCategory, tenancyId })
     }
 
     // Update chase record

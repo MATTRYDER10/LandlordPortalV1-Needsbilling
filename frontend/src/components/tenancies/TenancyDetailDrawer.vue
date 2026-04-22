@@ -1341,6 +1341,170 @@
               <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Notes</p>
               <p class="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{{ tenancy.notes }}</p>
             </div>
+
+            <!-- Audit Trail & Emails -->
+            <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+              <!-- Sub-tabs -->
+              <div class="flex border-b border-gray-200 dark:border-slate-700">
+                <button
+                  @click="overviewSubTab = 'activity'"
+                  class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors flex items-center justify-center gap-2"
+                  :class="overviewSubTab === 'activity'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'"
+                >
+                  <Clock class="w-4 h-4" />
+                  Activity
+                </button>
+                <button
+                  @click="overviewSubTab = 'emails'; if (!tenancyEmails.length && !loadingEmails) loadTenancyEmails()"
+                  class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors flex items-center justify-center gap-2"
+                  :class="overviewSubTab === 'emails'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'"
+                >
+                  <Mail class="w-4 h-4" />
+                  Emails Sent
+                  <span v-if="tenancyEmailsTotal > 0" class="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 rounded-full px-2 py-0.5">
+                    {{ tenancyEmailsTotal }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Activity Sub-tab -->
+              <div v-if="overviewSubTab === 'activity'" class="p-4">
+                <div v-if="loadingActivity" class="flex items-center justify-center py-8">
+                  <Loader2 class="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+
+                <div v-else-if="!tenancyActivity.length" class="text-center py-8">
+                  <Clock class="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p class="text-sm text-gray-500 dark:text-slate-400">No activity recorded yet</p>
+                </div>
+
+                <div v-else class="relative">
+                  <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-slate-700"></div>
+                  <div class="space-y-3">
+                    <div v-for="activity in tenancyActivity.slice(0, 10)" :key="activity.id" class="relative pl-10">
+                      <div class="absolute left-2 w-5 h-5 rounded-full bg-white dark:bg-slate-800 border-2 border-gray-300 dark:border-slate-600 flex items-center justify-center text-xs">
+                        {{ getActivityIcon(activity.action) }}
+                      </div>
+                      <div class="bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-lg p-3">
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ activity.title }}</p>
+                            <p v-if="activity.description" class="text-xs text-gray-600 dark:text-slate-400 mt-0.5">{{ activity.description }}</p>
+                          </div>
+                          <span class="text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                            {{ formatActivityDate(activity.created_at) }}
+                          </span>
+                        </div>
+                        <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                          {{ activity.is_system_action ? 'System' : activity.performed_by_name }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    v-if="tenancyActivity.length > 10"
+                    @click="activeTab = 'activity'"
+                    class="mt-3 ml-10 text-sm text-primary hover:text-primary/80 font-medium"
+                  >
+                    View all {{ tenancyActivity.length }} activities →
+                  </button>
+                </div>
+              </div>
+
+              <!-- Emails Sub-tab -->
+              <div v-if="overviewSubTab === 'emails'" class="p-4">
+                <div v-if="loadingEmails" class="flex items-center justify-center py-8">
+                  <Loader2 class="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+
+                <div v-else-if="!tenancyEmails.length" class="text-center py-8">
+                  <Mail class="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p class="text-sm text-gray-500 dark:text-slate-400">No emails sent for this tenancy yet</p>
+                </div>
+
+                <div v-else>
+                  <!-- Email table -->
+                  <div class="overflow-x-auto">
+                    <table class="w-full">
+                      <thead>
+                        <tr class="border-b border-gray-200 dark:border-slate-700">
+                          <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Date</th>
+                          <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">To</th>
+                          <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Subject</th>
+                          <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</th>
+                          <th class="text-right py-2 px-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase w-16"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="email in tenancyEmails"
+                          :key="email.id"
+                          class="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-900/50 transition-colors"
+                        >
+                          <td class="py-2.5 px-3 text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                            {{ formatEmailDate(email.sent_at) }}
+                          </td>
+                          <td class="py-2.5 px-3 text-sm text-gray-700 dark:text-slate-300 max-w-[140px] truncate" :title="email.to_email">
+                            {{ email.to_email }}
+                          </td>
+                          <td class="py-2.5 px-3 text-sm text-gray-700 dark:text-slate-300 max-w-[200px] truncate" :title="email.subject">
+                            {{ email.subject }}
+                          </td>
+                          <td class="py-2.5 px-3">
+                            <span
+                              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize"
+                              :class="getEmailStatusClass(email.status)"
+                            >
+                              {{ email.status === 'delivery_delayed' ? 'delayed' : email.status }}
+                            </span>
+                          </td>
+                          <td class="py-2.5 px-3 text-right">
+                            <button
+                              @click="openEmailPreview(email.id)"
+                              class="p-1.5 text-gray-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                              title="Preview email"
+                            >
+                              <Eye class="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Pagination -->
+                  <div v-if="tenancyEmailsTotalPages > 1" class="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <button
+                      @click="changeEmailsPage(tenancyEmailsPage - 1)"
+                      :disabled="tenancyEmailsPage <= 1"
+                      class="p-1.5 rounded-lg transition-colors"
+                      :class="tenancyEmailsPage <= 1
+                        ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-slate-600'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'"
+                    >
+                      <ChevronLeft class="w-4 h-4" />
+                    </button>
+                    <span class="text-xs text-gray-500 dark:text-slate-400">
+                      Page {{ tenancyEmailsPage }} of {{ tenancyEmailsTotalPages }}
+                    </span>
+                    <button
+                      @click="changeEmailsPage(tenancyEmailsPage + 1)"
+                      :disabled="tenancyEmailsPage >= tenancyEmailsTotalPages"
+                      class="p-1.5 rounded-lg transition-colors"
+                      :class="tenancyEmailsPage >= tenancyEmailsTotalPages
+                        ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-slate-600'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'"
+                    >
+                      <ChevronRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Tenants Tab -->
@@ -3175,6 +3339,125 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Email Preview Modal -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition-opacity duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showEmailPreviewModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/50" @click="showEmailPreviewModal = false" />
+
+        <!-- Modal -->
+        <div class="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Mail class="w-5 h-5 text-primary" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Email Preview</h3>
+            </div>
+            <button
+              @click="showEmailPreviewModal = false"
+              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="loadingEmailPreview" class="flex items-center justify-center py-16">
+            <Loader2 class="w-6 h-6 animate-spin text-gray-400" />
+          </div>
+
+          <!-- Content -->
+          <template v-else-if="previewEmail">
+            <!-- Metadata -->
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 space-y-2.5 shrink-0">
+              <div class="flex items-start gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0 pt-0.5">To</span>
+                <span class="text-gray-900 dark:text-white font-medium">{{ previewEmail.to_email }}</span>
+              </div>
+              <div class="flex items-start gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0 pt-0.5">Subject</span>
+                <span class="text-gray-900 dark:text-white">{{ previewEmail.subject }}</span>
+              </div>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0">Sent</span>
+                <span class="text-gray-700 dark:text-slate-300">{{ formatEmailDate(previewEmail.sent_at) }}</span>
+              </div>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0">Status</span>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize"
+                    :class="getEmailStatusClass(previewEmail.status)"
+                  >
+                    {{ previewEmail.status === 'delivery_delayed' ? 'delayed' : previewEmail.status }}
+                  </span>
+                  <span v-if="previewEmail.status_updated_at" class="text-xs text-gray-400 dark:text-slate-500">
+                    {{ formatEmailDate(previewEmail.status_updated_at) }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="previewEmail.email_category" class="flex items-center gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0">Type</span>
+                <span class="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 rounded px-2 py-0.5">
+                  {{ formatEmailCategory(previewEmail.email_category) }}
+                </span>
+              </div>
+              <div v-if="previewEmail.bounce_type" class="flex items-center gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0">Error</span>
+                <span class="text-red-600 dark:text-red-400 text-xs">
+                  {{ previewEmail.bounce_type }} bounce{{ previewEmail.error_message ? ': ' + previewEmail.error_message : '' }}
+                </span>
+              </div>
+              <!-- Attachments -->
+              <div v-if="previewEmail.attachment_names?.length" class="flex items-start gap-3 text-sm">
+                <span class="text-gray-500 dark:text-slate-400 w-16 shrink-0 pt-0.5">Files</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="(filename, idx) in previewEmail.attachment_names"
+                    :key="idx"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 rounded text-xs"
+                  >
+                    <Paperclip class="w-3 h-3" />
+                    {{ filename }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- HTML body preview -->
+            <div class="flex-1 overflow-hidden p-4 min-h-0">
+              <div v-if="previewEmail.html_body" class="h-full">
+                <iframe
+                  :srcdoc="previewEmail.html_body"
+                  sandbox=""
+                  class="w-full h-full border border-gray-200 dark:border-slate-700 rounded-lg bg-white"
+                  style="min-height: 400px;"
+                />
+              </div>
+              <div v-else class="flex items-center justify-center h-full py-12">
+                <div class="text-center">
+                  <FileText class="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p class="text-sm text-gray-500 dark:text-slate-400">Email content not available</p>
+                  <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">This email was sent before content logging was enabled</p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -3187,7 +3470,8 @@ import {
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
-  Sparkles, Star, RefreshCw, AlertTriangle, Zap, ArrowUp, ArrowDown
+  Sparkles, Star, RefreshCw, AlertTriangle, Zap, ArrowUp, ArrowDown,
+  Eye, Paperclip, ChevronLeft, ChevronRight
 } from 'lucide-vue-next'
 import EmailInput from '@/components/EmailInput.vue'
 import EndTenancyModal from './EndTenancyModal.vue'
@@ -3538,6 +3822,16 @@ const newNoteContent = ref('')
 const addingNote = ref(false)
 const loadingActivity = ref(false)
 const activityFilter = ref<string>('all')
+
+// Audit trail & email state
+const overviewSubTab = ref<'activity' | 'emails'>('activity')
+const tenancyEmails = ref<any[]>([])
+const tenancyEmailsTotal = ref(0)
+const tenancyEmailsPage = ref(1)
+const loadingEmails = ref(false)
+const showEmailPreviewModal = ref(false)
+const previewEmail = ref<any>(null)
+const loadingEmailPreview = ref(false)
 
 const landlordData = ref<any>(null)
 const allLandlords = ref<any[]>([]) // All landlords linked to property
@@ -6662,6 +6956,85 @@ const loadTenancyActivity = async () => {
   } finally {
     loadingActivity.value = false
   }
+}
+
+const loadTenancyEmails = async () => {
+  if (!tenancy.value?.id) return
+
+  loadingEmails.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/tenancies/records/${tenancy.value.id}/emails?page=${tenancyEmailsPage.value}&limit=10`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      tenancyEmails.value = data.emails || []
+      tenancyEmailsTotal.value = data.total || 0
+    }
+  } catch (error) {
+    console.error('Error loading tenancy emails:', error)
+  } finally {
+    loadingEmails.value = false
+  }
+}
+
+const tenancyEmailsTotalPages = computed(() => Math.ceil(tenancyEmailsTotal.value / 10))
+
+const changeEmailsPage = (newPage: number) => {
+  if (newPage < 1 || newPage > tenancyEmailsTotalPages.value) return
+  tenancyEmailsPage.value = newPage
+  loadTenancyEmails()
+}
+
+const openEmailPreview = async (emailId: string) => {
+  loadingEmailPreview.value = true
+  showEmailPreviewModal.value = true
+  previewEmail.value = null
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/tenancies/records/${tenancy.value.id}/emails/${emailId}`,
+      { token }
+    )
+
+    if (response.ok) {
+      previewEmail.value = await response.json()
+    }
+  } catch (error) {
+    console.error('Error loading email preview:', error)
+  } finally {
+    loadingEmailPreview.value = false
+  }
+}
+
+const getEmailStatusClass = (status: string) => {
+  switch (status) {
+    case 'delivered': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    case 'sent': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+    case 'bounced': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+    case 'complained': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+    case 'delivery_delayed': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+  }
+}
+
+const formatEmailDate = (dateStr: string) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ' ' + date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatEmailCategory = (cat: string) => {
+  if (!cat) return ''
+  return cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
 const addNote = async () => {

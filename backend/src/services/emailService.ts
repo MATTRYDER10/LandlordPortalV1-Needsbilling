@@ -102,6 +102,7 @@ interface EmailOptions {
   referenceType?: 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
   companyId?: string;
   emailCategory?: string;
+  tenancyId?: string;
 }
 
 interface ContactDetails {
@@ -261,6 +262,8 @@ async function logEmailDelivery(data: {
   htmlBody?: string;
   companyId?: string;
   emailCategory?: string;
+  tenancyId?: string;
+  attachmentNames?: string[];
 }): Promise<void> {
   try {
     await supabase.from('email_delivery_logs').insert({
@@ -273,6 +276,8 @@ async function logEmailDelivery(data: {
       html_body: data.htmlBody || null,
       company_id: data.companyId || null,
       email_category: data.emailCategory || null,
+      tenancy_id: data.tenancyId || null,
+      attachment_names: data.attachmentNames || null,
     });
   } catch (error) {
     console.error('Failed to log email delivery:', error);
@@ -469,6 +474,8 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
             htmlBody: html,
             companyId: options.companyId,
             emailCategory: options.emailCategory,
+            tenancyId: options.tenancyId,
+            attachmentNames: options.attachments?.map(a => a.filename),
           });
         }
       }
@@ -2442,7 +2449,9 @@ export async function sendMoveInPack(
   contactDetails: { name: string; email: string; phone: string },
   companyName: string,
   agentLogoUrl?: string | null,
-  ccEmail?: string | null
+  ccEmail?: string | null,
+  tenancyId?: string,
+  companyId?: string
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2509,7 +2518,10 @@ export async function sendMoveInPack(
         companyName,
         email: contactDetails.email,
         phone: contactDetails.phone
-      }
+      },
+      tenancyId,
+      companyId,
+      emailCategory: 'move_in_pack'
     })
 
     console.log(`[sendMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
@@ -2534,7 +2546,9 @@ export async function sendEnhancedMoveInPack(
   managementInfoHtml: string,
   rentPaymentHtml: string,
   additionalInfoHtml: string,
-  ccEmail?: string | null
+  ccEmail?: string | null,
+  tenancyId?: string,
+  companyId?: string
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2610,7 +2624,10 @@ export async function sendEnhancedMoveInPack(
         companyName,
         email: contactDetails.email,
         phone: contactDetails.phone
-      }
+      },
+      tenancyId,
+      companyId,
+      emailCategory: 'move_in_pack'
     })
 
     console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
