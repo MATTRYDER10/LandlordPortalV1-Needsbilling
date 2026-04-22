@@ -294,7 +294,7 @@ export async function updateApex27TestStatus(
 /**
  * Map Apex27 property types to PG property types
  */
-function mapPropertyType(apex27Type: string | undefined): string | null {
+export function mapPropertyType(apex27Type: string | undefined): string | null {
   if (!apex27Type) return null
   const normalized = apex27Type.toLowerCase().replace(/[-_\s]+/g, '_')
   const map: Record<string, string> = {
@@ -322,7 +322,7 @@ function mapPropertyType(apex27Type: string | undefined): string | null {
 /**
  * Map Apex27 furnished status to PG furnishing_status
  */
-function mapFurnishedStatus(apex27Furnished: string | undefined): string | null {
+export function mapFurnishedStatus(apex27Furnished: string | undefined): string | null {
   if (!apex27Furnished) return null
   const map: Record<string, string> = {
     'furnished': 'furnished',
@@ -336,7 +336,7 @@ function mapFurnishedStatus(apex27Furnished: string | undefined): string | null 
 /**
  * Create an EPC compliance record from Apex27 listing data
  */
-async function createEpcComplianceRecord(
+export async function createEpcComplianceRecord(
   companyId: string,
   propertyId: string,
   listing: Apex27Listing
@@ -379,7 +379,7 @@ async function createEpcComplianceRecord(
   }
 }
 
-const EXCLUDED_STATUSES = new Set([
+export const EXCLUDED_STATUSES = new Set([
   'withdrawn', 'valuation', 'online_valuation', 'online valuation', 'pending',
   'Withdrawn', 'Valuation', 'Online Valuation', 'Pending'
 ])
@@ -390,7 +390,7 @@ const EXCLUDED_STATUSES = new Set([
  */
 export async function fetchAllListings(
   apiKey: string,
-  filters?: { branchId?: string | null }
+  filters?: { branchId?: string | null; minDtsCreatedUpdated?: string | null }
 ): Promise<{ success: boolean; listings?: Apex27Listing[]; error?: string }> {
   const allListings: Apex27Listing[] = []
   let page = 1
@@ -405,6 +405,9 @@ export async function fetchAllListings(
     }
     if (filters?.branchId) {
       params.branchId = filters.branchId
+    }
+    if (filters?.minDtsCreatedUpdated) {
+      params.minDtsCreatedUpdated = filters.minDtsCreatedUpdated
     }
 
     const result = await apex27Fetch<Apex27Listing[]>(apiKey, '/listings', params)
