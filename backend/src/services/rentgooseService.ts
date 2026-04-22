@@ -2423,6 +2423,48 @@ export async function markDepositReturned(
 }
 
 /**
+ * Delete a duplicate deposit_in entry and reverse its balance impact.
+ */
+export async function deleteDepositEntry(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  const { data: entry, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, entry_type, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !entry) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check no deposit_out references this entry (don't delete if already acted upon)
+  const { data: refs } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('related_id', depositEntryId)
+    .eq('entry_type', 'deposit_out')
+    .limit(1)
+
+  if (refs && refs.length > 0) {
+    throw new Error('Cannot delete — this deposit has already been paid out or returned')
+  }
+
+  // Delete the entry
+  const { error: delErr } = await supabase
+    .from('client_account_entries')
+    .delete()
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+
+  if (delErr) throw new Error(`Failed to delete entry: ${delErr.message}`)
+}
+
+/**
  * Pay a custodial deposit out to the scheme — creates a deposit_out entry
  * so the money leaves the client account.
  */
@@ -3840,6 +3882,15 @@ export async function receiptExpectedPayment(companyId: string, input: {
     .eq('id', input.expected_payment_id)
 
   // Process payout_split to create client_account_entries
+  // Guard against duplicate entries — check if entries already exist for this expected_payment
+  const { data: existingEntries } = await supabase
+    .from('client_account_entries')
+    .select('id, entry_type')
+    .eq('company_id', companyId)
+    .eq('related_id', input.expected_payment_id)
+    .eq('related_type', 'expected_payment')
+  const existingTypes = new Set((existingEntries || []).map(e => e.entry_type))
+
   const splits = ep.payout_split || []
   for (const split of splits) {
     let entryType: string
@@ -3869,6 +3920,12 @@ export async function receiptExpectedPayment(companyId: string, input: {
         description = split.description || ep.description
     }
 
+    // Skip if an entry of this type already exists for this expected_payment (prevent duplicates)
+    if (existingTypes.has(entryType)) {
+      console.log(`[RentGoose] Skipping duplicate ${entryType} entry for expected_payment ${input.expected_payment_id}`)
+      continue
+    }
+
     const currentBalance = await getCurrentBalance(companyId)
     const isCredit = ['initial_monies_rent_in', 'deposit_in', 'invoice_fee_in', 'holding_deposit_in'].includes(entryType)
     const newBalance = isCredit ? currentBalance + splitAmount : currentBalance - splitAmount
@@ -3887,6 +3944,7 @@ export async function receiptExpectedPayment(companyId: string, input: {
         created_by: input.receipted_by || null,
         is_manual: false,
       })
+    existingTypes.add(entryType) // Track what we just inserted
   }
 
   // If holding deposit credit is being applied, create offsetting entry

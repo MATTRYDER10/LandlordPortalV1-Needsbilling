@@ -439,6 +439,19 @@
             >
               {{ confirmingDepositPayId === dep.id ? 'Confirm Payout' : 'Pay to Scheme' }}
             </button>
+            <button
+              @click="deleteDepositEntry(dep)"
+              :disabled="deletingDepositId === dep.id"
+              :class="[
+                'rounded-lg font-semibold px-2 py-2 text-xs transition-colors whitespace-nowrap',
+                confirmingDeleteDepositId === dep.id
+                  ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                  : 'bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40'
+              ]"
+              :title="confirmingDeleteDepositId === dep.id ? 'Click again to confirm deletion' : 'Delete duplicate entry'"
+            >
+              {{ confirmingDeleteDepositId === dep.id ? 'Confirm Delete' : 'Delete' }}
+            </button>
             <div>
               <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
               <p class="text-[22px] font-bold text-blue-600 dark:text-blue-400">&pound;{{ formatMoney(dep.amount) }}</p>
@@ -651,6 +664,34 @@ async function payDepositToScheme(dep: any) {
     confirmDepositPayTimer = setTimeout(() => {
       confirmingDepositPayId.value = null
       confirmDepositPayTimer = null
+    }, 3000)
+  }
+}
+
+// Delete duplicate deposit entry — double-click pattern
+const confirmingDeleteDepositId = ref<string | null>(null)
+const deletingDepositId = ref<string | null>(null)
+let confirmDeleteDepositTimer: ReturnType<typeof setTimeout> | null = null
+
+async function deleteDepositEntry(dep: any) {
+  if (confirmingDeleteDepositId.value === dep.id) {
+    confirmingDeleteDepositId.value = null
+    if (confirmDeleteDepositTimer) { clearTimeout(confirmDeleteDepositTimer); confirmDeleteDepositTimer = null }
+    deletingDepositId.value = dep.id
+    try {
+      await post(`/api/rentgoose/deposits/${dep.id}/delete`, {})
+      await fetchDeposits()
+    } catch (err) {
+      console.error('Failed to delete deposit entry:', err)
+    } finally {
+      deletingDepositId.value = null
+    }
+  } else {
+    confirmingDeleteDepositId.value = dep.id
+    if (confirmDeleteDepositTimer) clearTimeout(confirmDeleteDepositTimer)
+    confirmDeleteDepositTimer = setTimeout(() => {
+      confirmingDeleteDepositId.value = null
+      confirmDeleteDepositTimer = null
     }, 3000)
   }
 }
