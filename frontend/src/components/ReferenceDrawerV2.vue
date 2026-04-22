@@ -138,6 +138,7 @@
                       title="Issue resolved"
                     />
                     <span
+                      v-if="section.section_type !== 'GUARANTOR'"
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
                       :class="getSectionBadgeClass(section)"
                     >
@@ -259,13 +260,13 @@
           <div v-if="hasRefereeFields">
             <h3 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Referee Details</h3>
             <div class="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
-              <template v-if="refData?.employer_ref_name">
+              <template v-if="refData?.employer_ref_name || needsEmployerRef">
                 <p class="text-xs font-medium text-gray-400 uppercase mb-1">Employer Reference</p>
                 <EditableField label="Name" :value="refData?.employer_ref_name" field="employer_ref_name" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
                 <EditableField label="Email" :value="refData?.employer_ref_email" field="employer_ref_email" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
                 <EditableField label="Phone" :value="refData?.employer_ref_phone" field="employer_ref_phone" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
               </template>
-              <template v-if="refData?.previous_landlord_name">
+              <template v-if="refData?.previous_landlord_name || needsLandlordRef">
                 <p class="text-xs font-medium text-gray-400 uppercase mb-1 mt-3">Previous Landlord</p>
                 <EditableField label="Name" :value="refData?.previous_landlord_name" field="previous_landlord_name" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
                 <EditableField label="Email" :value="refData?.previous_landlord_email" field="previous_landlord_email" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
@@ -1705,8 +1706,21 @@ function getSectionIssueStatus(section: any): string | null {
   return section.section_data?.issue_status || null
 }
 
+const needsEmployerRef = computed(() => {
+  if (!refData.value) return false
+  const sources = refData.value.form_data?.income?.sources || []
+  return sources.includes('employed') && !refData.value.employer_ref_name
+})
+
+const needsLandlordRef = computed(() => {
+  if (!refData.value) return false
+  const res = refData.value.form_data?.residential
+  const situation = res?.currentLivingSituation || ''
+  return (situation.includes('renting') || situation.includes('letting') || !!res?.currentLandlordEmail) && !refData.value.previous_landlord_name
+})
+
 const hasRefereeFields = computed(() => {
-  return !!(refData.value?.employer_ref_name || refData.value?.previous_landlord_name || refData.value?.accountant_name)
+  return !!(refData.value?.employer_ref_name || refData.value?.previous_landlord_name || refData.value?.accountant_name || needsEmployerRef.value || needsLandlordRef.value)
 })
 
 function onConverted() {

@@ -235,6 +235,14 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Reference has already been submitted' })
     }
 
+    // Validate income: employed tenants must provide employer email or payslips
+    const submittedSources = income?.sources || []
+    if (submittedSources.includes('employed') && !income.employerRefEmail?.trim() && !income.payslipsUrl) {
+      return res.status(400).json({
+        error: 'Please provide your employer contact email or upload payslips as proof of income'
+      })
+    }
+
     // Build encrypted form data
     const encryptedFormData = {
       identity: {
