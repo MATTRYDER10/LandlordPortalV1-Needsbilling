@@ -2336,8 +2336,88 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     }
   })
 
-  // Exclude landlord-held deposits — they belong in Landlord Payouts
-  return results.filter(d => !d.is_landlord_held)
+  // Exclude landlord-held deposits (belong in Landlord Payouts),
+  // reposit (no money held in client account), and no_deposit
+  const filtered = results.filter(d =>
+    !d.is_landlord_held &&
+    d.deposit_scheme !== 'reposit' &&
+    d.deposit_scheme !== 'no_deposit'
+  )
+
+  // Check for existing deposit_out entries so we can mark returned ones
+  if (filtered.length > 0) {
+    const depositInIds = filtered.map(d => d.id)
+    const { data: depositOuts } = await supabase
+      .from('client_account_entries')
+      .select('related_id')
+      .eq('company_id', companyId)
+      .eq('entry_type', 'deposit_out')
+      .eq('related_type', 'deposit_return')
+      .in('related_id', depositInIds)
+    const returnedIds = new Set((depositOuts || []).map((d: any) => d.related_id))
+    for (const dep of filtered) {
+      ;(dep as any).is_returned = returnedIds.has(dep.id)
+    }
+  }
+
+  return filtered
+}
+
+/**
+ * Mark a deposit as returned — creates a deposit_out entry in the client
+ * account, removing it from the CA balance.
+ */
+export async function markDepositReturned(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  // Verify the deposit_in entry exists and belongs to this company
+  const { data: depositIn, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, description, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !depositIn) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check not already returned
+  const { data: existing } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_out')
+    .eq('related_type', 'deposit_return')
+    .eq('related_id', depositEntryId)
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    throw new Error('Deposit has already been marked as returned')
+  }
+
+  const depositAmount = parseFloat(depositIn.amount)
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - depositAmount
+
+  const { error } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: depositAmount,
+      description: `Deposit returned — ${depositIn.description || 'Security deposit'}`,
+      related_id: depositEntryId,
+      related_type: 'deposit_return',
+      balance_after: newBalance,
+      created_by: userId || null,
+      is_manual: false,
+    })
+
+  if (error) throw error
 }
 
 // ============================================================================

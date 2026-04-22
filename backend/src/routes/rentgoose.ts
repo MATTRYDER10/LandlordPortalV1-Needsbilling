@@ -635,6 +635,20 @@ router.get('/deposits', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// POST /api/rentgoose/deposits/:id/mark-returned — mark a deposit as returned from client account
+router.post('/deposits/:id/mark-returned', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    await rentgooseService.markDepositReturned(companyId, req.params.id, req.user?.id)
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error marking deposit returned:', err)
+    res.status(400).json({ error: err.message || 'Failed to mark deposit as returned' })
+  }
+})
+
 // POST /api/rentgoose/client-account/reconcile
 router.post('/client-account/reconcile', authenticateToken, async (req: AuthRequest, res) => {
   try {
