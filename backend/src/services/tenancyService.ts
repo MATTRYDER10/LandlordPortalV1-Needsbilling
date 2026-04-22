@@ -187,6 +187,7 @@ export interface TenancyTenant {
   is_lead_tenant: boolean
   rent_share: number | null
   rent_share_percentage: number | null
+  tenant_order: number | null
   status: 'active' | 'replaced' | 'removed' | 'never_moved_in' | 'pending'
   left_date: string | null
   guarantor_reference_id: string | null
@@ -1144,6 +1145,7 @@ export async function getTenancyTenants(
     .from('tenancy_tenants')
     .select('*')
     .eq('tenancy_id', tenancyId)
+    .order('tenant_order', { ascending: true })
 
   if (!includeInactive) {
     query = query.eq('status', 'active')
@@ -1157,6 +1159,59 @@ export async function getTenancyTenants(
   }
 
   return (data || []).map(formatTenancyTenant)
+}
+
+/**
+ * Reorder tenants within a tenancy.
+ * Accepts an array of { id, tenant_order } and swaps via a temp order to avoid unique constraint violations.
+ */
+export async function reorderTenants(
+  tenancyId: string,
+  orderedTenantIds: string[]
+): Promise<void> {
+  // Fetch current tenants to validate
+  const { data: currentTenants, error: fetchError } = await supabase
+    .from('tenancy_tenants')
+    .select('id, tenant_order')
+    .eq('tenancy_id', tenancyId)
+    .eq('status', 'active')
+    .order('tenant_order', { ascending: true })
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch tenants: ${fetchError.message}`)
+  }
+
+  if (!currentTenants || currentTenants.length === 0) {
+    throw new Error('No active tenants found')
+  }
+
+  // Validate all IDs are present
+  const currentIds = new Set(currentTenants.map(t => t.id))
+  for (const id of orderedTenantIds) {
+    if (!currentIds.has(id)) {
+      throw new Error(`Tenant ${id} not found in this tenancy`)
+    }
+  }
+
+  // Move all to high temp orders first to avoid unique constraint collisions
+  const tempOffset = 10000
+  for (let i = 0; i < orderedTenantIds.length; i++) {
+    const { error } = await supabase
+      .from('tenancy_tenants')
+      .update({ tenant_order: tempOffset + i + 1 })
+      .eq('id', orderedTenantIds[i])
+    if (error) throw new Error(`Failed to set temp order: ${error.message}`)
+  }
+
+  // Now set final orders starting from 1
+  for (let i = 0; i < orderedTenantIds.length; i++) {
+    const newOrder = i + 1
+    const { error } = await supabase
+      .from('tenancy_tenants')
+      .update({ tenant_order: newOrder, is_lead_tenant: newOrder === 1 })
+      .eq('id', orderedTenantIds[i])
+    if (error) throw new Error(`Failed to reorder tenant: ${error.message}`)
+  }
 }
 
 // ============================================================================
@@ -1368,7 +1423,29 @@ export async function getTenancyGuarantors(
     throw new Error(`Failed to get guarantors: ${error.message}`)
   }
 
-  return (data || []).map(formatTenancyGuarantor)
+  const guarantors = (data || []).map(formatTenancyGuarantor)
+
+  // Sort guarantors by their linked tenant's tenant_order
+  if (guarantors.some(g => g.guarantees_tenant_id)) {
+    const tenantIds = [...new Set(guarantors.map(g => g.guarantees_tenant_id).filter(Boolean))]
+    if (tenantIds.length > 0) {
+      const { data: tenantOrders } = await supabase
+        .from('tenancy_tenants')
+        .select('id, tenant_order')
+        .in('id', tenantIds as string[])
+      const orderMap = new Map<string, number>()
+      for (const t of tenantOrders || []) {
+        orderMap.set(t.id, t.tenant_order ?? 999)
+      }
+      guarantors.sort((a, b) => {
+        const orderA = a.guarantees_tenant_id ? (orderMap.get(a.guarantees_tenant_id) ?? 999) : 999
+        const orderB = b.guarantees_tenant_id ? (orderMap.get(b.guarantees_tenant_id) ?? 999) : 999
+        return orderA - orderB
+      })
+    }
+  }
+
+  return guarantors
 }
 
 function formatTenancyGuarantor(data: any): TenancyGuarantor {
@@ -1475,9 +1552,11 @@ function formatTenancyWithRelations(data: any): Tenancy {
     }
   }
 
-  // Format tenants
+  // Format tenants sorted by tenant_order
   if (data.tenancy_tenants) {
-    tenancy.tenants = data.tenancy_tenants.map(formatTenancyTenant)
+    tenancy.tenants = data.tenancy_tenants
+      .sort((a: any, b: any) => (a.tenant_order ?? 999) - (b.tenant_order ?? 999))
+      .map(formatTenancyTenant)
   }
 
   // Format agreement and extract signing_status
@@ -1519,6 +1598,7 @@ function formatTenancyTenant(data: any): TenancyTenant {
     phone: decrypt(data.tenant_phone_encrypted),
     date_of_birth: null,
     is_lead_tenant: data.tenant_order === 1,
+    tenant_order: data.tenant_order ?? null,
     rent_share: data.rent_share_amount ? parseFloat(data.rent_share_amount) : null,
     rent_share_percentage: data.rent_share_percentage ? parseFloat(data.rent_share_percentage) : null,
     status,

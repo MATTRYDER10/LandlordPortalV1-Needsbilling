@@ -2641,6 +2641,46 @@ router.delete('/records/:id/tenants/:tenantId', authenticateToken, async (req: A
   }
 })
 
+/**
+ * PUT /api/tenancies/records/:id/tenants/reorder
+ * Reorder tenants within a tenancy
+ */
+router.put('/records/:id/tenants/reorder', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
+    if (!tenancy) {
+      return res.status(404).json({ error: 'Tenancy not found' })
+    }
+
+    const { orderedTenantIds } = req.body
+    if (!Array.isArray(orderedTenantIds) || orderedTenantIds.length === 0) {
+      return res.status(400).json({ error: 'orderedTenantIds array is required' })
+    }
+
+    await tenancyService.reorderTenants(req.params.id, orderedTenantIds)
+
+    // Log activity
+    await tenancyService.logTenancyActivity(req.params.id, {
+      action: 'TENANTS_REORDERED',
+      category: 'tenant',
+      title: 'Tenants Reordered',
+      description: 'Tenant order was updated',
+      metadata: {},
+      performedBy: req.user?.id
+    })
+
+    res.json({ success: true })
+  } catch (error: any) {
+    console.error('Error in PUT /api/tenancies/records/:id/tenants/reorder:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // ============================================================================
 // GUARANTOR ENDPOINTS
 // ============================================================================
@@ -4380,15 +4420,22 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       }
     }).filter(Boolean)
 
-    // Format tenants
-    const tenants = (tenancy.tenants || [])
-      .filter(t => t.status === 'active')
-      .map(t => ({
-        name: `${t.first_name} ${t.last_name}`.trim(),
-        email: t.email || '',
-        phone: t.phone || '',
-        is_lead_tenant: t.is_lead_tenant
-      }))
+    // Fetch tenants directly, sorted by tenant_order for correct agreement ordering
+    const { data: tenantRecords } = await supabase
+      .from('tenancy_tenants')
+      .select('id, tenant_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, tenant_order, status')
+      .eq('tenancy_id', tenancy.id)
+      .eq('status', 'active')
+      .order('tenant_order', { ascending: true })
+
+    const tenants = (tenantRecords || []).map(t => ({
+      id: t.id,
+      name: decrypt(t.tenant_name_encrypted) || '',
+      email: decrypt(t.tenant_email_encrypted) || '',
+      phone: decrypt(t.tenant_phone_encrypted) || '',
+      is_lead_tenant: t.tenant_order === 1,
+      tenant_order: t.tenant_order
+    }))
 
     if (tenants.length === 0) {
       return res.status(400).json({ error: 'No active tenants found' })
@@ -4452,6 +4499,20 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       }
     }))
 
+    // Sort guarantors to match their linked tenant's order
+    // Build a map of tenant id -> tenant_order for sorting
+    const tenantOrderMap = new Map<string, number>()
+    for (const t of tenants) {
+      if (t.id && t.tenant_order != null) {
+        tenantOrderMap.set(t.id, t.tenant_order)
+      }
+    }
+    const sortedGuarantors = [...resolvedGuarantors].sort((a, b) => {
+      const orderA = a.guarantorForTenantId ? (tenantOrderMap.get(a.guarantorForTenantId) ?? 999) : 999
+      const orderB = b.guarantorForTenantId ? (tenantOrderMap.get(b.guarantorForTenantId) ?? 999) : 999
+      return orderA - orderB
+    })
+
     // Create agreement data
     const agreementData = {
       company_id: companyId,
@@ -4461,7 +4522,7 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       property_address: propertyAddress,
       landlords: landlords,
       tenants: tenants,
-      guarantors: resolvedGuarantors,
+      guarantors: sortedGuarantors,
       deposit_amount: tenancy.deposit_amount || 0,
       rent_amount: tenancy.monthly_rent,
       tenancy_start_date: tenancy.start_date,
