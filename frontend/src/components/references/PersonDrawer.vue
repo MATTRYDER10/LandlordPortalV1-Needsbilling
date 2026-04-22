@@ -766,7 +766,40 @@
                   </div>
                   <div class="text-sm text-gray-700 dark:text-slate-300 space-y-1">
                     <p v-if="fullDetails.employer_ref_name">{{ fullDetails.employer_ref_name }}</p>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.employer_ref_email }}</p>
+                    <!-- Editable email -->
+                    <div v-if="editingEmployerEmail" class="flex items-center gap-1.5">
+                      <input
+                        v-model="editEmployerEmailValue"
+                        type="email"
+                        class="flex-1 px-2 py-1 text-xs border border-blue-300 dark:border-blue-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded focus:ring-primary focus:border-primary"
+                        @keyup.enter="saveEmployerEmail"
+                        @keyup.escape="editingEmployerEmail = false"
+                      />
+                      <button
+                        @click="saveEmployerEmail"
+                        :disabled="savingEmployerEmail"
+                        class="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {{ savingEmployerEmail ? '...' : 'Save' }}
+                      </button>
+                      <button
+                        @click="editingEmployerEmail = false"
+                        class="px-2 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div v-else class="flex items-center gap-1.5">
+                      <p class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.employer_ref_email }}</p>
+                      <button
+                        v-if="!employerRef?.submitted_at"
+                        @click="startEditEmployerEmail"
+                        class="p-0.5 text-gray-400 hover:text-primary dark:hover:text-primary rounded"
+                        title="Edit email"
+                      >
+                        <Pencil class="w-3 h-3" />
+                      </button>
+                    </div>
                     <p v-if="fullDetails.employer_ref_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.employer_ref_phone }}</p>
                   </div>
                   <!-- Response details when received -->
@@ -903,7 +936,40 @@
                       </div>
                     </div>
                     <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700 dark:text-slate-300">{{ fullDetails.previous_landlord_name }}</p>
-                    <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.previous_landlord_email }}</p>
+                    <!-- Editable email -->
+                    <div v-if="editingLandlordEmail" class="flex items-center gap-1.5">
+                      <input
+                        v-model="editLandlordEmailValue"
+                        type="email"
+                        class="flex-1 px-2 py-1 text-xs border border-blue-300 dark:border-blue-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded focus:ring-primary focus:border-primary"
+                        @keyup.enter="saveLandlordEmail"
+                        @keyup.escape="editingLandlordEmail = false"
+                      />
+                      <button
+                        @click="saveLandlordEmail"
+                        :disabled="savingLandlordEmail"
+                        class="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {{ savingLandlordEmail ? '...' : 'Save' }}
+                      </button>
+                      <button
+                        @click="editingLandlordEmail = false"
+                        class="px-2 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div v-else-if="fullDetails.previous_landlord_email" class="flex items-center gap-1.5">
+                      <p class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.previous_landlord_email }}</p>
+                      <button
+                        v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
+                        @click="startEditLandlordEmail"
+                        class="p-0.5 text-gray-400 hover:text-primary dark:hover:text-primary rounded"
+                        title="Edit email"
+                      >
+                        <Pencil class="w-3 h-3" />
+                      </button>
+                    </div>
                     <p v-if="fullDetails.previous_landlord_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.previous_landlord_phone }}</p>
                     <p v-if="fullDetails.previous_agency_name" class="text-xs text-gray-500 dark:text-slate-400">Agency: {{ fullDetails.previous_agency_name }}</p>
                   </div>
@@ -1699,6 +1765,14 @@ const loadingCertificate = ref(false)
 const resendingEmployerRef = ref(false)
 const resendingLandlordRef = ref(false)
 const resendingAccountantRef = ref(false)
+
+// Referee email editing
+const editingEmployerEmail = ref(false)
+const editingLandlordEmail = ref(false)
+const editEmployerEmailValue = ref('')
+const editLandlordEmailValue = ref('')
+const savingEmployerEmail = ref(false)
+const savingLandlordEmail = ref(false)
 
 // Toast messages
 const toastMessage = ref<string | null>(null)
@@ -2508,6 +2582,85 @@ async function handleResendLandlordRef() {
     showToast(error.message || 'Failed to resend landlord reference email', 'error')
   } finally {
     resendingLandlordRef.value = false
+  }
+}
+
+function startEditEmployerEmail() {
+  editEmployerEmailValue.value = fullDetails.value?.employer_ref_email || ''
+  editingEmployerEmail.value = true
+}
+
+function startEditLandlordEmail() {
+  editLandlordEmailValue.value = fullDetails.value?.previous_landlord_email || ''
+  editingLandlordEmail.value = true
+}
+
+async function saveEmployerEmail() {
+  if (!props.person?.id || !editEmployerEmailValue.value.trim()) return
+
+  savingEmployerEmail.value = true
+  try {
+    // Update the email via edit endpoint
+    const response = await fetch(`${API_BASE}/api/v2/references/${props.person.id}/edit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      },
+      body: JSON.stringify({ field: 'employer_ref_email', value: editEmployerEmailValue.value.trim() })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update email')
+    }
+
+    // Update local state
+    if (fullDetails.value) {
+      fullDetails.value.employer_ref_email = editEmployerEmailValue.value.trim()
+    }
+    editingEmployerEmail.value = false
+
+    // Auto-resend the reference request to the new email
+    await handleResendEmployerRef()
+    showToast('Email updated and new reference request sent', 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to update email', 'error')
+  } finally {
+    savingEmployerEmail.value = false
+  }
+}
+
+async function saveLandlordEmail() {
+  if (!props.person?.id || !editLandlordEmailValue.value.trim()) return
+
+  savingLandlordEmail.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/v2/references/${props.person.id}/edit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      },
+      body: JSON.stringify({ field: 'previous_landlord_email', value: editLandlordEmailValue.value.trim() })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update email')
+    }
+
+    if (fullDetails.value) {
+      fullDetails.value.previous_landlord_email = editLandlordEmailValue.value.trim()
+    }
+    editingLandlordEmail.value = false
+
+    await handleResendLandlordRef()
+    showToast('Email updated and new reference request sent', 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to update email', 'error')
+  } finally {
+    savingLandlordEmail.value = false
   }
 }
 
