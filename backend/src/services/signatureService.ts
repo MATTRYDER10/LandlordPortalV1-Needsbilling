@@ -180,9 +180,9 @@ class SignatureService {
     const signaturePromises: Promise<SignatureRecord>[] = []
 
     // Create records for landlords
-    // For managed properties, ALL landlords get signature records but use agent email
-    // For non-managed properties, each landlord uses their own email
-    const isManagedProperty = agreement.management_type === 'managed'
+    // When agent_signs_on_behalf is true (or managed property), use agent email for landlord signing
+    // Otherwise each landlord uses their own email
+    const isManagedProperty = agreement.management_type === 'managed' || agreement.agent_signs_on_behalf === true
     let agentEmail = ''
 
     if (isManagedProperty) {

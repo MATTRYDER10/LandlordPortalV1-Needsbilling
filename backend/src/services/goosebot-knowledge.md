@@ -325,3 +325,84 @@ A: Go to Settings > Team, enter their email, set a password and role, and click 
 - Check spam/junk folder
 - Check the email address is correct
 - Emails come from hello@notifications.propertygoose.co.uk — add this to your contacts
+
+---
+
+## RentGoose — Rent Collection, Payouts & Client Account
+
+RentGoose is PropertyGoose's built-in rent collection, payout, and client account management system. It replaces the need for agents to track rent in spreadsheets or their CRM.
+
+### Accessing RentGoose
+- Click **RentGoose** in the sidebar (or navigate to the RentGoose section)
+- Six main tabs: **Payments**, **Payouts**, **Fee Ledger**, **Landlords**, **Contractors**, **Client Account**
+
+### Payments Tab
+- Shows all rent schedule entries across all active tenancies
+- Filter by: **All**, **Due**, **Overdue**, **Arrears**, **Paid**, **Cancelled**
+- Each entry shows: tenant name, property, due date, amount, status
+- **Receipt** button — record a rent payment when received
+- **Remove** button — cancel a schedule entry (double-click to confirm, no browser popup)
+- Rent schedules are automatically generated from active tenancies based on rent amount and due day
+
+### Payouts Tab
+- Sub-tabs: **Landlord Payouts**, **Contractor Payouts**, **Agent Payouts**, **Held Rents**, **Deposits**
+- **Landlord Payouts**: rent collected that's ready to pay to landlords. Click "Mark as Paid" to record the payout and generate a remittance
+- **Contractor Payouts**: contractor invoices awaiting payment
+- **Agent Payouts**: agent fees/commission ready to withdraw
+- **Held Rents**: rent being held (e.g. awaiting landlord instruction)
+- **Deposits**: security deposits currently held in the client account. "Pay to Scheme" button sends custodial deposits to TDS/DPS/mydeposits
+
+### Deposits — How They Work
+- **Custodial deposits** (DPS Custodial, TDS Custodial, mydeposits Custodial): money is held in the client account temporarily, then paid out to the scheme when registered. Use the "Pay to Scheme" button on the Deposits tab
+- **Insured deposits** (DPS Insured, TDS Insured, mydeposits Insured): money stays in the client account for the life of the tenancy. At end of tenancy, use "Mark as Returned" on the Client Account ledger
+- **Reposit**: deposit-free alternative, no money changes hands, nothing in the client account
+- **Landlord Held**: deposit is paid directly to the landlord via Landlord Payouts
+
+### Fee Ledger
+- Shows all agent fees and commissions
+- Tracks management fees, letting fees, and other charges
+- Fees are automatically calculated from rent receipts based on fee percentages set per property
+
+### Landlords Tab
+- Lists all landlords with properties and payment summaries
+- Shows total rent collected, total paid out, and balance due
+
+### Contractors Tab
+- Upload and manage contractor invoices
+- Track payment status
+- Record payments and generate remittances
+
+### Client Account Tab
+- Full client account ledger showing every transaction
+- Summary cards: **Total Balance**, **Rent Held**, **Available for Payout**, **Deposits Held**
+- Filter transactions by type: All, Rent In, Held Rents, Payouts, Deposits, Holding Deposits, Initial Monies, Fees, Manual
+- **Add Manual Entry** — for ad-hoc credits or debits
+- **Reconcile** — reconcile against bank statement balance
+- **Export CSV** — download transactions for accounting
+- **Chart of Accounts** — breakdown of where money is allocated
+
+### Common RentGoose Questions — Agents
+
+**Q: How do I record a rent payment?**
+A: Go to RentGoose > Payments, find the tenant's entry, and click the "Receipt" button. Enter the amount and payment details.
+
+**Q: How do I pay a landlord?**
+A: Go to RentGoose > Payouts > Landlord Payouts. Find the landlord payout and click "Mark as Paid". A remittance is automatically generated and emailed.
+
+**Q: How do I track deposits?**
+A: Go to RentGoose > Payouts > Deposits to see all security deposits currently held. Custodial deposits can be paid to the scheme from here. For insured deposits, use the Client Account > Deposits filter to mark as returned at end of tenancy.
+
+**Q: Where can I see the client account balance?**
+A: Go to RentGoose > Client Account. The summary cards at the top show total balance, rent held, available for payout, and deposits held.
+
+**Q: How do I add a manual entry to the client account?**
+A: On the Client Account tab, click "Add Manual Entry" (top-right orange button). Enter the type, amount, and description.
+
+**Q: How do I export transactions for my accountant?**
+A: On the Client Account tab, click "Export CSV" to download all transactions.
+
+**Q: Can I upload a contractor invoice?**
+A: Go to RentGoose > Contractors, click "Upload Invoice", and fill in the details. Once uploaded, you can mark it as paid when the contractor is paid.
+
+**Q: I don't use RentGoose for rent — should I?**
+A: RentGoose is built into PropertyGoose and designed specifically for letting agents. It tracks rent collection, automates landlord payouts, manages your client account, and keeps a full audit trail — no spreadsheets or CRM workarounds needed.
