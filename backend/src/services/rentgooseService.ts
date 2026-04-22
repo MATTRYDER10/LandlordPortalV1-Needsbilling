@@ -2248,12 +2248,13 @@ export async function getDepositsList(companyId: string): Promise<Array<{
 
   const schemeLabels: Record<string, string> = {
     landlord_held: 'Landlord Held',
-    tds: 'TDS',
+    tds: 'TDS',                         // legacy fallback
     tds_custodial: 'TDS Custodial',
     tds_insured: 'TDS Insured',
+    dps: 'DPS',                         // legacy fallback
     dps_custodial: 'DPS Custodial',
     dps_insured: 'DPS Insured',
-    mydeposits: 'mydeposits',
+    mydeposits: 'mydeposits',           // legacy fallback
     mydeposits_custodial: 'mydeposits Custodial',
     mydeposits_insured: 'mydeposits Insured',
     reposit: 'Reposit',
@@ -2336,8 +2337,187 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     }
   })
 
-  // Exclude landlord-held deposits — they belong in Landlord Payouts
-  return results.filter(d => !d.is_landlord_held)
+  // Exclude deposits that don't belong in the client account:
+  // - landlord_held: belong in Landlord Payouts
+  // - reposit: no money held
+  // - no_deposit: no money held
+  const filtered = results.filter(d =>
+    !d.is_landlord_held &&
+    d.deposit_scheme !== 'reposit' &&
+    d.deposit_scheme !== 'no_deposit'
+  )
+
+  // Check for deposit_out entries — any deposit that has been paid out
+  // (to scheme via registration, or returned to tenant) should not appear
+  if (filtered.length > 0) {
+    const depositInIds = filtered.map(d => d.id)
+    const { data: depositOuts } = await supabase
+      .from('client_account_entries')
+      .select('related_id')
+      .eq('company_id', companyId)
+      .eq('entry_type', 'deposit_out')
+      .in('related_id', depositInIds)
+    const paidOutIds = new Set((depositOuts || []).map((d: any) => d.related_id))
+    // Only show deposits still in client account
+    return filtered.filter(d => !paidOutIds.has(d.id))
+  }
+
+  return filtered
+}
+
+/**
+ * Mark a deposit as returned — creates a deposit_out entry in the client
+ * account, removing it from the CA balance.
+ */
+export async function markDepositReturned(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  // Verify the deposit_in entry exists and belongs to this company
+  const { data: depositIn, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, description, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !depositIn) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check not already returned
+  const { data: existing } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_out')
+    .eq('related_type', 'deposit_return')
+    .eq('related_id', depositEntryId)
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    throw new Error('Deposit has already been marked as returned')
+  }
+
+  const depositAmount = parseFloat(depositIn.amount)
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - depositAmount
+
+  const { error } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: depositAmount,
+      description: `Deposit returned — ${depositIn.description || 'Security deposit'}`,
+      related_id: depositEntryId,
+      related_type: 'deposit_return',
+      balance_after: newBalance,
+      created_by: userId || null,
+      is_manual: false,
+    })
+
+  if (error) throw error
+}
+
+/**
+ * Delete a duplicate deposit_in entry and reverse its balance impact.
+ */
+export async function deleteDepositEntry(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  const { data: entry, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, entry_type, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !entry) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check no deposit_out references this entry (don't delete if already acted upon)
+  const { data: refs } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('related_id', depositEntryId)
+    .eq('entry_type', 'deposit_out')
+    .limit(1)
+
+  if (refs && refs.length > 0) {
+    throw new Error('Cannot delete — this deposit has already been paid out or returned')
+  }
+
+  // Delete the entry
+  const { error: delErr } = await supabase
+    .from('client_account_entries')
+    .delete()
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+
+  if (delErr) throw new Error(`Failed to delete entry: ${delErr.message}`)
+}
+
+/**
+ * Pay a custodial deposit out to the scheme — creates a deposit_out entry
+ * so the money leaves the client account.
+ */
+export async function payDepositToScheme(
+  companyId: string,
+  depositEntryId: string,
+  userId?: string
+): Promise<void> {
+  // Verify the deposit_in entry exists and belongs to this company
+  const { data: depositIn, error: fetchErr } = await supabase
+    .from('client_account_entries')
+    .select('id, amount, description, related_id')
+    .eq('id', depositEntryId)
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_in')
+    .single()
+
+  if (fetchErr || !depositIn) {
+    throw new Error('Deposit entry not found')
+  }
+
+  // Check not already paid out
+  const { data: existing } = await supabase
+    .from('client_account_entries')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('entry_type', 'deposit_out')
+    .eq('related_id', depositEntryId)
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    throw new Error('Deposit has already been paid out')
+  }
+
+  const depositAmount = parseFloat(depositIn.amount)
+  const currentBalance = await getCurrentBalance(companyId)
+  const newBalance = currentBalance - depositAmount
+
+  const { error } = await supabase
+    .from('client_account_entries')
+    .insert({
+      company_id: companyId,
+      entry_type: 'deposit_out',
+      amount: depositAmount,
+      description: `Deposit paid to scheme — ${depositIn.description || 'Security deposit'}`,
+      related_id: depositEntryId,
+      related_type: 'deposit_to_scheme',
+      balance_after: newBalance,
+      created_by: userId || null,
+      is_manual: false,
+    })
+
+  if (error) throw error
 }
 
 // ============================================================================
@@ -3702,6 +3882,15 @@ export async function receiptExpectedPayment(companyId: string, input: {
     .eq('id', input.expected_payment_id)
 
   // Process payout_split to create client_account_entries
+  // Guard against duplicate entries — check if entries already exist for this expected_payment
+  const { data: existingEntries } = await supabase
+    .from('client_account_entries')
+    .select('id, entry_type')
+    .eq('company_id', companyId)
+    .eq('related_id', input.expected_payment_id)
+    .eq('related_type', 'expected_payment')
+  const existingTypes = new Set((existingEntries || []).map(e => e.entry_type))
+
   const splits = ep.payout_split || []
   for (const split of splits) {
     let entryType: string
@@ -3731,6 +3920,12 @@ export async function receiptExpectedPayment(companyId: string, input: {
         description = split.description || ep.description
     }
 
+    // Skip if an entry of this type already exists for this expected_payment (prevent duplicates)
+    if (existingTypes.has(entryType)) {
+      console.log(`[RentGoose] Skipping duplicate ${entryType} entry for expected_payment ${input.expected_payment_id}`)
+      continue
+    }
+
     const currentBalance = await getCurrentBalance(companyId)
     const isCredit = ['initial_monies_rent_in', 'deposit_in', 'invoice_fee_in', 'holding_deposit_in'].includes(entryType)
     const newBalance = isCredit ? currentBalance + splitAmount : currentBalance - splitAmount
@@ -3749,6 +3944,7 @@ export async function receiptExpectedPayment(companyId: string, input: {
         created_by: input.receipted_by || null,
         is_manual: false,
       })
+    existingTypes.add(entryType) // Track what we just inserted
   }
 
   // If holding deposit credit is being applied, create offsetting entry

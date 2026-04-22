@@ -635,6 +635,48 @@ router.get('/deposits', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// POST /api/rentgoose/deposits/:id/mark-returned — mark a deposit as returned from client account
+router.post('/deposits/:id/mark-returned', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    await rentgooseService.markDepositReturned(companyId, req.params.id, req.user?.id)
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error marking deposit returned:', err)
+    res.status(400).json({ error: err.message || 'Failed to mark deposit as returned' })
+  }
+})
+
+// POST /api/rentgoose/deposits/:id/pay-to-scheme — pay out a custodial deposit to the scheme
+router.post('/deposits/:id/pay-to-scheme', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    await rentgooseService.payDepositToScheme(companyId, req.params.id, req.user?.id)
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error paying deposit to scheme:', err)
+    res.status(400).json({ error: err.message || 'Failed to pay deposit to scheme' })
+  }
+})
+
+// POST /api/rentgoose/deposits/:id/delete — delete a duplicate deposit entry
+router.post('/deposits/:id/delete', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(400).json({ error: 'Company ID required' })
+
+    await rentgooseService.deleteDepositEntry(companyId, req.params.id, req.user?.id)
+    res.json({ success: true })
+  } catch (err: any) {
+    console.error('Error deleting deposit entry:', err)
+    res.status(400).json({ error: err.message || 'Failed to delete deposit entry' })
+  }
+})
+
 // POST /api/rentgoose/client-account/reconcile
 router.post('/client-account/reconcile', authenticateToken, async (req: AuthRequest, res) => {
   try {

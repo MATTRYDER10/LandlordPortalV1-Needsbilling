@@ -216,14 +216,19 @@
                     >
                       Receipt
                     </button>
-                    <!-- Remove from list -->
+                    <!-- Remove from list (double-click to confirm) -->
                     <button
                       v-if="item.status !== 'paid' && item.status !== 'cancelled'"
                       @click="removeFromList(item)"
-                      class="rounded-lg font-semibold px-3 py-2 text-xs bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
-                      title="Remove from rent queue"
+                      :class="[
+                        'rounded-lg font-semibold px-3 py-2 text-xs transition-colors',
+                        confirmingRemoveId === item.id
+                          ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 animate-pulse'
+                          : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40'
+                      ]"
+                      :title="confirmingRemoveId === item.id ? 'Click again to confirm removal' : 'Remove from rent queue'"
                     >
-                      Remove
+                      {{ confirmingRemoveId === item.id ? 'Confirm Remove' : 'Remove' }}
                     </button>
                   </div>
                 </td>
@@ -407,12 +412,27 @@ async function silenceArrears(item: UnifiedPaymentItem) {
   }
 }
 
+const confirmingRemoveId = ref<string | null>(null)
+let confirmRemoveTimer: ReturnType<typeof setTimeout> | null = null
+
 async function removeFromList(item: UnifiedPaymentItem) {
-  if (!confirm('Remove this entry from the rent queue? This will cancel the schedule entry and resolve any arrears chase.')) return
-  try {
-    await store.removeScheduleEntry(item.id)
-  } catch (err) {
-    console.error('Failed to remove entry:', err)
+  if (confirmingRemoveId.value === item.id) {
+    // Second click — actually remove
+    confirmingRemoveId.value = null
+    if (confirmRemoveTimer) { clearTimeout(confirmRemoveTimer); confirmRemoveTimer = null }
+    try {
+      await store.removeScheduleEntry(item.id)
+    } catch (err) {
+      console.error('Failed to remove entry:', err)
+    }
+  } else {
+    // First click — enter confirm state
+    confirmingRemoveId.value = item.id
+    if (confirmRemoveTimer) clearTimeout(confirmRemoveTimer)
+    confirmRemoveTimer = setTimeout(() => {
+      confirmingRemoveId.value = null
+      confirmRemoveTimer = null
+    }, 3000)
   }
 }
 

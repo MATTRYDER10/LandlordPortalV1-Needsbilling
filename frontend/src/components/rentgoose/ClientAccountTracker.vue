@@ -151,6 +151,7 @@
             <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Credit</th>
             <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Debit</th>
             <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">Balance</th>
+            <th class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500"></th>
           </tr>
         </thead>
         <tbody>
@@ -201,9 +202,24 @@
                 <span v-else-if="idx < filteredEntries.length - 1 && entry.balance_after < filteredEntries[idx + 1].balance_after" class="text-[#dc2626] text-xs ml-1">&darr;</span>
               </template>
             </td>
+            <td class="px-4 py-3 text-right">
+              <button
+                v-if="entry.entry_type === 'deposit_in'"
+                @click="markDepositReturned(entry)"
+                :disabled="returningDepositId === entry.id"
+                :class="[
+                  'rounded-lg font-semibold px-3 py-1.5 text-xs transition-colors whitespace-nowrap',
+                  confirmingReturnId === entry.id
+                    ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                    : 'bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40'
+                ]"
+              >
+                {{ confirmingReturnId === entry.id ? 'Confirm Return' : 'Mark as Returned' }}
+              </button>
+            </td>
           </tr>
           <tr v-if="filteredEntries.length === 0">
-            <td colspan="6" class="px-4 py-12 text-center">
+            <td colspan="7" class="px-4 py-12 text-center">
               <div class="flex flex-col items-center">
                 <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 <p class="text-[15px] font-semibold text-gray-700 dark:text-white">No entries found</p>
@@ -238,6 +254,33 @@ const store = useRentGooseStore()
 const showManualModal = ref(false)
 const showReconcileModal = ref(false)
 const selectedType = ref('all')
+const confirmingReturnId = ref<string | null>(null)
+const returningDepositId = ref<string | null>(null)
+let confirmReturnTimer: ReturnType<typeof setTimeout> | null = null
+
+async function markDepositReturned(entry: any) {
+  if (confirmingReturnId.value === entry.id) {
+    // Second click — confirm
+    confirmingReturnId.value = null
+    if (confirmReturnTimer) { clearTimeout(confirmReturnTimer); confirmReturnTimer = null }
+    returningDepositId.value = entry.id
+    try {
+      await store.markDepositReturned(entry.id)
+    } catch (err) {
+      console.error('Failed to mark deposit returned:', err)
+    } finally {
+      returningDepositId.value = null
+    }
+  } else {
+    // First click — enter confirm state
+    confirmingReturnId.value = entry.id
+    if (confirmReturnTimer) clearTimeout(confirmReturnTimer)
+    confirmReturnTimer = setTimeout(() => {
+      confirmingReturnId.value = null
+      confirmReturnTimer = null
+    }, 3000)
+  }
+}
 const expandedCategory = ref<string | null>(null)
 const showChartOfAccounts = ref(false)
 

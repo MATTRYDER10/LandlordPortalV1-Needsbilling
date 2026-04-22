@@ -1424,16 +1424,41 @@
               </div>
             </div>
 
-            <EditableTenantCard
-              v-for="tenant in tenants"
+            <div
+              v-for="(tenant, index) in tenants"
               :key="tenant.id"
-              :tenant="tenant"
-              :can-edit-rent-share="isDraftTenancy"
-              :monthly-rent="rentAmount"
-              :address="tenantAddressMap.get(`${tenant.first_name} ${tenant.last_name}`.toLowerCase())"
-              @update="(data) => updateTenant(tenant.id, data)"
-              @remove="() => removeTenant(tenant.id)"
-            />
+              class="flex items-start gap-2"
+            >
+              <!-- Reorder buttons -->
+              <div v-if="tenants.length > 1" class="flex flex-col gap-0.5 pt-3">
+                <button
+                  @click="moveTenantUp(index)"
+                  :disabled="index === 0 || reorderingTenants"
+                  class="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+                  title="Move up"
+                >
+                  <ArrowUp class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  @click="moveTenantDown(index)"
+                  :disabled="index === tenants.length - 1 || reorderingTenants"
+                  class="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+                  title="Move down"
+                >
+                  <ArrowDown class="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div class="flex-1 min-w-0">
+                <EditableTenantCard
+                  :tenant="tenant"
+                  :can-edit-rent-share="isDraftTenancy"
+                  :monthly-rent="rentAmount"
+                  :address="tenantAddressMap.get(`${tenant.first_name} ${tenant.last_name}`.toLowerCase())"
+                  @update="(data) => updateTenant(tenant.id, data)"
+                  @remove="() => removeTenant(tenant.id)"
+                />
+              </div>
+            </div>
 
             <div v-if="tenants.length === 0 && !showAddTenantForm && pendingTenants.length === 0" class="text-center py-8 text-gray-500 dark:text-slate-400">
               <Users class="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-slate-600" />
@@ -1606,13 +1631,31 @@
 
               <!-- Existing Guarantors from tenancy_guarantors table -->
               <div class="space-y-3">
-                <EditableGuarantorCard
-                  v-for="guarantor in tenancyGuarantors"
-                  :key="guarantor.id"
-                  :guarantor="guarantor"
-                  @update="(data) => updateGuarantor(guarantor.id, data)"
-                  @remove="() => removeGuarantor(guarantor.id)"
-                />
+                <div v-for="guarantor in tenancyGuarantors" :key="guarantor.id">
+                  <!-- Guarantor-to-Tenant assignment -->
+                  <div class="flex items-center gap-2 mb-1.5 px-1">
+                    <span class="text-xs text-gray-500 dark:text-slate-400">Guarantor for:</span>
+                    <select
+                      :value="guarantor.guarantees_tenant_id || ''"
+                      @change="reassignGuarantor(guarantor.id, ($event.target as HTMLSelectElement).value)"
+                      class="text-xs px-2 py-0.5 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded focus:ring-primary focus:border-primary"
+                    >
+                      <option value="">Unassigned</option>
+                      <option
+                        v-for="tenant in tenants"
+                        :key="tenant.id"
+                        :value="tenant.id"
+                      >
+                        {{ tenant.first_name }} {{ tenant.last_name }}
+                      </option>
+                    </select>
+                  </div>
+                  <EditableGuarantorCard
+                    :guarantor="guarantor"
+                    @update="(data) => updateGuarantor(guarantor.id, data)"
+                    @remove="() => removeGuarantor(guarantor.id)"
+                  />
+                </div>
               </div>
 
               <!-- Guarantors from references (read-only display) -->
@@ -3144,7 +3187,7 @@ import {
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
-  Sparkles, Star, RefreshCw, AlertTriangle, Zap
+  Sparkles, Star, RefreshCw, AlertTriangle, Zap, ArrowUp, ArrowDown
 } from 'lucide-vue-next'
 import EmailInput from '@/components/EmailInput.vue'
 import EndTenancyModal from './EndTenancyModal.vue'
@@ -3582,6 +3625,7 @@ const executingAgreement = ref(false)
 // Add tenant state
 const showAddTenantForm = ref(false)
 const addingTenant = ref(false)
+const reorderingTenants = ref(false)
 const newTenant = ref({
   firstName: '',
   lastName: '',
@@ -6371,6 +6415,57 @@ const removeTenant = async (tenantId: string) => {
   }
 }
 
+// Tenant reorder methods
+const moveTenantUp = (index: number) => {
+  if (index <= 0) return
+  reorderTenantsList(index, index - 1)
+}
+
+const moveTenantDown = (index: number) => {
+  if (index >= tenants.value.length - 1) return
+  reorderTenantsList(index, index + 1)
+}
+
+const reorderTenantsList = async (fromIndex: number, toIndex: number) => {
+  if (!tenancy.value?.id || reorderingTenants.value) return
+
+  reorderingTenants.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    // Build new order by swapping
+    const currentTenants = [...tenants.value]
+    const [moved] = currentTenants.splice(fromIndex, 1)
+    currentTenants.splice(toIndex, 0, moved)
+    const orderedTenantIds = currentTenants.map((t: any) => t.id)
+
+    const response = await authFetch(
+      `${API_URL}/api/tenancies/records/${tenancy.value.id}/tenants/reorder`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedTenantIds }),
+        token
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to reorder tenants')
+    }
+
+    toast.success('Tenant order updated')
+    await loadFullTenancyData()
+    emit('updated')
+  } catch (error: any) {
+    console.error('Error reordering tenants:', error)
+    toast.error(error.message || 'Failed to reorder tenants')
+  } finally {
+    reorderingTenants.value = false
+  }
+}
+
 // Guarantor methods
 const loadTenancyGuarantors = async () => {
   if (!tenancy.value?.id) return
@@ -6480,6 +6575,10 @@ const updateGuarantor = async (guarantorId: string, data: any) => {
     console.error('Error updating guarantor:', error)
     toast.error(error.message || 'Failed to update guarantor')
   }
+}
+
+const reassignGuarantor = async (guarantorId: string, tenantId: string) => {
+  await updateGuarantor(guarantorId, { guaranteesTenantId: tenantId || null })
 }
 
 const removeGuarantor = async (guarantorId: string) => {
