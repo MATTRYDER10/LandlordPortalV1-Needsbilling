@@ -2248,12 +2248,13 @@ export async function getDepositsList(companyId: string): Promise<Array<{
 
   const schemeLabels: Record<string, string> = {
     landlord_held: 'Landlord Held',
-    tds: 'TDS',
+    tds: 'TDS',                         // legacy fallback
     tds_custodial: 'TDS Custodial',
     tds_insured: 'TDS Insured',
+    dps: 'DPS',                         // legacy fallback
     dps_custodial: 'DPS Custodial',
     dps_insured: 'DPS Insured',
-    mydeposits: 'mydeposits',
+    mydeposits: 'mydeposits',           // legacy fallback
     mydeposits_custodial: 'mydeposits Custodial',
     mydeposits_insured: 'mydeposits Insured',
     reposit: 'Reposit',
@@ -2336,15 +2337,18 @@ export async function getDepositsList(companyId: string): Promise<Array<{
     }
   })
 
-  // Exclude landlord-held deposits (belong in Landlord Payouts),
-  // reposit (no money held in client account), and no_deposit
+  // Exclude deposits that don't belong in the client account:
+  // - landlord_held: belong in Landlord Payouts
+  // - reposit: no money held
+  // - no_deposit: no money held
   const filtered = results.filter(d =>
     !d.is_landlord_held &&
     d.deposit_scheme !== 'reposit' &&
     d.deposit_scheme !== 'no_deposit'
   )
 
-  // Check for existing deposit_out entries so we can mark returned ones
+  // Check for deposit_out entries — any deposit that has been paid out
+  // (to scheme via registration, or returned to tenant) should not appear
   if (filtered.length > 0) {
     const depositInIds = filtered.map(d => d.id)
     const { data: depositOuts } = await supabase
@@ -2352,12 +2356,10 @@ export async function getDepositsList(companyId: string): Promise<Array<{
       .select('related_id')
       .eq('company_id', companyId)
       .eq('entry_type', 'deposit_out')
-      .eq('related_type', 'deposit_return')
       .in('related_id', depositInIds)
-    const returnedIds = new Set((depositOuts || []).map((d: any) => d.related_id))
-    for (const dep of filtered) {
-      ;(dep as any).is_returned = returnedIds.has(dep.id)
-    }
+    const paidOutIds = new Set((depositOuts || []).map((d: any) => d.related_id))
+    // Only show deposits still in client account
+    return filtered.filter(d => !paidOutIds.has(d.id))
   }
 
   return filtered

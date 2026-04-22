@@ -426,31 +426,9 @@
               <span v-else-if="dep.received_at"> &middot; received {{ formatDate(dep.received_at) }}</span>
             </p>
           </div>
-          <div class="text-right flex items-center gap-4">
-            <!-- Mark as Returned button (double-click pattern) -->
-            <button
-              v-if="!dep.is_returned"
-              @click="markDepositReturned(dep)"
-              :disabled="markingReturnedId === dep.id && markingReturnedLoading"
-              :class="[
-                'rounded-lg font-semibold px-3 py-2 text-xs transition-colors whitespace-nowrap',
-                confirmingReturnId === dep.id
-                  ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
-                  : 'bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40'
-              ]"
-            >
-              {{ confirmingReturnId === dep.id ? 'Confirm Return' : 'Mark as Returned' }}
-            </button>
-            <span
-              v-else
-              class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full whitespace-nowrap"
-            >
-              Returned
-            </span>
-            <div>
-              <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
-              <p :class="['text-[22px] font-bold', dep.is_returned ? 'text-gray-400 dark:text-slate-500 line-through' : 'text-blue-600 dark:text-blue-400']">&pound;{{ formatMoney(dep.amount) }}</p>
-            </div>
+          <div class="text-right">
+            <p class="text-[11px] uppercase tracking-[0.06em] text-gray-500 dark:text-slate-400 font-semibold">Deposit</p>
+            <p class="text-[22px] font-bold text-blue-600 dark:text-blue-400">&pound;{{ formatMoney(dep.amount) }}</p>
           </div>
         </div>
       </div>
@@ -630,39 +608,6 @@ async function fetchDeposits() {
     console.error('Failed to fetch deposits:', err)
   } finally {
     depositsLoading.value = false
-  }
-}
-
-// Deposit return — double-click pattern
-const confirmingReturnId = ref<string | null>(null)
-const markingReturnedId = ref<string | null>(null)
-const markingReturnedLoading = ref(false)
-let confirmReturnTimer: ReturnType<typeof setTimeout> | null = null
-
-async function markDepositReturned(dep: any) {
-  if (confirmingReturnId.value === dep.id) {
-    // Second click — actually mark returned
-    confirmingReturnId.value = null
-    if (confirmReturnTimer) { clearTimeout(confirmReturnTimer); confirmReturnTimer = null }
-    markingReturnedId.value = dep.id
-    markingReturnedLoading.value = true
-    try {
-      await post(`/api/rentgoose/deposits/${dep.id}/mark-returned`, {})
-      await fetchDeposits()
-    } catch (err) {
-      console.error('Failed to mark deposit returned:', err)
-    } finally {
-      markingReturnedId.value = null
-      markingReturnedLoading.value = false
-    }
-  } else {
-    // First click — enter confirm state
-    confirmingReturnId.value = dep.id
-    if (confirmReturnTimer) clearTimeout(confirmReturnTimer)
-    confirmReturnTimer = setTimeout(() => {
-      confirmingReturnId.value = null
-      confirmReturnTimer = null
-    }, 3000)
   }
 }
 

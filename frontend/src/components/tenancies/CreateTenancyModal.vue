@@ -471,10 +471,12 @@
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Select scheme...</option>
+                    <option value="dps_custodial">DPS Custodial</option>
+                    <option value="dps_insured">DPS Insured</option>
                     <option value="tds_custodial">TDS Custodial</option>
                     <option value="tds_insured">TDS Insured</option>
-                    <option value="mydeposits">mydeposits</option>
-                    <option value="dps">DPS</option>
+                    <option value="mydeposits_custodial">mydeposits Custodial</option>
+                    <option value="mydeposits_insured">mydeposits Insured</option>
                     <option value="reposit">Reposit (Deposit-Free)</option>
                     <option value="landlord_held">Landlord Held</option>
                     <option value="no_deposit">No Deposit</option>

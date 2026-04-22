@@ -286,6 +286,11 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     return await post<any>('/api/rentgoose/client-account/reconcile', payload)
   }
 
+  async function markDepositReturned(depositEntryId: string) {
+    await post(`/api/rentgoose/deposits/${depositEntryId}/mark-returned`, {})
+    await fetchClientAccount()
+  }
+
   async function fetchAgentFees() {
     loading.value = true
     try {
@@ -430,5 +435,6 @@ export const useRentGooseStore = defineStore('rentgoose', () => {
     fetchUnifiedSchedule,
     receiptExpectedPayment,
     fetchHoldingDepositCredit,
+    markDepositReturned,
   }
 })
