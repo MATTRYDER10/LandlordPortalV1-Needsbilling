@@ -1699,8 +1699,60 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
 router.delete('/references/:id', authenticateAdmin, async (req: AdminAuthRequest, res) => {
   try {
     const referenceId = req.params.id
+    const isV2 = req.query.v2 === '1'
 
-    // First check if the reference exists
+    if (isV2) {
+      // ── V2 Reference Deletion ──
+      const { data: reference, error: fetchError } = await supabase
+        .from('tenant_references_v2')
+        .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, is_guarantor')
+        .eq('id', referenceId)
+        .single()
+
+      if (fetchError || !reference) {
+        return res.status(404).json({ error: 'V2 reference not found' })
+      }
+
+      // Delete child guarantor references first (V2 uses guarantor_for_reference_id)
+      if (!reference.is_guarantor) {
+        const { data: childRefs } = await supabase
+          .from('tenant_references_v2')
+          .select('id')
+          .eq('guarantor_for_reference_id', referenceId)
+
+        if (childRefs && childRefs.length > 0) {
+          const childIds = childRefs.map(c => c.id)
+          // Child cascade tables (referees_v2, evidence_v2, creditsafe_verifications_v2,
+          // sanctions_screenings_v2, upload_links) are ON DELETE CASCADE
+          await supabase.from('audit_logs').delete().in('reference_id', childIds)
+          await supabase.from('tenant_references_v2').delete().in('id', childIds)
+        }
+      }
+
+      // Delete audit logs for this reference
+      await supabase.from('audit_logs').delete().eq('reference_id', referenceId)
+
+      // Delete the main V2 reference (cascades: referees_v2, evidence_v2,
+      // creditsafe_verifications_v2, sanctions_screenings_v2, upload_links)
+      const { error: deleteError } = await supabase
+        .from('tenant_references_v2')
+        .delete()
+        .eq('id', referenceId)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+      console.log(`[Admin] Deleted V2 reference ${referenceId} (${tenantName})`)
+
+      return res.json({
+        success: true,
+        message: `Reference for ${tenantName} deleted successfully`
+      })
+    }
+
+    // ── V1 Reference Deletion ──
     const { data: reference, error: fetchError } = await supabase
       .from('tenant_references')
       .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, is_guarantor, parent_reference_id')

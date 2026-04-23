@@ -392,10 +392,13 @@ const executeDelete = async () => {
   deleteModal.value.loading = true
 
   try {
-    await axios.delete(`${API_URL}/api/admin/references/${deleteModal.value.reference.id}`, {
+    const ref = deleteModal.value.reference
+    const deleteId = ref.is_v2 ? ref.raw_id : ref.id
+    await axios.delete(`${API_URL}/api/admin/references/${deleteId}`, {
       headers: {
         Authorization: `Bearer ${authStore.session?.access_token}`
-      }
+      },
+      params: ref.is_v2 ? { v2: '1' } : undefined
     })
 
     // Remove from local list

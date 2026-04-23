@@ -6,7 +6,8 @@ import {
   saveJMIConfig,
   removeJMIConfig,
   testJMIConnection,
-  updateJMITestStatus
+  updateJMITestStatus,
+  hasDefaultJMIKey
 } from '../services/jmiService'
 
 const router = Router()
@@ -84,10 +85,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       console.error('[JMI] Error fetching integration:', integrationError)
     }
 
-    const configured = !!integration?.jmi_api_key_encrypted
+    const hasCustomKey = !!integration?.jmi_api_key_encrypted
+    const defaultAvailable = hasDefaultJMIKey()
+    const configured = hasCustomKey || defaultAvailable
 
     let maskedApiKey = null
-    if (configured) {
+    if (hasCustomKey) {
       const config = await getCompanyJMIConfig(companyId)
       if (config?.apiKey) {
         maskedApiKey = '••••••••' + config.apiKey.slice(-4)
@@ -96,8 +99,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     res.json({
       configured,
+      hasCustomKey,
+      usingDefault: !hasCustomKey && defaultAvailable,
+      hasDefaultKey: defaultAvailable,
       maskedApiKey,
-      environment: integration?.jmi_environment || 'sandbox',
+      environment: integration?.jmi_environment || (defaultAvailable ? (process.env.JMI_DEFAULT_ENVIRONMENT || 'production') : 'production'),
       connectedAt: integration?.jmi_connected_at || null,
       lastTestedAt: integration?.jmi_last_tested_at || null,
       lastTestStatus: integration?.jmi_last_test_status || null
@@ -162,7 +168,7 @@ router.post('/test', authenticateToken, async (req: AuthRequest, res) => {
     const config = await getCompanyJMIConfig(companyId)
 
     if (!config) {
-      return res.status(400).json({ error: 'JMI is not configured. Please save your API key first.' })
+      return res.status(400).json({ error: 'JMI is not configured. No API key available.' })
     }
 
     const result = await testJMIConnection(config.apiKey, config.environment)

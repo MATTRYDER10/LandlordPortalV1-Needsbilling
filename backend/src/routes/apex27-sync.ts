@@ -12,7 +12,9 @@ import {
   confirmTenancySync,
   previewFeesSync,
   confirmFeesSync,
-  apex27Fetch
+  apex27Fetch,
+  bulkPushPreview,
+  bulkPushConfirm
 } from '../services/apex27Service'
 import { decrypt } from '../services/encryption'
 import { normalizePostcode, normalizeAddressLine } from '../services/propertyMatchingService'
@@ -861,6 +863,74 @@ router.post('/tenancy-summary/:tenancyId/push', authenticateToken, async (req: A
     res.json({ success: true, message: 'Tenancy summary pushed to Apex27' })
   } catch (error) {
     console.error('[Apex27] Error pushing tenancy summary:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+// ============================================================================
+// BULK PUSH TO APEX27 (Properties & Landlords from PG → Apex27)
+// ============================================================================
+
+/**
+ * POST /api/apex27/push/preview
+ * Preview which PG properties & landlords can be pushed to Apex27
+ */
+router.post('/push/preview', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can push to Apex27' })
+    }
+
+    const result = await bulkPushPreview(companyData.companyId)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, items: result.items })
+  } catch (error) {
+    console.error('[Apex27] Error previewing push:', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/apex27/push/confirm
+ * Push selected properties & landlords to Apex27
+ */
+router.post('/push/confirm', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { propertyIds } = req.body
+
+    if (!propertyIds || !Array.isArray(propertyIds) || propertyIds.length === 0) {
+      return res.status(400).json({ error: 'propertyIds array is required' })
+    }
+
+    const companyData = await getUserCompanyAndRole(req)
+
+    if (!companyData) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    if (!['admin', 'owner'].includes(companyData.role)) {
+      return res.status(403).json({ error: 'Only admins and owners can push to Apex27' })
+    }
+
+    const result = await bulkPushConfirm(companyData.companyId, propertyIds)
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error })
+    }
+
+    res.json({ success: true, result: result.result })
+  } catch (error) {
+    console.error('[Apex27] Error confirming push:', error)
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' })
   }
 })
