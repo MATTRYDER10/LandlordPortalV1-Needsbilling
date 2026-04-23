@@ -10,6 +10,11 @@ const IGNORED_PATTERNS = [
   // Password manager / autofill extensions (LastPass, 1Password, Dashlane, etc.)
   // trying to update a form field that Vue has already removed from the DOM.
   /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
+  // Stale chunk errors after deploy — handled by the chunk recovery handler
+  // in router/index.ts which reloads the page. No need to log these.
+  /Failed to fetch dynamically imported module/,
+  /Importing a module script failed/,
+  /error loading dynamically imported module/,
 ]
 
 function isIgnoredError(message: string): boolean {
