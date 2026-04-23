@@ -1040,7 +1040,8 @@ router.delete('/:id/documents/:documentId', authenticateToken, requireMember, as
  */
 router.post('/import-csv', authenticateToken, requireMember, upload.single('csv'), async (req: AuthRequest, res) => {
   try {
-    const companyId = req.companyId!
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(404).json({ error: 'Company not found' })
     const userId = req.user!.id
 
     if (!req.file) {
