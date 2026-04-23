@@ -1228,6 +1228,32 @@ router.get('/references/:id/activity', authenticateStaff, async (req: StaffAuthR
   }
 })
 
+function decryptFormData(formData: any): any {
+  if (!formData) return null
+  const fd = JSON.parse(JSON.stringify(formData))
+  // Decrypt known encrypted fields within form_data
+  if (fd.identity) {
+    if (fd.identity.dateOfBirth) fd.identity.dateOfBirth = decrypt(fd.identity.dateOfBirth) || fd.identity.dateOfBirth
+    if (fd.identity.phone) fd.identity.phone = decrypt(fd.identity.phone) || fd.identity.phone
+  }
+  if (fd.income?.employerAddress) {
+    fd.income.employerAddress = decrypt(fd.income.employerAddress) || fd.income.employerAddress
+  }
+  if (fd.consent?.signature) {
+    fd.consent.signature = decrypt(fd.consent.signature) || fd.consent.signature
+  }
+  if (fd.guarantor?.phone) {
+    fd.guarantor.phone = decrypt(fd.guarantor.phone) || fd.guarantor.phone
+  }
+  if (fd.guarantor?.email) {
+    fd.guarantor.email = decrypt(fd.guarantor.email) || fd.guarantor.email
+  }
+  if (fd.rtr?.shareCode) {
+    fd.rtr.shareCode = decrypt(fd.rtr.shareCode) || fd.rtr.shareCode
+  }
+  return fd
+}
+
 /**
  * Get full reference detail for staff (decrypted fields, sections, referees, company, group members)
  */
@@ -1331,7 +1357,8 @@ router.get('/references/:id/detail', authenticateStaff, async (req: StaffAuthReq
       bills_included: ref.bills_included,
       final_decision_notes: ref.final_decision_notes,
       final_decision_at: ref.final_decision_at,
-      final_decision_by: ref.final_decision_by
+      final_decision_by: ref.final_decision_by,
+      form_data: decryptFormData(ref.form_data)
     }
 
     // Decrypt referee details
