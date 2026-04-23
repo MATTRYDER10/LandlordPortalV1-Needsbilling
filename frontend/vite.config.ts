@@ -1,7 +1,7 @@
 import { defineConfig, Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
-import { writeFileSync, readFileSync } from 'node:fs'
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
@@ -12,7 +12,9 @@ function versionFilePlugin(): Plugin {
   return {
     name: 'version-file',
     closeBundle() {
-      const versionPath = resolve(__dirname, 'dist', 'version.json')
+      const distDir = resolve(__dirname, 'dist')
+      mkdirSync(distDir, { recursive: true })
+      const versionPath = resolve(distDir, 'version.json')
       writeFileSync(versionPath, JSON.stringify({ version: appVersion }))
       console.log(`[version-file] Wrote version.json: ${appVersion}`)
     }
