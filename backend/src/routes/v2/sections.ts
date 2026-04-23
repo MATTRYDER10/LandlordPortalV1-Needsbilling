@@ -2012,4 +2012,106 @@ router.post('/:id/review-response', authenticateStaff, async (req: StaffAuthRequ
   }
 })
 
+/**
+ * POST /api/v2/sections/:id/upload-evidence
+ * Staff uploads evidence document to a section
+ */
+router.post('/:id/upload-evidence', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { fileData, fileName, fileType } = req.body
+
+    if (!fileData || !fileName) {
+      return res.status(400).json({ error: 'fileData and fileName are required' })
+    }
+
+    // Get section with reference info
+    const { data: section, error: secErr } = await supabase
+      .from('reference_sections_v2')
+      .select('id, reference_id, section_type, queue_status, section_data')
+      .eq('id', id)
+      .single()
+
+    if (secErr || !section) {
+      return res.status(404).json({ error: 'Section not found' })
+    }
+
+    // Get reference for company/storage path
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('id, company_id')
+      .eq('id', section.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Upload to Supabase storage
+    const filePath = `v2-evidence/${reference.company_id}/${reference.id}/${section.section_type}/${Date.now()}-${fileName}`
+    const buffer = Buffer.from(fileData, 'base64')
+
+    const { error: uploadErr } = await supabase.storage
+      .from('reference-documents')
+      .upload(filePath, buffer, {
+        contentType: fileType || 'application/octet-stream',
+        upsert: false
+      })
+
+    if (uploadErr) {
+      console.error('[V2 Sections] Upload error:', uploadErr)
+      return res.status(500).json({ error: 'Failed to upload file' })
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('reference-documents')
+      .getPublicUrl(filePath)
+
+    // Store in evidence_v2 table
+    await supabase.from('evidence_v2').insert({
+      reference_id: reference.id,
+      section_id: section.id,
+      section_type: section.section_type,
+      evidence_type: 'staff_upload',
+      file_path: filePath,
+      file_name: fileName,
+      file_type: fileType || null,
+      uploaded_by: req.staffUser?.id || null
+    })
+
+    // Update section_data evidence_status
+    const updatedSectionData = {
+      ...(section.section_data || {}),
+      evidence_status: 'EVIDENCE_UPLOADED',
+      staff_evidence_url: urlData?.publicUrl || null,
+      staff_evidence_filename: fileName
+    }
+
+    await supabase
+      .from('reference_sections_v2')
+      .update({
+        section_data: updatedSectionData,
+        evidence_submitted_at: new Date().toISOString()
+      })
+      .eq('id', section.id)
+
+    // If section is PENDING, move to READY
+    if (section.queue_status === 'PENDING') {
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          queue_status: 'READY',
+          queue_entered_at: new Date().toISOString()
+        })
+        .eq('id', section.id)
+    }
+
+    res.json({ success: true, filePath, fileName })
+  } catch (error: any) {
+    console.error('[V2 Sections] Error uploading evidence:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router

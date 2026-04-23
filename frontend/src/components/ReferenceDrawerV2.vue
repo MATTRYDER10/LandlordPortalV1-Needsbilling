@@ -207,23 +207,34 @@
 
                       <!-- Section Data -->
                       <div v-if="getSectionFormData(section.section_type)" class="space-y-2">
-                        <div
+                        <template
                           v-for="(value, key) in getFilteredSectionFormData(section.section_type)"
                           :key="key"
-                          class="flex justify-between text-sm"
                         >
-                          <span class="text-gray-500 dark:text-slate-400">{{ formatFieldLabel(key as string) }}</span>
-                          <a
-                            v-if="isUrlField(key as string, value)"
-                            :href="value"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="text-primary hover:text-primary/80 underline text-right"
-                          >
-                            View Document
-                          </a>
-                          <span v-else class="text-gray-900 dark:text-white text-right max-w-[60%]">{{ formatDisplayValue(key as string, value) }}</span>
-                        </div>
+                          <!-- Editable referee fields with pencil icon -->
+                          <EditableField
+                            v-if="isEditableRefereeField(key as string)"
+                            :label="formatFieldLabel(key as string)"
+                            :value="value"
+                            :field="getRefereeFieldName(key as string)"
+                            :reference-id="refData?.id"
+                            @saved="onRefereeFieldSaved"
+                          />
+                          <!-- Standard display fields -->
+                          <div v-else class="flex justify-between text-sm">
+                            <span class="text-gray-500 dark:text-slate-400">{{ formatFieldLabel(key as string) }}</span>
+                            <a
+                              v-if="isUrlField(key as string, value)"
+                              :href="value"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="text-primary hover:text-primary/80 underline text-right"
+                            >
+                              View Document
+                            </a>
+                            <span v-else class="text-gray-900 dark:text-white text-right max-w-[60%]">{{ formatDisplayValue(key as string, value) }}</span>
+                          </div>
+                        </template>
                       </div>
 
                       <!-- No Data Message -->
@@ -253,31 +264,6 @@
               <EditableField label="Phone" :value="refData?.tenant_phone" field="tenant_phone" :reference-id="refData?.id" @saved="onFieldSaved" />
               <EditableField label="Monthly Rent" :value="String(refData?.monthly_rent || '')" field="monthly_rent" :reference-id="refData?.id" @saved="onFieldSaved" />
               <EditableField label="Rent Share" :value="String(refData?.rent_share || refData?.monthly_rent || '')" field="rent_share" :reference-id="refData?.id" @saved="onFieldSaved" />
-            </div>
-          </div>
-
-          <!-- Referee Info (Editable) -->
-          <div v-if="hasRefereeFields">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Referee Details</h3>
-            <div class="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
-              <template v-if="refData?.employer_ref_name || needsEmployerRef">
-                <p class="text-xs font-medium text-gray-400 uppercase mb-1">Employer Reference</p>
-                <EditableField label="Name" :value="refData?.employer_ref_name" field="employer_ref_name" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Email" :value="refData?.employer_ref_email" field="employer_ref_email" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Phone" :value="refData?.employer_ref_phone" field="employer_ref_phone" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-              </template>
-              <template v-if="refData?.previous_landlord_name || needsLandlordRef">
-                <p class="text-xs font-medium text-gray-400 uppercase mb-1 mt-3">Previous Landlord</p>
-                <EditableField label="Name" :value="refData?.previous_landlord_name" field="previous_landlord_name" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Email" :value="refData?.previous_landlord_email" field="previous_landlord_email" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Phone" :value="refData?.previous_landlord_phone" field="previous_landlord_phone" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-              </template>
-              <template v-if="refData?.accountant_name">
-                <p class="text-xs font-medium text-gray-400 uppercase mb-1 mt-3">Accountant</p>
-                <EditableField label="Name" :value="refData?.accountant_name" field="accountant_name" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Email" :value="refData?.accountant_email" field="accountant_email" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-                <EditableField label="Phone" :value="refData?.accountant_phone" field="accountant_phone" :reference-id="refData?.id" @saved="onRefereeFieldSaved" />
-              </template>
             </div>
           </div>
 
@@ -943,6 +929,22 @@ function getFilteredSectionFormData(sectionType: string): Record<string, any> | 
     filtered[key] = value
   }
 
+  // Inject missing referee fields so agents can add them
+  if (sectionType === 'INCOME') {
+    const sources = data.sources || []
+    if (Array.isArray(sources) && sources.includes('employed')) {
+      if (!('employerRefName' in filtered)) filtered['employerRefName'] = null
+      if (!('employerRefEmail' in filtered)) filtered['employerRefEmail'] = null
+    }
+  }
+  if (sectionType === 'RESIDENTIAL') {
+    const situation = data.currentLivingSituation || ''
+    if (situation.includes('renting') || situation.includes('letting')) {
+      if (!('currentLandlordEmail' in filtered)) filtered['currentLandlordEmail'] = null
+      if (!('currentLandlordName' in filtered)) filtered['currentLandlordName'] = null
+    }
+  }
+
   return Object.keys(filtered).length > 0 ? filtered : null
 }
 
@@ -1130,6 +1132,38 @@ function formatFieldLabel(key: string): string {
     .trim()
 
   return prefix ? `${prefix} - ${label}` : label
+}
+
+// Editable referee fields — these get inline pencil icons
+const EDITABLE_REFEREE_KEYS = new Set([
+  'employerRefName', 'employerRefEmail', 'employerRefPhone',
+  'currentLandlordName', 'currentLandlordEmail', 'currentLandlordPhone',
+  'accountantName', 'accountantEmail', 'accountantPhone',
+  'landlordName', 'landlordEmail', 'landlordPhone'
+])
+
+function isEditableRefereeField(key: string): boolean {
+  const lastKey = key.includes('.') ? key.split('.').pop()! : key
+  return EDITABLE_REFEREE_KEYS.has(lastKey)
+}
+
+function getRefereeFieldName(key: string): string {
+  const lastKey = key.includes('.') ? key.split('.').pop()! : key
+  const map: Record<string, string> = {
+    'employerRefName': 'employer_ref_name',
+    'employerRefEmail': 'employer_ref_email',
+    'employerRefPhone': 'employer_ref_phone',
+    'currentLandlordName': 'previous_landlord_name',
+    'currentLandlordEmail': 'previous_landlord_email',
+    'currentLandlordPhone': 'previous_landlord_phone',
+    'accountantName': 'accountant_name',
+    'accountantEmail': 'accountant_email',
+    'accountantPhone': 'accountant_phone',
+    'landlordName': 'previous_landlord_name',
+    'landlordEmail': 'previous_landlord_email',
+    'landlordPhone': 'previous_landlord_phone',
+  }
+  return map[lastKey] || lastKey
 }
 
 // Check if a field is a URL field (document link)
@@ -1705,23 +1739,6 @@ async function deleteReference() {
 function getSectionIssueStatus(section: any): string | null {
   return section.section_data?.issue_status || null
 }
-
-const needsEmployerRef = computed(() => {
-  if (!refData.value) return false
-  const sources = refData.value.form_data?.income?.sources || []
-  return sources.includes('employed') && !refData.value.employer_ref_name
-})
-
-const needsLandlordRef = computed(() => {
-  if (!refData.value) return false
-  const res = refData.value.form_data?.residential
-  const situation = res?.currentLivingSituation || ''
-  return (situation.includes('renting') || situation.includes('letting') || !!res?.currentLandlordEmail) && !refData.value.previous_landlord_name
-})
-
-const hasRefereeFields = computed(() => {
-  return !!(refData.value?.employer_ref_name || refData.value?.previous_landlord_name || refData.value?.accountant_name || needsEmployerRef.value || needsLandlordRef.value)
-})
 
 function onConverted() {
   toast.success('Reference converted to tenancy')

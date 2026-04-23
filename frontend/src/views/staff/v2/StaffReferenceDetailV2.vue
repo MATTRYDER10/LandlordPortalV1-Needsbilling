@@ -263,6 +263,33 @@
                   </div>
                 </div>
 
+                <!-- Form Data for this section -->
+                <div v-if="getSectionFormData(section.section_type)" class="mt-4">
+                  <p class="text-xs font-medium text-gray-400 uppercase mb-2">Tenant Submission</p>
+                  <div class="bg-white dark:bg-slate-800 rounded-lg p-3 text-sm space-y-1">
+                    <div v-for="(val, fkey) in getSectionFormData(section.section_type)" :key="fkey" class="flex justify-between">
+                      <span class="text-gray-500">{{ formatFormDataLabel(fkey as string) }}</span>
+                      <a
+                        v-if="isDocUrl(val)"
+                        :href="val"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-primary hover:text-primary/80 underline"
+                      >View Document</a>
+                      <span v-else class="text-gray-900 dark:text-white text-right max-w-[60%]">{{ formatFormValue(fkey as string, val) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Upload Evidence -->
+                <div class="mt-3">
+                  <label class="inline-flex items-center gap-2 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 cursor-pointer">
+                    <Upload class="w-4 h-4" />
+                    Upload Evidence
+                    <input type="file" class="hidden" @change="(e: Event) => handleUploadEvidence(e, section)" />
+                  </label>
+                </div>
+
                 <!-- Verbal reference for this section -->
                 <div v-if="getVerbalRefForSection(section)" class="mt-4">
                   <p class="text-xs font-medium text-gray-400 uppercase mb-2">Verbal Reference</p>
@@ -395,7 +422,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ArrowLeft, Check, XCircle, Clock, ChevronDown, AlertTriangle } from 'lucide-vue-next'
+import { ArrowLeft, Check, XCircle, Clock, ChevronDown, AlertTriangle, Upload } from 'lucide-vue-next'
 import EditableField from '@/components/EditableField.vue'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -659,5 +686,113 @@ function formatDate(dateStr: string): string {
 
 function formatDataKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+// Form data display for sections
+const SECTION_FORM_KEYS: Record<string, string> = {
+  IDENTITY: 'identity', RTR: 'rtr', INCOME: 'income', RESIDENTIAL: 'residential'
+}
+
+const FORM_LABELS: Record<string, string> = {
+  'sources': 'Income Sources', 'jobTitle': 'Job Title', 'annualSalary': 'Annual Salary',
+  'employerName': 'Employer Name', 'employerAddress': 'Employer Address',
+  'employerRefName': 'Employer Ref Name', 'employerRefEmail': 'Employer Ref Email',
+  'employerRefPhone': 'Employer Ref Phone', 'employmentStartDate': 'Employment Start Date',
+  'payslipsUrl': 'Payslips', 'businessName': 'Business Name', 'businessNature': 'Nature of Business',
+  'selfEmployedIncome': 'Self-Employed Income', 'accountantName': 'Accountant Name',
+  'accountantEmail': 'Accountant Email', 'taxReturnUrl': 'Tax Return',
+  'benefitsAmount': 'Benefits Amount', 'benefitsDocUrl': 'Benefits Document',
+  'savingsAmount': 'Savings Amount', 'savingsDocUrl': 'Savings Document',
+  'pensionAmount': 'Pension Amount', 'pensionProvider': 'Pension Provider',
+  'university': 'University/College', 'course': 'Course', 'studentDocUrl': 'Student Document',
+  'currentLivingSituation': 'Current Living Situation',
+  'currentLandlordName': 'Current Landlord Name', 'currentLandlordEmail': 'Current Landlord Email',
+  'currentLandlordPhone': 'Current Landlord Phone',
+  'proofOfAddressUrl': 'Proof of Address',
+  'firstName': 'First Name', 'lastName': 'Last Name', 'dateOfBirth': 'Date of Birth',
+  'phone': 'Phone', 'idDocumentUrl': 'ID Document', 'selfieUrl': 'Selfie',
+  'citizenshipStatus': 'Citizenship Status', 'passportDocUrl': 'Passport',
+  'shareCode': 'Share Code',
+}
+
+function getSectionFormData(sectionType: string): Record<string, any> | null {
+  const key = SECTION_FORM_KEYS[sectionType]
+  if (!key || !reference.value?.form_data?.[key]) return null
+
+  const data = reference.value.form_data[key]
+  const flat: Record<string, any> = {}
+
+  for (const [k, v] of Object.entries(data)) {
+    if (v === null || v === undefined || v === '') continue
+    if (typeof v === 'object' && !Array.isArray(v)) {
+      // Flatten nested objects (e.g. currentAddress)
+      for (const [nk, nv] of Object.entries(v as Record<string, any>)) {
+        if (nv !== null && nv !== undefined && nv !== '') {
+          flat[`${k}.${nk}`] = nv
+        }
+      }
+    } else {
+      flat[k] = v
+    }
+  }
+
+  return Object.keys(flat).length > 0 ? flat : null
+}
+
+function formatFormDataLabel(key: string): string {
+  const lastKey = key.includes('.') ? key.split('.').pop()! : key
+  return FORM_LABELS[lastKey] || lastKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
+}
+
+function formatFormValue(key: string, value: any): string {
+  if (Array.isArray(value)) return value.join(', ')
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'number') {
+    const lastKey = key.includes('.') ? key.split('.').pop()! : key
+    if (lastKey.toLowerCase().includes('salary') || lastKey.toLowerCase().includes('income') || lastKey.toLowerCase().includes('amount') || lastKey.toLowerCase().includes('rent')) {
+      return `£${value.toLocaleString()}`
+    }
+    return String(value)
+  }
+  return String(value || '-')
+}
+
+function isDocUrl(value: any): boolean {
+  return typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))
+}
+
+async function handleUploadEvidence(event: Event, section: any) {
+  const target = event.target as HTMLInputElement
+  if (!target.files?.length) return
+
+  const file = target.files[0]
+  const reader = new FileReader()
+  const base64 = await new Promise<string>((resolve) => {
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.readAsDataURL(file)
+  })
+
+  try {
+    const res = await fetch(`${API_URL}/api/v2/sections/${section.id}/upload-evidence`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ fileData: base64, fileName: file.name, fileType: file.type })
+    })
+
+    if (res.ok) {
+      alert('Evidence uploaded successfully')
+      await loadData()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert(err.error || 'Failed to upload evidence')
+    }
+  } catch {
+    alert('Failed to upload evidence')
+  }
+
+  target.value = ''
 }
 </script>
