@@ -1,10 +1,10 @@
 <template>
-  <div class="flex justify-between items-center text-sm group min-h-[28px]">
+  <div class="flex justify-between items-center text-sm group min-h-[28px] overflow-hidden">
     <span class="text-gray-500 dark:text-slate-400 shrink-0 mr-3">{{ label }}</span>
-    <div class="flex items-center gap-1 shrink-0">
+    <div class="flex items-center gap-1 min-w-0">
       <!-- View mode -->
       <template v-if="!editing">
-        <span class="text-gray-900 dark:text-white text-right truncate">{{ displayValue }}</span>
+        <span class="text-gray-900 dark:text-white text-right truncate min-w-0" :title="displayValue">{{ displayValue }}</span>
         <button
           v-if="editable && field"
           @click.stop="startEdit"
