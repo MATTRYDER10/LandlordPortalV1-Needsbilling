@@ -149,22 +149,31 @@ async function jmiFetch<T = any>(
 // ============================================================================
 
 export async function getCompanyJMIConfig(companyId: string): Promise<JMIConfig | null> {
+  // Check for company-specific API key first
   const { data, error } = await supabase
     .from('company_integrations')
     .select('jmi_api_key_encrypted, jmi_environment')
     .eq('company_id', companyId)
     .single()
 
-  if (error || !data || !data.jmi_api_key_encrypted) {
-    return null
+  if (!error && data?.jmi_api_key_encrypted) {
+    const apiKey = decrypt(data.jmi_api_key_encrypted)
+    if (apiKey) {
+      return { apiKey, environment: data.jmi_environment || 'production' }
+    }
   }
 
-  const apiKey = decrypt(data.jmi_api_key_encrypted)
-  if (!apiKey) {
-    return null
+  // Fall back to PropertyGoose default API key
+  const defaultKey = process.env.JMI_DEFAULT_API_KEY
+  if (defaultKey) {
+    return { apiKey: defaultKey, environment: process.env.JMI_DEFAULT_ENVIRONMENT || 'production' }
   }
 
-  return { apiKey, environment: data.jmi_environment || 'sandbox' }
+  return null
+}
+
+export function hasDefaultJMIKey(): boolean {
+  return !!process.env.JMI_DEFAULT_API_KEY
 }
 
 export async function saveJMIConfig(

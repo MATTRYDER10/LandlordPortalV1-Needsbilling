@@ -571,6 +571,152 @@
         </div>
       </div>
 
+      <!-- ============================================================ -->
+      <!-- PUSH TO APEX27 SECTION                                       -->
+      <!-- ============================================================ -->
+      <div v-if="status?.configured && status.lastTestStatus === 'success' && !editMode" class="mt-6 pt-6 border-t border-[#6B21A8]/20">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="flex items-center justify-center w-8 h-8 rounded-full bg-[#6B21A8]/20">
+            <svg class="w-4 h-4 text-[#6B21A8] dark:text-[#9333EA]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+          </div>
+          <div>
+            <h5 class="text-md font-semibold text-[#6B21A8] dark:text-white">Push to Apex27</h5>
+            <p class="text-xs text-gray-500 dark:text-slate-400">
+              Push properties &amp; landlords from PropertyGoose into Apex27. Use this if you were on PropertyGoose before connecting Apex27.
+            </p>
+          </div>
+        </div>
+
+        <!-- Push Preview Button -->
+        <div v-if="!pushPreviewItems">
+          <button
+            @click="handlePushPreview"
+            :disabled="pushPreviewing"
+            class="px-4 py-2 text-sm font-medium text-white bg-[#6B21A8] hover:bg-[#6B21A8]/90 rounded-md disabled:opacity-50 flex items-center gap-2"
+          >
+            <Loader2 v-if="pushPreviewing" class="w-4 h-4 animate-spin" />
+            {{ pushPreviewing ? 'Scanning...' : 'Preview Push to Apex27' }}
+          </button>
+        </div>
+
+        <!-- Push Preview Table -->
+        <div v-if="pushPreviewItems" class="space-y-4">
+          <div v-if="pushPreviewItems.length === 0" class="p-4 bg-gray-50 dark:bg-slate-900 rounded-lg text-sm text-gray-500 dark:text-slate-400 text-center">
+            All properties are already linked to Apex27. Nothing to push.
+          </div>
+
+          <div v-else>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm text-gray-700 dark:text-slate-300">
+                <span class="font-semibold">{{ pushSelectedCount }}</span> of {{ pushPreviewItems.length }} properties will be pushed to Apex27
+              </p>
+              <div class="flex items-center gap-2">
+                <button @click="toggleAllPush(true)" class="text-xs text-[#6B21A8] hover:underline">Select All</button>
+                <span class="text-gray-300">|</span>
+                <button @click="toggleAllPush(false)" class="text-xs text-gray-500 hover:underline">Deselect All</button>
+              </div>
+            </div>
+
+            <div class="border dark:border-slate-700 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                <thead class="bg-gray-50 dark:bg-slate-900 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left w-10"></th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Property</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Type</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Beds</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Rent</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Landlord</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-100 dark:divide-slate-700">
+                  <tr
+                    v-for="item in pushPreviewItems"
+                    :key="item.propertyId"
+                    :class="{ 'opacity-50': !item.selected }"
+                  >
+                    <td class="px-3 py-2">
+                      <input type="checkbox" v-model="item.selected" class="rounded border-gray-300 text-[#6B21A8] focus:ring-[#6B21A8]" />
+                    </td>
+                    <td class="px-3 py-2">
+                      <div class="text-gray-900 dark:text-white font-medium">{{ item.address || item.postcode || 'Unknown' }}</div>
+                      <div class="text-xs text-gray-500 dark:text-slate-400">{{ item.postcode }}</div>
+                    </td>
+                    <td class="px-3 py-2 text-gray-600 dark:text-slate-300 capitalize">{{ item.propertyType || '-' }}</td>
+                    <td class="px-3 py-2 text-gray-600 dark:text-slate-300">{{ item.bedrooms ?? '-' }}</td>
+                    <td class="px-3 py-2 text-gray-600 dark:text-slate-300">{{ item.rent ? `£${item.rent.toLocaleString()}/mo` : '-' }}</td>
+                    <td class="px-3 py-2">
+                      <div v-if="item.landlords.length > 0">
+                        <div v-for="ll in item.landlords" :key="ll.landlordId" class="text-xs">
+                          <span class="text-gray-900 dark:text-white">{{ ll.name }}</span>
+                          <span v-if="ll.alreadyInApex27" class="ml-1 text-[#6B21A8] text-[10px]">(linked)</span>
+                          <span v-else class="ml-1 text-amber-500 text-[10px]">(new)</span>
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-red-500">No landlord</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- No-landlord warning -->
+            <div v-if="pushNoLandlordCount > 0" class="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+              {{ pushNoLandlordCount }} propert{{ pushNoLandlordCount === 1 ? 'y has' : 'ies have' }} no landlord assigned and cannot be pushed. Apex27 requires a landlord contact for each listing.
+            </div>
+
+            <!-- Confirm Push -->
+            <div class="flex items-center gap-3 mt-4">
+              <button
+                @click="handlePushConfirm"
+                :disabled="pushConfirming || pushSelectedCount === 0"
+                class="px-4 py-2 text-sm font-medium text-white bg-[#6B21A8] hover:bg-[#6B21A8]/90 rounded-md disabled:opacity-50 flex items-center gap-2"
+              >
+                <Loader2 v-if="pushConfirming" class="w-4 h-4 animate-spin" />
+                {{ pushConfirming ? 'Pushing...' : `Push ${pushSelectedCount} to Apex27` }}
+              </button>
+              <button
+                @click="pushPreviewItems = null"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Push Results -->
+        <div v-if="pushResult" class="mt-4 p-4 bg-white dark:bg-slate-800 rounded-lg shadow border dark:border-slate-700">
+          <h6 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Push Results</h6>
+          <div class="grid grid-cols-4 gap-4 text-center">
+            <div>
+              <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ pushResult.totalProperties }}</div>
+              <div class="text-xs text-gray-500 dark:text-slate-400">Total</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ pushResult.propertiesPushed }}</div>
+              <div class="text-xs text-gray-500 dark:text-slate-400">Properties Created</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-[#6B21A8]">{{ pushResult.landlordsPushed }}</div>
+              <div class="text-xs text-gray-500 dark:text-slate-400">Landlords Created</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-gray-400">{{ pushResult.landlordsSkipped }}</div>
+              <div class="text-xs text-gray-500 dark:text-slate-400">Already Linked</div>
+            </div>
+          </div>
+          <div v-if="pushResult.errors && pushResult.errors.length > 0" class="mt-3">
+            <p class="text-sm font-medium text-red-600 dark:text-red-400 mb-1">{{ pushResult.errors.length }} error(s):</p>
+            <ul class="text-xs text-red-500 dark:text-red-400 space-y-1">
+              <li v-for="(err, i) in pushResult.errors" :key="i">
+                {{ err.address }}: {{ err.message }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Edit Form -->
@@ -664,6 +810,27 @@ const tenancySyncResult = ref<{
   records_skipped: number
   errors?: any[]
 } | null>(null)
+
+const pushPreviewing = ref(false)
+const pushConfirming = ref(false)
+const pushPreviewItems = ref<any[] | null>(null)
+const pushResult = ref<{
+  totalProperties: number
+  propertiesPushed: number
+  landlordsPushed: number
+  landlordsSkipped: number
+  errors?: any[]
+} | null>(null)
+
+const pushSelectedCount = computed(() => {
+  if (!pushPreviewItems.value) return 0
+  return pushPreviewItems.value.filter(i => i.selected && i.landlords.length > 0).length
+})
+
+const pushNoLandlordCount = computed(() => {
+  if (!pushPreviewItems.value) return 0
+  return pushPreviewItems.value.filter(i => i.landlords.length === 0).length
+})
 
 const editMode = ref(false)
 const errorMsg = ref('')
@@ -1077,6 +1244,80 @@ async function handleTenancyConfirm() {
     errorMsg.value = 'Tenancy import failed'
   } finally {
     tenancyConfirming.value = false
+  }
+}
+
+function toggleAllPush(selected: boolean) {
+  if (!pushPreviewItems.value) return
+  pushPreviewItems.value.forEach(item => { item.selected = selected })
+}
+
+async function handlePushPreview() {
+  clearMessages()
+  pushPreviewing.value = true
+  pushPreviewItems.value = null
+  pushResult.value = null
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/push/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Failed to preview push'
+      return
+    }
+
+    pushPreviewItems.value = data.items || []
+  } catch (err) {
+    errorMsg.value = 'Failed to preview push'
+  } finally {
+    pushPreviewing.value = false
+  }
+}
+
+async function handlePushConfirm() {
+  if (!pushPreviewItems.value) return
+
+  clearMessages()
+  pushConfirming.value = true
+  pushResult.value = null
+
+  const selectedIds = pushPreviewItems.value
+    .filter(item => item.selected && item.landlords.length > 0)
+    .map(item => item.propertyId)
+
+  if (selectedIds.length === 0) {
+    errorMsg.value = 'No properties selected'
+    pushConfirming.value = false
+    return
+  }
+
+  try {
+    const response = await apiFetch(`${API_URL}/api/apex27/push/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ propertyIds: selectedIds })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMsg.value = data.error || 'Push failed'
+      return
+    }
+
+    pushResult.value = data.result
+    pushPreviewItems.value = null
+    successMsg.value = `Pushed ${data.result.propertiesPushed} properties and ${data.result.landlordsPushed} landlords to Apex27.`
+    await loadStatus()
+  } catch (err) {
+    errorMsg.value = 'Push to Apex27 failed'
+  } finally {
+    pushConfirming.value = false
   }
 }
 

@@ -44,26 +44,52 @@
           <div>
             <h4 class="text-md font-semibold text-[#0E7490] dark:text-white">API Connection</h4>
             <p class="text-sm text-gray-500 dark:text-slate-400">
-              Enter your JMI API key to connect your account.
+              JMI is included with PropertyGoose by default. You can optionally use your own API key if you have a direct JMI account.
             </p>
           </div>
         </div>
-        <div v-if="status?.configured" class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <span
+            v-if="status?.configured"
             class="px-2 py-1 rounded-full text-xs font-medium"
-            :class="status.lastTestStatus === 'success'
+            :class="status.usingDefault
               ? 'bg-[#0891B2]/20 text-[#0E7490] dark:bg-[#22D3EE]/30 dark:text-[#22D3EE]'
-              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400'"
+              : status.lastTestStatus === 'success'
+                ? 'bg-[#0891B2]/20 text-[#0E7490] dark:bg-[#22D3EE]/30 dark:text-[#22D3EE]'
+                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400'"
           >
-            {{ status.lastTestStatus === 'success' ? 'Connected' : 'Needs Testing' }}
+            {{ status.usingDefault ? 'Default (Active)' : status.lastTestStatus === 'success' ? 'Custom Key (Connected)' : 'Needs Testing' }}
           </span>
         </div>
       </div>
 
-      <!-- Saved Config Display -->
-      <div v-if="status?.configured && !editMode" class="space-y-4">
+      <!-- Using Default Key -->
+      <div v-if="status?.configured && status.usingDefault && !editMode" class="space-y-4">
+        <div class="p-4 bg-[#0891B2]/5 dark:bg-[#0891B2]/10 border border-[#0891B2]/20 rounded-lg">
+          <div class="flex items-center gap-2 mb-1">
+            <CheckCircle class="w-4 h-4 text-[#0891B2]" />
+            <p class="text-sm font-medium text-[#0E7490] dark:text-[#22D3EE]">Using PropertyGoose default API key</p>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-slate-400 ml-6">
+            JMI is active and ready to use. All utility notifications will be processed through the PropertyGoose supplier account.
+          </p>
+        </div>
+
+        <div class="pt-4 border-t dark:border-slate-700">
+          <button
+            type="button"
+            @click="editMode = true"
+            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
+          >
+            Use My Own API Key
+          </button>
+        </div>
+      </div>
+
+      <!-- Using Custom Key (Saved) -->
+      <div v-else-if="status?.configured && status.hasCustomKey && !editMode" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key (Custom)</label>
           <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
             <span class="text-gray-900 dark:text-white font-mono">{{ status.maskedApiKey || '••••••••••••••••••••' }}</span>
           </div>
@@ -72,7 +98,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Environment</label>
           <div class="mt-1 px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-md">
-            <span class="text-gray-900 dark:text-white capitalize">{{ status.environment || 'sandbox' }}</span>
+            <span class="text-gray-900 dark:text-white capitalize">{{ status.environment || 'production' }}</span>
           </div>
         </div>
 
@@ -104,7 +130,16 @@
           </div>
           <button
             type="button"
+            @click="showResetConfirm = true"
+            v-if="status.hasDefaultKey"
+            class="px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md"
+          >
+            Reset to Default
+          </button>
+          <button
+            type="button"
             @click="showRemoveConfirm = true"
+            v-else
             class="px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
           >
             Remove Integration
@@ -117,8 +152,24 @@
         </div>
       </div>
 
+      <!-- Not Configured (no default, no custom) -->
+      <div v-else-if="!status?.configured && !editMode" class="space-y-4">
+        <div class="p-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-center">
+          <p class="text-sm text-gray-500 dark:text-slate-400">
+            JMI is not configured. Enter an API key to enable utility switching.
+          </p>
+          <button
+            type="button"
+            @click="editMode = true"
+            class="mt-3 px-4 py-2 text-sm font-medium text-white bg-[#0891B2] hover:bg-[#0E7490] rounded-md"
+          >
+            Configure API Key
+          </button>
+        </div>
+      </div>
+
       <!-- Edit / New Config Form -->
-      <div v-else class="space-y-4">
+      <div v-if="editMode" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">API Key</label>
           <div class="mt-1 relative">
@@ -170,7 +221,6 @@
             Save Settings
           </button>
           <button
-            v-if="status?.configured"
             type="button"
             @click="editMode = false; apiKeyInput = ''"
             class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
@@ -181,7 +231,37 @@
       </div>
     </div>
 
-    <!-- Remove Confirmation Modal -->
+    <!-- Reset to Default Confirmation Modal -->
+    <Teleport to="body">
+      <div v-if="showResetConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showResetConfirm = false">
+        <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Reset to Default API Key</h3>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
+            This will remove your custom API key and switch back to the PropertyGoose default. JMI will continue to work using the default supplier account.
+          </p>
+          <div class="flex justify-end gap-3">
+            <button
+              type="button"
+              @click="showResetConfirm = false"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="handleResetToDefault"
+              :disabled="removing"
+              class="px-4 py-2 text-sm font-medium text-white bg-[#0891B2] hover:bg-[#0E7490] disabled:opacity-50 disabled:cursor-not-allowed rounded-md flex items-center gap-2"
+            >
+              <Loader2 v-if="removing" class="w-4 h-4 animate-spin" />
+              Reset to Default
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Remove Confirmation Modal (for when no default available) -->
     <Teleport to="body">
       <div v-if="showRemoveConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showRemoveConfirm = false">
         <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
@@ -215,7 +295,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Zap, ExternalLink, Key, Loader2, Wifi, Eye, EyeOff } from 'lucide-vue-next'
+import { Zap, ExternalLink, Key, Loader2, Wifi, Eye, EyeOff, CheckCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch } from '@/lib/authFetch'
 import { API_URL } from '@/lib/apiUrl'
@@ -229,13 +309,17 @@ const removing = ref(false)
 const editMode = ref(false)
 const showApiKey = ref(false)
 const showRemoveConfirm = ref(false)
+const showResetConfirm = ref(false)
 const apiKeyInput = ref('')
-const environmentInput = ref('sandbox')
+const environmentInput = ref('production')
 const error = ref('')
 const testResult = ref<{ success: boolean; message: string } | null>(null)
 
 const status = ref<{
   configured: boolean
+  hasCustomKey: boolean
+  usingDefault: boolean
+  hasDefaultKey: boolean
   maskedApiKey: string | null
   environment: string
   connectedAt: string | null
@@ -322,6 +406,26 @@ async function handleTestConnection() {
     testResult.value = { success: false, message: 'Connection test failed' }
   } finally {
     testing.value = false
+  }
+}
+
+async function handleResetToDefault() {
+  removing.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/settings/jmi`, {
+      method: 'DELETE',
+      token: authStore.session?.access_token || undefined
+    })
+
+    if (response.ok) {
+      showResetConfirm.value = false
+      editMode.value = false
+      await fetchStatus()
+    }
+  } catch (err) {
+    console.error('[JMI Settings] Error resetting to default:', err)
+  } finally {
+    removing.value = false
   }
 }
 

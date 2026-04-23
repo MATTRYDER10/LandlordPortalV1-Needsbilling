@@ -2771,3 +2771,425 @@ export async function confirmFeesSync(
 
   return result
 }
+
+// ============================================================================
+// BULK PUSH TO APEX27 (Properties & Landlords from PG → Apex27)
+// ============================================================================
+
+interface BulkPushPreviewItem {
+  propertyId: string
+  address: string
+  postcode: string
+  propertyType: string | null
+  bedrooms: number | null
+  bathrooms: number | null
+  rent: number | null
+  furnishing: string | null
+  councilTaxBand: string | null
+  landlords: Array<{
+    landlordId: string
+    name: string
+    email: string | null
+    phone: string | null
+    alreadyInApex27: boolean
+    apex27ContactId: string | null
+  }>
+  selected: boolean
+}
+
+interface BulkPushResult {
+  totalProperties: number
+  propertiesPushed: number
+  landlordsPushed: number
+  landlordsSkipped: number
+  errors: Array<{ propertyId: string; address: string; message: string }>
+}
+
+/**
+ * Map PG property type back to Apex27 property type for pushing
+ */
+function reverseMapPropertyType(pgType: string | null): string {
+  if (!pgType) return 'house'
+  const map: Record<string, string> = {
+    'house': 'house',
+    'flat': 'flat',
+    'studio': 'studio',
+    'room': 'room',
+    'bungalow': 'bungalow',
+    'maisonette': 'maisonette',
+    'other': 'house',
+  }
+  return map[pgType] || 'house'
+}
+
+/**
+ * Map PG furnishing status back to Apex27 furnished value
+ */
+function reverseMapFurnishedStatus(pgStatus: string | null): string | null {
+  if (!pgStatus) return null
+  const map: Record<string, string> = {
+    'furnished': 'furnished',
+    'part_furnished': 'part_furnished',
+    'unfurnished': 'unfurnished',
+  }
+  return map[pgStatus] || null
+}
+
+/**
+ * Preview which PG properties & landlords can be pushed to Apex27.
+ * Returns properties that do NOT have an apex27_listing_id.
+ */
+export async function bulkPushPreview(
+  companyId: string
+): Promise<{ success: boolean; items?: BulkPushPreviewItem[]; error?: string }> {
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) {
+    return { success: false, error: 'Apex27 integration not configured' }
+  }
+
+  // Fetch all properties without apex27_listing_id
+  const { data: properties, error: propError } = await supabase
+    .from('properties')
+    .select(`
+      id, postcode, property_type, number_of_bedrooms, number_of_bathrooms,
+      furnishing_status, council_tax_band, monthly_rent,
+      address_line1_encrypted, city_encrypted, county_encrypted, full_address_encrypted,
+      apex27_listing_id,
+      property_landlords (
+        landlord_id,
+        landlords (
+          id, first_name_encrypted, last_name_encrypted, email_encrypted, phone_encrypted,
+          apex27_contact_id,
+          residential_address_line1_encrypted, residential_city_encrypted,
+          residential_postcode_encrypted
+        )
+      )
+    `)
+    .eq('company_id', companyId)
+    .is('apex27_listing_id', null)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
+  if (propError) {
+    console.error('[Apex27 Push] Error fetching properties:', propError)
+    return { success: false, error: 'Failed to fetch properties' }
+  }
+
+  if (!properties || properties.length === 0) {
+    return { success: true, items: [] }
+  }
+
+  const items: BulkPushPreviewItem[] = properties.map((prop: any) => {
+    const address = prop.full_address_encrypted
+      ? decrypt(prop.full_address_encrypted) || ''
+      : prop.address_line1_encrypted
+        ? decrypt(prop.address_line1_encrypted) || ''
+        : ''
+
+    const landlords = (prop.property_landlords || []).map((pl: any) => {
+      const ll = pl.landlords
+      if (!ll) return null
+      const firstName = ll.first_name_encrypted ? decrypt(ll.first_name_encrypted) : ''
+      const lastName = ll.last_name_encrypted ? decrypt(ll.last_name_encrypted) : ''
+      const email = ll.email_encrypted ? decrypt(ll.email_encrypted) : null
+      const phone = ll.phone_encrypted ? decrypt(ll.phone_encrypted) : null
+      return {
+        landlordId: ll.id,
+        name: [firstName, lastName].filter(Boolean).join(' ') || 'Unknown',
+        email,
+        phone,
+        alreadyInApex27: !!ll.apex27_contact_id,
+        apex27ContactId: ll.apex27_contact_id || null
+      }
+    }).filter(Boolean)
+
+    return {
+      propertyId: prop.id,
+      address,
+      postcode: prop.postcode || '',
+      propertyType: prop.property_type,
+      bedrooms: prop.number_of_bedrooms,
+      bathrooms: prop.number_of_bathrooms,
+      rent: prop.monthly_rent,
+      furnishing: prop.furnishing_status,
+      councilTaxBand: prop.council_tax_band,
+      landlords,
+      selected: true
+    }
+  })
+
+  return { success: true, items }
+}
+
+/**
+ * Push selected PG properties & landlords to Apex27.
+ * For each property:
+ *   1. Create landlord contact in Apex27 (if not already linked)
+ *   2. Create listing in Apex27 with contactId → landlord
+ *   3. Save apex27_listing_id and apex27_contact_id back to PG
+ */
+export async function bulkPushConfirm(
+  companyId: string,
+  selectedPropertyIds: string[]
+): Promise<{ success: boolean; result?: BulkPushResult; error?: string }> {
+  const config = await getCompanyApex27Config(companyId)
+  if (!config) {
+    return { success: false, error: 'Apex27 integration not configured' }
+  }
+
+  const branchId = config.branchId ? parseInt(config.branchId, 10) : null
+
+  if (!branchId) {
+    return { success: false, error: 'No Apex27 branch selected. Please select a branch in integration settings first.' }
+  }
+
+  // Create sync log
+  const { data: syncLog } = await supabase
+    .from('apex27_sync_logs')
+    .insert({
+      company_id: companyId,
+      sync_type: 'push_to_apex27',
+      status: 'started',
+      started_at: new Date().toISOString()
+    })
+    .select('id')
+    .single()
+  const syncLogId = syncLog?.id
+
+  const result: BulkPushResult = {
+    totalProperties: selectedPropertyIds.length,
+    propertiesPushed: 0,
+    landlordsPushed: 0,
+    landlordsSkipped: 0,
+    errors: []
+  }
+
+  // Fetch full property data for selected properties
+  const { data: properties, error: propError } = await supabase
+    .from('properties')
+    .select(`
+      id, postcode, property_type, number_of_bedrooms, number_of_bathrooms,
+      furnishing_status, council_tax_band, monthly_rent,
+      address_line1_encrypted, city_encrypted, county_encrypted, full_address_encrypted,
+      property_landlords (
+        landlord_id, is_primary_contact,
+        landlords (
+          id, first_name_encrypted, last_name_encrypted, email_encrypted, phone_encrypted,
+          apex27_contact_id,
+          residential_address_line1_encrypted, residential_city_encrypted,
+          residential_county_encrypted, residential_postcode_encrypted
+        )
+      )
+    `)
+    .eq('company_id', companyId)
+    .is('apex27_listing_id', null)
+    .is('deleted_at', null)
+    .in('id', selectedPropertyIds)
+
+  if (propError || !properties) {
+    return { success: false, error: 'Failed to fetch selected properties' }
+  }
+
+  // Track landlords we've already pushed in this batch to avoid duplicates
+  const pushedLandlords = new Map<string, number>() // landlordId → apex27ContactId
+
+  for (const prop of properties) {
+    try {
+      const address1 = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : ''
+      const city = prop.city_encrypted ? decrypt(prop.city_encrypted) : ''
+      const county = prop.county_encrypted ? decrypt(prop.county_encrypted) : ''
+      const fullAddress = prop.full_address_encrypted ? decrypt(prop.full_address_encrypted) : address1
+
+      // Step 1: Resolve landlord contactId for the listing
+      let contactId: number | null = null
+      const landlordLinks = prop.property_landlords || []
+
+      // Pick the primary landlord, or first one
+      const primaryLink = landlordLinks.find((pl: any) => pl.is_primary_contact) || landlordLinks[0]
+
+      if (primaryLink?.landlords) {
+        const ll = primaryLink.landlords as any
+        const landlordId = ll.id as string
+
+        if (ll.apex27_contact_id) {
+          // Already in Apex27
+          contactId = parseInt(ll.apex27_contact_id, 10)
+          result.landlordsSkipped++
+        } else if (pushedLandlords.has(landlordId)) {
+          // Already pushed in this batch
+          contactId = pushedLandlords.get(landlordId)!
+          result.landlordsSkipped++
+        } else {
+          // Create landlord in Apex27
+          const firstName = ll.first_name_encrypted ? decrypt(ll.first_name_encrypted) : ''
+          const lastName = ll.last_name_encrypted ? decrypt(ll.last_name_encrypted) : ''
+          const email = ll.email_encrypted ? decrypt(ll.email_encrypted) : undefined
+          const phone = ll.phone_encrypted ? decrypt(ll.phone_encrypted) : undefined
+          const llAddress = ll.residential_address_line1_encrypted ? decrypt(ll.residential_address_line1_encrypted) : undefined
+          const llCity = ll.residential_city_encrypted ? decrypt(ll.residential_city_encrypted) : undefined
+          const llCounty = ll.residential_county_encrypted ? decrypt(ll.residential_county_encrypted) : undefined
+          const llPostcode = ll.residential_postcode_encrypted ? decrypt(ll.residential_postcode_encrypted) : undefined
+
+          const contactBody: Record<string, any> = {
+            firstName: firstName || 'Unknown',
+            lastName: lastName || 'Landlord',
+            isLandlord: true,
+            source: 'API',
+            country: 'GB'
+          }
+          if (branchId) contactBody.branchId = branchId
+          if (email) contactBody.email = email
+          if (phone) contactBody.mobile = phone
+          if (llAddress) contactBody.address1 = llAddress
+          if (llCity) contactBody.city = llCity
+          if (llCounty) contactBody.county = llCounty
+          if (llPostcode) contactBody.postalCode = llPostcode
+
+          const contactResult = await apex27Fetch<any>(config.apiKey, '/contacts', undefined, 'POST', contactBody)
+
+          if (contactResult.success && contactResult.data?.id) {
+            contactId = contactResult.data.id
+            pushedLandlords.set(landlordId, contactId!)
+
+            // Save apex27_contact_id back to PG
+            await supabase
+              .from('landlords')
+              .update({
+                apex27_contact_id: String(contactId),
+                apex27_last_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', landlordId)
+
+            result.landlordsPushed++
+            console.log(`[Apex27 Push] Created landlord contact ${contactId} for ${firstName} ${lastName}`)
+          } else {
+            console.error(`[Apex27 Push] Failed to create landlord contact: ${contactResult.error}`)
+            // Continue without landlord — we'll still try to push the property
+          }
+        }
+
+        // Also push any other landlords on this property that aren't in Apex27 yet
+        for (const otherLink of landlordLinks) {
+          if (otherLink === primaryLink) continue
+          const otherLl = otherLink.landlords as any
+          if (!otherLl || otherLl.apex27_contact_id || pushedLandlords.has(otherLl.id)) continue
+
+          const oFirstName = otherLl.first_name_encrypted ? decrypt(otherLl.first_name_encrypted) : ''
+          const oLastName = otherLl.last_name_encrypted ? decrypt(otherLl.last_name_encrypted) : ''
+          const oEmail = otherLl.email_encrypted ? decrypt(otherLl.email_encrypted) : undefined
+          const oPhone = otherLl.phone_encrypted ? decrypt(otherLl.phone_encrypted) : undefined
+
+          const otherBody: Record<string, any> = {
+            firstName: oFirstName || 'Unknown',
+            lastName: oLastName || 'Landlord',
+            isLandlord: true,
+            source: 'API',
+            country: 'GB'
+          }
+          if (branchId) otherBody.branchId = branchId
+          if (oEmail) otherBody.email = oEmail
+          if (oPhone) otherBody.mobile = oPhone
+
+          const otherResult = await apex27Fetch<any>(config.apiKey, '/contacts', undefined, 'POST', otherBody)
+          if (otherResult.success && otherResult.data?.id) {
+            pushedLandlords.set(otherLl.id, otherResult.data.id)
+            await supabase
+              .from('landlords')
+              .update({
+                apex27_contact_id: String(otherResult.data.id),
+                apex27_last_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', otherLl.id)
+            result.landlordsPushed++
+          }
+        }
+      }
+
+      // Step 2: Create listing in Apex27
+      if (!contactId) {
+        result.errors.push({
+          propertyId: prop.id,
+          address: fullAddress || prop.postcode || 'Unknown',
+          message: 'No landlord available to link as contact — property has no landlords assigned'
+        })
+        continue
+      }
+
+      const listingBody: Record<string, any> = {
+        branchId,
+        contactId,
+        transactionType: 'rent',
+        status: 'available',
+        address1: address1 || 'Unknown',
+        city: city || 'Unknown',
+        postalCode: prop.postcode || '',
+        country: 'GB',
+        displayAddress: fullAddress || address1 || prop.postcode || 'Unknown',
+        priceCurrency: 'GBP',
+        price: prop.monthly_rent || 0,
+        rentFrequency: 'per_month',
+        propertyType: reverseMapPropertyType(prop.property_type),
+        bedrooms: prop.number_of_bedrooms || 0,
+        bathrooms: prop.number_of_bathrooms || 0,
+      }
+
+      if (county) listingBody.county = county
+      const furnished = reverseMapFurnishedStatus(prop.furnishing_status)
+      if (furnished) listingBody.furnished = furnished
+      if (prop.council_tax_band) listingBody.councilTaxBand = prop.council_tax_band
+
+      const listingResult = await apex27Fetch<any>(config.apiKey, '/listings', undefined, 'POST', listingBody)
+
+      if (!listingResult.success || !listingResult.data?.id) {
+        result.errors.push({
+          propertyId: prop.id,
+          address: fullAddress || prop.postcode || 'Unknown',
+          message: `Failed to create listing: ${listingResult.error || 'No listing ID returned'}`
+        })
+        continue
+      }
+
+      // Step 3: Save apex27_listing_id back to PG
+      const apex27ListingId = String(listingResult.data.id)
+      await supabase
+        .from('properties')
+        .update({
+          apex27_listing_id: apex27ListingId,
+          apex27_last_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', prop.id)
+
+      result.propertiesPushed++
+      console.log(`[Apex27 Push] Created listing ${apex27ListingId} for property ${prop.id}`)
+
+    } catch (err: any) {
+      const address = prop.full_address_encrypted ? decrypt(prop.full_address_encrypted) : prop.postcode
+      result.errors.push({
+        propertyId: prop.id,
+        address: address || 'Unknown',
+        message: err.message || 'Unexpected error'
+      })
+    }
+  }
+
+  // Update sync log
+  if (syncLogId) {
+    await supabase
+      .from('apex27_sync_logs')
+      .update({
+        status: 'completed',
+        records_processed: result.totalProperties,
+        records_created: result.propertiesPushed,
+        records_updated: result.landlordsPushed,
+        records_skipped: result.landlordsSkipped,
+        errors: result.errors,
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', syncLogId)
+  }
+
+  return { success: true, result }
+}
