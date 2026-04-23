@@ -11,7 +11,9 @@
  *
  * Safe to re-run — checks for existing records before creating.
  *
- * Usage: npx tsx src/scripts/backfillMissingReferees.ts
+ * Usage:
+ *   npx tsx src/scripts/backfillMissingReferees.ts --dry-run   (preview only)
+ *   npx tsx src/scripts/backfillMissingReferees.ts              (execute for real)
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -45,8 +47,10 @@ function getV2FrontendUrl(): string {
   return process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
 }
 
+const DRY_RUN = process.argv.includes('--dry-run')
+
 async function backfill() {
-  console.log('=== Backfilling missing V2 referees ===\n')
+  console.log(`=== Backfilling missing V2 referees ${DRY_RUN ? '(DRY RUN — no changes will be made)' : '(LIVE)'} ===\n`)
 
   // Get all non-guarantor refs with form_data
   const { data: allRefs } = await supabase
@@ -84,19 +88,21 @@ async function backfill() {
         .maybeSingle()
 
       if (!existing) {
-        try {
-          await createReferee(ref, 'EMPLOYER', income.employerRefEmail, tenantName, income.employerRefName)
-          createdEmployer++
-
-          // Populate encrypted columns on reference
-          await supabase.from('tenant_references_v2').update({
-            employer_ref_email_encrypted: encrypt(income.employerRefEmail),
-            employer_ref_name_encrypted: income.employerRefName ? encrypt(income.employerRefName) : null
-          }).eq('id', ref.id)
-        } catch (err) {
-          console.error(`  ERROR creating EMPLOYER for ${ref.reference_number}:`, err)
-          errors++
+        console.log(`  ${DRY_RUN ? '[DRY RUN]' : ''} EMPLOYER for ${ref.reference_number}: ${income.employerRefEmail} (name: ${income.employerRefName || 'N/A'})`)
+        if (!DRY_RUN) {
+          try {
+            await createReferee(ref, 'EMPLOYER', income.employerRefEmail, tenantName, income.employerRefName)
+            await supabase.from('tenant_references_v2').update({
+              employer_ref_email_encrypted: encrypt(income.employerRefEmail),
+              employer_ref_name_encrypted: income.employerRefName ? encrypt(income.employerRefName) : null
+            }).eq('id', ref.id)
+          } catch (err) {
+            console.error(`  ERROR creating EMPLOYER for ${ref.reference_number}:`, err)
+            errors++
+            continue
+          }
         }
+        createdEmployer++
       }
     }
 
@@ -112,18 +118,21 @@ async function backfill() {
         .maybeSingle()
 
       if (!existing) {
-        try {
-          await createReferee(ref, 'LANDLORD', llEmail, tenantName, llName)
-          createdLandlord++
-
-          await supabase.from('tenant_references_v2').update({
-            previous_landlord_email_encrypted: encrypt(llEmail),
-            previous_landlord_name_encrypted: llName ? encrypt(llName) : null
-          }).eq('id', ref.id)
-        } catch (err) {
-          console.error(`  ERROR creating LANDLORD for ${ref.reference_number}:`, err)
-          errors++
+        console.log(`  ${DRY_RUN ? '[DRY RUN]' : ''} LANDLORD for ${ref.reference_number}: ${llEmail} (name: ${llName || 'N/A'})`)
+        if (!DRY_RUN) {
+          try {
+            await createReferee(ref, 'LANDLORD', llEmail, tenantName, llName)
+            await supabase.from('tenant_references_v2').update({
+              previous_landlord_email_encrypted: encrypt(llEmail),
+              previous_landlord_name_encrypted: llName ? encrypt(llName) : null
+            }).eq('id', ref.id)
+          } catch (err) {
+            console.error(`  ERROR creating LANDLORD for ${ref.reference_number}:`, err)
+            errors++
+            continue
+          }
         }
+        createdLandlord++
       }
     }
 
@@ -137,13 +146,17 @@ async function backfill() {
         .maybeSingle()
 
       if (!existing) {
-        try {
-          await createReferee(ref, 'ACCOUNTANT', income.accountantEmail, tenantName, income.accountantName)
-          createdAccountant++
-        } catch (err) {
-          console.error(`  ERROR creating ACCOUNTANT for ${ref.reference_number}:`, err)
-          errors++
+        console.log(`  ${DRY_RUN ? '[DRY RUN]' : ''} ACCOUNTANT for ${ref.reference_number}: ${income.accountantEmail} (name: ${income.accountantName || 'N/A'})`)
+        if (!DRY_RUN) {
+          try {
+            await createReferee(ref, 'ACCOUNTANT', income.accountantEmail, tenantName, income.accountantName)
+          } catch (err) {
+            console.error(`  ERROR creating ACCOUNTANT for ${ref.reference_number}:`, err)
+            errors++
+            continue
+          }
         }
+        createdAccountant++
       }
     }
   }
