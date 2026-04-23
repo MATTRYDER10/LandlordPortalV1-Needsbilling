@@ -930,16 +930,18 @@ function getFilteredSectionFormData(sectionType: string): Record<string, any> | 
   }
 
   // Inject missing referee fields so agents can add them
+  // Use raw form_data (not flattened) to check conditions
+  const rawFormData = fullReference.value?.reference?.form_data
   if (sectionType === 'INCOME') {
-    const sources = data.sources || []
-    if (Array.isArray(sources) && sources.includes('employed')) {
+    const rawSources = rawFormData?.income?.sources || []
+    if (Array.isArray(rawSources) && rawSources.includes('employed')) {
       if (!('employerRefName' in filtered)) filtered['employerRefName'] = null
       if (!('employerRefEmail' in filtered)) filtered['employerRefEmail'] = null
     }
   }
   if (sectionType === 'RESIDENTIAL') {
-    const situation = data.currentLivingSituation || ''
-    if (situation.includes('renting') || situation.includes('letting')) {
+    const rawSituation = rawFormData?.residential?.currentLivingSituation || ''
+    if (rawSituation.includes('renting') || rawSituation.includes('letting')) {
       if (!('currentLandlordEmail' in filtered)) filtered['currentLandlordEmail'] = null
       if (!('currentLandlordName' in filtered)) filtered['currentLandlordName'] = null
     }
