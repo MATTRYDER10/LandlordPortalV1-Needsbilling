@@ -490,7 +490,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const branchId = req.headers['x-branch-id'] as string | undefined
-    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email, management_info, is_vat_registered, vat_number, jmi_enabled } = req.body
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email, management_info, is_vat_registered, vat_number, jmi_enabled, terms_of_business } = req.body
 
     // Debug logging
     console.log('Company update request body:', { name, address, city, postcode, phone, email, website, bank_account_name, bank_account_number, bank_sort_code })
@@ -550,6 +550,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     if (is_vat_registered !== undefined) updateData.is_vat_registered = is_vat_registered
     if (vat_number !== undefined) updateData.vat_number = vat_number || null
     if (jmi_enabled !== undefined) updateData.jmi_enabled = jmi_enabled
+    if (terms_of_business !== undefined) updateData.terms_of_business = terms_of_business || null
 
     console.log('Updating company with fields:', Object.keys(updateData))
 

@@ -84,6 +84,21 @@
               />
             </div>
 
+            <!-- Terms of Business -->
+            <div class="border-t border-gray-200 pt-6 mt-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-1">Terms of Business</h3>
+              <p class="text-sm text-gray-500 mb-3">
+                If filled in, these terms will be included at the bottom of offer emails sent to landlords. Leave blank to exclude.
+              </p>
+              <textarea
+                id="terms-of-business"
+                v-model="companyData.terms_of_business"
+                rows="8"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"
+                placeholder="Paste your company's Terms of Business here..."
+              ></textarea>
+            </div>
+
             <div v-if="successMessage" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
               {{ successMessage }}
             </div>
@@ -122,7 +137,8 @@ const companyData = ref({
   postcode: '',
   phone: '',
   email: '',
-  website: ''
+  website: '',
+  terms_of_business: ''
 })
 
 const loading = ref(false)
@@ -150,7 +166,8 @@ onMounted(async () => {
           postcode: data.company.postcode || '',
           phone: data.company.phone || '',
           email: data.company.email || '',
-          website: data.company.website || ''
+          website: data.company.website || '',
+          terms_of_business: data.company.terms_of_business || ''
         }
       }
     }
