@@ -1109,7 +1109,7 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
     // Get company details
     const { data: company } = await supabase
       .from('companies')
-      .select('name_encrypted, logo_url')
+      .select('name_encrypted, logo_url, terms_of_business')
       .eq('id', companyId)
       .single()
 
@@ -1117,6 +1117,7 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
       ? (decrypt(company.name_encrypted) || 'PropertyGoose')
       : 'PropertyGoose'
     const companyLogoUrl = company?.logo_url || null
+    const termsOfBusiness = company?.terms_of_business || null
 
     // Build offers data (first names only, job info, salary - NO contact details)
     const offerData = offers.map(offer => {
@@ -1208,7 +1209,8 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
       offerData,
       companyName,
       companyLogoUrl,
-      decisionToken
+      decisionToken,
+      termsOfBusiness
     )
 
     res.json({

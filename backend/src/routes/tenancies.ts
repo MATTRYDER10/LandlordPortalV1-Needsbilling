@@ -1398,6 +1398,33 @@ router.put('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
       managementType
     }, userId)
 
+    // Auto-sync start_date change to JMI (fire-and-forget)
+    if (startDate) {
+      try {
+        const { getCompanyJMIConfig, updateMoveDates } = await import('../services/jmiService')
+        const jmiConfig = await getCompanyJMIConfig(companyId)
+        if (jmiConfig) {
+          const { data: jmiMove } = await supabase
+            .from('jmi_moves')
+            .select('jmi_move_id')
+            .eq('tenancy_id', req.params.id)
+            .eq('company_id', companyId)
+            .eq('move_type', 'movein')
+            .neq('status', 'cancelled')
+            .neq('status', 'draft')
+            .maybeSingle()
+
+          if (jmiMove?.jmi_move_id) {
+            await updateMoveDates(jmiConfig.apiKey, jmiConfig.environment, jmiMove.jmi_move_id,
+              { movedate: startDate, movedate_confirmed: true }, undefined)
+            console.log(`[JMI] Auto-updated move-in date to ${startDate} for tenancy ${req.params.id}`)
+          }
+        }
+      } catch (jmiErr) {
+        console.error('[JMI] Failed to auto-update move date (non-blocking):', jmiErr)
+      }
+    }
+
     res.json({ tenancy })
   } catch (error: any) {
     console.error('Error in PUT /api/tenancies/records/:id:', error)

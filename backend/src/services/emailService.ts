@@ -3313,7 +3313,8 @@ export async function sendLandlordOfferSummary(
   }>,
   companyName: string,
   agentLogoUrl?: string | null,
-  decisionToken?: string | null
+  decisionToken?: string | null,
+  termsOfBusiness?: string | null
 ): Promise<void> {
   // Use V2 frontend URL for landlord decision links (localhost in dev, production in prod)
   const frontendUrl = getV2FrontendUrl()
@@ -3420,12 +3421,21 @@ export async function sendLandlordOfferSummary(
     </div>
   ` : ''
 
+  // Build Terms of Business section if provided
+  const termsSection = termsOfBusiness ? `
+    <div style="margin: 32px 0 0; padding: 24px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+      <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 600; color: #374151;">${companyName} T&amp;C's</h3>
+      <div style="font-size: 13px; line-height: 20px; color: #4b5563; white-space: pre-wrap;">${termsOfBusiness.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+    </div>
+  ` : ''
+
   const html = loadEmailTemplate('landlord-offer-summary', {
     LandlordName: capitalizeWords(landlordName),
     PropertyAddress: capitalizeWords(propertyAddress),
     OfferCount: offerCount,
     OfferSections: offerSections,
     DecisionButtons: decisionButtons,
+    TermsOfBusiness: termsSection,
     CompanyName: companyName,
     AgentLogoUrl: agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
   })
