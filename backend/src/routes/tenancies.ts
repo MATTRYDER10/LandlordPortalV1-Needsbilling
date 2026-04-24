@@ -1547,7 +1547,7 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
             const { data: refs } = await supabase
               .from('tenant_references_v2')
               .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, report_pdf_url')
-              .or(`id.eq.${tenancyPrimaryRefId},guarantor_reference_id.eq.${tenancyPrimaryRefId}`)
+              .or(`id.eq.${tenancyPrimaryRefId},parent_reference_id.eq.${tenancyPrimaryRefId},guarantor_for_reference_id.eq.${tenancyPrimaryRefId}`)
               .eq('company_id', companyId)
             for (const ref of refs || []) {
               if (ref.report_pdf_url) {
@@ -3248,6 +3248,31 @@ router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequ
             type: 'Tenancy Agreement'
           })
         }
+      }
+    }
+
+    // Include reference reports if available
+    const tenancyPrimaryRefId = tenancy.primary_reference_id
+    if (tenancyPrimaryRefId) {
+      try {
+        const { data: refs } = await supabase
+          .from('tenant_references_v2')
+          .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, report_pdf_url')
+          .or(`id.eq.${tenancyPrimaryRefId},parent_reference_id.eq.${tenancyPrimaryRefId},guarantor_for_reference_id.eq.${tenancyPrimaryRefId}`)
+          .eq('company_id', tenancyCompanyId)
+
+        for (const ref of refs || []) {
+          if (ref.report_pdf_url) {
+            const refName = `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+            documents.push({
+              name: `Reference Report - ${refName || 'Tenant'}`,
+              url: ref.report_pdf_url,
+              type: 'Reference Report'
+            })
+          }
+        }
+      } catch (e) {
+        console.error('[MoveInPack] Failed to include reference reports:', e)
       }
     }
 
