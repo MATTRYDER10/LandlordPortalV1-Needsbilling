@@ -1,9 +1,12 @@
-# Nixpacks configuration for Railway monorepo
+# Landlord Portal — Nixpacks configuration for Railway
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["echo 'Root install skipped for monorepo'"]
+cmds = ["cd frontend && npm ci"]
 
 [phases.build]
-cmds = ["echo 'Build handled per service'"]
+cmds = ["cd frontend && npm run build"]
+
+[start]
+cmd = "cd frontend && npx serve dist -s -l ${PORT:-8080}"

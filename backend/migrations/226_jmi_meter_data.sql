@@ -1,6 +1,0 @@
-ALTER TABLE jmi_moves ADD COLUMN IF NOT EXISTS gas_mprn TEXT;
-ALTER TABLE jmi_moves ADD COLUMN IF NOT EXISTS gas_serial_number TEXT;
-ALTER TABLE jmi_moves ADD COLUMN IF NOT EXISTS elec_mpan TEXT;
-ALTER TABLE jmi_moves ADD COLUMN IF NOT EXISTS elec_serial_number TEXT;
-ALTER TABLE jmi_moves ADD COLUMN IF NOT EXISTS elec_profile_class TEXT;
-ALTER TABLE properties ADD COLUMN IF NOT EXISTS uprn TEXT;

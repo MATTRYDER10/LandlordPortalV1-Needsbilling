@@ -6,10 +6,9 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="flex items-center gap-2">
-              <h1 class="text-2xl font-bold text-gray-900 dark:text-white">References</h1>
-              <span class="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full">V2</span>
+              <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Referencing</h1>
             </div>
-            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Section-based verification system</p>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Track and manage tenant reference checks</p>
           </div>
           <div class="flex items-center gap-3">
             <button
@@ -107,7 +106,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <button
-                  v-if="canConvertGroup(group)"
+                  v-if="canConvertGroup(group) && authStore.hasSubscription"
                   @click.stop="openGroupConversion(group)"
                   class="px-3 py-1 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-700 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1"
                 >
@@ -225,7 +224,7 @@
                       {{ formatStatus(ref.status) }}
                     </span>
                     <button
-                      v-if="!group.isGroup && canConvertRef(ref)"
+                      v-if="!group.isGroup && canConvertRef(ref) && authStore.hasSubscription"
                       @click.stop="openRefConversion(ref)"
                       class="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full hover:bg-green-100 transition-colors flex items-center gap-1"
                     >
@@ -334,6 +333,14 @@
           </div>
         </div>
       </div>
+
+      <!-- Reference Paywall Modal -->
+      <ReferencePaywallModal
+        v-if="showPaywall"
+        :num-tenants="paywallTenantCount"
+        @close="showPaywall = false"
+        @paid="proceedAfterPayment"
+      />
 
       <!-- Create Reference Modal -->
       <Transition
@@ -797,6 +804,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/Sidebar.vue'
+import ReferencePaywallModal from '@/components/references/ReferencePaywallModal.vue'
 import ReferenceDrawerV2 from '@/components/ReferenceDrawerV2.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import EmailInput from '@/components/EmailInput.vue'
@@ -920,6 +928,10 @@ function onConverted() {
   showConversionModal.value = false
   refreshData()
 }
+
+// Reference Paywall State
+const showPaywall = ref(false)
+const paywallTenantCount = ref(1)
 
 // Create Modal State
 const showCreateModal = ref(false)
@@ -1211,6 +1223,12 @@ const canProceed = computed(() => {
 })
 
 function openCreateModal() {
+  // Show paywall first — landlord must pay before creating references
+  showPaywall.value = true
+}
+
+function proceedAfterPayment() {
+  showPaywall.value = false
   showCreateModal.value = true
   createStep.value = 1
   createForm.value = {

@@ -1,9 +1,9 @@
 {
+  "name": "propertygoose-landlord-portal",
+  "private": true,
   "scripts": {
-    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"blue,green\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
-  },
-  "devDependencies": {
-    "@types/pizzip": "^3.0.5",
-    "concurrently": "^9.1.2"
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "preview": "npm run preview --prefix frontend"
   }
 }

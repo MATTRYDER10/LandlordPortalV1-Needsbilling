@@ -3348,7 +3348,7 @@ async function generateAgreement() {
       // Payment method required - show payment modal
       pendingAgreementId.value = agreement.id
       paymentClientSecret.value = generateData.client_secret
-      agreementPrice.value = generateData.amount || 9.99
+      agreementPrice.value = generateData.amount || 2.49
       showPaymentModal.value = true
       loading.value = false
       return

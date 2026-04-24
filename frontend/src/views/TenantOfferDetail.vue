@@ -697,15 +697,6 @@
         </div>
       </div>
 
-      <!-- Rent Share Modal -->
-      <RentShareModal
-        :is-open="showRentShareModal"
-        :tenants="offer?.tenants || []"
-        :total-rent="offer?.offered_rent_amount || 0"
-        :saving="savingRentShares"
-        @close="showRentShareModal = false"
-        @confirm="handleRentSharesConfirm"
-      />
     </div>
   </Sidebar>
 </template>
@@ -716,7 +707,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ArrowLeft, Check, Pencil, Trash2, CheckCircle, AlertTriangle } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
-import RentShareModal from '../components/RentShareModal.vue'
 import { formatDate as formatDateOnly, formatDateTime } from '../utils/date'
 import { authFetch } from '@/lib/authFetch'
 

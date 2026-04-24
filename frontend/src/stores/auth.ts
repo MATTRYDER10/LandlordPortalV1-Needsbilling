@@ -5,35 +5,30 @@ import type { User, Session } from '@supabase/supabase-js'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
-export interface Branch {
-  id: string
-  name: string
-  role: string
-  logoUrl?: string
-}
-
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
-  const company = ref<{ name: string, role: string, logoUrl?: string, jmiEnabled?: boolean, rentgooseEnabled?: boolean } | null>(null)
+  const company = ref<{ name: string, role: string, jmiEnabled?: boolean } | null>(null)
   const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
-  const isAdmin = ref<boolean>(false) // Admin staff privileges
-  const isStaff = ref<boolean>(false) // Staff portal access
+  const hasSubscription = ref<boolean>(false) // Tenancies subscription status
+  const referenceCredits = ref<number>(0) // Pre-purchased reference credits
+  const amlStatus = ref<string>('pending') // AML verification status
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Multi-branch support — activeBranchId is in-memory only, derived from DB on each login
-  const branches = ref<Branch[]>([])
-  const activeBranchId = ref<string | null>(null)
-  const hasMultipleBranches = computed(() => branches.value.length > 1)
+  // Computed helpers
+  const userName = computed(() => {
+    const meta = user.value?.user_metadata
+    return meta?.full_name || meta?.company_name || user.value?.email?.split('@')[0] || 'Landlord'
+  })
 
-  // Fetch all branches for the user from the database
-  const fetchBranches = async () => {
+  // Fetch company data
+  const fetchCompany = async () => {
     try {
       const token = session.value?.access_token
       if (!token) return
 
-      const response = await fetch(`${API_URL}/api/company/branches`, {
+      const response = await fetch(`${API_URL}/api/company`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -42,92 +37,22 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok) {
         const data = await response.json()
-        branches.value = data.branches || []
-
-        // If current activeBranchId doesn't match any branch, clear it
-        if (activeBranchId.value && !branches.value.find(b => b.id === activeBranchId.value)) {
-          activeBranchId.value = null
-        }
-
-        // Single branch: auto-select it immediately
-        if (branches.value.length === 1 && !activeBranchId.value) {
-          setActiveBranch(branches.value[0]!.id)
-        }
-        // Multiple branches: restore previous selection from localStorage if valid
-        if (branches.value.length > 1 && !activeBranchId.value) {
-          const savedBranchId = localStorage.getItem('activeBranchId')
-          if (savedBranchId && branches.value.find(b => b.id === savedBranchId)) {
-            setActiveBranch(savedBranchId)
+        if (data.company && data.role) {
+          company.value = {
+            name: data.company.name,
+            role: data.role,
+            jmiEnabled: data.company.jmi_enabled !== false
           }
         }
-      }
-    } catch (err) {
-      console.error('Failed to fetch branches:', err)
-    }
-  }
-
-  // Set the active branch (called from BranchSelector or auto-select)
-  const setActiveBranch = (branchId: string) => {
-    activeBranchId.value = branchId
-    // Mirror to localStorage for components that read it directly via fetch headers
-    localStorage.setItem('activeBranchId', branchId)
-
-    // Update the company ref with the active branch details
-    const branch = branches.value.find(b => b.id === branchId)
-    if (branch) {
-      company.value = {
-        name: branch.name,
-        role: branch.role,
-        logoUrl: branch.logoUrl
-      }
-    }
-  }
-
-  // Clear the active branch (for switching)
-  const clearActiveBranch = () => {
-    activeBranchId.value = null
-    localStorage.removeItem('activeBranchId')
-  }
-
-  // Fetch company data and onboarding status
-  const fetchCompany = async () => {
-    try {
-      const token = session.value?.access_token
-      if (!token) return
-
-      const headers: Record<string, string> = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-
-      // Include active branch ID if set (from in-memory state, not localStorage)
-      if (activeBranchId.value) {
-        headers['X-Branch-Id'] = activeBranchId.value
-      }
-
-      const response = await fetch(`${API_URL}/api/company`, {
-        headers
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.company && data.role) {
-          company.value = { name: data.company.name, role: data.role, logoUrl: data.company.logo_url || undefined, jmiEnabled: data.company.jmi_enabled !== false, rentgooseEnabled: data.company.rentgoose_enabled === true }
-        }
       } else if (response.status === 403) {
-        // Check if token is invalid (not just permission denied)
         const data = await response.json().catch(() => ({}))
         if (data.error === 'Invalid token') {
-          console.log('Invalid token detected, forcing logout...')
           await signOut()
           if (window.location.pathname !== '/login') {
             window.location.href = '/login'
           }
         }
       } else if (response.status === 404) {
-        // User is not associated with any company (likely removed from team)
-        // Log them out automatically
-        console.log('User no longer associated with a company, logging out...')
         await signOut()
         if (window.location.pathname !== '/login') {
           window.location.href = '/login'
@@ -144,7 +69,6 @@ export const useAuthStore = defineStore('auth', () => {
       const token = session.value?.access_token
       if (!token) return
 
-      
       const response = await fetch(`${API_URL}/api/onboarding/status`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -156,7 +80,6 @@ export const useAuthStore = defineStore('auth', () => {
         const data = await response.json()
         onboardingCompleted.value = data.onboardingCompleted || data.shouldSkipOnboarding
       } else {
-        // Default to true if error (prevents redirect loop)
         onboardingCompleted.value = true
       }
     } catch (err) {
@@ -165,17 +88,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Check if user has admin privileges
-  const fetchAdminStatus = async () => {
+  // Fetch subscription status
+  const fetchSubscriptionStatus = async () => {
     try {
       const token = session.value?.access_token
-      if (!token) {
-        isAdmin.value = false
-        return
-      }
+      if (!token) return
 
-      
-      const response = await fetch(`${API_URL}/api/profile/check-admin`, {
+      const response = await fetch(`${API_URL}/api/billing/subscriptions/active`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -184,27 +103,23 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok) {
         const data = await response.json()
-        isAdmin.value = data.isAdmin === true
+        hasSubscription.value = data.status === 'active' || data.status === 'trialing'
       } else {
-        isAdmin.value = false
+        hasSubscription.value = false
       }
     } catch (err) {
-      console.error('Failed to fetch admin status:', err)
-      isAdmin.value = false
+      console.error('Failed to fetch subscription status:', err)
+      hasSubscription.value = false
     }
   }
 
-  // Check if user has staff privileges
-  const fetchStaffStatus = async () => {
+  // Fetch reference credit balance
+  const fetchReferenceCredits = async () => {
     try {
       const token = session.value?.access_token
-      if (!token) {
-        isStaff.value = false
-        return
-      }
+      if (!token) return
 
-      
-      const response = await fetch(`${API_URL}/api/profile/check-staff`, {
+      const response = await fetch(`${API_URL}/api/billing/reference-credits`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -213,26 +128,22 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok) {
         const data = await response.json()
-        isStaff.value = data.isStaff === true
+        referenceCredits.value = data.credits || 0
       } else {
-        isStaff.value = false
+        referenceCredits.value = 0
       }
     } catch (err) {
-      console.error('Failed to fetch staff status:', err)
-      isStaff.value = false
+      console.error('Failed to fetch reference credits:', err)
+      referenceCredits.value = 0
     }
   }
 
-  // Fetch user data (includes onboarding check, staff status, and admin status)
+  // Fetch user data (includes onboarding check and subscription status)
   const fetchUser = async () => {
     await fetchCompany()
     await fetchOnboardingStatus()
-    await fetchStaffStatus()
-    if (isStaff.value) {
-      await fetchAdminStatus()
-    } else {
-      isAdmin.value = false
-    }
+    await fetchSubscriptionStatus()
+    await fetchReferenceCredits()
   }
 
   // Initialize auth state
@@ -243,17 +154,11 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
 
-      // Fetch company data, onboarding status, staff status, and admin status if user is logged in
       if (currentSession?.user) {
-        await fetchBranches()
         await fetchCompany()
         await fetchOnboardingStatus()
-        await fetchStaffStatus()
-        if (isStaff.value) {
-          await fetchAdminStatus()
-        } else {
-          isAdmin.value = false
-        }
+        await fetchSubscriptionStatus()
+        await fetchReferenceCredits()
       }
 
       // Listen for auth changes
@@ -261,32 +166,21 @@ export const useAuthStore = defineStore('auth', () => {
         session.value = newSession
         user.value = newSession?.user ?? null
 
-        // Fetch company data, onboarding status, staff status, and admin status when user signs in
         if (newSession?.user) {
-          await fetchBranches()
           await fetchCompany()
           await fetchOnboardingStatus()
-          await fetchStaffStatus()
-          if (isStaff.value) {
-            await fetchAdminStatus()
-          } else {
-            isAdmin.value = false
-          }
+          await fetchSubscriptionStatus()
+          await fetchReferenceCredits()
         } else {
           company.value = null
           onboardingCompleted.value = true
-          isStaff.value = false
-          isAdmin.value = false
-          branches.value = []
-          activeBranchId.value = null
-          localStorage.removeItem('activeBranchId')
+          hasSubscription.value = false
+          referenceCredits.value = 0
         }
       })
     } catch (err: any) {
       error.value = err.message
-      // If we get an invalid refresh token error, clear the stale auth data
       if (err.message?.includes('Refresh Token') || err.name === 'AuthApiError') {
-        console.log('Invalid refresh token detected, clearing auth state...')
         await supabase.auth.signOut()
         session.value = null
         user.value = null
@@ -342,29 +236,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Sign out - always clears local state even if Supabase signOut fails
+  // Sign out
   const signOut = async () => {
     loading.value = true
     error.value = null
     try {
       await supabase.auth.signOut()
     } catch (err: any) {
-      // Log but don't block - we still want to clear local state
       console.error('Supabase signOut error:', err.message)
     } finally {
-      // ALWAYS clear local state, even if Supabase fails
       user.value = null
       session.value = null
       company.value = null
       onboardingCompleted.value = true
-      isStaff.value = false
-      isAdmin.value = false
+      hasSubscription.value = false
       loading.value = false
-      branches.value = []
-      activeBranchId.value = null
-      localStorage.removeItem('activeBranchId')
-      // Clear admin company override from sessionStorage
-      sessionStorage.removeItem('adminCompanyOverride')
     }
   }
 
@@ -413,17 +299,12 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     company,
     onboardingCompleted,
-    isStaff,
-    isAdmin,
+    hasSubscription,
+    referenceCredits,
+    amlStatus,
     loading,
     error,
-    // Multi-branch
-    branches,
-    activeBranchId,
-    hasMultipleBranches,
-    fetchBranches,
-    setActiveBranch,
-    clearActiveBranch,
+    userName,
     // Auth
     initialize,
     signUp,
@@ -433,8 +314,8 @@ export const useAuthStore = defineStore('auth', () => {
     updatePassword,
     fetchCompany,
     fetchOnboardingStatus,
-    fetchStaffStatus,
-    fetchAdminStatus,
+    fetchSubscriptionStatus,
+    fetchReferenceCredits,
     fetchUser
   }
 })

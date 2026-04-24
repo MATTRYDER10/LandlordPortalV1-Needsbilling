@@ -49,20 +49,19 @@ export default defineConfig({
       '192.168.1.81',
       '.up.railway.app',
       '.railway.app',
-      'app.propertygoose.co.uk',
+      'landlord.propertygoose.co.uk',
       '.ngrok-free.app',
       '.ngrok-free.dev',
       '.ngrok.io',
-      '.ngrok.app',
       '.ngrok.app'
     ]
   },
   preview: {
     allowedHosts: [
       'localhost',
-      '.up.railway.app', // Allow all Railway domains
+      '.up.railway.app',
       '.railway.app',
-      'app.propertygoose.co.uk'
+      'landlord.propertygoose.co.uk'
     ]
   }
 })

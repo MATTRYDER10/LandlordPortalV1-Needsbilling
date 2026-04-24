@@ -1,1 +1,0 @@
-Hi {{ AgentName }}, {{ TenantName }} has listed you as their previous letting agent. Please complete: {{ ReferenceLink }}

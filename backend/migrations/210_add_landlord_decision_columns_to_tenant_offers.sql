@@ -1,7 +1,0 @@
-ALTER TABLE tenant_offers
-ADD COLUMN IF NOT EXISTS landlord_decision_token VARCHAR(255) UNIQUE,
-ADD COLUMN IF NOT EXISTS landlord_decision VARCHAR(50),
-ADD COLUMN IF NOT EXISTS landlord_decision_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS landlord_decision_reason TEXT,
-ADD COLUMN IF NOT EXISTS landlord_sent_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS landlord_group_token VARCHAR(255);

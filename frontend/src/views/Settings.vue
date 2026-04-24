@@ -915,34 +915,132 @@
           <MyDepositsIntegrationSettings />
         </div>
 
-        <!-- Review Links Tab -->
-        <div v-else-if="activeTab === 'review-links'" class="max-w-3xl">
-          <ReviewLinkSettings />
-        </div>
-
-        <!-- Apex27 CRM Tab -->
-        <div v-else-if="activeTab === 'apex27'">
-          <Apex27IntegrationSettings />
-        </div>
-
-        <!-- InventoryGoose Tab -->
-        <div v-else-if="activeTab === 'inventorygoose'" class="max-w-3xl">
-          <IGIntegrationSettings />
-        </div>
-
         <!-- Just Move In Tab -->
         <div v-else-if="activeTab === 'jmi'" class="max-w-3xl">
           <JMIIntegrationSettings />
         </div>
 
-        <!-- Property Settings Tab -->
-        <div v-else-if="activeTab === 'property-settings'">
-          <PropertySettings />
-        </div>
-
         <!-- Billing Tab -->
         <div v-else-if="activeTab === 'billing'">
-          <Billing />
+          <div class="max-w-3xl space-y-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Billing</h2>
+
+            <!-- Reference Credit Balance -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Reference Credits</h3>
+                  <p class="text-4xl font-bold text-gray-900 dark:text-white mt-1">{{ authStore.referenceCredits }}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Available to use</p>
+                </div>
+                <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <rect x="5" y="4" width="14" height="17" rx="2" />
+                    <path d="M9 12l2 2 4-4" stroke-width="2" />
+                  </svg>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                Credits are used when you create tenant references. Buy in bulk to save up to 35%.
+              </p>
+            </div>
+
+            <!-- Bulk Purchase Packs -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Buy Reference Credits</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Pre-purchase references and save. Credits never expire.</p>
+
+              <div class="grid gap-3">
+                <div
+                  v-for="pack in bulkPacks"
+                  :key="pack.size"
+                  class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 flex items-center justify-between hover:border-primary/30 hover:shadow-md transition-all cursor-pointer"
+                  :class="{ 'ring-2 ring-primary border-primary': selectedPack === pack.size }"
+                  @click="selectedPack = pack.size"
+                >
+                  <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <span class="text-lg font-bold text-primary">{{ pack.size }}</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ pack.size }} References</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ formatPrice(pack.pricePerRef) }}/ref
+                        <span v-if="pack.discount > 0" class="text-green-600 font-medium ml-1">{{ Math.round(pack.discount * 100) }}% off</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">{{ formatPrice(pack.total) }}</p>
+                    <p v-if="pack.savings > 0" class="text-xs text-green-600 font-medium">Save {{ formatPrice(pack.savings) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Custom amount -->
+              <div class="mt-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+                <div class="flex items-center gap-3">
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Custom amount:</label>
+                  <input
+                    v-model.number="customPackSize"
+                    type="number"
+                    min="1"
+                    max="100"
+                    placeholder="e.g. 12"
+                    class="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    @input="selectedPack = null"
+                  />
+                  <div v-if="customPackSize && customPackSize > 0" class="flex-1 text-right">
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ formatPrice(customTotal) }}</span>
+                    <span class="text-xs text-gray-500 ml-1">({{ formatPrice(customPricePerRef) }}/ref</span>
+                    <span v-if="customDiscount > 0" class="text-xs text-green-600 ml-1">{{ Math.round(customDiscount * 100) }}% off</span>
+                    <span class="text-xs text-gray-500">)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Buy button -->
+              <button
+                @click="purchaseCredits"
+                :disabled="!purchaseAmount || purchasingCredits"
+                class="mt-4 w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white font-semibold rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ purchasingCredits ? 'Processing...' : purchaseAmount ? `Buy ${purchaseAmount} credits for ${formatPrice(purchaseTotal)}` : 'Select a pack above' }}
+              </button>
+            </div>
+
+            <!-- Subscription Status -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+              <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Subscription</h3>
+              <div v-if="authStore.hasSubscription" class="flex items-center gap-3">
+                <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">Full Self-Management — Active</span>
+              </div>
+              <div v-else>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Upgrade to Full Self-Management for tenancy tools, agreements, and £1 off every reference.
+                </p>
+                <router-link
+                  to="/tenancies"
+                  class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                >
+                  View plans
+                </router-link>
+              </div>
+            </div>
+
+            <!-- Single Reference Price Info -->
+            <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+              <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Pay-as-you-go pricing</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Single reference: <span class="font-semibold text-gray-900 dark:text-white">{{ formatPrice(singleRefPrice) }}</span>
+                <span v-if="isLaunchPeriod()" class="text-primary text-xs ml-1">(launch price until 30 Apr)</span>
+              </p>
+              <p v-if="authStore.hasSubscription" class="text-xs text-green-600 mt-1">
+                Your subscriber rate: {{ formatPrice(subscriberRefPrice) }}/ref
+              </p>
+            </div>
+          </div>
         </div>
         </div>
       </div>
@@ -1115,13 +1213,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
-import Billing from './Billing.vue'
 import TDSIntegrationSettings from '../components/settings/TDSIntegrationSettings.vue'
 import RepositIntegrationSettings from '../components/settings/RepositIntegrationSettings.vue'
 import MyDepositsIntegrationSettings from '../components/settings/MyDepositsIntegrationSettings.vue'
-import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
-import Apex27IntegrationSettings from '../components/settings/Apex27IntegrationSettings.vue'
-import IGIntegrationSettings from '../components/settings/IGIntegrationSettings.vue'
 import JMIIntegrationSettings from '../components/settings/JMIIntegrationSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
@@ -1129,11 +1223,64 @@ import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
-import PropertySettings from '../components/settings/PropertySettings.vue'
+import {
+  getBulkPacks, getBulkDiscount, getBulkPricePerRef, getBulkPackTotal,
+  getReferencePrice, isLaunchPeriod, formatPrice, SUBSCRIBER_REF_PRICE
+} from '@/utils/pricing'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
+
+// Billing state
+const selectedPack = ref<number | null>(null)
+const customPackSize = ref<number | null>(null)
+const purchasingCredits = ref(false)
+
+const bulkPacks = computed(() => getBulkPacks(authStore.hasSubscription))
+const singleRefPrice = computed(() => getReferencePrice(authStore.hasSubscription))
+const subscriberRefPrice = SUBSCRIBER_REF_PRICE
+
+const customDiscount = computed(() => customPackSize.value ? getBulkDiscount(customPackSize.value) : 0)
+const customPricePerRef = computed(() => customPackSize.value ? getBulkPricePerRef(customPackSize.value, authStore.hasSubscription) : 0)
+const customTotal = computed(() => customPackSize.value ? getBulkPackTotal(customPackSize.value, authStore.hasSubscription) : 0)
+
+const purchaseAmount = computed(() => selectedPack.value || customPackSize.value || 0)
+const purchaseTotal = computed(() => {
+  if (selectedPack.value) {
+    const pack = bulkPacks.value.find(p => p.size === selectedPack.value)
+    return pack ? pack.total : 0
+  }
+  return customTotal.value
+})
+
+async function purchaseCredits() {
+  if (!purchaseAmount.value) return
+  purchasingCredits.value = true
+  try {
+    const response = await authFetch(`${API_URL}/api/billing/reference-credits/purchase`, {
+      token: authStore.session?.access_token || undefined,
+      method: 'POST',
+      body: JSON.stringify({
+        quantity: purchaseAmount.value,
+        price_per_ref: purchaseTotal.value / purchaseAmount.value
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (response.ok) {
+      await authStore.fetchReferenceCredits()
+      selectedPack.value = null
+      customPackSize.value = null
+    } else {
+      const data = await response.json().catch(() => ({}))
+      alert(data.error || 'Failed to purchase credits')
+    }
+  } catch (err: any) {
+    alert(err.message || 'Failed to purchase credits')
+  } finally {
+    purchasingCredits.value = false
+  }
+}
 const route = useRoute()
 
 const activeTab = computed(() => {
@@ -1161,35 +1308,23 @@ const tabs = computed(() => [
   {
     category: 'Account',
     items: [
-      { id: 'profile', name: 'Profile' }
-    ]
-  },
-  {
-    category: 'Company & Team',
-    items: [
-      { id: 'audit-logs', name: 'Audit Logs' },
+      { id: 'profile', name: 'Profile' },
       { id: 'billing', name: 'Billing' },
-      { id: 'branding', name: 'Branding' },
-      { id: 'company', name: 'Company' },
-      { id: 'property-settings', name: 'Property Settings' },
-      { id: 'team', name: 'Team' }
+      { id: 'audit-logs', name: 'Audit Logs' }
     ]
   },
   {
     category: 'Deposits',
     items: [
-      { id: 'mydeposits', name: 'mydeposits' },
+      { id: 'tds', name: 'TDS Integration' },
       { id: 'reposit', name: 'Reposit' },
-      { id: 'tds', name: 'TDS Integration' }
+      { id: 'mydeposits', name: 'mydeposits' }
     ]
   },
   {
     category: 'Integrations',
     items: [
-      { id: 'apex27', name: 'Apex27 CRM' },
-      { id: 'inventorygoose', name: 'InventoryGoose' },
-      { id: 'jmi', name: 'Just Move In' },
-      { id: 'review-links', name: 'Review Links' }
+      { id: 'jmi', name: 'Just Move In' }
     ]
   }
 ])
@@ -1530,33 +1665,11 @@ watch(activeTab, (newTab) => {
 })
 
 onMounted(async () => {
-  console.log('[Settings] onMounted - BEFORE fetchCompany:', {
-    company: authStore.company,
-    role: authStore.company?.role,
-    activeBranchId: authStore.activeBranchId,
-    branches: authStore.branches
-  })
-
-  // Ensure auth store company (including role) is loaded for branch
   await authStore.fetchCompany()
-
-  console.log('[Settings] onMounted - AFTER fetchCompany:', {
-    company: authStore.company,
-    role: authStore.company?.role
-  })
-
   fetchCompanyData()
   fetchProfileData()
   fetchPendingInvitations()
   fetchNegotiators()
-})
-
-// Reload company data when branch changes
-watch(() => authStore.activeBranchId, async () => {
-  // Refresh auth store company data (including role for permissions)
-  await authStore.fetchCompany()
-  fetchCompanyData()
-  fetchTeamMembers()
   fetchPendingInvitations()
 })
 

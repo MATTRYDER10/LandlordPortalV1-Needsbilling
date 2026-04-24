@@ -1,20 +1,15 @@
 <template>
   <router-view />
-  <WhatsNewModal v-if="authStore.session" />
-  <GooseBotWidget v-if="authStore.session" user-type="agent" />
+  <GooseBotWidget v-if="authStore.session" user-type="landlord" />
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
-import { useAdminCompanyStore } from './stores/adminCompany'
-import ReportIssueButton from './components/support/ReportIssueButton.vue'
-import WhatsNewModal from './components/WhatsNewModal.vue'
 import GooseBotWidget from './components/GooseBotWidget.vue'
 
 const authStore = useAuthStore()
-const adminCompanyStore = useAdminCompanyStore()
 const router = useRouter()
 
 // Force hard refresh on new deployments (immediate check on page load)
@@ -41,7 +36,6 @@ async function checkForNewVersion() {
     if (data.version && data.version !== APP_VERSION && !newVersionDetected) {
       newVersionDetected = true
       console.log('[AutoUpdate] New version detected, will reload on next navigation')
-      // Reload on next route change so we don't interrupt the user mid-task
       router.beforeEach(() => {
         window.location.reload()
       })
@@ -52,9 +46,6 @@ async function checkForNewVersion() {
 }
 
 onMounted(async () => {
-  // Initialize admin company store first (reads from sessionStorage)
-  adminCompanyStore.initialize()
-  // Then initialize auth
   await authStore.initialize()
 
   // Poll for new versions every 60 seconds (production only)

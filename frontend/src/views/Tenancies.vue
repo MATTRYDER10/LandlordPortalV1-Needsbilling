@@ -1,6 +1,9 @@
 <template>
   <Sidebar>
-    <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <!-- Paywall gate: show paywall if no subscription -->
+    <TenanciesPaywall v-if="!authStore.hasSubscription" />
+
+    <div v-else class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <!-- Top Bar -->
       <div class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors duration-300">
         <div class="px-4 sm:px-6 py-4">
@@ -23,33 +26,6 @@
                   class="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
                 >
                   <X class="w-3 h-3" />
-                </button>
-              </div>
-              <!-- Management Type Filter Toggles -->
-              <div class="flex items-center gap-1.5">
-                <button
-                  @click="toggleManagementFilter('managed')"
-                  :class="[
-                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border',
-                    managementFilter === 'managed'
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  ]"
-                >
-                  <Building2 class="w-3.5 h-3.5" />
-                  <span class="hidden sm:inline">Managed</span>
-                </button>
-                <button
-                  @click="toggleManagementFilter('let_only')"
-                  :class="[
-                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border',
-                    managementFilter === 'let_only'
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  ]"
-                >
-                  <Key class="w-3.5 h-3.5" />
-                  <span class="hidden sm:inline">Let Only</span>
                 </button>
               </div>
             </div>
@@ -824,6 +800,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/Sidebar.vue'
+import TenanciesPaywall from '@/components/tenancies/TenanciesPaywall.vue'
 import TenancyDetailDrawer from '@/components/tenancies/TenancyDetailDrawer.vue'
 import CreateTenancyModal from '@/components/tenancies/CreateTenancyModal.vue'
 import ChangeRentDueDateModal from '@/components/tenancies/ChangeRentDueDateModal.vue'
@@ -864,8 +841,8 @@ const activeFilter = ref<string | null>(null)
 const managementFilter = ref<'let_only' | 'managed' | null>(null)
 
 watch(() => route.query, (query) => {
-  // Handle create=true query param
-  if (query.create === 'true') {
+  // Handle create=true query param (only if subscribed)
+  if (query.create === 'true' && authStore.hasSubscription) {
     showCreateModal.value = true
     // Clear the query param
     router.replace({ path: route.path, query: {} })

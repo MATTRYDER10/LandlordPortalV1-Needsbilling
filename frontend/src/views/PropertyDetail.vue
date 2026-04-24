@@ -159,19 +159,6 @@
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatFurnishing(property.furnishing_status) || 'Not specified' }}</p>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Management Type</label>
-                  <p class="mt-1 text-sm text-gray-900 dark:text-white">
-                    <span v-if="property.management_type" :class="{
-                      'px-2 py-0.5 text-xs font-medium rounded-full': true,
-                      'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200': property.management_type === 'managed',
-                      'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200': property.management_type === 'let_only'
-                    }">
-                      {{ formatManagementType(property.management_type) }}
-                    </span>
-                    <span v-else class="text-gray-400 dark:text-slate-500">Not specified</span>
-                  </p>
-                </div>
-                <div>
                   <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Bills Included</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">
                     <span v-if="property.bills_included" class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200">
@@ -582,12 +569,21 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300">Property Tenancies</h4>
                   <button
+                    v-if="authStore.hasSubscription"
                     @click="showCreateTenancyModal = true"
                     class="inline-flex items-center px-2.5 py-1 bg-primary text-white text-xs font-medium rounded-md hover:bg-primary/90 transition-colors"
                   >
                     <Plus class="w-3.5 h-3.5 mr-1" />
                     Create Tenancy
                   </button>
+                  <router-link
+                    v-else
+                    to="/tenancies"
+                    class="inline-flex items-center px-2.5 py-1 bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-medium rounded-md hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors gap-1"
+                  >
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    Unlock Tenancies
+                  </router-link>
                 </div>
 
                 <!-- Loading State -->

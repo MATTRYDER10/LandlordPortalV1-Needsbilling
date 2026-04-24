@@ -1,27 +1,8 @@
 <template>
   <div class="flex flex-col md:flex-row h-screen bg-background dark:bg-slate-950 transition-colors duration-300">
-    <!-- Mobile Viewing As Banner -->
-    <div
-      v-if="adminCompanyStore.isOverrideActive"
-      class="md:hidden fixed top-0 left-0 right-0 z-40 bg-red-600 text-white px-4 py-2 flex items-center justify-between"
-    >
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="text-xs font-bold">VIEWING AS:</span>
-        <span class="text-xs font-medium truncate">{{ adminCompanyStore.selectedCompanyName }}</span>
-        <span class="text-[10px] font-mono bg-white/20 px-1.5 py-0.5 rounded">{{ adminCompanyStore.formattedTimeRemaining }}</span>
-      </div>
-      <button
-        @click="exitViewAs"
-        class="flex-shrink-0 flex items-center gap-1 px-3 py-1 text-xs font-bold bg-white text-red-600 hover:bg-red-50 rounded transition-colors"
-      >
-        Return to Admin
-      </button>
-    </div>
-
     <!-- Mobile top header bar -->
     <div :class="[
-      'md:hidden fixed top-0 left-0 right-0 z-30 shadow-sm flex items-center justify-between px-4 transition-colors duration-300',
-      adminCompanyStore.isOverrideActive ? 'h-14 mt-7' : 'h-14',
+      'md:hidden fixed top-0 left-0 right-0 z-30 shadow-sm flex items-center justify-between px-4 h-14 transition-colors duration-300',
       isDark ? 'bg-[#1a2e44]' : 'bg-white border-b border-gray-200'
     ]">
       <div class="flex items-center">
@@ -32,8 +13,8 @@
           <Menu class="w-6 h-6" />
         </button>
         <div class="flex items-center ml-3 gap-2">
-          <img v-if="companyLogoUrl" :src="companyLogoUrl" alt="Agency" :class="['h-7 w-7 rounded-md object-contain p-0.5', isDark ? 'bg-white/10' : 'bg-gray-100']" />
           <img :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseLogo.png'" alt="PropertyGoose" class="h-8 w-8" />
+          <span :class="['text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900']">Landlord Portal</span>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -58,7 +39,7 @@
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       ]"
     >
-      <!-- Gradient background - Light mode: light gray/white, Dark mode: dark blue -->
+      <!-- Gradient background -->
       <div :class="[
         'absolute inset-0 transition-colors duration-300',
         isDark
@@ -73,56 +54,22 @@
       ></div>
 
       <div class="relative flex flex-col h-full">
-        <!-- Viewing As Banner -->
-        <div
-          v-if="adminCompanyStore.isOverrideActive"
-          class="bg-red-600 text-white px-3 py-2"
-        >
-          <div class="flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <div class="text-[10px] font-bold uppercase tracking-wider opacity-80">Viewing as</div>
-              <div class="text-xs font-semibold truncate">{{ adminCompanyStore.selectedCompanyName }}</div>
-            </div>
-            <span class="text-xs font-mono bg-white/20 px-1.5 py-0.5 rounded shrink-0">{{ adminCompanyStore.formattedTimeRemaining }}</span>
-          </div>
-          <button
-            @click="exitViewAs"
-            class="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold bg-white text-red-600 hover:bg-red-50 rounded transition-colors"
-          >
-            Return to Admin
-          </button>
-        </div>
-
         <!-- Logo Row -->
         <div :class="[
           'flex items-center justify-between h-16 px-4 border-b transition-colors duration-300',
           isDark ? 'border-white/10' : 'border-gray-200'
         ]">
-          <!-- Logos -->
           <div class="flex items-center gap-2.5">
-            <!-- Agent Logo (if available) -->
-            <div v-if="companyLogoUrl" class="relative">
-              <img
-                :src="companyLogoUrl"
-                alt="Agency"
-                :class="[
-                  'h-9 w-9 rounded-lg object-contain p-1 shadow-lg',
-                  isDark ? 'bg-white' : 'bg-white border border-gray-200'
-                ]"
-              />
-            </div>
-            <!-- Divider -->
-            <div v-if="companyLogoUrl" :class="['h-6 w-px', isDark ? 'bg-white/20' : 'bg-gray-300']"></div>
-            <!-- PropertyGoose Logo - switches based on dark/light mode -->
             <img
               :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseLogo.png'"
               alt="PropertyGoose"
               class="h-10 w-auto object-contain"
             />
+            <div class="flex flex-col">
+              <span :class="['text-xs font-bold tracking-wide', isDark ? 'text-white/90' : 'text-gray-800']">Landlord Portal</span>
+              <span :class="['text-[9px] font-mono', isDark ? 'text-white/40' : 'text-gray-400']">v{{ appVersion }}</span>
+            </div>
           </div>
-
-          <!-- Version Badge -->
-          <span :class="['text-[9px] font-mono px-1.5 py-0.5 rounded-full', isDark ? 'text-white/60 bg-white/10' : 'text-gray-400 bg-gray-100']">v{{ appVersion }}</span>
 
           <!-- Create Button -->
           <div class="relative" data-create-menu>
@@ -134,7 +81,6 @@
               <ChevronDown class="w-3 h-3 transition-transform" :class="showCreateMenu ? 'rotate-180' : ''" />
             </button>
 
-            <!-- Create Dropdown Menu -->
             <Transition
               enter-active-class="transition ease-out duration-100"
               enter-from-class="transform opacity-0 scale-95"
@@ -153,25 +99,11 @@
                     Reference
                   </button>
                   <button
-                    @click="handleCreateAgreement"
-                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-primary/10 flex items-center gap-3 transition-colors"
-                  >
-                    <GooseDocument class="w-5 h-5 text-primary" />
-                    Agreement
-                  </button>
-                  <button
                     @click="handleAddProperty"
                     class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-primary/10 flex items-center gap-3 transition-colors"
                   >
                     <GooseProperty class="w-5 h-5 text-primary" />
                     Property
-                  </button>
-                  <button
-                    @click="handleAddLandlord"
-                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-primary/10 flex items-center gap-3 transition-colors"
-                  >
-                    <GooseLandlord class="w-5 h-5 text-primary" />
-                    Landlord
                   </button>
                 </div>
               </div>
@@ -208,12 +140,16 @@
               v-if="item.name === 'Offers' && badgeStore.pendingOffers > 0"
               class="ml-1 min-w-[18px] h-[18px] rounded-full bg-yellow-400 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
             >{{ badgeStore.pendingOffers }}</span>
-            <!-- Badge: ready tenancies -->
-            <span
-              v-if="item.name === 'Tenancies' && badgeStore.readyTenancies > 0"
-              class="ml-1 min-w-[18px] h-[18px] rounded-full bg-yellow-400 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
-            >{{ badgeStore.readyTenancies }}</span>
-            <!-- Active indicator feather -->
+            <!-- Lock icon for tenancies if no subscription -->
+            <svg
+              v-if="item.name === 'Tenancies' && !authStore.hasSubscription"
+              class="w-3.5 h-3.5 ml-1"
+              :class="isDark ? 'text-white/40' : 'text-gray-400'"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <!-- Active indicator -->
             <div
               v-if="isActive(item.path)"
               class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"
@@ -221,121 +157,9 @@
           </router-link>
         </nav>
 
-        <!-- Beta Section -->
-        <div :class="['border-t px-3 py-2 space-y-0.5 transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
-
-          <!-- Legacy References collapsible -->
-          <button
-            @click="showLegacy = !showLegacy"
-            class="w-full flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors"
-            :class="isDark ? 'text-white/60 hover:text-white/80 hover:bg-white/5' : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'"
-          >
-            <svg class="w-3 h-3 mr-1.5 transition-transform duration-200" :class="showLegacy ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
-            Legacy References
-          </button>
-          <template v-if="showLegacy">
-            <router-link
-              v-for="item in legacyNavigation"
-              :key="'legacy-' + item.name"
-              :to="item.path"
-              @click="closeMobileMenu"
-              class="nav-item group flex items-center px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 ml-3"
-              :class="isActive(item.path)
-                ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg shadow-primary/30'
-                : isDark
-                  ? 'text-white/60 hover:text-white hover:bg-white/10'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-primary/10'"
-            >
-              <component
-                :is="item.icon"
-                class="w-4 h-4 mr-2.5 transition-all duration-300"
-                :class="isActive(item.path) ? 'text-white' : isDark ? 'text-white/60 group-hover:text-primary' : 'text-gray-400 group-hover:text-primary'"
-              />
-              <span class="flex-1 text-xs">{{ item.name }}</span>
-            </router-link>
-          </template>
-
-          <template v-for="item in betaNavigation" :key="item.name">
-            <!-- External link (InventoryGoose) -->
-            <a
-              v-if="item.isExternal"
-              :href="item.path"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300"
-              :class="isDark
-                ? 'text-white/70 hover:text-white hover:bg-white/10'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-primary/10'"
-            >
-              <img
-                v-if="item.isInventoryGoose"
-                src="/inventorygoose-logo.png"
-                alt="InventoryGoose"
-                class="w-5 h-5 mr-3 rounded-full"
-              />
-              <span class="flex-1 text-xs">{{ item.name }}</span>
-              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-primary/10 text-primary">Beta</span>
-            </a>
-            <!-- RentGoose: greyed-out button when disabled, opens info modal -->
-            <button
-              v-else-if="item.name === 'RentGoose' && !rentgooseEnabled"
-              @click="showRentGooseInfoModal = true"
-              class="nav-item group flex items-center w-full px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300 cursor-pointer"
-              :class="isDark
-                ? 'text-white/50 hover:text-white/70 hover:bg-white/5'
-                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'"
-              title="RentGoose is not enabled for your account — click to learn more"
-            >
-              <component
-                :is="item.icon"
-                class="w-5 h-5 mr-3 transition-all duration-300 opacity-50"
-                :class="isDark ? 'text-white/60' : 'text-gray-400'"
-              />
-              <span class="flex-1 text-xs">{{ item.name }}</span>
-              <svg class="w-3 h-3 mr-1" :class="isDark ? 'text-white/60' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/60">Beta</span>
-            </button>
-            <!-- Internal router link (V2 items) -->
-            <router-link
-              v-else
-              :to="item.path"
-              @click="closeMobileMenu"
-              class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-300"
-              :class="isActive(item.path)
-                ? 'bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg shadow-primary/30'
-                : isDark
-                  ? 'text-white/70 hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-primary/10'"
-            >
-              <component
-                :is="item.icon"
-                class="w-5 h-5 mr-3 transition-all duration-300"
-                :class="isActive(item.path)
-                  ? 'text-white'
-                  : isDark
-                    ? 'text-white/60 group-hover:text-primary'
-                    : 'text-gray-400 group-hover:text-primary'"
-              />
-              <span class="flex-1 text-xs">{{ item.name }}</span>
-              <span
-                class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full"
-                :class="isActive(item.path)
-                  ? 'bg-white/20 text-white'
-                  : 'bg-primary/10 text-primary'"
-              >Beta</span>
-              <div
-                v-if="isActive(item.path)"
-                class="w-1.5 h-1.5 rounded-full bg-white animate-pulse ml-1.5"
-              ></div>
-            </router-link>
-          </template>
-        </div>
-
         <!-- Bottom Section -->
         <div :class="['border-t transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
-          <!-- Dark Mode + Credits row -->
+          <!-- Dark Mode toggle -->
           <div class="px-4 py-2 flex items-center justify-between gap-2">
             <button
               @click="toggleDarkMode"
@@ -363,7 +187,6 @@
                 {{ isDark ? 'Dark' : 'Light' }}
               </span>
             </button>
-            <CreditsDisplay compact />
           </div>
 
           <!-- User Menu -->
@@ -376,18 +199,16 @@
                   </div>
                 </div>
                 <div class="ml-3 flex-1 min-w-0">
-                  <AdminCompanySwitcher v-if="authStore.isAdmin" class="mb-0.5" />
-                  <p v-else-if="companyName" :class="['text-[10px] truncate mb-0.5 uppercase tracking-wider', isDark ? 'text-white/60' : 'text-gray-400']">{{ companyName }}</p>
-                  <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">{{ userEmail }}</p>
-                  <p class="text-[10px] text-primary truncate">{{ userRole }}</p>
+                  <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">{{ authStore.userName }}</p>
+                  <p :class="['text-xs truncate', isDark ? 'text-white/60' : 'text-gray-500']">{{ userEmail }}</p>
                 </div>
                 <div class="hidden md:block ml-2">
                   <NotificationBell />
                 </div>
               </div>
-              <!-- Back/Sign Out Button -->
+              <!-- Sign Out Button -->
               <button
-                @click="handleBack"
+                @click="handleSignOut"
                 :class="[
                   'mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl transition-all duration-300 border',
                   isDark
@@ -396,7 +217,7 @@
                 ]"
               >
                 <LogOut class="w-4 h-4" />
-                {{ authStore.hasMultipleBranches ? 'Switch Branch' : 'Sign Out' }}
+                Sign Out
               </button>
             </div>
           </div>
@@ -405,55 +226,31 @@
     </aside>
 
     <!-- Main Content -->
-    <main :class="['flex-1 overflow-auto md:pt-0 dark:bg-slate-950 transition-colors duration-300', adminCompanyStore.isOverrideActive ? 'pt-[5.25rem]' : 'pt-14']">
+    <main class="flex-1 overflow-auto md:pt-0 dark:bg-slate-950 transition-colors duration-300 pt-14">
       <slot />
     </main>
-
-    <!-- RentGoose Info Modal (shown when greyed-out RentGoose is clicked) -->
-    <RentGooseInfoModal v-if="showRentGooseInfoModal" @close="showRentGooseInfoModal = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, h, Transition, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, h, Transition, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { useAdminCompanyStore } from '../stores/adminCompany'
 import { useBadgeCountsStore } from '../stores/badgeCounts'
 import { useDarkMode } from '@/composables/useDarkMode'
-import CreditsDisplay from './CreditsDisplay.vue'
 import NotificationBell from './NotificationBell.vue'
-import AdminCompanySwitcher from './AdminCompanySwitcher.vue'
-import RentGooseInfoModal from './RentGooseInfoModal.vue'
 import { Plus, ChevronDown, Menu, LogOut, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const adminCompanyStore = useAdminCompanyStore()
 const badgeStore = useBadgeCountsStore()
 const { isDark, toggleDarkMode } = useDarkMode()
 
 declare const __APP_VERSION__: string
 const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'
 
-const exitViewAs = () => {
-  adminCompanyStore.clearOverride()
-  router.push('/admin/customers')
-}
-
-// Watch for auto-timeout expiry and redirect back to admin
-watch(() => adminCompanyStore.isOverrideActive, (active, wasActive) => {
-  if (!active && wasActive) {
-    router.push('/admin/customers')
-  }
-})
-
-// ============================================================================
-// CUSTOM GOOSE-THEMED ICONS
-// ============================================================================
-
-// Dashboard - Goose with dashboard grid
+// Goose-themed icons (reused from original)
 const GooseDashboard = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -466,7 +263,6 @@ const GooseDashboard = {
   }
 }
 
-// Offers - Banknotes/Money
 const GooseOffers = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -478,7 +274,6 @@ const GooseOffers = {
   }
 }
 
-// References - Clipboard with goose checkmark
 const GooseClipboard = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -486,14 +281,11 @@ const GooseClipboard = {
       h('rect', { x: '5', y: '4', width: '14', height: '17', rx: '2' }),
       h('path', { d: 'M9 2h6v3a1 1 0 01-1 1h-4a1 1 0 01-1-1V2z', fill: 'currentColor', opacity: '0.3' }),
       h('path', { d: 'M9 2h6v3a1 1 0 01-1 1h-4a1 1 0 01-1-1V2z' }),
-      h('path', { d: 'M9 12l2 2 4-4', 'stroke-width': '2' }),
-      h('path', { d: 'M16 17c1 0 1.5-.5 1.5-1s-.3-.8-.8-.8c-.3 0-.5.2-.7.4', fill: 'currentColor', opacity: '0.4' }),
-      h('circle', { cx: '16.3', cy: '15.8', r: '0.2', fill: 'currentColor' })
+      h('path', { d: 'M9 12l2 2 4-4', 'stroke-width': '2' })
     ])
   }
 }
 
-// Tenancies - Document/Contract with checkmark
 const GooseTenancies = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -506,21 +298,17 @@ const GooseTenancies = {
   }
 }
 
-// Properties - House with goose roof
 const GooseProperty = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
       h('path', { d: 'M3 12l9-9 9 9', fill: 'currentColor', opacity: '0.15' }),
       h('path', { d: 'M3 12l9-9 9 9' }),
       h('path', { d: 'M5 10v10a1 1 0 001 1h12a1 1 0 001-1V10' }),
-      h('rect', { x: '9', y: '14', width: '6', height: '7', rx: '0.5' }),
-      h('path', { d: 'M12 3c1.5-.5 2.5 0 2.5 1s-.5 1.2-1 1.5', fill: 'currentColor', opacity: '0.3' }),
-      h('circle', { cx: '13.5', cy: '3.5', r: '0.3', fill: 'currentColor' })
+      h('rect', { x: '9', y: '14', width: '6', height: '7', rx: '0.5' })
     ])
   }
 }
 
-// Landlords - People/Users icon
 const GooseLandlord = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -533,7 +321,6 @@ const GooseLandlord = {
   }
 }
 
-// Agreements - Pen signing document
 const GooseDocument = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -545,7 +332,6 @@ const GooseDocument = {
   }
 }
 
-// Settings - Wrench/Spanner
 const GooseSettings = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -555,7 +341,6 @@ const GooseSettings = {
   }
 }
 
-// Help Centre - Question mark circle
 const GooseHelp = {
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
@@ -567,23 +352,9 @@ const GooseHelp = {
   }
 }
 
-// RentGoose - Pound/money icon
-const GooseRentGoose = {
-  render() {
-    return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
-      h('rect', { x: '2', y: '4', width: '20', height: '16', rx: '2', fill: 'currentColor', opacity: '0.15' }),
-      h('rect', { x: '2', y: '4', width: '20', height: '16', rx: '2' }),
-      h('path', { d: 'M14.5 9.5c-.4-1-1.4-1.5-2.5-1.5-1.7 0-3 1.1-3 2.5s1.3 2.5 3 2.5c1.7 0 3 1.1 3 2.5s-1.3 2.5-3 2.5c-1.1 0-2.1-.5-2.5-1.5' }),
-      h('line', { x1: '12', y1: '6', x2: '12', y2: '8' }),
-      h('line', { x1: '12', y1: '18', x2: '12', y2: '20' })
-    ])
-  }
-}
-
 const showCreateMenu = ref(false)
 const isMobileMenuOpen = ref(false)
 
-// Close create menu when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (showCreateMenu.value && !target.closest('[data-create-menu]')) {
@@ -605,46 +376,20 @@ const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
 
-// Main navigation
+// Landlord navigation
 const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: GooseDashboard },
-  { name: 'Offers', path: '/tenant-offers-v2', icon: GooseOffers },
-  { name: 'References', path: '/references-v2', icon: GooseClipboard },
+  { name: 'Offers', path: '/offers', icon: GooseOffers },
+  { name: 'Referencing', path: '/referencing', icon: GooseClipboard },
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
-  { name: 'Standalone Agreements', path: '/agreements/history', icon: GooseDocument },
+  { name: 'Agreements', path: '/agreements', icon: GooseDocument },
   { name: 'Settings', path: '/settings', icon: GooseSettings },
   { name: 'Help Centre', path: '/help-centre', icon: GooseHelp }
 ]
 
-// Legacy navigation (V1 — collapsed under "Legacy References")
-const legacyNavigation = [
-  { name: 'Offers', path: '/tenant-offers', icon: GooseOffers },
-  { name: 'References', path: '/references', icon: GooseClipboard }
-]
-
-// RentGoose is always visible — gated by company.rentgoose_enabled flag (set per-company by staff admin)
-const rentgooseEnabled = computed(() => authStore.company?.rentgooseEnabled === true)
-const showRentGooseInfoModal = ref(false)
-
-// Beta navigation items (bottom of sidebar) — RentGoose always shown, greyed out if not enabled
-const betaNavigation = computed(() => {
-  const items: { name: string; path: string; icon: any; isExternal: boolean; isInventoryGoose: boolean }[] = []
-  items.push({ name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose, isExternal: false, isInventoryGoose: false })
-  items.push({ name: 'InventoryGoose', path: 'https://ig.propertygoose.co.uk', icon: null, isExternal: true, isInventoryGoose: true })
-  return items
-})
-
-const showLegacy = ref(false)
-
 const userEmail = computed(() => authStore.user?.email || '')
-const userRole = computed(() => {
-  const role = authStore.company?.role || ''
-  return role.charAt(0).toUpperCase() + role.slice(1)
-})
-const companyName = computed(() => authStore.company?.name || '')
-const companyLogoUrl = computed(() => authStore.company?.logoUrl || '')
 const userInitials = computed(() => {
   const email = authStore.user?.email || ''
   return email.charAt(0).toUpperCase()
@@ -654,38 +399,15 @@ const isActive = (path: string) => {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-const handleBack = async () => {
-  if (authStore.hasMultipleBranches) {
-    // Multi-branch user: clear active branch and go to selector
-    authStore.clearActiveBranch()
-    router.push('/select-branch')
-  } else {
-    // Single branch user: sign out completely
-    await authStore.signOut()
-    router.push('/login')
-  }
+const handleSignOut = async () => {
+  await authStore.signOut()
+  router.push('/login')
 }
 
 const handleCreateReference = () => {
   showCreateMenu.value = false
   closeMobileMenu()
-  if (route.path === '/references') {
-    window.dispatchEvent(new CustomEvent('open-create-reference-modal'))
-  } else {
-    router.push('/references?create=true')
-  }
-}
-
-const handleCreateAgreement = () => {
-  showCreateMenu.value = false
-  closeMobileMenu()
-  router.push('/agreements/generate')
-}
-
-const handleAddLandlord = () => {
-  showCreateMenu.value = false
-  closeMobileMenu()
-  router.push('/landlords?add=true')
+  router.push('/referencing?create=true')
 }
 
 const handleAddProperty = () => {

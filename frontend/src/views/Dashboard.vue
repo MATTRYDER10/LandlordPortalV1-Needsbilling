@@ -18,25 +18,18 @@
             <!-- Quick Actions Pills -->
             <div class="flex items-center gap-2">
               <router-link
-                to="/tenancies?create=true"
+                to="/tenancies"
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm shadow-primary/25 transition-all hover:shadow-md hover:shadow-primary/30"
               >
                 <Plus class="w-3.5 h-3.5" />
-                <span class="hidden sm:inline">New Tenancy</span>
+                <span class="hidden sm:inline">Tenancies</span>
               </router-link>
               <router-link
-                to="/references?create=true"
+                to="/referencing?create=true"
                 class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg transition-all"
               >
                 <UserCheck class="w-3.5 h-3.5" />
                 <span class="hidden sm:inline">Reference</span>
-              </router-link>
-              <router-link
-                to="/landlords?add=true"
-                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg transition-all"
-              >
-                <UserPlus class="w-3.5 h-3.5" />
-                <span class="hidden sm:inline">Landlord</span>
               </router-link>
               <router-link
                 to="/properties?add=true"
@@ -495,7 +488,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 // User greeting
 const companyName = computed(() => {
-  return authStore.company?.name || 'there'
+  return authStore.userName || 'there'
 })
 
 const greeting = computed(() => {

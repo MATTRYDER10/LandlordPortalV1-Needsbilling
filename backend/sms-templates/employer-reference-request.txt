@@ -1,1 +1,0 @@
-Hi {{ EmployerName }}, {{ TenantName }} has provided you as an employment reference. Please complete: {{ ReferenceLink }}

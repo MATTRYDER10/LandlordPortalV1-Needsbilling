@@ -1,1 +1,0 @@
-Hi {{ GuarantorName }}, {{ TenantName }} has listed you as their guarantor. Please complete the form: {{ FormLink }}

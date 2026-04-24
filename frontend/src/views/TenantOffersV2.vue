@@ -6,10 +6,9 @@
         <div class="flex items-center justify-between">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">Tenant Offers</h1>
-              <span class="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full flex-shrink-0">V2</span>
+              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">Offers</h1>
             </div>
-            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1 hidden sm:block">Manage rental property offers and convert to references</p>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1 hidden sm:block">Send tenants offers to view your property. Review and approve them here.</p>
           </div>
           <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button
@@ -227,14 +226,6 @@
               <Trash2 v-else class="w-3.5 h-3.5" />
               Delete
             </button>
-            <button
-              v-if="selectedOffersAllPending"
-              @click="openSendToLandlordModal(selectedOfferIds)"
-              class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center gap-1"
-            >
-              <Send class="w-3.5 h-3.5" />
-              Send to Landlord
-            </button>
           </div>
         </div>
 
@@ -315,7 +306,6 @@
                 <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   {{ offer.tenant_first_name }} {{ offer.tenant_last_name }}
                   <span v-if="offer.tenant_email" class="text-gray-400"> • {{ offer.tenant_email }}</span>
-                  <span v-if="offer.negotiator_name" class="text-primary font-medium"> • {{ offer.negotiator_name }}</span>
                 </p>
                 <div class="flex items-center gap-4 mt-2 text-xs text-gray-400">
                   <span v-if="offer.offered_rent_amount || offer.rent_amount" class="flex items-center gap-1">
@@ -368,8 +358,8 @@
         </div>
         </div>
 
-        <!-- Staff Performance Leaderboard -->
-        <div class="w-80 flex-shrink-0 hidden lg:block">
+        <!-- Staff Performance Leaderboard (hidden in landlord portal) -->
+        <div v-if="false" class="hidden w-80 flex-shrink-0 lg:block">
           <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-4 sticky top-0">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Staff Performance</h3>
 
@@ -1230,8 +1220,8 @@
               </div>
             </div>
 
-            <!-- Deal Owner Assignment -->
-            <div v-if="negotiators.length > 0 && (selectedOffer.status === 'pending' || selectedOffer.status === 'accepted_with_changes')"
+            <!-- Deal Owner Assignment (hidden in landlord portal) -->
+            <div v-if="false"
               class="px-6 py-3 border-t border-gray-200 dark:border-slate-700 flex items-center gap-3">
               <span class="text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">Deal Owner:</span>
               <select
@@ -1252,13 +1242,6 @@
                   class="px-4 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
                   Close
-                </button>
-                <button
-                  @click="openSendToLandlordModal([selectedOffer.id])"
-                  class="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors flex items-center gap-2"
-                >
-                  <Send class="w-4 h-4" />
-                  Send to Landlord
                 </button>
               </div>
               <!-- Pending Actions -->
@@ -1631,6 +1614,14 @@
           </div>
         </div>
       </Transition>
+
+      <!-- Reference Paywall Modal -->
+      <ReferencePaywallModal
+        v-if="showRefPaywall"
+        :num-tenants="refPaywallTenantCount"
+        @close="showRefPaywall = false"
+        @paid="onRefPaymentComplete"
+      />
     </div>
   </Sidebar>
 </template>
@@ -1642,6 +1633,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import Sidebar from '@/components/Sidebar.vue'
 import EmailInput from '@/components/EmailInput.vue'
+import ReferencePaywallModal from '@/components/references/ReferencePaywallModal.vue'
 import {
   Search,
   Send,
@@ -1791,7 +1783,7 @@ async function saveTenantName(tenant: any) {
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json',
-        ...(authStore.selectedBranchId ? { 'X-Branch-Id': authStore.selectedBranchId } : {})
+        ...(null ? { 'X-Branch-Id': null } : {})
       },
       body: JSON.stringify({ first_name: editFirstName.value.trim(), last_name: editLastName.value.trim() })
     })
@@ -1896,7 +1888,7 @@ const statsPeriod = ref('weekly')
 // Deal owner options: if no negotiators, show branch name as default
 const dealOwnerOptions = computed(() => {
   if (negotiators.value.length > 0) return negotiators.value
-  const branchName = authStore.company?.name || authStore.branches?.find(b => b.id === authStore.activeBranchId)?.name || 'Branch'
+  const branchName = authStore.company?.name || 'Landlord'
   return [{ id: 'branch', name: branchName }]
 })
 
@@ -2453,8 +2445,19 @@ function addTenantToReceipt() {
   showAddTenantForm.value = false
 }
 
+// Reference paywall state
+const showRefPaywall = ref(false)
+const refPaywallTenantCount = ref(1)
+
 async function confirmReceiptAndSendToReferencing() {
+  // Show paywall before creating references
+  refPaywallTenantCount.value = receiptTenants.value.length
   showReceiptModal.value = false
+  showRefPaywall.value = true
+}
+
+async function onRefPaymentComplete() {
+  showRefPaywall.value = false
   await sendToReferencing()
 }
 

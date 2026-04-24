@@ -106,30 +106,9 @@ const handleSubmit = async () => {
     if (error) {
       errorMessage.value = error
     } else {
-      // Fetch user data to determine user type
+      // Fetch user data
       await authStore.fetchUser()
-
-      // Check if staff first
-      if (authStore.isStaff) {
-        router.push('/staff/dashboard')
-        return
-      }
-
-      // Fetch branches for non-staff users
-      await authStore.fetchBranches()
-
-      if (authStore.branches.length === 0) {
-        // User has no access - sign them out
-        await authStore.signOut()
-        errorMessage.value = 'Access denied. Please use the appropriate login portal.'
-      } else if (authStore.branches.length === 1) {
-        // Single branch - auto-select and go to dashboard
-        authStore.setActiveBranch(authStore.branches[0]!.id)
-        router.push('/dashboard')
-      } else {
-        // Multiple branches - go to branch selector
-        router.push('/select-branch')
-      }
+      router.push('/dashboard')
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'An error occurred during sign in'
