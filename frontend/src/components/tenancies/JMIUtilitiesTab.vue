@@ -23,6 +23,55 @@
         </h3>
 
         <!-- ============================================================ -->
+        <!-- METER INFORMATION (visible in both draft and active) -->
+        <!-- ============================================================ -->
+        <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+              <Gauge class="w-4 h-4 text-[#0891B2]" />
+              Meter Information
+            </h4>
+            <div class="flex items-center gap-2">
+              <span v-if="meterInfoSaved" class="text-xs text-green-600 dark:text-green-400">Saved</span>
+              <button
+                @click="handleSaveMeterInfo"
+                :disabled="savingMeterInfo"
+                class="px-3 py-1 text-xs font-medium text-white bg-[#0891B2] hover:bg-[#0E7490] disabled:opacity-50 rounded-md flex items-center gap-1"
+              >
+                <Loader2 v-if="savingMeterInfo" class="w-3 h-3 animate-spin" />
+                Save
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Gas -->
+            <div class="space-y-2">
+              <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Gas</p>
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">MPRN</label>
+                <input v-model="meterInfo.gas_mprn" type="text" placeholder="e.g. 1234567890" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Serial Number</label>
+                <input v-model="meterInfo.gas_serial_number" type="text" placeholder="Meter serial number" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+              </div>
+            </div>
+            <!-- Electricity -->
+            <div class="space-y-2">
+              <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Electricity</p>
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">MPAN</label>
+                <input v-model="meterInfo.elec_mpan" type="text" placeholder="e.g. 1234567890123" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Serial Number</label>
+                <input v-model="meterInfo.elec_serial_number" type="text" placeholder="Meter serial number" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
         <!-- ACTIVE MOVE DISPLAY -->
         <!-- ============================================================ -->
         <div v-if="activeMove" class="space-y-4">
@@ -324,6 +373,32 @@
                   </select>
                 </div>
               </div>
+              <!-- Landlord Address (shown when bills go to landlord) -->
+              <div v-if="voidForm.send_bills_to === 'landlord'" class="col-span-2 space-y-2 border-t border-gray-200 dark:border-slate-700 pt-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Landlord Address</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Address Line 1</label>
+                    <input v-model="voidForm.landlord_address.address1" type="text" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Address Line 2</label>
+                    <input v-model="voidForm.landlord_address.address2" type="text" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">City</label>
+                    <input v-model="voidForm.landlord_address.city" type="text" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">County</label>
+                    <input v-model="voidForm.landlord_address.county" type="text" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Postcode</label>
+                    <input v-model="voidForm.landlord_address.postcode" type="text" class="block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md dark:bg-slate-900 dark:text-white focus:ring-[#0891B2] focus:border-[#0891B2]" />
+                  </div>
+                </div>
+              </div>
               <div class="flex items-center gap-4">
                 <label class="flex items-center gap-2">
                   <input v-model="voidForm.switch_gas" type="checkbox" class="h-4 w-4 text-[#0891B2] focus:ring-[#0891B2] border-gray-300 dark:border-slate-600 rounded" />
@@ -504,6 +579,17 @@ const elecReading = ref({ mpan: '', reading: '', reading_date: '' })
 const submittingReadings = ref(false)
 const readingsResult = ref<{ success: boolean; message: string } | null>(null)
 
+// Meter info state (persisted)
+const meterInfo = ref({
+  gas_mprn: '',
+  gas_serial_number: '',
+  elec_mpan: '',
+  elec_serial_number: '',
+  elec_profile_class: ''
+})
+const savingMeterInfo = ref(false)
+const meterInfoSaved = ref(false)
+
 // Void state
 const requestingVoid = ref(false)
 const refreshingVoid = ref(false)
@@ -517,7 +603,14 @@ const voidForm = ref({
   contact_email: '',
   contact_phone: '',
   switch_gas: true,
-  switch_electricity: true
+  switch_electricity: true,
+  landlord_address: {
+    address1: '',
+    address2: '',
+    city: '',
+    county: '',
+    postcode: ''
+  }
 })
 
 // ============================================================
@@ -525,7 +618,7 @@ const voidForm = ref({
 // ============================================================
 
 const activeMove = computed(() => {
-  return moves.value.find(m => m.status !== 'cancelled') || null
+  return moves.value.find(m => m.status !== 'cancelled' && m.status !== 'draft') || null
 })
 
 // Active tenancies = moveout, pending = movein, ended = moveout
@@ -614,6 +707,79 @@ async function fetchStatus() {
   }
 }
 
+async function fetchMeterInfo() {
+  try {
+    const response = await authFetch(`${API_URL}/api/jmi/meter-info/${props.tenancy.id}`, {
+      token: getToken()
+    })
+    if (response.ok) {
+      const data = await response.json()
+      meterInfo.value = {
+        gas_mprn: data.gas_mprn || '',
+        gas_serial_number: data.gas_serial_number || '',
+        elec_mpan: data.elec_mpan || '',
+        elec_serial_number: data.elec_serial_number || '',
+        elec_profile_class: data.elec_profile_class || ''
+      }
+      // Pre-fill reading form MPRN/MPAN from saved meter info
+      if (data.gas_mprn) gasReading.value.mprn = data.gas_mprn
+      if (data.elec_mpan) elecReading.value.mpan = data.elec_mpan
+    }
+  } catch (err) {
+    console.error('[JMI Tab] Error fetching meter info:', err)
+  }
+}
+
+async function handleSaveMeterInfo() {
+  savingMeterInfo.value = true
+  meterInfoSaved.value = false
+  try {
+    const response = await authFetch(`${API_URL}/api/jmi/meter-info/${props.tenancy.id}`, {
+      method: 'PUT',
+      token: getToken(),
+      body: JSON.stringify(meterInfo.value)
+    })
+    if (response.ok) {
+      meterInfoSaved.value = true
+      // Sync MPRN/MPAN to readings form
+      gasReading.value.mprn = meterInfo.value.gas_mprn
+      elecReading.value.mpan = meterInfo.value.elec_mpan
+      setTimeout(() => { meterInfoSaved.value = false }, 3000)
+    }
+  } catch (err) {
+    console.error('[JMI Tab] Error saving meter info:', err)
+  } finally {
+    savingMeterInfo.value = false
+  }
+}
+
+async function fetchVoidDefaults() {
+  try {
+    const response = await authFetch(`${API_URL}/api/jmi/void-defaults/${props.tenancy.id}`, {
+      token: getToken()
+    })
+    if (response.ok) {
+      const data = await response.json()
+      voidForm.value.send_bills_to = data.send_bills_to || 'agency'
+      voidForm.value.contact_name = data.contact_name || ''
+      voidForm.value.contact_email = data.contact_email || ''
+      voidForm.value.contact_phone = data.contact_phone || ''
+      if (data.movedate) voidForm.value.movedate = data.movedate
+      if (data.landlord_address) {
+        voidForm.value.landlord_address = {
+          address1: data.landlord_address.address1 || '',
+          address2: data.landlord_address.address2 || '',
+          city: data.landlord_address.city || '',
+          county: data.landlord_address.county || '',
+          postcode: data.landlord_address.postcode || ''
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[JMI Tab] Error fetching void defaults:', err)
+  }
+}
+
 async function handleSubmit() {
   submitError.value = ''
   submitting.value = true
@@ -625,6 +791,10 @@ async function handleSubmit() {
     // Pass manual move out date if end_date not set
     if (autoMoveType.value === 'moveout' && !props.tenancy?.end_date && manualMoveOutDate.value) {
       body.moveOutDate = manualMoveOutDate.value
+    }
+    // Include meter data if available
+    if (meterInfo.value.gas_mprn || meterInfo.value.elec_mpan) {
+      body.meterData = { ...meterInfo.value }
     }
 
     const response = await authFetch(`${API_URL}/api/jmi/submit/${props.tenancy.id}`, {
@@ -753,6 +923,11 @@ async function handleSubmitReadings() {
       }]
     }
 
+    // Include serial numbers and profile class for meter update
+    if (meterInfo.value.gas_serial_number) body.gas_serial_number = meterInfo.value.gas_serial_number
+    if (meterInfo.value.elec_serial_number) body.elec_serial_number = meterInfo.value.elec_serial_number
+    if (meterInfo.value.elec_profile_class) body.elec_profile_class = meterInfo.value.elec_profile_class
+
     const response = await authFetch(`${API_URL}/api/jmi/readings/${props.tenancy.id}`, {
       method: 'POST',
       token: getToken(),
@@ -784,21 +959,27 @@ async function handleRequestVoid() {
   try {
     const nameParts = voidForm.value.contact_name.trim().split(' ')
 
+    const voidPayload: any = {
+      movedate: voidForm.value.movedate,
+      movedate_confirmed: true,
+      send_bills_to: voidForm.value.send_bills_to,
+      switch_gas: voidForm.value.switch_gas,
+      switch_electricity: voidForm.value.switch_electricity,
+      contact_title: voidForm.value.contact_title,
+      contact_firstname: nameParts[0] || '',
+      contact_lastname: nameParts.slice(1).join(' ') || '',
+      contact_phone: voidForm.value.contact_phone,
+      contact_email: voidForm.value.contact_email
+    }
+    // Include landlord address when billing to landlord
+    if (voidForm.value.send_bills_to === 'landlord' && voidForm.value.landlord_address.address1) {
+      voidPayload.landlord_address = voidForm.value.landlord_address
+    }
+
     const response = await authFetch(`${API_URL}/api/jmi/void/${props.tenancy.id}`, {
       method: 'POST',
       token: getToken(),
-      body: JSON.stringify({
-        movedate: voidForm.value.movedate,
-        movedate_confirmed: true,
-        send_bills_to: voidForm.value.send_bills_to,
-        switch_gas: voidForm.value.switch_gas,
-        switch_electricity: voidForm.value.switch_electricity,
-        contact_title: voidForm.value.contact_title,
-        contact_firstname: nameParts[0] || '',
-        contact_lastname: nameParts.slice(1).join(' ') || '',
-        contact_phone: voidForm.value.contact_phone,
-        contact_email: voidForm.value.contact_email
-      })
+      body: JSON.stringify(voidPayload)
     })
 
     const data = await response.json()
@@ -854,12 +1035,18 @@ async function handleCancelVoid() {
 // INIT
 // ============================================================
 
-onMounted(() => {
+onMounted(async () => {
   // Pre-fill move out date from tenancy end date
   if (props.tenancy?.end_date) {
     updateMoveOutDate.value = props.tenancy.end_date
     voidForm.value.movedate = props.tenancy.end_date
   }
-  fetchStatus()
+  await fetchStatus()
+  // Load saved meter info
+  fetchMeterInfo()
+  // Auto-populate void defaults for ended tenancies
+  if (['ended', 'terminated', 'notice_given'].includes(props.tenancy?.status)) {
+    fetchVoidDefaults()
+  }
 })
 </script>
