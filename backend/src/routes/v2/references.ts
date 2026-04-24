@@ -2294,7 +2294,6 @@ router.post('/:id/chase-referee', authenticateToken, async (req: AuthRequest, re
     await supabase
       .from('referees_v2')
       .update({
-        form_token: formToken,
         form_token_hash: formTokenHash,
         updated_at: new Date().toISOString()
       })

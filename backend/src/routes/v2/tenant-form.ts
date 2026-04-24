@@ -752,21 +752,8 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
             })
             .eq('id', incSection.id)
           console.log(`[V2 TenantForm] ${exemptReason} income - INCOME section moved to READY (exempt)`)
-        } else if (hasIncomeReferee) {
-          // Has employer/accountant referee — stay PENDING, wait for referee form
-          await supabase
-            .from('reference_sections_v2')
-            .update({
-              section_data: {
-                ...(incSection.section_data || {}),
-                evidence_status: 'AWAITING_REFEREE'
-              },
-              updated_at: now
-            })
-            .eq('id', incSection.id)
-          console.log('[V2 TenantForm] Income referee created - INCOME awaiting referee')
         } else {
-          // No referee — check if tenant uploaded evidence (savings doc, benefits doc, pension doc, etc.)
+          // Check if tenant uploaded evidence (savings doc, benefits doc, pension doc, etc.)
           const hasUploadedEvidence = !!(
             income.savingsDocUrl || income.benefitsDocUrl || income.pensionDocUrl ||
             income.rentalDocUrl || income.payslipsUrl || income.taxReturnUrl
@@ -774,6 +761,7 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
 
           if (hasUploadedEvidence) {
             // Evidence already provided, move to READY for staff review
+            // Even if a referee was also requested, evidence takes priority for queue status
             await supabase
               .from('reference_sections_v2')
               .update({
@@ -782,13 +770,26 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
                 queue_entered_at: now,
                 section_data: {
                   ...(incSection.section_data || {}),
-                  evidence_status: 'EVIDENCE_UPLOADED',
+                  evidence_status: hasIncomeReferee ? 'EVIDENCE_UPLOADED_REFEREE_PENDING' : 'EVIDENCE_UPLOADED',
                   income_source: incomeSources.join(', ')
                 },
                 updated_at: now
               })
               .eq('id', incSection.id)
-            console.log('[V2 TenantForm] Income evidence uploaded (no referee) - INCOME moved to READY')
+            console.log(`[V2 TenantForm] Income evidence uploaded - INCOME moved to READY${hasIncomeReferee ? ' (referee also pending)' : ''}`)
+          } else if (hasIncomeReferee) {
+            // Has employer/accountant referee but no evidence — stay PENDING, wait for referee form
+            await supabase
+              .from('reference_sections_v2')
+              .update({
+                section_data: {
+                  ...(incSection.section_data || {}),
+                  evidence_status: 'AWAITING_REFEREE'
+                },
+                updated_at: now
+              })
+              .eq('id', incSection.id)
+            console.log('[V2 TenantForm] Income referee created (no evidence) - INCOME awaiting referee')
           } else {
             // No referee and no evidence — stay PENDING
             await supabase

@@ -70,6 +70,7 @@ export interface V2TenantDataForConversion {
   guarantorReferenceId?: string
   status: string
   residentialAddressLine1?: string
+  residentialAddressLine2?: string
   residentialCity?: string
   residentialPostcode?: string
 }
@@ -232,6 +233,7 @@ export async function validateV2Conversion(
         guarantorReferenceId: parentGuarantor?.id,
         status: reference.status,
         residentialAddressLine1: decrypt(reference.current_address_line1_encrypted) || (parentFormData?.line1 ? decrypt(parentFormData.line1) : '') || '',
+        residentialAddressLine2: decrypt(reference.current_address_line2_encrypted) || (parentFormData?.line2 ? decrypt(parentFormData.line2) : '') || '',
         residentialCity: decrypt(reference.current_city_encrypted) || (parentFormData?.city ? decrypt(parentFormData.city) : '') || '',
         residentialPostcode: decrypt(reference.current_postcode_encrypted) || (parentFormData?.postcode ? decrypt(parentFormData.postcode) : '') || ''
       })
@@ -257,6 +259,7 @@ export async function validateV2Conversion(
           guarantorReferenceId: guarantor?.id,
           status: child.status,
           residentialAddressLine1: decrypt(child.current_address_line1_encrypted) || (childFormData?.line1 ? decrypt(childFormData.line1) : '') || '',
+          residentialAddressLine2: decrypt(child.current_address_line2_encrypted) || (childFormData?.line2 ? decrypt(childFormData.line2) : '') || '',
           residentialCity: decrypt(child.current_city_encrypted) || (childFormData?.city ? decrypt(childFormData.city) : '') || '',
           residentialPostcode: decrypt(child.current_postcode_encrypted) || (childFormData?.postcode ? decrypt(childFormData.postcode) : '') || ''
         })
@@ -289,6 +292,7 @@ export async function validateV2Conversion(
         guarantorReferenceId: standaloneGuarantorId,
         status: reference.status,
         residentialAddressLine1: decrypt(reference.current_address_line1_encrypted) || (refFormData?.line1 ? decrypt(refFormData.line1) : '') || '',
+        residentialAddressLine2: decrypt(reference.current_address_line2_encrypted) || (refFormData?.line2 ? decrypt(refFormData.line2) : '') || '',
         residentialCity: decrypt(reference.current_city_encrypted) || (refFormData?.city ? decrypt(refFormData.city) : '') || '',
         residentialPostcode: decrypt(reference.current_postcode_encrypted) || (refFormData?.postcode ? decrypt(refFormData.postcode) : '') || ''
       })
@@ -400,6 +404,7 @@ export async function convertV2ReferenceToTenancy(
       isLeadTenant: t.isLeadTenant,
       rentShare: t.rentShare,
       residentialAddressLine1: t.residentialAddressLine1,
+      residentialAddressLine2: t.residentialAddressLine2,
       residentialCity: t.residentialCity,
       residentialPostcode: t.residentialPostcode
     }))
