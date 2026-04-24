@@ -191,6 +191,7 @@ import {
   ARREARS_GROUNDS,
 } from '@/types/section8'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface Props {
   isOpen: boolean
@@ -363,10 +364,8 @@ function nextStep() {
 async function loadGrounds() {
   try {
     const token = authStore.session?.access_token
-    const response = await fetch(`${API_URL}/api/legal/section8-grounds`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+    const response = await authFetch(`${API_URL}/api/legal/section8-grounds`, {
+      token,
     })
 
     if (!response.ok) throw new Error('Failed to load grounds')
@@ -385,12 +384,9 @@ async function calculateCourtDate() {
 
   try {
     const token = authStore.session?.access_token
-    const response = await fetch(`${API_URL}/api/legal/section8-calculate-date`, {
+    const response = await authFetch(`${API_URL}/api/legal/section8-calculate-date`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      token,
       body: JSON.stringify({
         groundIds: formState.value.selectedGroundIds,
         serviceDate: formState.value.serviceDate,
@@ -457,12 +453,9 @@ async function generateDocument() {
       signatureMethod: formState.value.signatureMethod,
     }
 
-    const response = await fetch(`${API_URL}/api/legal/generate-section8`, {
+    const response = await authFetch(`${API_URL}/api/legal/generate-section8`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      token,
       body: JSON.stringify(payload),
     })
 
@@ -573,10 +566,8 @@ async function fetchTenancyDetails() {
     if (!token) return
 
     // Fetch company details for agent info
-    const companyResponse = await fetch(`${API_URL}/api/company`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+    const companyResponse = await authFetch(`${API_URL}/api/company`, {
+      token,
     })
 
     if (companyResponse.ok) {
@@ -600,10 +591,8 @@ async function fetchTenancyDetails() {
     }
 
     // Fetch full tenancy details including property and landlords
-    const response = await fetch(`${API_URL}/api/tenancies/records/${props.tenancyId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${props.tenancyId}`, {
+      token,
     })
 
     if (!response.ok) return
@@ -614,10 +603,8 @@ async function fetchTenancyDetails() {
 
     if (propertyId) {
       // Fetch property data which includes landlords
-      const propertyResponse = await fetch(`${API_URL}/api/properties/${propertyId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const propertyResponse = await authFetch(`${API_URL}/api/properties/${propertyId}`, {
+        token,
       })
 
       if (propertyResponse.ok) {

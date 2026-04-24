@@ -145,6 +145,7 @@ import { ref, watch } from 'vue'
 import { Home, Calendar, Calculator, Mail, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   isOpen: boolean
@@ -192,10 +193,8 @@ async function loadProRataData() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/${props.tenancyId}/calculate-pro-rata`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${props.tenancyId}/calculate-pro-rata`, {
+      token
     })
 
     if (!response.ok) {
@@ -222,12 +221,9 @@ async function sendNotice() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/${props.tenancyId}/send-move-out-notice`, {
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${props.tenancyId}/send-move-out-notice`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      token,
       body: JSON.stringify({
         proRataAmount: proRataData.value.proRata ? editableAmount.value : undefined
       })

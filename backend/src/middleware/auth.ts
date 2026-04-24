@@ -77,6 +77,53 @@ export async function getCompanyIdForRequest(req: AuthRequest): Promise<string |
 }
 
 /**
+ * Resolve the correct company ID for a tenancy, even when branch header is missing/wrong.
+ * First tries the standard branch-aware resolution. If the tenancy doesn't belong to that
+ * company, falls back to finding the tenancy's actual company and verifying user membership.
+ * This prevents "Tenancy not found" errors for multi-branch users.
+ */
+export async function resolveCompanyForTenancy(req: AuthRequest, tenancyId: string): Promise<string | null> {
+  const userId = req.user?.id
+  if (!userId) return null
+
+  // Standard branch-aware resolution
+  const companyId = await getCompanyIdForRequest(req)
+  if (companyId) {
+    const { data } = await supabase
+      .from('tenancies')
+      .select('id')
+      .eq('id', tenancyId)
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (data) return companyId
+  }
+
+  // Branch mismatch — find the tenancy's actual company and verify user has access
+  const { data: tenancy } = await supabase
+    .from('tenancies')
+    .select('company_id')
+    .eq('id', tenancyId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (!tenancy) return null
+
+  const { data: membership } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', userId)
+    .eq('company_id', tenancy.company_id)
+    .maybeSingle()
+
+  if (!membership) return null
+
+  console.warn(`[Auth] Branch mismatch resolved for tenancy ${tenancyId}: header branch=${companyId}, actual=${tenancy.company_id}, user=${userId}`)
+  return tenancy.company_id
+}
+
+/**
  * Helper to check if user is a staff admin and apply company override if requested
  */
 async function applyAdminCompanyOverride(req: AuthRequest): Promise<boolean> {

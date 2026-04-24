@@ -6171,7 +6171,8 @@ const loadTenancyDocuments = async () => {
       const tenancyId = fullTenancyData.value?.id || props.tenancy?.id
       // Filter to only show documents linked to this tenancy
       tenancyDocuments.value = (data.documents || []).filter((doc: any) =>
-        doc.source_type === 'tenancy' && doc.source_id === tenancyId
+        (doc.source_type === 'tenancy' && doc.source_id === tenancyId) ||
+        doc.source_type === 'reference'
       )
     }
   } catch (err) {

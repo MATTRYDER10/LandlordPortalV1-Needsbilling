@@ -95,6 +95,7 @@ import { Users, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -157,14 +158,11 @@ const dismissAmlWarning = async (e: Event) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}/dismiss-aml-warning`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({})
       }
     )

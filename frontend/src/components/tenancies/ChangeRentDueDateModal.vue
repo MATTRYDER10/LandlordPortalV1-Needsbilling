@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { X, Calendar, Calculator, Send, AlertTriangle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   isOpen: boolean
@@ -115,15 +116,11 @@ async function handleSubmit() {
     }
 
     console.log('[RentDueDateChange] Making POST request...')
-    // Use direct fetch without admin override header to match TenancyDetailDrawer behavior
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/rent-due-date-change`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           newDueDay: newDueDay.value,
           adminFee: adminFee.value

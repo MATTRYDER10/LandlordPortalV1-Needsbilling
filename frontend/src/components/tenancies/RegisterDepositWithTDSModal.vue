@@ -444,6 +444,7 @@ import {
   X, CheckCircle, AlertTriangle, Loader2, Download
 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 
 const props = defineProps<{
@@ -744,16 +745,6 @@ const handleSubmit = async () => {
       ? `${API_URL}/api/tds/insured/create-deposit`
       : `${API_URL}/api/tds/custodial/create-deposit`
 
-    // Build headers including branch ID for multi-branch support
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
     // Create deposit
     console.log('[RegisterDepositWithTDSModal] Calling:', createEndpoint)
     console.log('[RegisterDepositWithTDSModal] Payload:', {
@@ -761,12 +752,11 @@ const handleSubmit = async () => {
       depositReceivedDate: formData.value.deposit.receivedDate,
       furnishedStatus: formData.value.deposit.furnished
     })
-    console.log('[RegisterDepositWithTDSModal] X-Branch-Id:', activeBranchId || 'not set')
 
     // Send ALL form data - don't rely on backend to pull from linked tables
-    const createResponse = await fetch(createEndpoint, {
+    const createResponse = await authFetch(createEndpoint, {
       method: 'POST',
-      headers,
+      token,
       body: JSON.stringify({
         tenancyId: props.tenancy.id,
         depositReceivedDate: formData.value.deposit.receivedDate,
@@ -834,18 +824,9 @@ const handleDownloadDPC = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    // Build headers including branch ID for multi-branch support
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
     // Use unified certificate endpoint
-    const response = await fetch(`${API_URL}/api/tds/certificate/${registrationDAN.value}`, {
-      headers
+    const response = await authFetch(`${API_URL}/api/tds/certificate/${registrationDAN.value}`, {
+      token
     })
 
     if (!response.ok) {

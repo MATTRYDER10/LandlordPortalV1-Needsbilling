@@ -158,6 +158,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { X, CheckCircle, Loader2 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface RentDueDateChange {
   id: string
@@ -255,14 +256,11 @@ const handleConfirm = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/rent-due-date-change/${props.change.id}/activate`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           paymentReceivedAt: form.value.paymentReceivedAt,
           paymentReference: form.value.paymentReference || null
