@@ -344,6 +344,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { X, UserMinus, UserPlus, Loader2 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface Tenant {
   id: string
@@ -408,8 +409,8 @@ async function runReferenceSearch(q: string) {
   try {
     const token = authStore.session?.access_token
     if (!token) return
-    const response = await fetch(`${API_URL}/api/tenancies/search-references?q=${encodeURIComponent(q)}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+    const response = await authFetch(`${API_URL}/api/tenancies/search-references?q=${encodeURIComponent(q)}`, {
+      token,
     })
     if (!response.ok) {
       referenceResults.value = []
@@ -501,14 +502,11 @@ const submit = async () => {
       // First add replacement if needed
       let replacementTenantId: string | undefined
       if (addReplacement.value) {
-        const addResponse = await fetch(
+        const addResponse = await authFetch(
           `${API_URL}/api/tenancies/records/${props.tenancyId}/tenants`,
           {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
+            token,
             body: JSON.stringify({
               firstName: newTenant.value.firstName,
               lastName: newTenant.value.lastName,
@@ -530,14 +528,11 @@ const submit = async () => {
       }
 
       // Remove the tenant
-      const removeResponse = await fetch(
+      const removeResponse = await authFetch(
         `${API_URL}/api/tenancies/records/${props.tenancyId}/tenants/${selectedTenantId.value}`,
         {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+          token,
           body: JSON.stringify({
             leftDate: leftDate.value,
             replacementTenantId
@@ -553,14 +548,11 @@ const submit = async () => {
       toast.success(addReplacement.value ? 'Tenant replaced successfully' : 'Tenant removed successfully')
     } else if (addMode.value === 'link' && selectedReference.value) {
       // Link an existing V2 reference as a tenant
-      const response = await fetch(
+      const response = await authFetch(
         `${API_URL}/api/tenancies/records/${props.tenancyId}/tenants/from-reference`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+          token,
           body: JSON.stringify({
             referenceId: selectedReference.value.id,
             isLeadTenant: newTenant.value.isLeadTenant,
@@ -576,14 +568,11 @@ const submit = async () => {
       toast.success('Tenant linked from reference')
     } else {
       // Add new tenant
-      const response = await fetch(
+      const response = await authFetch(
         `${API_URL}/api/tenancies/records/${props.tenancyId}/tenants`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+          token,
           body: JSON.stringify({
             firstName: newTenant.value.firstName,
             lastName: newTenant.value.lastName,

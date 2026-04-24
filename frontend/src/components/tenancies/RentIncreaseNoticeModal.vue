@@ -453,6 +453,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { X, TrendingUp, AlertTriangle, Send, Loader2, ChevronRight, CheckCircle, XCircle } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   isOpen: boolean
@@ -637,9 +638,9 @@ const loadPreviousS13 = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/activity?limit=100&category=financial`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -758,14 +759,11 @@ const submit = async () => {
     console.log('[S13-Frontend] Sending request to:', `${API_URL}/api/tenancies/records/${props.tenancyId}/rent-increase-notice`)
     console.log('[S13-Frontend] deliveryMethod:', form.value.deliveryMethod)
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/rent-increase-notice`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           newRent: form.value.newRent,
           rentFrequency: form.value.rentFrequency,

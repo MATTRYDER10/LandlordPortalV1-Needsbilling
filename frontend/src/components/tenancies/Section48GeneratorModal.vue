@@ -812,6 +812,7 @@ import {
   isPOBox
 } from '@/types/section48'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   show: boolean
@@ -1045,8 +1046,8 @@ async function loadCompanyDetails() {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/company`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await authFetch(`${API_URL}/api/company`, {
+      token
     })
     if (response.ok) {
       const data = await response.json()
@@ -1196,12 +1197,9 @@ async function generateAndSend() {
       additionalRecipients: additionalEmails
     }
 
-    const response = await fetch(`${API_URL}/api/legal/generate-section48`, {
+    const response = await authFetch(`${API_URL}/api/legal/generate-section48`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      token,
       body: JSON.stringify(payload)
     })
 

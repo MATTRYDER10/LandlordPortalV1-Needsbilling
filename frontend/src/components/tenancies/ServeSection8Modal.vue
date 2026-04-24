@@ -216,6 +216,7 @@ import { Send, X, Loader2, AlertTriangle, FileText, Home, Shield, Flame, Zap, Bo
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 interface Props {
   isOpen: boolean
   noticeId: string | null
@@ -325,8 +326,8 @@ async function loadDocuments() {
     if (!token) throw new Error('Not authenticated')
 
     // Step 1: Get the notice details (includes tenancy_id)
-    const noticeResponse = await fetch(`${API_URL}/api/legal/section8-notices/${props.noticeId}/documents`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+    const noticeResponse = await authFetch(`${API_URL}/api/legal/section8-notices/${props.noticeId}/documents`, {
+      token,
     })
 
     if (!noticeResponse.ok) {
@@ -338,8 +339,8 @@ async function loadDocuments() {
 
     // Step 2: Get tenancy to find property_id
     if (noticeData.notice?.tenancy_id) {
-      const tenancyResponse = await fetch(`${API_URL}/api/tenancies/records/${noticeData.notice.tenancy_id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const tenancyResponse = await authFetch(`${API_URL}/api/tenancies/records/${noticeData.notice.tenancy_id}`, {
+        token,
       })
 
       if (tenancyResponse.ok) {
@@ -348,8 +349,8 @@ async function loadDocuments() {
 
         // Step 3: Get property data (same as TenancyDrawer)
         if (propertyId) {
-          const propertyResponse = await fetch(`${API_URL}/api/properties/${propertyId}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
+          const propertyResponse = await authFetch(`${API_URL}/api/properties/${propertyId}`, {
+            token,
           })
 
           if (propertyResponse.ok) {
@@ -425,12 +426,9 @@ async function handleServe() {
       formData.append('additionalFiles', file)
     }
 
-    const response = await fetch(`${API_URL}/api/legal/section8-notices/${props.noticeId}/serve`, {
+    const response = await authFetch(`${API_URL}/api/legal/section8-notices/${props.noticeId}/serve`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type - browser will set it with boundary for FormData
-      },
+      token,
       body: formData,
     })
 

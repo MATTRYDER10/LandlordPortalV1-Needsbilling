@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { FileText, Send, AlertTriangle, ChevronRight, ChevronLeft, CheckCircle, Upload, Loader2, FolderOpen } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? ''
@@ -52,15 +53,11 @@ async function saveStartDate() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenantChange.tenancy_id}`,
       {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
-        },
+        token,
         body: JSON.stringify({ startDate: manualStartDate.value })
       }
     )
@@ -96,9 +93,9 @@ async function checkOriginalAgreement() {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/original-agreement`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -128,11 +125,11 @@ async function uploadAgreement(event: Event) {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/upload-agreement`,
       {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        token,
         body: formData
       }
     )
@@ -162,9 +159,9 @@ async function openDocumentPicker() {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/tenancy-documents`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -186,14 +183,11 @@ async function selectDocument(doc: TenancyDocument) {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/select-agreement`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({ documentId: doc.id })
       }
     )
@@ -243,13 +237,11 @@ async function sendForSigning() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/send-for-signing`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 

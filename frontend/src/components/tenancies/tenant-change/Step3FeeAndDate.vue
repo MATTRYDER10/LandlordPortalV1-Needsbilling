@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { Calendar, DollarSign, Send, AlertTriangle, ChevronRight, ChevronLeft, Info, CheckCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? ''
@@ -94,14 +95,11 @@ async function calculateProRata() {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/calculate-pro-rata`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({ changeoverDate: changeoverDate.value })
       }
     )
@@ -148,14 +146,11 @@ async function saveFeeDetails() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/fee-details`,
       {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           changeover_date: changeoverDate.value || null,
           fee_amount: feeAmount.value,
@@ -197,13 +192,11 @@ async function sendInvoice() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/send-invoice`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 
@@ -229,14 +222,11 @@ async function markFeeReceived() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/mark-fee-received`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           amount: totalAmount.value,
           notes: ''

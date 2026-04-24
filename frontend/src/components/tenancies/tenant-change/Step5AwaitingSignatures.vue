@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CheckCircle, Clock, XCircle, RefreshCw, AlertTriangle, ChevronRight, Mail, Link, Check } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? ''
@@ -68,12 +69,10 @@ async function fetchSigningStatus() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/signing-status`,
       {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 
@@ -116,13 +115,11 @@ async function resendEmail(signatureId: string) {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/resend/${signatureId}`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 

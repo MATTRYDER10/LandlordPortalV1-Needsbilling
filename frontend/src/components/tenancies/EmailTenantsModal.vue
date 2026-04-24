@@ -187,6 +187,7 @@ import {
   Eye, Wrench, Clock, Megaphone, Calendar, AlertCircle
 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface Tenant {
   id: string
@@ -465,13 +466,11 @@ const sendEmail = async () => {
       formData.append('attachments', file)
     }
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/email-tenants`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        token,
         body: formData
       }
     )

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest, resolveCompanyForTenancy } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { decrypt, encrypt } from '../services/encryption'
 import { getFrontendUrl } from '../utils/frontendUrl'
@@ -104,7 +104,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const sortOrder = (req.query.sortOrder as string) || 'asc'
 
     // Get company ID (supports admin override)
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -510,7 +510,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const tenancyId = req.params.id
 
     // Get company from X-Branch-Id header or user's company
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -619,7 +619,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/records/stats', authenticateToken, async (req: AuthRequest, res) => {
   try {
     console.log('[Stats] Getting company ID for user:', req.user?.id)
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     console.log('[Stats] Company ID:', companyId)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -684,7 +684,7 @@ router.get('/records/stats', authenticateToken, async (req: AuthRequest, res) =>
  */
 router.get('/records/active', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -747,7 +747,7 @@ router.get('/records/active', authenticateToken, async (req: AuthRequest, res) =
  */
 router.get('/records/archived', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -809,7 +809,7 @@ router.get('/records/archived', authenticateToken, async (req: AuthRequest, res)
  */
 router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -1118,7 +1118,7 @@ router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res)
  */
 router.get('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -1163,7 +1163,7 @@ router.get('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.get('/convert/validate/:referenceId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -1186,7 +1186,7 @@ router.get('/convert/validate/:referenceId', authenticateToken, async (req: Auth
  */
 router.get('/convert/preview/:referenceId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -1209,7 +1209,7 @@ router.get('/convert/preview/:referenceId', authenticateToken, async (req: AuthR
  */
 router.post('/convert', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1262,7 +1262,7 @@ router.post('/convert', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1356,7 +1356,7 @@ router.post('/create', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.put('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1411,7 +1411,7 @@ router.put('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1639,7 +1639,7 @@ router.post('/records/:id/activate', authenticateToken, async (req: AuthRequest,
  */
 router.post('/records/:id/end', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1683,7 +1683,7 @@ router.post('/records/:id/end', authenticateToken, async (req: AuthRequest, res)
  */
 router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -1867,7 +1867,7 @@ router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: 
  */
 router.post('/records/:id/revert-to-active', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -1937,7 +1937,7 @@ router.post('/records/:id/revert-to-active', authenticateToken, async (req: Auth
  */
 router.post('/records/:id/revert-to-notice-served', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -2018,7 +2018,7 @@ router.post('/records/:id/revert-to-notice-served', authenticateToken, async (re
  */
 router.get('/records/:id/calculate-pro-rata', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2091,7 +2091,7 @@ router.get('/records/:id/calculate-pro-rata', authenticateToken, async (req: Aut
  */
 router.post('/records/:id/revert-to-draft', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -2173,7 +2173,7 @@ router.post('/records/:id/revert-to-draft', authenticateToken, async (req: AuthR
  */
 router.post('/records/:id/mark-fallen-through', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -2249,7 +2249,7 @@ router.post('/records/:id/mark-fallen-through', authenticateToken, async (req: A
  */
 router.delete('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -2270,7 +2270,7 @@ router.delete('/records/:id', authenticateToken, async (req: AuthRequest, res) =
  */
 router.get('/records/:id/tenants', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2297,7 +2297,7 @@ router.get('/records/:id/tenants', authenticateToken, async (req: AuthRequest, r
  */
 router.post('/records/:id/tenants', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2364,7 +2364,7 @@ router.post('/records/:id/tenants', authenticateToken, async (req: AuthRequest, 
  */
 router.get('/search-references', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
     const q = String(req.query.q || '').trim().toLowerCase()
@@ -2421,7 +2421,7 @@ router.get('/search-references', authenticateToken, async (req: AuthRequest, res
  */
 router.post('/records/:id/tenants/from-reference', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
     const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
@@ -2489,7 +2489,7 @@ router.post('/records/:id/tenants/from-reference', authenticateToken, async (req
  */
 router.post('/records/:id/backfill-addresses', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
     const { addresses } = req.body // [{ name: string (lowercase), address: { line1, line2, city, postcode } }]
@@ -2544,7 +2544,7 @@ router.post('/records/:id/backfill-addresses', authenticateToken, async (req: Au
 
 router.patch('/records/:id/tenants/:tenantId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2605,7 +2605,7 @@ router.patch('/records/:id/tenants/:tenantId', authenticateToken, async (req: Au
  */
 router.delete('/records/:id/tenants/:tenantId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2647,7 +2647,7 @@ router.delete('/records/:id/tenants/:tenantId', authenticateToken, async (req: A
  */
 router.put('/records/:id/tenants/reorder', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2691,7 +2691,7 @@ router.put('/records/:id/tenants/reorder', authenticateToken, async (req: AuthRe
  */
 router.get('/records/:id/guarantors', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2718,7 +2718,7 @@ router.get('/records/:id/guarantors', authenticateToken, async (req: AuthRequest
  */
 router.post('/records/:id/guarantors', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2784,7 +2784,7 @@ router.post('/records/:id/guarantors', authenticateToken, async (req: AuthReques
  */
 router.patch('/records/:id/guarantors/:guarantorId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2851,7 +2851,7 @@ router.patch('/records/:id/guarantors/:guarantorId', authenticateToken, async (r
  */
 router.delete('/records/:id/guarantors/:guarantorId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -2887,7 +2887,7 @@ router.delete('/records/:id/guarantors/:guarantorId', authenticateToken, async (
  */
 router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -3037,7 +3037,7 @@ router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthR
  */
 router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = await resolveCompanyForTenancy(req, req.params.id)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -3478,7 +3478,7 @@ function ordinalSuffix(n: number): string {
  */
 router.get('/records/:id/initial-monies-preview', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -3638,7 +3638,7 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
  */
 router.post('/records/:id/request-initial-monies', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -3896,7 +3896,7 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
  */
 router.get('/records/:id/payment-request', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -3952,7 +3952,7 @@ router.get('/records/:id/payment-request', authenticateToken, async (req: AuthRe
  */
 router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -4346,7 +4346,7 @@ router.post('/public/:id/tenant-paid', async (req, res) => {
  */
 router.post('/records/:id/generate-agreement', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -4623,7 +4623,7 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
  */
 router.post('/records/:id/request-move-in-time', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -5336,7 +5336,7 @@ router.post('/public/:id/confirm-move-in-time', async (req, res) => {
  */
 router.post('/records/:id/confirm-move-in-time', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -5501,7 +5501,7 @@ router.post('/records/:id/confirm-move-in-time', authenticateToken, async (req: 
  */
 router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUpload.array('attachments', 5), async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -5677,7 +5677,7 @@ router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUplo
  */
 router.post('/records/bulk-email', authenticateToken, emailAttachmentUpload.array('attachments', 5), async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -5844,7 +5844,7 @@ router.post('/records/bulk-email', authenticateToken, emailAttachmentUpload.arra
  */
 router.post('/records/:id/dismiss-aml-warning', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -5983,7 +5983,7 @@ router.get('/records/:id/activity', authenticateToken, async (req: AuthRequest, 
  */
 router.get('/records/:id/emails', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
     const page = parseInt(req.query.page as string) || 1
@@ -6035,7 +6035,7 @@ router.get('/records/:id/emails', authenticateToken, async (req: AuthRequest, re
  */
 router.get('/records/:id/emails/:emailId', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) return res.status(404).json({ error: 'Company not found' })
 
     const { data: email, error } = await supabase
@@ -6251,7 +6251,7 @@ router.get('/rent-due-date-change/:token', async (req, res) => {
 router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
 
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -6569,7 +6569,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
  */
 router.get('/records/:id/rent-due-date-changes', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -6633,7 +6633,7 @@ router.get('/records/:id/rent-due-date-changes', authenticateToken, async (req: 
 router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -6982,7 +6982,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
 router.post('/records/:id/rent-due-date-change/:changeId/cancel', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -7060,7 +7060,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/cancel', authenticateTo
 router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
@@ -7258,7 +7258,7 @@ router.post('/records/:id/rent-increase-notice', authenticateToken, async (req: 
   console.log('[S13] newRent:', req.body.newRent)
   console.log('================================================\n')
   try {
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
     const userId = req.user?.id
     console.log('[S13] companyId:', companyId, 'userId:', userId)
     if (!companyId) {
@@ -7754,7 +7754,7 @@ router.get('/records/:id/rent-increase-notices', authenticateToken, async (req: 
 router.get('/rent-increase-notices/:noticeId/pdf', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { noticeId } = req.params
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
 
     if (!companyId) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -7793,7 +7793,7 @@ router.post('/records/:id/section-8-notice', authenticateToken, async (req: Auth
   try {
     const { id: tenancyId } = req.params
     const userId = req.user?.id
-    const companyId = await getCompanyIdForRequest(req)
+    const companyId = req.params.id ? await resolveCompanyForTenancy(req, req.params.id) : await getCompanyIdForRequest(req)
 
     if (!companyId) {
       return res.status(403).json({ error: 'Company not found' })

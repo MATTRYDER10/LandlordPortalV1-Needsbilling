@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { CheckCircle, XCircle, AlertTriangle, ChevronRight, ChevronLeft, Info } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? ''
@@ -42,14 +43,11 @@ async function handleSubmit() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/referencing`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           requiresReferencing: requireReferencing.value
         })
@@ -82,14 +80,11 @@ async function handleOverride() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/override-referencing`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           reason: overrideReason.value
         })

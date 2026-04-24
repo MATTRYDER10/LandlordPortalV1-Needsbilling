@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { CheckCircle, Circle, ExternalLink, AlertTriangle, PartyPopper, Loader2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? ''
@@ -83,14 +84,11 @@ async function toggleItem(key: string) {
     const updates: Record<string, boolean> = {}
     updates[key] = !item.completed
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/checklist`,
       {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify(updates)
       }
     )
@@ -146,13 +144,11 @@ async function finalizeChange() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${props.tenantChange.id}/finalize`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 

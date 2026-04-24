@@ -269,6 +269,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -442,14 +443,11 @@ const handleSend = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/move-in-pack`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           includeAgreement: includeAgreement.value,
           selectedDocumentIds: selectedDocuments.value,

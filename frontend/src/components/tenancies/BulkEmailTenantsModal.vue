@@ -165,6 +165,7 @@ import {
   Megaphone, Wrench, Eye, Clock, Calendar
 } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface EmailTemplate {
   key: string
@@ -335,9 +336,9 @@ async function sendBulkEmail() {
       formData.append('attachments', file)
     }
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/bulk-email`, {
+    const response = await authFetch(`${API_URL}/api/tenancies/records/bulk-email`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      token,
       body: formData
     })
 

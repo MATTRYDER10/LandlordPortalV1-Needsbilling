@@ -10,6 +10,7 @@ import Step5AwaitingSignatures from './tenant-change/Step5AwaitingSignatures.vue
 import Step6Complete from './tenant-change/Step6Complete.vue'
 import Step7PostCompletion from './tenant-change/Step7PostCompletion.vue'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 interface Tenant {
   id: string
@@ -162,12 +163,10 @@ async function fetchTenantChange() {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/tenancy/${props.tenancyId}`,
       {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 
@@ -203,14 +202,11 @@ async function createTenantChange(data: {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({
           tenancyId: props.tenancyId,
           ...data
@@ -244,14 +240,11 @@ async function updateTenantChange(updates: Partial<TenantChange>) {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${tenantChange.value.id}`,
       {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify(updates)
       }
     )
@@ -281,14 +274,11 @@ async function cancelTenantChange(reason: string) {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/${tenantChange.value.id}/cancel`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify({ reason })
       }
     )

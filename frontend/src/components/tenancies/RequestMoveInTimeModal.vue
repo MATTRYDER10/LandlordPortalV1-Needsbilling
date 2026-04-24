@@ -4,6 +4,7 @@ import { X, Clock, Send, User, CalendarDays, Loader2, AlertTriangle } from 'luci
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   isOpen: boolean
@@ -133,14 +134,11 @@ async function handleSubmit() {
       body.suggestedTime2 = suggestedTime2.value
     }
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancyId}/request-move-in-time`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        token,
         body: JSON.stringify(body)
       }
     )
