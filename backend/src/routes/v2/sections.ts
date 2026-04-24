@@ -1141,43 +1141,9 @@ router.post('/:id/decision', authenticateStaff, async (req: StaffAuthRequest, re
         .eq('id', id)
     }
 
-    // Gate: INCOME section cannot be passed while employer reference is still pending
-    if (decision === 'PASS' || decision === 'PASS_WITH_CONDITION') {
-      const { data: section } = await supabase
-        .from('reference_sections_v2')
-        .select('section_type, reference_id')
-        .eq('id', id)
-        .single()
-
-      if (section?.section_type === 'INCOME') {
-        // Check if there's a pending employer reference for this reference
-        const { data: pendingEmployer } = await supabase
-          .from('reference_sections_v2')
-          .select('id, queue_status, section_data')
-          .eq('reference_id', section.reference_id)
-          .eq('section_type', 'INCOME')
-          .single()
-
-        const sectionData = (pendingEmployer?.section_data as Record<string, any>) || {}
-        const employerRefStatus = sectionData?.employer_reference_status || sectionData?.employerReferenceStatus
-
-        // Check chase_items_v2 for pending employer refs.
-        // Statuses 'WAITING' and 'IN_CHASE_QUEUE' mean the referee hasn't responded yet.
-        const { data: pendingChases } = await supabase
-          .from('chase_items_v2')
-          .select('id, status')
-          .eq('reference_id', section.reference_id)
-          .eq('referee_type', 'EMPLOYER')
-          .in('status', ['WAITING', 'IN_CHASE_QUEUE'])
-          .limit(1)
-
-        if (pendingChases && pendingChases.length > 0) {
-          return res.status(400).json({
-            error: 'Cannot pass INCOME section while employer reference is still pending. The employer reference must be received first.'
-          })
-        }
-      }
-    }
+    // Note: previously blocked passing INCOME with pending employer reference,
+    // but staff should be able to pass based on uploaded evidence (payslips etc.)
+    // and deal with pending employer references separately
 
     const success = await submitSectionDecision({
       sectionId: id,
