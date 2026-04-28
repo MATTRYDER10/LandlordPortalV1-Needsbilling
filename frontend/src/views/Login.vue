@@ -3,7 +3,7 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <div class="flex items-center justify-center mb-6">
-          <img src="/PropertyGooseLogoFull.png" alt="PropertyGoose" class="h-64" />
+          <img src="/PropertyGooseLogoFull.png" alt="PropertyGoose" class="h-80" />
         </div>
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Sign in to your account</h2>
         <p class="mt-2 text-sm text-gray-600 dark:text-slate-400">

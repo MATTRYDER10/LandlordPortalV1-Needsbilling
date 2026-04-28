@@ -251,17 +251,34 @@ const capturedBlob = ref<Blob | null>(null)
 const uploading = ref(false)
 const uploadError = ref('')
 
-// Validate token on mount
+// Track which API base to use for upload
+const uploadBase = ref('')
+
+// Validate token on mount — try landlord endpoint first, fall back to v2
 onMounted(async () => {
   try {
-    const response = await fetch(`${API_URL}/api/v2/mobile-capture/${captureToken}`)
-    if (!response.ok) {
-      const data = await response.json().catch(() => null)
-      error.value = data?.message || 'This capture link is invalid or has expired. Please request a new one from your desktop.'
+    // Try landlord portal endpoint first
+    let response = await fetch(`${API_URL}/api/landlord-portal/aml/mobile/${captureToken}`)
+    if (response.ok) {
+      uploadBase.value = `${API_URL}/api/landlord-portal/aml/mobile`
+      const data = await response.json()
+      companyName.value = data.companyName || ''
+      loading.value = false
       return
     }
-    const data = await response.json()
-    companyName.value = data.companyName || ''
+
+    // Fall back to v2 mobile capture (tenant references)
+    response = await fetch(`${API_URL}/api/v2/mobile-capture/${captureToken}`)
+    if (response.ok) {
+      uploadBase.value = `${API_URL}/api/v2/mobile-capture`
+      const data = await response.json()
+      companyName.value = data.companyName || ''
+      loading.value = false
+      return
+    }
+
+    const data = await response.json().catch(() => null)
+    error.value = data?.message || 'This capture link is invalid or has expired. Please request a new one from your desktop.'
   } catch (err) {
     console.error('Token validation error:', err)
     error.value = 'Unable to validate this link. Please check your connection and try again.'
