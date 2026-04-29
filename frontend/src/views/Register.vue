@@ -3,8 +3,7 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <div class="flex items-center justify-center mb-4">
-          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10 dark:hidden" />
-          <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-10 hidden dark:block" />
+          <img src="/PropertyGooseLogoFull.png" alt="PropertyGoose" class="h-40" />
         </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900 dark:text-white">Create your landlord account</h2>
         <p class="mt-2 text-sm text-gray-600 dark:text-slate-400">
@@ -28,9 +27,11 @@
           <div>
             <label for="company-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Your Full Name</label>
             <input
-              id="company-name"
+              id="landlord-fullname"
+              name="landlord-fullname"
               v-model="formData.companyName"
               type="text"
+              autocomplete="one-time-code"
               required
               class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-500 dark:placeholder-slate-400 text-gray-900 dark:text-white bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
               placeholder="John Smith"

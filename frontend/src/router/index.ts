@@ -300,6 +300,11 @@ const router = createRouter({
       component: () => import('../views/MobileCapture.vue')
     },
     {
+      path: '/landlord-mobile-verify/:token',
+      name: 'LandlordMobileVerify',
+      component: () => import('../views/LandlordMobileVerify.vue')
+    },
+    {
       path: '/upload/:token',
       name: 'FileUpload',
       component: () => import('../views/public/FileUploadPage.vue')
@@ -404,6 +409,7 @@ router.beforeEach(async (to, _from, next) => {
                         to.path.startsWith('/guarantor-reference') ||
                         to.path.startsWith('/tenant-add-guarantor') ||
                         to.path.startsWith('/mobile-capture') ||
+                        to.path.startsWith('/landlord-mobile-verify') ||
                         to.path.startsWith('/upload/') ||
                         to.path.startsWith('/verify/') ||
                         to.path.startsWith('/v2/employer-reference') ||

@@ -1,82 +1,75 @@
 /**
  * Landlord Portal pricing configuration.
  *
- * Pay-as-you-go: per-reference pricing
- * Full Self-Management: monthly subscription unlocking tenancies tab + ref discount
- * Bulk packs: 5% off per reference in pack, capped at 35%
+ * PAYG: per-reference pricing (no subscription)
+ * Standard: £11.99/mo (promo until 15 May 2026), then £14.99/mo — up to 10 properties
+ * Professional: £24.99/mo — up to 25 properties (no promo)
  */
 
-// Launch pricing (before cutoff date)
-export const LAUNCH_REF_PRICE = 14.00
-export const STANDARD_REF_PRICE = 17.50
+// Reference pricing
+export const PAYG_REF_PRICE = 17.50
 export const SUBSCRIBER_REF_PRICE = 13.00
 
-export const LAUNCH_SUBSCRIPTION_PRICE = 11.99
-export const STANDARD_SUBSCRIPTION_PRICE = 14.99
+// Subscription tiers
+export const STANDARD_PROMO_PRICE = 11.99
+export const STANDARD_PRICE = 14.99
+export const STANDARD_MAX_PROPERTIES = 10
+
+export const PROFESSIONAL_PRICE = 24.99
+export const PROFESSIONAL_MAX_PROPERTIES = 25
 
 // Agreement pricing
 export const AGREEMENT_PRICE = 2.49
 
-// Bulk discount: 5% per reference, max 35%
-export const BULK_DISCOUNT_PER_REF = 0.05
-export const BULK_DISCOUNT_MAX = 0.35
+// Promo period ends 15 May 2026
+export const PROMO_CUTOFF = new Date('2026-05-15T00:00:00Z')
 
-// Launch period ends 30 April 2026
-export const LAUNCH_CUTOFF = new Date('2026-05-01T00:00:00Z')
+export function isPromoPeriod(): boolean {
+  return new Date() < PROMO_CUTOFF
+}
 
-export function isLaunchPeriod(): boolean {
-  return new Date() < LAUNCH_CUTOFF
+export function getStandardPrice(): number {
+  return isPromoPeriod() ? STANDARD_PROMO_PRICE : STANDARD_PRICE
 }
 
 export function getReferencePrice(hasSubscription: boolean): number {
-  if (hasSubscription) return SUBSCRIBER_REF_PRICE
-  return isLaunchPeriod() ? LAUNCH_REF_PRICE : STANDARD_REF_PRICE
-}
-
-export function getSubscriptionPrice(): number {
-  return isLaunchPeriod() ? LAUNCH_SUBSCRIPTION_PRICE : STANDARD_SUBSCRIPTION_PRICE
-}
-
-/**
- * Calculate bulk discount for a pack of N references.
- * 5% off per reference in the pack, capped at 35%.
- * Pack of 1 = no discount (that's a single purchase, not bulk).
- */
-export function getBulkDiscount(packSize: number): number {
-  if (packSize <= 1) return 0
-  return Math.min(packSize * BULK_DISCOUNT_PER_REF, BULK_DISCOUNT_MAX)
-}
-
-/**
- * Get the price per reference for a given bulk pack size.
- */
-export function getBulkPricePerRef(packSize: number, hasSubscription: boolean): number {
-  const basePrice = getReferencePrice(hasSubscription)
-  const discount = getBulkDiscount(packSize)
-  return Math.round((basePrice * (1 - discount)) * 100) / 100
-}
-
-/**
- * Get the total cost for a bulk pack.
- */
-export function getBulkPackTotal(packSize: number, hasSubscription: boolean): number {
-  return Math.round(packSize * getBulkPricePerRef(packSize, hasSubscription) * 100) / 100
-}
-
-/**
- * Predefined bulk pack options for the billing UI.
- */
-export function getBulkPacks(hasSubscription: boolean): { size: number; discount: number; pricePerRef: number; total: number; savings: number }[] {
-  const basePrice = getReferencePrice(hasSubscription)
-  return [3, 5, 10, 15, 20].map(size => {
-    const discount = getBulkDiscount(size)
-    const pricePerRef = getBulkPricePerRef(size, hasSubscription)
-    const total = getBulkPackTotal(size, hasSubscription)
-    const savings = Math.round((basePrice * size - total) * 100) / 100
-    return { size, discount, pricePerRef, total, savings }
-  })
+  return hasSubscription ? SUBSCRIBER_REF_PRICE : PAYG_REF_PRICE
 }
 
 export function formatPrice(amount: number): string {
   return `£${amount.toFixed(2)}`
+}
+
+// ─── Legacy exports (used by Settings, Paywalls — will be updated) ───
+export const STANDARD_SUBSCRIPTION_PRICE = STANDARD_PRICE
+export const LAUNCH_REF_PRICE = PAYG_REF_PRICE
+export const STANDARD_REF_PRICE = PAYG_REF_PRICE
+export const LAUNCH_SUBSCRIPTION_PRICE = STANDARD_PROMO_PRICE
+export const LAUNCH_CUTOFF = PROMO_CUTOFF
+
+export function isLaunchPeriod(): boolean {
+  return isPromoPeriod()
+}
+
+export function getSubscriptionPrice(): number {
+  return getStandardPrice()
+}
+
+export function getBulkDiscount(_packSize: number): number {
+  return 0
+}
+
+export function getBulkPricePerRef(_packSize: number, hasSubscription: boolean): number {
+  return getReferencePrice(hasSubscription)
+}
+
+export function getBulkPackTotal(packSize: number, hasSubscription: boolean): number {
+  return packSize * getReferencePrice(hasSubscription)
+}
+
+export function getBulkPacks(hasSubscription: boolean): { size: number; discount: number; pricePerRef: number; total: number; savings: number }[] {
+  const price = getReferencePrice(hasSubscription)
+  return [3, 5, 10, 15, 20].map(size => ({
+    size, discount: 0, pricePerRef: price, total: size * price, savings: 0
+  }))
 }

@@ -13,7 +13,7 @@
           <Menu class="w-6 h-6" />
         </button>
         <div class="flex items-center ml-3 gap-2">
-          <img :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseLogo.png'" alt="PropertyGoose" class="h-8 w-8" />
+          <img :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseFloating.png'" alt="PropertyGoose" class="h-8 w-8" />
           <span :class="['text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900']">Landlord Portal</span>
         </div>
       </div>
@@ -61,7 +61,7 @@
         ]">
           <div class="flex items-center gap-2.5">
             <img
-              :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseLogo.png'"
+              :src="isDark ? '/PropertyGooseLogoDark.png' : '/PropertyGooseFloating.png'"
               alt="PropertyGoose"
               class="h-10 w-auto object-contain"
             />

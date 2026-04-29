@@ -3,8 +3,7 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <div class="flex items-center justify-center mb-4">
-          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10 dark:hidden" />
-          <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-10 hidden dark:block" />
+          <img src="/PropertyGooseLogoFull.png" alt="PropertyGoose" class="h-40" />
         </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900 dark:text-white">Reset your password</h2>
         <p class="mt-2 text-sm text-gray-600 dark:text-slate-400">

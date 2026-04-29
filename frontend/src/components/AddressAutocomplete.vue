@@ -80,6 +80,8 @@ const emit = defineEmits<Emits>()
 
 const query = ref(props.modelValue)
 const inputRef = ref<HTMLInputElement | null>(null)
+
+defineExpose({ focus: () => inputRef.value?.focus(), inputRef })
 const showDropdown = ref(false)
 const highlightedIndex = ref(0)
 const justSelected = ref(false)
