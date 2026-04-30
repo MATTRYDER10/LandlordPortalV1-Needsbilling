@@ -10,73 +10,73 @@
       "sortOrder": 1
     },
     {
-      "id": "dashboard",
-      "slug": "dashboard",
-      "title": "Dashboard",
-      "description": "Understanding your dashboard, quick stats, and navigation shortcuts.",
-      "icon": "LayoutDashboard",
-      "color": "purple",
-      "sortOrder": 2
-    },
-    {
       "id": "offers",
       "slug": "offers",
       "title": "Tenant Offers",
       "description": "Sending offer forms to prospective tenants and managing submissions.",
       "icon": "Send",
       "color": "amber",
-      "sortOrder": 3
+      "sortOrder": 2
     },
     {
-      "id": "references",
-      "slug": "references",
-      "title": "References",
+      "id": "referencing",
+      "slug": "referencing",
+      "title": "Referencing",
       "description": "Creating, tracking, and managing tenant reference checks.",
       "icon": "ClipboardCheck",
       "color": "green",
-      "sortOrder": 4
+      "sortOrder": 3
     },
     {
       "id": "tenancies",
       "slug": "tenancies",
-      "title": "Tenancies",
-      "description": "Managing active tenancies, deposits, agreements, and tenant changes.",
+      "title": "Tenancy Management",
+      "description": "Managing active tenancies, deposits, tenant changes, and compliance.",
       "icon": "FileText",
       "color": "emerald",
-      "sortOrder": 5
-    },
-    {
-      "id": "properties",
-      "slug": "properties",
-      "title": "Properties",
-      "description": "Adding properties, tracking compliance certificates, and managing your portfolio.",
-      "icon": "Home",
-      "color": "orange",
-      "sortOrder": 6
-    },
-    {
-      "id": "landlords",
-      "slug": "landlords",
-      "title": "Landlords",
-      "description": "Managing landlord records, AML checks, and property assignments.",
-      "icon": "Users",
-      "color": "indigo",
-      "sortOrder": 7
+      "sortOrder": 4
     },
     {
       "id": "agreements",
       "slug": "agreements",
       "title": "Agreements",
-      "description": "Generating AST agreements, e-signatures, and document management.",
+      "description": "Generating tenancy agreements, e-signatures, and document management.",
       "icon": "FileSignature",
       "color": "teal",
+      "sortOrder": 5
+    },
+    {
+      "id": "rentgoose",
+      "slug": "rentgoose",
+      "title": "RentGoose",
+      "description": "Tracking rent payments, managing arrears, and viewing rent statements.",
+      "icon": "PoundSterling",
+      "color": "purple",
+      "sortOrder": 6
+    },
+    {
+      "id": "properties",
+      "slug": "properties",
+      "title": "Properties & Landlords",
+      "description": "Adding properties, managing compliance certificates, and setting up SPVs or companies.",
+      "icon": "Home",
+      "color": "orange",
+      "sortOrder": 7
+    },
+    {
+      "id": "billing",
+      "slug": "billing",
+      "title": "Billing & Subscriptions",
+      "description": "Subscription plans, reference payments, and billing management.",
+      "icon": "CreditCard",
+      "color": "indigo",
       "sortOrder": 8
     },
     {
       "id": "account-settings",
       "slug": "account-settings",
       "title": "Account & Settings",
-      "description": "Profile settings, team management, integrations, and billing.",
+      "description": "Profile settings, integrations, utility switching, and account preferences.",
       "icon": "Settings",
       "color": "slate",
       "sortOrder": 9

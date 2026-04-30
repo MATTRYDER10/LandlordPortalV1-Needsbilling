@@ -1,0 +1,65 @@
+{
+  "id": "billing-references",
+  "slug": "billing-references",
+  "title": "Paying for References",
+  "category": "billing",
+  "tags": ["billing", "references", "pricing", "payment", "PAYG", "discount"],
+  "createdAt": "2026-04-29",
+  "updatedAt": "2026-04-29",
+  "sortOrder": 2,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "References in PropertyGoose are pay-per-use. The price per reference depends on your subscription plan, with discounts available for Standard and Professional subscribers.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Reference Pricing by Plan",
+        "content": "PAYG (no subscription): £17.50 per reference. Standard (£11.99/month): £13.00 per reference. Professional (£24.99/month): £12.50 per reference. Each reference covers a single tenant. If you are referencing multiple tenants for one property, each tenant is a separate reference charge."
+      },
+      {
+        "type": "steps",
+        "title": "How to Pay for a Reference",
+        "steps": [
+          {
+            "title": "Create a reference from an approved offer",
+            "content": "In the Offers tab, find an approved offer and click 'Start Reference'.",
+            "image": null
+          },
+          {
+            "title": "Review the reference details",
+            "content": "Confirm the tenant details, property, and move-in date before proceeding to payment.",
+            "image": null
+          },
+          {
+            "title": "Pay at checkout",
+            "content": "You are taken to a secure Stripe checkout page. Enter your card details and confirm payment. The reference is created immediately after successful payment.",
+            "image": null
+          },
+          {
+            "title": "Reference sent to tenant",
+            "content": "Once payment is confirmed, the tenant receives an email with a link to complete their reference questionnaire.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Bulk References",
+        "content": "When referencing multiple tenants for the same property, each tenant is charged individually. The per-reference price is determined by your current plan at the time of purchase."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Save with a Subscription",
+        "content": "If you run references regularly, subscribing to Standard or Professional reduces your per-reference cost. For example, at 3 references per month on Standard, the subscription pays for itself through the reference discount alone."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Payment History",
+        "content": "All reference payments are recorded in your billing history. Go to Settings to view past transactions and download invoices."
+      }
+    ],
+    "relatedArticles": ["subscription-plans", "references-v2-how-to"]
+  }
+}

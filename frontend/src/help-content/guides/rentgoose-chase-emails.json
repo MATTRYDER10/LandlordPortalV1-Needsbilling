@@ -1,0 +1,60 @@
+{
+  "id": "rentgoose-chase-emails",
+  "slug": "rentgoose-chase-emails",
+  "title": "Rent Chase Emails & Arrears",
+  "category": "rentgoose",
+  "tags": ["rentgoose", "chase", "arrears", "overdue", "reminders", "formal letters"],
+  "createdAt": "2026-04-29",
+  "updatedAt": "2026-04-29",
+  "sortOrder": 3,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "RentGoose can automatically chase tenants who fall behind on rent. The auto-chase system sends escalating emails at 7, 14, 21, and 28 days overdue, keeping you informed and prompting tenants to pay without manual intervention.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "How Auto-Chase Works",
+        "content": "When rent becomes overdue, RentGoose begins sending automated chase emails to the tenant on your behalf. The schedule is: 7 days overdue (a friendly payment reminder), 14 days overdue (a second reminder noting the overdue period), 21 days overdue (a firmer notice requesting immediate payment), and 28 days overdue (a final warning before further action). Each email includes the amount owed, the original due date, and the number of days overdue."
+      },
+      {
+        "type": "steps",
+        "title": "Enabling or Disabling Auto-Chase",
+        "steps": [
+          {
+            "title": "Open RentGoose",
+            "content": "Navigate to RentGoose from the sidebar.",
+            "image": null
+          },
+          {
+            "title": "Find the tenancy",
+            "content": "Locate the tenancy you want to configure chase settings for.",
+            "image": null
+          },
+          {
+            "title": "Toggle auto-chase on or off",
+            "content": "Use the auto-chase toggle to enable or disable automated chase emails for that tenancy. When disabled, no automatic emails are sent regardless of arrears.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Quick Chase vs Formal Letters",
+        "content": "Quick chase sends an immediate one-off reminder email to the tenant at any time, regardless of the auto-chase schedule. Use this when you want to nudge a tenant without waiting for the next scheduled email. Formal letters are downloadable PDF documents you can print and post or email manually. They are suitable for more serious arrears situations where you need a paper trail."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "What Tenants Receive",
+        "content": "Chase emails are sent from your account and include your name, the property address, and the outstanding amount. They are professional and factual, designed to prompt payment without damaging the landlord-tenant relationship."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Subscription Required",
+        "content": "RentGoose and auto-chase emails are available on Standard and Professional plans. PAYG users do not have access to RentGoose."
+      }
+    ],
+    "relatedArticles": ["rentgoose-overview", "rentgoose-landlord-statements", "section-8-notices"]
+  }
+}

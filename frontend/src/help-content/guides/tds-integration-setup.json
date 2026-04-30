@@ -46,7 +46,7 @@
         "type": "callout",
         "style": "info",
         "title": "TDS Membership Required",
-        "content": "You must have an active TDS membership to use this integration. Visit tds.gb.com to register if you don't have an account."
+        "content": "You must have an active TDS membership to use this integration. Visit tds.gb.com to register as a landlord if you don't have an account."
       },
       {
         "type": "text",

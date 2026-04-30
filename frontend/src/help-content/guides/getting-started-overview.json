@@ -9,7 +9,7 @@
   "sortOrder": 1,
   "estimatedReadTime": "5 min",
   "content": {
-    "intro": "Welcome to PropertyGoose! This guide will walk you through setting up your account and getting familiar with the platform. PropertyGoose helps property managers and letting agents manage tenant references, tenancies, properties, and landlords all in one place.",
+    "intro": "Welcome to PropertyGoose! This guide will walk you through setting up your account and getting familiar with the platform. PropertyGoose helps self-managing landlords handle tenant offers, references, tenancies, agreements, and rent tracking all in one place.",
     "sections": [
       {
         "type": "steps",
@@ -27,7 +27,7 @@
           },
           {
             "title": "Complete onboarding",
-            "content": "After logging in for the first time, you'll be guided through the onboarding process. This includes setting up your company details, adding bank information, uploading your logo, and configuring your payment method.",
+            "content": "After logging in for the first time, you'll be guided through the onboarding process. This includes setting up your details, adding bank information, and configuring your payment method.",
             "image": null
           }
         ]
@@ -35,24 +35,19 @@
       {
         "type": "text",
         "title": "Understanding the Navigation",
-        "content": "The main navigation is located in the sidebar on the left. You'll find: Dashboard (your home screen with quick stats), Offers (send and manage tenant offer forms), References (create and track tenant references), Tenancies (manage active and draft tenancies), Properties (your property portfolio), Landlords (landlord records and AML), Standalone Agreements (generate AST agreements), Settings (account and company settings), and Help Centre (you're here!)."
+        "content": "The main navigation is located in the sidebar on the left. You'll find: Dashboard (your home screen with quick stats), Offers (send and manage tenant offer forms), Referencing (run tenant reference checks), Tenancies (manage active and draft tenancies — requires subscription), Properties (your property portfolio), Landlords (your companies and SPVs), Agreements (generate tenancy agreements), RentGoose (track rent payments and arrears), Settings (account preferences), and Help Centre (you're here!)."
       },
       {
         "type": "callout",
         "style": "tip",
         "title": "Quick Create Menu",
-        "content": "Look for the '+' button in the header to quickly create a new Reference, Agreement, Property, or Landlord from anywhere in the app."
-      },
-      {
-        "type": "text",
-        "title": "User Roles",
-        "content": "PropertyGoose has three user roles: Owner (full access to everything including billing), Admin (full access except billing management), and Member (access to core features but not company settings, team management, or billing). Your role determines which features and settings tabs you can access."
+        "content": "Look for the '+' button in the header to quickly create a new Property or Agreement from anywhere in the app."
       },
       {
         "type": "callout",
         "style": "info",
-        "title": "Multi-Branch Support",
-        "content": "If you're invited to multiple branches (companies), you'll see a branch selector after logging in. You can switch between branches using the 'Switch Branch' option."
+        "title": "Subscription Plans",
+        "content": "PropertyGoose offers three plans: PAYG (free, pay per reference), Standard (£11.99/month, up to 10 properties), and Professional (£24.99/month, unlimited properties). Offers are free on all plans. Tenancies and RentGoose require a subscription."
       }
     ],
     "relatedArticles": [

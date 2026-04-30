@@ -9,7 +9,7 @@
   "sortOrder": 22,
   "estimatedReadTime": "3 min",
   "content": {
-    "intro": "PropertyGoose integrates with Just Move In (JMI) to automatically notify utility providers when tenancy events occur, removing the need for agents to contact councils and utilities manually.",
+    "intro": "PropertyGoose integrates with Just Move In (JMI) to automatically notify utility providers when tenancy events occur, removing the need for you to contact councils and utilities manually.",
     "sections": [
       {
         "type": "text",
@@ -22,7 +22,7 @@
         "steps": [
           {
             "title": "JMI is Enabled by Default",
-            "content": "JMI is enabled for all companies by default. No manual setup or API connection is required to use the basic notification service.",
+            "content": "JMI is enabled by default. No manual setup or API connection is required to use the basic notification service.",
             "image": null
           },
           {
@@ -51,7 +51,7 @@
         "type": "callout",
         "style": "tip",
         "title": "Opting Out of JMI",
-        "content": "To opt out of JMI entirely for your company, go to Settings → Company → Management Info and untick the 'Use PropertyGoose's Partner Just Move In' toggle. This disables all JMI notifications company-wide."
+        "content": "To opt out of JMI entirely, go to Settings and untick the Just Move In toggle. This disables all JMI notifications for your account."
       },
       {
         "type": "callout",

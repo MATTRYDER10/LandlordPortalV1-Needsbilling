@@ -9,7 +9,7 @@
   "sortOrder": 30,
   "estimatedReadTime": "2 min",
   "content": {
-    "intro": "Just Move In (JMI) is PropertyGoose's recommended utility switching partner and is enabled by default for all companies. No manual setup is required to begin receiving utility notifications.",
+    "intro": "Just Move In (JMI) is PropertyGoose's recommended utility switching partner and is enabled by default. No manual setup is required to begin receiving utility notifications.",
     "sections": [
       {
         "type": "steps",
@@ -17,12 +17,12 @@
         "steps": [
           {
             "title": "Enabled by Default",
-            "content": "JMI is enabled by default for all PropertyGoose companies. No API key or manual connection is needed to start receiving utility notifications.",
+            "content": "JMI is enabled by default for all PropertyGoose accounts. No API key or manual connection is needed to start receiving utility notifications.",
             "image": null
           },
           {
             "title": "Automatic Move-In Notifications",
-            "content": "When a new tenancy is created and you tick the JMI checkbox, PropertyGoose notifies JMI of the move-in. JMI then contacts relevant utility providers on your behalf.",
+            "content": "When you create a new tenancy and tick the JMI checkbox, PropertyGoose notifies JMI of the move-in. JMI then contacts relevant utility providers on your behalf.",
             "image": null
           },
           {
@@ -42,7 +42,7 @@
           },
           {
             "title": "To Opt Out",
-            "content": "To disable JMI for your entire company, go to Settings → Company → Management Info and untick 'Use PropertyGoose's Partner Just Move In'.",
+            "content": "To disable JMI, go to Settings and untick the Just Move In toggle.",
             "image": null
           }
         ]
@@ -57,9 +57,9 @@
         "type": "callout",
         "style": "warning",
         "title": "Manual Responsibility if Opted Out",
-        "content": "If you opt out of JMI, your agency becomes responsible for notifying utility providers of all tenancy changes manually. PropertyGoose will not send any utility notifications once JMI is disabled."
+        "content": "If you opt out of JMI, you become responsible for notifying utility providers of all tenancy changes manually. PropertyGoose will not send any utility notifications once JMI is disabled."
       }
     ],
-    "relatedArticles": ["tenancies-jmi", "integrations-apex27", "integrations-reposit"]
+    "relatedArticles": ["tenancies-jmi", "utility-switching"]
   }
 }

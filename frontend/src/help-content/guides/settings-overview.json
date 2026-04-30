@@ -9,12 +9,12 @@
   "sortOrder": 1,
   "estimatedReadTime": "5 min",
   "content": {
-    "intro": "The Settings section allows you to manage your personal profile, company details, team members, integrations, and billing. The tabs available depend on your user role.",
+    "intro": "The Settings section allows you to manage your personal profile, integrations, and billing.",
     "sections": [
       {
         "type": "text",
         "title": "Settings Tabs by Role",
-        "content": "All users can access the Profile tab. Admins and Owners can additionally access: Company (company details and bank info), Branding (logo and colors), Team (manage team members), Integrations (third-party connections like TDS), Billing (subscription and credits), and Audit Logs (activity history)."
+        "content": "Settings includes: Profile (your personal details and password), Integrations (deposit protection schemes and utility switching), and Billing (subscription management and payment history)."
       },
       {
         "type": "steps",
@@ -45,7 +45,7 @@
       {
         "type": "text",
         "title": "Company Settings",
-        "content": "The Company tab (admin only) lets you update: company name and address, phone and website, notification email addresses for offers and references, and bank account details for receiving payments."
+        "content": "You can update your notification email address for offers and references from the settings page. This controls where system notifications are sent."
       },
       {
         "type": "callout",
@@ -55,8 +55,9 @@
       }
     ],
     "relatedArticles": [
-      "inviting-team-members",
-      "tds-integration-setup"
+      "tds-integration-setup",
+      "subscription-plans",
+      "utility-switching"
     ]
   }
 }

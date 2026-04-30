@@ -1,0 +1,70 @@
+{
+  "id": "adding-company-spv",
+  "slug": "adding-company-spv",
+  "title": "Adding a Company or SPV",
+  "category": "properties",
+  "tags": ["company", "SPV", "landlord", "limited company", "directors", "registration"],
+  "createdAt": "2026-04-29",
+  "updatedAt": "2026-04-29",
+  "sortOrder": 5,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "If you own properties through a limited company or SPV (Special Purpose Vehicle), you can add the company as a landlord entity in PropertyGoose. This ensures your tenancy agreements and records reflect the correct legal ownership.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Add a Company or SPV",
+        "steps": [
+          {
+            "title": "Go to the Landlords tab",
+            "content": "Click Landlords in the sidebar to open the Landlords page.",
+            "image": null
+          },
+          {
+            "title": "Click Add Company",
+            "content": "Click the 'Add Company' button to open the company creation form.",
+            "image": null
+          },
+          {
+            "title": "Enter company details",
+            "content": "Fill in the company name, Companies House registration number, registered address, and contact details.",
+            "image": null
+          },
+          {
+            "title": "Add director information",
+            "content": "Enter the name and contact details of at least one company director. Directors may be required for AML verification and agreement signing.",
+            "image": null
+          },
+          {
+            "title": "Add bank details (optional)",
+            "content": "Enter the company bank account name, account number, and sort code if you want rent payments tracked against this entity.",
+            "image": null
+          },
+          {
+            "title": "Save the company",
+            "content": "Click Save to create the company record. You can now link it to properties and use it as the landlord on agreements.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Using a Company on Agreements",
+        "content": "When generating a tenancy agreement, you can select your company or SPV as the landlord instead of your personal name. The agreement will display the company name, registration number, and registered address as the landlord party."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Link Properties to the Company",
+        "content": "After adding a company, link your properties to it via the Properties tab. This ensures the correct landlord entity appears on all tenancy documents for those properties."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "AML for Companies",
+        "content": "Companies and SPVs may require AML verification on their directors. You can initiate AML checks from the company record in the Landlords tab."
+      }
+    ],
+    "relatedArticles": ["adding-landlord", "linking-landlord-to-property", "generating-agreement"]
+  }
+}

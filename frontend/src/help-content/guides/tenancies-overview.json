@@ -22,7 +22,7 @@
         "steps": [
           {
             "title": "Use the search bar",
-            "content": "Type in the search box to find tenancies by tenant name, property address, or landlord name.",
+            "content": "Type in the search box to find tenancies by tenant name or property address.",
             "image": null
           },
           {

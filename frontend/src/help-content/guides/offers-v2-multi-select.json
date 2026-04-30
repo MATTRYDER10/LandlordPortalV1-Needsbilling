@@ -32,7 +32,7 @@
           },
           {
             "title": "Accept Selected Offers",
-            "content": "Click 'Accept Selected' to move all ticked offers to an approved status, ready for the landlord approval or referencing steps.",
+            "content": "Click 'Accept Selected' to move all ticked offers to an approved status, ready for the referencing step.",
             "image": null
           }
         ]
@@ -44,6 +44,6 @@
         "content": "Use multi-select to clear a busy applicant queue quickly. When a property has been let, you can select all remaining pending offers and decline them in one click — all applicants are notified automatically without any manual emailing."
       }
     ],
-    "relatedArticles": ["offers-v2-overview", "offers-v2-sending", "offers-v2-landlord-approval"]
+    "relatedArticles": ["offers-v2-overview", "offers-v2-sending", "references-v2-how-to"]
   }
 }

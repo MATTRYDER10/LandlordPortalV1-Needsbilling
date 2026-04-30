@@ -2,27 +2,27 @@
   "id": "linking-landlord-to-property",
   "slug": "linking-landlord-to-property",
   "title": "Linking a Landlord to a Property",
-  "category": "landlords",
+  "category": "properties",
   "tags": ["landlord", "property", "link", "assign", "ownership"],
   "createdAt": "2024-03-05",
   "updatedAt": "2024-03-05",
   "sortOrder": 3,
   "estimatedReadTime": "3 min",
   "content": {
-    "intro": "Linking landlords to properties allows you to track ownership, manage AML compliance, and quickly access landlord details when needed.",
+    "intro": "If you own properties through a company or SPV, link the company to the property so the correct legal entity appears on agreements and records.",
     "sections": [
       {
         "type": "steps",
-        "title": "Method 1: From the Landlord Page",
+        "title": "Method 1: From the Landlords Page",
         "steps": [
           {
             "title": "Open the landlord record",
-            "content": "Go to Landlords and click on the landlord you want to link.",
+            "content": "Go to Landlords and click on the company or SPV you want to link.",
             "image": null
           },
           {
             "title": "Click 'Link Property'",
-            "content": "In the landlord detail view, click the 'Link Property' button.",
+            "content": "In the company detail view, click the 'Link Property' button.",
             "image": null
           },
           {
@@ -32,7 +32,7 @@
           },
           {
             "title": "Confirm the link",
-            "content": "Click 'Link' to associate the property with this landlord.",
+            "content": "Click 'Link' to associate the property with this company.",
             "image": null
           }
         ]
@@ -53,7 +53,7 @@
           },
           {
             "title": "Select landlord",
-            "content": "Use the Landlord dropdown to select the property owner.",
+            "content": "Use the Landlord dropdown to select the owning company or SPV.",
             "image": null
           },
           {
@@ -67,12 +67,12 @@
         "type": "callout",
         "style": "info",
         "title": "Multiple Properties",
-        "content": "A landlord can own multiple properties. Simply repeat the linking process for each property they own."
+        "content": "A company can own multiple properties. Simply repeat the linking process for each property it owns."
       },
       {
         "type": "text",
         "title": "Viewing Linked Properties",
-        "content": "Once linked, you can see all properties owned by a landlord on their detail page. The properties list shows address, tenancy status, and compliance information."
+        "content": "Once linked, you can see all properties owned by a company on its detail page. The properties list shows address, tenancy status, and compliance information."
       }
     ],
     "relatedArticles": [

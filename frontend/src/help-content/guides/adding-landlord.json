@@ -2,14 +2,14 @@
   "id": "adding-landlord",
   "slug": "adding-a-landlord",
   "title": "Adding a Landlord",
-  "category": "landlords",
+  "category": "properties",
   "tags": ["landlord", "add landlord", "AML", "property owner"],
   "createdAt": "2024-03-05",
   "updatedAt": "2024-03-05",
   "sortOrder": 1,
   "estimatedReadTime": "5 min",
   "content": {
-    "intro": "Landlords are the property owners you manage properties for. Adding landlord records allows you to link them to properties, manage their AML (Anti-Money Laundering) checks, and store their bank details for rent payments.",
+    "intro": "The Landlords tab lets you add companies or SPVs that own your properties. If you own properties through a limited company, adding it here ensures your tenancy agreements and records reflect the correct legal entity.",
     "sections": [
       {
         "type": "steps",
@@ -47,7 +47,7 @@
           },
           {
             "title": "Add bank details (optional)",
-            "content": "If you handle rent payments, enter the landlord's bank account name, account number, and sort code.",
+            "content": "Enter the company bank account name, account number, and sort code if different from your personal bank details.",
             "image": null
           },
           {
@@ -61,12 +61,12 @@
         "type": "callout",
         "style": "tip",
         "title": "Bulk Import",
-        "content": "You can import multiple landlords at once using 'Import CSV'. Download the template to see the required column format."
+        "content": "You can import multiple companies at once using 'Import CSV'. Download the template to see the required column format."
       },
       {
         "type": "text",
         "title": "Linking Properties",
-        "content": "After adding a landlord, you can link them to properties. Go to the landlord's detail page and click 'Link Property', or edit a property and assign the landlord from there."
+        "content": "After adding a company, you can link it to properties. Go to the company's detail page and click 'Link Property', or edit a property and assign the company from there."
       }
     ],
     "relatedArticles": [

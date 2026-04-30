@@ -14,22 +14,17 @@
       {
         "type": "text",
         "title": "What is Offers V2?",
-        "content": "Offers V2 is a fully rebuilt offer management platform designed to meet the requirements of the Renters Rights Act 2025. It is completely separate from V1 (Legacy). Key features include max rent enforcement, discrimination-compliant wording requirements, a landlord approval workflow, multi-select accept/decline for bulk applicant management, and one-click Reposit and Unithomes deposit replacement options."
+        "content": "Offers V2 is a fully rebuilt offer management platform designed to meet the requirements of the Renters Rights Act 2025. It is completely separate from V1 (Legacy). Key features include max rent enforcement, discrimination-compliant wording requirements, and multi-select accept/decline for bulk applicant management."
       },
       {
         "type": "text",
         "title": "Max Rent Enforcement",
-        "content": "When sending an offer, you set the Advertised Rent. This acts as a ceiling — tenants can submit offers at or below this figure but cannot offer more than the advertised rent. This prevents agents inadvertently accepting above-asking bids and ensures compliance with RRA rent transparency requirements."
+        "content": "When sending an offer, you set the Advertised Rent. This acts as a ceiling — tenants can submit offers at or below this figure but cannot offer more than the advertised rent. This prevents inadvertently accepting above-asking bids and ensures compliance with RRA rent transparency requirements."
       },
       {
         "type": "text",
         "title": "Discrimination-Compliant Wording",
-        "content": "The RRA 2025 bans discriminatory lettings restrictions such as 'No DSS', 'No pets', or 'No children' in property notes and offer communications. Offers V2 is designed with this in mind — do not include any such language in property notes or offer messages. Violations may expose your agency to legal liability."
-      },
-      {
-        "type": "text",
-        "title": "Landlord Approval Workflow",
-        "content": "Offers V2 includes a built-in landlord approval step. Once a tenant submits an offer, you can send it to the landlord for sign-off before proceeding to referencing. Landlords receive a formatted email with the tenant's details and offered rent and can approve directly."
+        "content": "The RRA 2025 bans discriminatory lettings restrictions such as 'No DSS', 'No pets', or 'No children' in property notes and offer communications. Offers V2 is designed with this in mind — do not include any such language in property notes or offer messages. Violations may expose you to legal liability."
       },
       {
         "type": "text",
@@ -43,6 +38,6 @@
         "content": "From the RRA 2025 compliance date, all new offers must go through Offers V2. Legacy V1 is retained only for in-flight references that were already started. Starting new offers in V1 is not compliant."
       }
     ],
-    "relatedArticles": ["offers-v2-sending", "offers-v2-landlord-approval", "offers-v2-multi-select", "offers-v2-reposit-unithomes", "references-v2-overview"]
+    "relatedArticles": ["offers-v2-sending", "offers-v2-multi-select", "references-v2-overview"]
   }
 }

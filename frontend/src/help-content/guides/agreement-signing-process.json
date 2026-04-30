@@ -32,7 +32,7 @@
           },
           {
             "title": "Confirm recipients",
-            "content": "Verify the email addresses for all signatories (tenants and landlord) are correct.",
+            "content": "Verify the email addresses for all signatories (tenants and you as landlord) are correct.",
             "image": null
           },
           {
@@ -45,7 +45,7 @@
       {
         "type": "text",
         "title": "Signing Order",
-        "content": "By default, all tenants sign first, followed by the landlord or agent. Each party receives an email with a secure link to view and sign the document."
+        "content": "By default, all tenants sign first, followed by you as the landlord. Each party receives an email with a secure link to view and sign the document."
       },
       {
         "type": "text",

@@ -2,18 +2,18 @@
   "id": "rentgoose-landlord-statements",
   "slug": "rentgoose-landlord-statements",
   "title": "Generating Landlord Statements in RentGoose",
-  "category": "account-settings",
+  "category": "rentgoose",
   "tags": ["rentgoose", "landlord statements", "rent", "deductions", "csv", "management fees"],
   "createdAt": "2026-04-06",
   "updatedAt": "2026-04-06",
   "sortOrder": 21,
   "estimatedReadTime": "3 min",
   "content": {
-    "intro": "RentGoose allows you to generate detailed landlord statements for any date range, showing gross rent, management fee deductions, other charges, and net payment to the landlord.",
+    "intro": "RentGoose allows you to generate detailed rent statements for any date range, showing rent received, outstanding balances, and payment history across your properties.",
     "sections": [
       {
         "type": "steps",
-        "title": "How to Generate a Landlord Statement",
+        "title": "How to Generate a Rent Statement",
         "steps": [
           {
             "title": "Navigate to RentGoose",
@@ -21,18 +21,18 @@
             "image": null
           },
           {
-            "title": "Click the Landlords Tab",
-            "content": "Select the Landlords tab within RentGoose to see all landlords with active rent schedules.",
+            "title": "Click the Properties Tab",
+            "content": "Select the Properties tab within RentGoose to see all properties with active rent schedules.",
             "image": null
           },
           {
-            "title": "Find the Landlord",
-            "content": "Search or scroll to find the landlord you want to produce a statement for.",
+            "title": "Find the Property",
+            "content": "Search or scroll to find the property you want to produce a statement for.",
             "image": null
           },
           {
             "title": "Click View",
-            "content": "Click 'View' to open their financial summary screen, which shows all properties and rent schedules linked to that landlord.",
+            "content": "Click 'View' to open the financial summary screen, which shows all rent schedules and payment history for that property.",
             "image": null
           },
           {
@@ -42,12 +42,12 @@
           },
           {
             "title": "Review the Statement",
-            "content": "The statement displays gross rent received, management fees, any other deductions (setup fees, repair charges, etc.), and the net payment amount for the landlord.",
+            "content": "The statement displays rent due, rent received, any outstanding balances, and payment dates for the selected period.",
             "image": null
           },
           {
             "title": "Download as CSV",
-            "content": "Click Download to save the statement as a CSV file, suitable for sharing with the landlord or importing into accountancy software.",
+            "content": "Click Download to save the statement as a CSV file, suitable for your records or importing into accountancy software.",
             "image": null
           }
         ]
@@ -56,9 +56,9 @@
         "type": "callout",
         "style": "tip",
         "title": "Monthly and Annual Statements",
-        "content": "Monthly statements are useful for landlords who request regular financial updates. Annual statements covering the UK tax year (April to April) are available for landlords who need a summary for self-assessment tax purposes."
+        "content": "Monthly statements are useful for regular financial tracking. Annual statements covering the UK tax year (April to April) are available for self-assessment tax purposes."
       }
     ],
-    "relatedArticles": ["rentgoose-overview", "rentgoose-annual-statement", "properties-management-fees", "properties-setup-fees"]
+    "relatedArticles": ["rentgoose-overview", "rentgoose-annual-statement", "rentgoose-chase-emails"]
   }
 }

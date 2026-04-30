@@ -1,0 +1,65 @@
+{
+  "id": "subscription-plans",
+  "slug": "subscription-plans",
+  "title": "Choosing Your Plan",
+  "category": "billing",
+  "tags": ["subscription", "plans", "PAYG", "standard", "professional", "pricing"],
+  "createdAt": "2026-04-29",
+  "updatedAt": "2026-04-29",
+  "sortOrder": 1,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "PropertyGoose offers three plans to suit landlords of all sizes. Whether you have a single property or a large portfolio, there is a plan that fits your needs.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Plan Comparison",
+        "content": "Pay As You Go (PAYG): Free to use with no monthly fee. You pay per reference at the standard rate. Ideal for landlords with one or two properties who reference tenants infrequently. Standard (£11.99/month): Designed for landlords with up to 10 properties. Includes access to the Tenancies tab, RentGoose rent tracking, and discounted references at £13 each. Professional (£24.99/month): Unlimited properties with all features included. References are discounted to £12.50 each. Best for landlords with larger portfolios or SPV companies."
+      },
+      {
+        "type": "steps",
+        "title": "How to Subscribe",
+        "steps": [
+          {
+            "title": "Go to the Tenancies tab",
+            "content": "Click Tenancies in the sidebar. If you are on the PAYG plan, you will see a prompt to subscribe.",
+            "image": null
+          },
+          {
+            "title": "Choose your plan",
+            "content": "Select either Standard or Professional. Review what is included in each plan before proceeding.",
+            "image": null
+          },
+          {
+            "title": "Enter payment details",
+            "content": "Enter your card details via the secure Stripe checkout. Your subscription begins immediately.",
+            "image": null
+          },
+          {
+            "title": "Start using Tenancies and RentGoose",
+            "content": "Once subscribed, the Tenancies tab and RentGoose are unlocked. You can convert references to tenancies, track rent, and manage your portfolio.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Upgrading or Downgrading",
+        "content": "You can upgrade from Standard to Professional at any time via Settings. The price difference is applied pro-rata for the current billing period. To downgrade, go to Settings and select the lower plan. The change takes effect at the end of your current billing cycle."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "PAYG is Always Free",
+        "content": "You do not need a subscription to send offers or run references. PAYG is completely free with no monthly commitment. You only pay when you run a reference."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Cancelling Your Subscription",
+        "content": "To cancel, go to Settings and select the billing section. Your subscription remains active until the end of the current billing period. After cancellation, your account reverts to PAYG and you lose access to Tenancies and RentGoose."
+      }
+    ],
+    "relatedArticles": ["billing-references", "settings-overview"]
+  }
+}

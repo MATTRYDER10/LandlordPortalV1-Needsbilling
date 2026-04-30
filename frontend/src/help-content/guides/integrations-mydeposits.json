@@ -46,7 +46,7 @@
         "type": "callout",
         "style": "info",
         "title": "Insured vs Custodial Protection",
-        "content": "mydeposits supports both insured deposit protection (agent holds the deposit funds) and custodial deposit protection (mydeposits holds the deposit funds). Select the correct type to match your mydeposits account setup when configuring the integration."
+        "content": "mydeposits supports both insured deposit protection (you hold the deposit funds) and custodial deposit protection (mydeposits holds the deposit funds). Select the correct type to match your mydeposits account setup when configuring the integration."
       }
     ],
     "relatedArticles": ["integrations-tds", "integrations-reposit", "tenancies-compliance-pack"]

@@ -22,7 +22,7 @@
           },
           {
             "title": "Enter Your Reposit Credentials",
-            "content": "Enter your Reposit agent account credentials or API key. These are available from your Reposit agent portal.",
+            "content": "Enter your Reposit account credentials or API key. These are available from your Reposit portal.",
             "image": null
           },
           {
@@ -46,7 +46,7 @@
         "type": "callout",
         "style": "info",
         "title": "What is Reposit?",
-        "content": "Reposit allows tenants to pay a small non-refundable fee (typically equivalent to one week's rent) instead of a traditional cash deposit of five or six weeks' rent. The landlord retains full protection against damages and unpaid rent through the Reposit guarantee."
+        "content": "Reposit allows tenants to pay a small non-refundable fee (typically equivalent to one week's rent) instead of a traditional cash deposit of five or six weeks' rent. You retain full protection against damages and unpaid rent through the Reposit guarantee."
       },
       {
         "type": "callout",

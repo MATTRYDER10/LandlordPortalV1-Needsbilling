@@ -14,7 +14,7 @@
       {
         "type": "text",
         "title": "What is an APTA?",
-        "content": "An Assured Periodic Tenancy Agreement (APTA) is a monthly rolling tenancy with no fixed end date. Under the Renters Rights Act, it is the only permitted form of new tenancy agreement for English residential lets from 1 May 2026. Key characteristics: the tenancy runs month-to-month indefinitely, there is no fixed term or end date, the landlord must give a minimum of two months' statutory notice to end the tenancy, and break clauses are not permitted."
+        "content": "An Assured Periodic Tenancy Agreement (APTA) is a monthly rolling tenancy with no fixed end date. Under the Renters Rights Act, it is the only permitted form of new tenancy agreement for English residential lets from 1 May 2026. Key characteristics: the tenancy runs month-to-month indefinitely, there is no fixed term or end date, you must give a minimum of two months' statutory notice to end the tenancy, and break clauses are not permitted."
       },
       {
         "type": "text",
@@ -24,7 +24,7 @@
       {
         "type": "text",
         "title": "Special Clauses",
-        "content": "Special clauses can still be added to APTA agreements on a per-property basis via the Properties tab. Common uses include no-smoking clauses, professional cleaning obligations at the end of the tenancy, garden maintenance responsibilities, and pet agreements. However, break clauses must not be included in any APTA — they are not legally permitted under the Renters Rights Act 2026."
+        "content": "You can still add special clauses to APTA agreements on a per-property basis via the Properties tab. Common uses include no-smoking clauses, professional cleaning obligations at the end of the tenancy, garden maintenance responsibilities, and pet agreements. However, break clauses must not be included in any APTA — they are not legally permitted under the Renters Rights Act 2026."
       },
       {
         "type": "callout",
@@ -58,7 +58,7 @@
           },
           {
             "title": "Send for E-Signature",
-            "content": "Click 'Send for Signing'. All parties (tenants and landlord if required) will receive a secure email with a link to sign the agreement electronically.",
+            "content": "Click 'Send for Signing'. All parties (tenants and you) will receive a secure email with a link to sign the agreement electronically.",
             "image": null
           }
         ]

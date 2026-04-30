@@ -19,12 +19,12 @@
       {
         "type": "text",
         "title": "Key Features of V2",
-        "content": "References V2 offers faster applicant response flows, a detailed evidence view allowing agents to see all submitted documents and checks in one place, a new-format reference report, and HMO group referencing — the ability to produce a combined report for multiple applicants on the same property."
+        "content": "References V2 offers faster applicant response flows, a detailed evidence view allowing you to see all submitted documents and checks in one place, a new-format reference report, and HMO group referencing — the ability to produce a combined report for multiple applicants on the same property."
       },
       {
         "type": "text",
         "title": "How New References are Started",
-        "content": "New V2 references are always started from within Offers V2. Once an offer is approved (either by you or the landlord), click 'Start Reference' on the offer. The system creates a V2 reference automatically and sends the applicant a secure form link. You cannot manually create a standalone V2 reference outside of this flow."
+        "content": "New V2 references are always started from within Offers V2. Once you approve an offer, click 'Start Reference' on the offer. The system creates a V2 reference automatically and sends the applicant a secure form link. You cannot manually create a standalone V2 reference outside of this flow."
       },
       {
         "type": "callout",
@@ -39,6 +39,6 @@
         "content": "Legacy References are still visible in the sidebar for all in-progress V1 work. They are not being removed — they simply will not receive any new references going forward."
       }
     ],
-    "relatedArticles": ["references-v2-how-to", "references-v2-report", "offers-v2-overview", "offers-v2-landlord-approval"]
+    "relatedArticles": ["references-v2-how-to", "references-v2-report", "offers-v2-overview"]
   }
 }

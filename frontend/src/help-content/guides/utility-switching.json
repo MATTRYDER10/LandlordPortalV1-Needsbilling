@@ -1,0 +1,60 @@
+{
+  "id": "utility-switching",
+  "slug": "utility-switching",
+  "title": "Utility Switching (Just Move In)",
+  "category": "account-settings",
+  "tags": ["utilities", "just move in", "JMI", "bills included", "settings"],
+  "createdAt": "2026-04-29",
+  "updatedAt": "2026-04-29",
+  "sortOrder": 10,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "PropertyGoose partners with Just Move In (JMI) to automatically notify utility providers when your tenants move in or move out. This saves you from manually contacting gas, electricity, water, and council tax providers.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "How Utility Switching Works",
+        "content": "When you create or end a tenancy, PropertyGoose can notify Just Move In on your behalf. JMI then contacts the relevant utility providers to update the account holder details. This covers gas and electricity suppliers, water providers, and council tax. The notifications are sent silently in the background and do not interrupt your workflow."
+      },
+      {
+        "type": "steps",
+        "title": "Turning Utility Switching On or Off",
+        "steps": [
+          {
+            "title": "Go to Settings",
+            "content": "Click Settings in the sidebar.",
+            "image": null
+          },
+          {
+            "title": "Find the utility switching toggle",
+            "content": "Look for the Just Move In or utility switching option in your settings.",
+            "image": null
+          },
+          {
+            "title": "Toggle on or off",
+            "content": "Turn the toggle on to enable automatic utility notifications, or off to disable them. When disabled, you are responsible for notifying utility providers manually.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Bills-Included Properties",
+        "content": "If a property is marked as Bills Included in PropertyGoose, it is automatically excluded from all utility switching notifications. No action is needed on your part. This prevents unnecessary account changes on properties where you handle the utilities directly."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "No Setup Required",
+        "content": "Utility switching is enabled by default and requires no API keys or manual configuration. It works automatically when you create or end tenancies."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Manual Responsibility if Disabled",
+        "content": "If you turn off utility switching, you become responsible for notifying all utility providers of tenancy changes yourself. PropertyGoose will not send any utility notifications when this feature is disabled."
+      }
+    ],
+    "relatedArticles": ["settings-overview", "tenancies-jmi"]
+  }
+}
