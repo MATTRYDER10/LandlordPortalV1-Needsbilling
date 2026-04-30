@@ -1047,13 +1047,43 @@
             <!-- Subscription Status -->
             <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
               <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Subscription</h3>
-              <div v-if="authStore.hasSubscription" class="flex items-center gap-3">
-                <span class="w-3 h-3 bg-green-500 rounded-full"></span>
-                <span class="text-sm font-medium text-gray-900 dark:text-white">Full Self-Management — Active</span>
+              <div v-if="authStore.hasSubscription">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                    <div>
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ authStore.subscriptionTier === 'landlord_professional' ? 'Professional' : 'Standard' }} — Active
+                      </span>
+                      <p class="text-xs text-gray-500 dark:text-slate-400">Billed monthly. 30-day notice for cancellation.</p>
+                    </div>
+                  </div>
+                  <span class="px-2 py-1 text-xs font-bold rounded"
+                    :class="authStore.subscriptionTier === 'landlord_professional' ? 'bg-blue-600 text-white' : 'bg-primary text-white'">
+                    {{ authStore.subscriptionTier === 'landlord_professional' ? 'PRO' : 'STD' }}
+                  </span>
+                </div>
+
+                <!-- Manage via Stripe -->
+                <div class="flex gap-3">
+                  <button
+                    @click="openStripePortal"
+                    :disabled="stripePortalLoading"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    {{ stripePortalLoading ? 'Loading...' : 'Manage Payment Method' }}
+                  </button>
+                  <button
+                    @click="showCancelModal = true"
+                    class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    Cancel Subscription
+                  </button>
+                </div>
               </div>
               <div v-else>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Upgrade to Full Self-Management for tenancy tools, agreements, and £1 off every reference.
+                  Upgrade to a subscription for tenancy tools, agreements, and discounted referencing.
                 </p>
                 <router-link
                   to="/tenancies"
@@ -1061,6 +1091,30 @@
                 >
                   View plans
                 </router-link>
+              </div>
+            </div>
+
+            <!-- Cancel Subscription Modal -->
+            <div v-if="showCancelModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showCancelModal = false">
+              <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Cancel Subscription</h3>
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <p class="text-sm text-amber-800 dark:text-amber-300 font-medium mb-2">What happens when you cancel:</p>
+                  <ul class="text-xs text-amber-700 dark:text-amber-400 space-y-1 list-disc list-inside">
+                    <li>Your subscription continues until the end of the current billing period</li>
+                    <li>After that, the Tenancies tab will be locked</li>
+                    <li>You can still use Offers and Referencing on pay-per-reference</li>
+                    <li>Your data is never deleted — resubscribe anytime to unlock it</li>
+                  </ul>
+                </div>
+                <div class="flex gap-3">
+                  <button @click="showCancelModal = false" class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200">
+                    Keep Subscription
+                  </button>
+                  <button @click="cancelSubscription" :disabled="cancellingSub" class="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+                    {{ cancellingSub ? 'Cancelling...' : 'Cancel at Period End' }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1410,6 +1464,59 @@ const companyLoading = ref(false)
 const companySuccess = ref('')
 const companyError = ref('')
 const utilitySwitchingSaving = ref(false)
+const showCancelModal = ref(false)
+const cancellingSub = ref(false)
+const stripePortalLoading = ref(false)
+
+async function openStripePortal() {
+  stripePortalLoading.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/billing/portal-session`, {
+      method: 'POST',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ return_url: window.location.href })
+    })
+    if (response.ok) {
+      const { url } = await response.json()
+      window.location.href = url
+    } else {
+      toast.error('Failed to open billing portal')
+    }
+  } catch {
+    toast.error('Failed to open billing portal')
+  } finally {
+    stripePortalLoading.value = false
+  }
+}
+
+async function cancelSubscription() {
+  cancellingSub.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    const response = await authFetch(`${API_URL}/api/billing/subscriptions`, {
+      method: 'DELETE',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancel_at_period_end: true })
+    })
+    if (response.ok) {
+      toast.success('Subscription will cancel at the end of your billing period')
+      showCancelModal.value = false
+      await authStore.fetchSubscriptionStatus()
+    } else {
+      const data = await response.json().catch(() => ({}))
+      toast.error(data.error || 'Failed to cancel subscription')
+    }
+  } catch {
+    toast.error('Failed to cancel subscription')
+  } finally {
+    cancellingSub.value = false
+  }
+}
 
 async function toggleUtilitySwitching() {
   utilitySwitchingSaving.value = true
