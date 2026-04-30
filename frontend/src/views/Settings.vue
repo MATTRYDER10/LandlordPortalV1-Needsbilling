@@ -314,19 +314,14 @@
               <div class="border-t dark:border-slate-700 pt-6">
                 <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Management Information</h4>
 
-                <!-- Just Move In Integration Toggle -->
-                <div class="mb-5 p-4 rounded-lg border" :class="companyData.jmiEnabled ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700'">
-                  <div class="flex items-start gap-3">
-                    <input
-                      id="jmi-enabled"
-                      v-model="companyData.jmiEnabled"
-                      type="checkbox"
-                      class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <label for="jmi-enabled" class="cursor-pointer">
-                      <span class="block text-sm font-medium text-gray-900 dark:text-white">Use PropertyGoose's Partner Just Move In</span>
-                      <span class="block text-xs text-gray-500 dark:text-slate-400 mt-0.5">Auto notify utilities of move ins and move outs. Automated through the PropertyGoose Tenancies Tab. Uncheck to opt out and hide all Just Move In prompts.</span>
-                    </label>
+                <!-- Utility Switching status (managed in Settings > Utility Switching tab) -->
+                <div class="mb-5 p-3 rounded-lg border bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">Utility Switching</span>
+                      <span :class="companyData.jmiEnabled ? 'text-green-600' : 'text-gray-400'" class="text-xs ml-2">{{ companyData.jmiEnabled ? 'On' : 'Off' }}</span>
+                    </div>
+                    <router-link to="/settings/jmi" class="text-xs text-primary hover:underline">Manage</router-link>
                   </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-slate-300 mb-4">
@@ -915,9 +910,49 @@
           <MyDepositsIntegrationSettings />
         </div>
 
-        <!-- Just Move In Tab -->
+        <!-- Utility Switching Tab -->
         <div v-else-if="activeTab === 'jmi'" class="max-w-3xl">
-          <JMIIntegrationSettings />
+          <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Utility Switching</h3>
+                <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Automatically notify utility providers when tenants move in or out via Just Move In.</p>
+              </div>
+              <button
+                @click="toggleUtilitySwitching"
+                :disabled="utilitySwitchingSaving"
+                :class="[
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30',
+                  companyData.jmiEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'
+                ]"
+              >
+                <span :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
+                  companyData.jmiEnabled ? 'translate-x-6' : 'translate-x-1'
+                ]" />
+              </button>
+            </div>
+
+            <div v-if="companyData.jmiEnabled" class="space-y-3">
+              <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  <span class="text-sm font-medium text-green-800 dark:text-green-300">Utility switching is active</span>
+                </div>
+                <ul class="text-xs text-green-700 dark:text-green-400 space-y-1 ml-6 list-disc">
+                  <li>Move-in notifications sent automatically when a tenancy is activated</li>
+                  <li>Move-out notifications sent when a tenancy is ended</li>
+                  <li>Properties with <strong>Bills Included</strong> are automatically excluded</li>
+                </ul>
+              </div>
+            </div>
+
+            <div v-else class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+              <p class="text-sm text-gray-500 dark:text-slate-400">
+                Utility switching is off. You will need to notify utility providers manually when tenants move in or out.
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Billing Tab -->
@@ -1212,6 +1247,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import TDSIntegrationSettings from '../components/settings/TDSIntegrationSettings.vue'
 import RepositIntegrationSettings from '../components/settings/RepositIntegrationSettings.vue'
@@ -1231,6 +1267,7 @@ import {
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 // Billing state
 const selectedPack = ref<number | null>(null)
@@ -1324,7 +1361,7 @@ const tabs = computed(() => [
   {
     category: 'Integrations',
     items: [
-      { id: 'jmi', name: 'Just Move In' }
+      { id: 'jmi', name: 'Utility Switching' }
     ]
   }
 ])
@@ -1372,6 +1409,33 @@ const companyData = ref({
 const companyLoading = ref(false)
 const companySuccess = ref('')
 const companyError = ref('')
+const utilitySwitchingSaving = ref(false)
+
+async function toggleUtilitySwitching() {
+  utilitySwitchingSaving.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+    companyData.value.jmiEnabled = !companyData.value.jmiEnabled
+    const response = await authFetch(`${API_URL}/api/company`, {
+      method: 'PUT',
+      token,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jmi_enabled: companyData.value.jmiEnabled })
+    })
+    if (!response.ok) {
+      companyData.value.jmiEnabled = !companyData.value.jmiEnabled
+      toast.error('Failed to update utility switching')
+    } else {
+      toast.success(companyData.value.jmiEnabled ? 'Utility switching enabled' : 'Utility switching disabled')
+    }
+  } catch {
+    companyData.value.jmiEnabled = !companyData.value.jmiEnabled
+    toast.error('Failed to update')
+  } finally {
+    utilitySwitchingSaving.value = false
+  }
+}
 
 // Format website URL - add https:// if missing
 const formatWebsiteUrl = () => {
