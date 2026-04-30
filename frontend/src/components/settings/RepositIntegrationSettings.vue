@@ -291,6 +291,13 @@
             To be eligible for Reposit, tenants must pass identity verification, affordability checks (income >= 30x monthly rent),
             credit checks (no CCJ/IVA/bankruptcy), and Right to Rent verification.
           </p>
+          <div class="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+            <p class="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Want to link up?</p>
+            <p class="text-xs text-blue-700 dark:text-blue-400">
+              Email <strong>Reposit</strong> to request your API credentials, then forward them to
+              <strong>dev@propertygoose.co.uk</strong> — we'll get you hooked up the same day!
+            </p>
+          </div>
         </div>
       </div>
     </div>

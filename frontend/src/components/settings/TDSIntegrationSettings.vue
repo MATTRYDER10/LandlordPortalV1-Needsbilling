@@ -22,10 +22,19 @@
           <ExternalLink class="w-3 h-3" />
         </a>
       </div>
-      <div class="p-4">
+      <div class="p-4 space-y-3">
         <p class="text-sm text-gray-600 dark:text-slate-400">
           Connect your TDS account to register deposits directly from tenancy records.
         </p>
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p class="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">How to connect</p>
+          <ol class="text-xs text-blue-700 dark:text-blue-400 space-y-1 list-decimal list-inside">
+            <li>If you don't have a TDS account, register at <strong>tenancydepositscheme.com</strong></li>
+            <li>Email TDS to request your API credentials (Member ID &amp; API Key)</li>
+            <li>Forward your credentials to <strong>dev@propertygoose.co.uk</strong></li>
+            <li>We'll get you hooked up the same day!</li>
+          </ol>
+        </div>
       </div>
     </div>
 
