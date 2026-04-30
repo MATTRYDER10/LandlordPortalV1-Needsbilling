@@ -113,9 +113,7 @@ export async function authFetch(
     if (body?.error === 'Invalid token') {
       const newToken = await refreshAndGetToken()
       if (!newToken) {
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/staff/login') {
-          window.location.href = '/login'
-        }
+        // Don't redirect — let the calling code handle auth failures gracefully
         return response
       }
       const retryHeaders = { ...mergedHeaders, Authorization: `Bearer ${newToken}` }

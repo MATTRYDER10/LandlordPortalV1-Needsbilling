@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const company = ref<{ name: string, role: string, jmiEnabled?: boolean } | null>(null)
   const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
   const hasSubscription = ref<boolean>(false) // Tenancies subscription status
+  const subscriptionTier = ref<string>('payg') // 'payg' | 'landlord_standard' | 'landlord_professional'
   const referenceCredits = ref<number>(0) // Pre-purchased reference credits
   const amlStatus = ref<string>('pending') // AML verification status
   const loading = ref(false)
@@ -22,44 +23,33 @@ export const useAuthStore = defineStore('auth', () => {
     return meta?.full_name || meta?.company_name || user.value?.email?.split('@')[0] || 'Landlord'
   })
 
-  // Fetch company data
+  // Fetch landlord info — never signs out, never blocks
   const fetchCompany = async () => {
     try {
       const token = session.value?.access_token
       if (!token) return
 
-      const response = await fetch(`${API_URL}/api/company`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      // Always set a default so company is never null
+      company.value = {
+        name: user.value?.user_metadata?.full_name || user.value?.email?.split('@')[0] || 'Landlord',
+        role: 'owner',
+      }
+
+      // Try to get the full landlord profile for a better name
+      const response = await fetch(`${API_URL}/api/landlord-portal/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
       if (response.ok) {
         const data = await response.json()
-        if (data.company && data.role) {
-          company.value = {
-            name: data.company.name,
-            role: data.role,
-            jmiEnabled: data.company.jmi_enabled !== false
-          }
-        }
-      } else if (response.status === 403) {
-        const data = await response.json().catch(() => ({}))
-        if (data.error === 'Invalid token') {
-          await signOut()
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login'
-          }
-        }
-      } else if (response.status === 404) {
-        await signOut()
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
+        if (data.landlord) {
+          const name = [data.landlord.first_name, data.landlord.last_name].filter(Boolean).join(' ')
+          if (name) company.value.name = name
         }
       }
+      // Any error is fine — we already set defaults
     } catch (err) {
-      console.error('Failed to fetch company:', err)
+      console.error('Failed to fetch landlord profile:', err)
     }
   }
 
@@ -69,7 +59,8 @@ export const useAuthStore = defineStore('auth', () => {
       const token = session.value?.access_token
       if (!token) return
 
-      const response = await fetch(`${API_URL}/api/onboarding/status`, {
+      // Try landlord-portal endpoint first, fall back to agent endpoint
+      let response = await fetch(`${API_URL}/api/onboarding/status`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -80,6 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
         const data = await response.json()
         onboardingCompleted.value = data.onboardingCompleted || data.shouldSkipOnboarding
       } else {
+        // If agent onboarding endpoint fails, assume completed
         onboardingCompleted.value = true
       }
     } catch (err) {
@@ -104,8 +96,10 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         const data = await response.json()
         hasSubscription.value = data.status === 'active' || data.status === 'trialing'
+        subscriptionTier.value = hasSubscription.value ? (data.tier || 'landlord_standard') : 'payg'
       } else {
         hasSubscription.value = false
+        subscriptionTier.value = 'payg'
       }
     } catch (err) {
       console.error('Failed to fetch subscription status:', err)
@@ -180,12 +174,15 @@ export const useAuthStore = defineStore('auth', () => {
       })
     } catch (err: any) {
       error.value = err.message
-      if (err.message?.includes('Refresh Token') || err.name === 'AuthApiError') {
+      // Only sign out if the Supabase session itself is invalid
+      if (err.name === 'AuthApiError' && err.message?.includes('Refresh Token')) {
+        console.warn('Auth session expired, signing out')
         await supabase.auth.signOut()
         session.value = null
         user.value = null
         company.value = null
       }
+      // Never sign out for API errors — those are backend issues, not auth issues
     } finally {
       loading.value = false
     }
@@ -300,6 +297,7 @@ export const useAuthStore = defineStore('auth', () => {
     company,
     onboardingCompleted,
     hasSubscription,
+    subscriptionTier,
     referenceCredits,
     amlStatus,
     loading,

@@ -675,8 +675,7 @@ const fetchStats = async () => {
     const response = await authFetch(`${API_URL}/api/references/stats`, { token })
 
     if (response.status === 404) {
-      await authStore.signOut()
-      router.push('/login')
+      // Endpoint not available for landlord portal — ignore
       return
     }
 

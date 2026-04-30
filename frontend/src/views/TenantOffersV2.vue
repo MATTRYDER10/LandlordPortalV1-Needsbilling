@@ -338,7 +338,11 @@
                 <Zap class="w-3 h-3" />
                 UniHomes{{ offer.unihomes_interested ? ' (Interested)' : '' }}
               </span>
-              <span v-if="offer.reference_created" class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg flex items-center gap-1">
+              <span v-if="offer.tenancy_id" class="px-2 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-1">
+                <CheckCircle class="w-3 h-3" />
+                Tenancy Created
+              </span>
+              <span v-else-if="offer.reference_created" class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg flex items-center gap-1">
                 <CheckCircle class="w-3 h-3" />
                 Reference Created
               </span>
@@ -1294,6 +1298,9 @@
               <div v-else-if="selectedOffer.reference_id" class="text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
                 <CheckCircle class="w-4 h-4" />
                 Sent to referencing
+                <router-link v-if="selectedOffer.tenancy_id" :to="{ path: '/tenancies', query: { tenancy: selectedOffer.tenancy_id } }" class="text-xs text-primary hover:underline ml-2">
+                  View Tenancy
+                </router-link>
               </div>
             </div>
           </div>
@@ -1672,11 +1679,12 @@ const router = useRouter()
 const toast = useToast()
 
 function handleFetchError(response: Response, fallbackMessage: string): string | null {
-  if (response.status === 403 || response.status === 401) {
+  if (response.status === 401) {
     toast.error('Your session has expired. Please log in again.')
     router.push('/login')
     return null
   }
+  // 403/404 are normal for landlord portal — don't redirect
   return fallbackMessage
 }
 
@@ -2853,9 +2861,8 @@ async function fetchOffers() {
       })
     ])
 
-    // Handle auth errors on page load
-    if (formsResponse.status === 403 || formsResponse.status === 401 ||
-        offersResponse.status === 403 || offersResponse.status === 401) {
+    // Only redirect on true auth failure (401), not 403 from company issues
+    if (formsResponse.status === 401 || offersResponse.status === 401) {
       toast.error('Your session has expired. Please log in again.')
       router.push('/login')
       return

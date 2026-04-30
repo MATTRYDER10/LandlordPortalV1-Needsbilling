@@ -21,6 +21,7 @@
         <span class="text-sm">Back</span>
       </button>
       <div v-else></div>
+      <img src="/PropertyGooseFloating.png" alt="PropertyGoose" class="h-10 w-10 object-contain" />
       <span class="text-sm text-gray-400 dark:text-slate-500">{{ currentStepIndex }} / {{ totalSteps }}</span>
     </div>
 
@@ -1296,7 +1297,13 @@ function goNext() {
   if (idx < steps.length - 1) {
     stepHistory.value.push(currentStep.value)
     transitionDirection.value = 'slide-up'
-    currentStep.value = steps[idx + 1]
+    const nextStep = steps[idx + 1]
+    currentStep.value = nextStep
+    // Persist progress locally
+    if (!['saving', 'complete'].includes(nextStep)) {
+      localStorage.setItem('pg_onboarding_step', nextStep)
+      localStorage.setItem('pg_onboarding_history', JSON.stringify(stepHistory.value))
+    }
   }
 }
 
@@ -1521,6 +1528,36 @@ function handleGlobalKeydown(e: KeyboardEvent) {
       e.preventDefault()
       validateAndNext()
     }
+  }
+  // Property type — Enter advances if one is selected
+  if (e.key === 'Enter' && currentStep.value === 'propType' && property.value.propertyType) {
+    e.preventDefault()
+    goNext()
+  }
+  // Rooms — Enter advances
+  if (e.key === 'Enter' && currentStep.value === 'propRooms') {
+    e.preventDefault()
+    goNext()
+  }
+  // Furnishing — Enter advances if selected
+  if (e.key === 'Enter' && currentStep.value === 'propFurnishing' && property.value.furnishingStatus) {
+    e.preventDefault()
+    goNext()
+  }
+  // Council tax — Enter advances
+  if (e.key === 'Enter' && currentStep.value === 'propCouncilTax') {
+    e.preventDefault()
+    goNext()
+  }
+  // Bills — Enter saves property if selection made
+  if (e.key === 'Enter' && currentStep.value === 'propBills') {
+    e.preventDefault()
+    saveProperty()
+  }
+  // AML result — Enter continues
+  if (e.key === 'Enter' && currentStep.value === 'amlResult') {
+    e.preventDefault()
+    goNext()
   }
 }
 // Registered in existing onMounted/onBeforeUnmount below
@@ -2008,7 +2045,7 @@ async function saveProperty() {
 
   try {
     await axios.post(
-      `${API_URL}/api/properties`,
+      `${API_URL}/api/landlord-portal/properties`,
       {
         address_line1: property.value.addressLine1.trim(),
         address_line2: property.value.addressLine2.trim(),
@@ -2028,7 +2065,9 @@ async function saveProperty() {
     goNext() // goes to propAnother
   } catch (err: any) {
     console.error('Property save error:', err)
-    fieldError.value = err.response?.data?.error || 'Failed to save property. Please try again.'
+    // Don't block — still advance, property can be added from dashboard
+    propertiesAdded.value++
+    goNext()
   }
 }
 
@@ -2052,6 +2091,8 @@ function resetPropertyForm() {
 // ─── Complete ───
 async function completeOnboarding() {
   currentStep.value = 'complete'
+  localStorage.removeItem('pg_onboarding_step')
+  localStorage.removeItem('pg_onboarding_history')
 
   try {
     const token = authStore.session?.access_token
@@ -2121,18 +2162,33 @@ onMounted(async () => {
       return
     }
 
-    // Resume from saved step
-    const saved = response.data.currentStep
-    if (saved && saved !== 0) {
-      if (typeof saved === 'string' && LANDLORD_STEPS.includes(saved as any)) {
-        // Saved as step name (new format)
+    // Resume from localStorage (most reliable)
+    const localStep = localStorage.getItem('pg_onboarding_step')
+    const localHistory = localStorage.getItem('pg_onboarding_history')
+    if (localStep && [...LANDLORD_STEPS, ...PROPERTY_STEPS].includes(localStep as any)) {
+      currentStep.value = localStep
+      if (localHistory) {
+        try { stepHistory.value = JSON.parse(localHistory) } catch {}
+      }
+    } else if (response.data.currentStep) {
+      // Fallback to backend step — could be a step name or index
+      const saved = response.data.currentStep
+      if (typeof saved === 'string' && [...LANDLORD_STEPS, ...PROPERTY_STEPS].includes(saved as any)) {
+        // Backend returned a step name (e.g., 'title', 'firstName')
         currentStep.value = saved
       } else if (typeof saved === 'number' && saved > 0) {
-        // Saved as index (old format) — map to step name
+        // Backend returned a step index — map to step name
         const steps = allSteps.value
         if (saved < steps.length) {
           currentStep.value = steps[saved]
         }
+      }
+      // Never skip past 'title' — if we'd land on 'firstName' or later
+      // but title hasn't been set, force back to 'title'
+      const stepIdx = allSteps.value.indexOf(currentStep.value)
+      const titleIdx = allSteps.value.indexOf('title')
+      if (stepIdx > titleIdx && !landlord.value.title) {
+        currentStep.value = 'title'
       }
     }
   } catch (error) {

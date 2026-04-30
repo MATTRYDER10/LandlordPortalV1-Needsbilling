@@ -45,10 +45,7 @@ axios.interceptors.response.use(
         config.headers['Authorization'] = `Bearer ${newToken}`
         return axios(config)
       }
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/staff/login') {
-        window.location.href = '/login'
-      }
-      // Resolve instead of reject to avoid UnhandledRejection
+      // Don't redirect — let calling code handle auth failures gracefully
       return Promise.resolve({ data: null, status: 403, _authRedirected: true })
     }
     return Promise.reject(error)

@@ -109,14 +109,16 @@
                     <Trash2 class="w-4 h-4" />
                     {{ deletingTenancy ? 'Deleting...' : 'Delete' }}
                   </button>
-                  <button
-                    v-if="canActivate"
-                    @click="activateTenancy"
-                    :disabled="activating"
-                    class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50"
-                  >
-                    {{ activating ? 'Activating...' : 'Activate Tenancy' }}
-                  </button>
+                  <div v-if="canActivate" class="flex flex-col items-start gap-1">
+                    <button
+                      @click="activateTenancy"
+                      :disabled="activating"
+                      class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50"
+                    >
+                      {{ activating ? 'Activating...' : 'Activate Tenancy' }}
+                    </button>
+                    <p class="text-[11px] text-gray-400 dark:text-slate-500">First month's rent will be added to RentGoose</p>
+                  </div>
 
                   <!-- Notice Given tenancy actions -->
                   <button
@@ -6234,7 +6236,7 @@ const activateTenancy = async () => {
       throw new Error(error.error || 'Failed to activate tenancy')
     }
 
-    toast.success('Tenancy activated successfully')
+    toast.success('Tenancy activated — first month\'s rent added to RentGoose')
     emit('updated')
     emit('update:open', false)
   } catch (error: any) {

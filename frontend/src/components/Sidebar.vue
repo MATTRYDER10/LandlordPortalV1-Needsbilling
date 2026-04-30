@@ -140,6 +140,11 @@
               v-if="item.name === 'Offers' && badgeStore.pendingOffers > 0"
               class="ml-1 min-w-[18px] h-[18px] rounded-full bg-yellow-400 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
             >{{ badgeStore.pendingOffers }}</span>
+            <!-- Badge: overdue rent -->
+            <span
+              v-if="item.name === 'RentGoose' && badgeStore.overdueRent > 0"
+              class="ml-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+            >{{ badgeStore.overdueRent }}</span>
             <!-- Lock icon for tenancies if no subscription -->
             <svg
               v-if="item.name === 'Tenancies' && !authStore.hasSubscription"
@@ -159,6 +164,23 @@
 
         <!-- Bottom Section -->
         <div :class="['border-t transition-colors duration-300', isDark ? 'border-white/10' : 'border-gray-200']">
+          <!-- Reference Credits -->
+          <div v-if="authStore.referenceCredits > 0" class="px-4 py-2">
+            <router-link
+              to="/settings/billing"
+              :class="['flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors', isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-primary/5 hover:bg-primary/10']"
+            >
+              <div class="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span class="text-xs font-bold text-primary">{{ authStore.referenceCredits }}</span>
+              </div>
+              <div>
+                <span :class="['text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700']">
+                  {{ authStore.referenceCredits }} ref{{ authStore.referenceCredits === 1 ? '' : 's' }} remaining
+                </span>
+              </div>
+            </router-link>
+          </div>
+
           <!-- Dark Mode toggle -->
           <div class="px-4 py-2 flex items-center justify-between gap-2">
             <button
@@ -199,7 +221,12 @@
                   </div>
                 </div>
                 <div class="ml-3 flex-1 min-w-0">
-                  <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">{{ authStore.userName }}</p>
+                  <div class="flex items-center gap-1.5">
+                    <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">{{ authStore.userName }}</p>
+                    <span v-if="authStore.subscriptionTier === 'landlord_professional'" class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-600 text-white leading-none">PRO</span>
+                    <span v-else-if="authStore.subscriptionTier === 'landlord_standard'" class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-primary text-white leading-none">STD</span>
+                    <span v-else class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-gray-400 text-white leading-none">PAYG</span>
+                  </div>
                   <p :class="['text-xs truncate', isDark ? 'text-white/60' : 'text-gray-500']">{{ userEmail }}</p>
                 </div>
                 <div class="hidden md:block ml-2">
@@ -352,6 +379,19 @@ const GooseHelp = {
   }
 }
 
+const GooseRentGoose = {
+  render() {
+    return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
+      h('circle', { cx: '12', cy: '12', r: '10', fill: 'currentColor', opacity: '0.15' }),
+      h('circle', { cx: '12', cy: '12', r: '10' }),
+      h('path', { d: 'M14.5 7.5a3 3 0 00-5 1.5c0 1-.5 1.5-1 2', 'stroke-width': '1.8' }),
+      h('line', { x1: '7.5', y1: '13', x2: '14', y2: '13', 'stroke-width': '1.8' }),
+      h('path', { d: 'M8.5 11c-.3.7-.5 1.3-.5 2 0 2 1 3.5 2.5 4.5', 'stroke-width': '1.8' }),
+      h('line', { x1: '7', y1: '16', x2: '13', y2: '16', 'stroke-width': '1.5' })
+    ])
+  }
+}
+
 const showCreateMenu = ref(false)
 const isMobileMenuOpen = ref(false)
 
@@ -382,6 +422,7 @@ const navigation = [
   { name: 'Offers', path: '/offers', icon: GooseOffers },
   { name: 'Referencing', path: '/referencing', icon: GooseClipboard },
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
+  { name: 'RentGoose', path: '/rentgoose', icon: GooseRentGoose },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
   { name: 'Agreements', path: '/agreements', icon: GooseDocument },
