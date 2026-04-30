@@ -99,12 +99,12 @@
               </div>
 
               <!-- Entries Table -->
-              <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                <table class="w-full text-sm">
+              <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-x-auto">
+                <table class="w-full text-sm min-w-[640px]">
                   <thead class="bg-gray-50 dark:bg-slate-700/50">
                     <tr>
                       <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Due Date</th>
-                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Property</th>
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase hidden sm:table-cell">Property</th>
                       <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Tenant</th>
                       <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Amount</th>
                       <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Status</th>
@@ -178,8 +178,8 @@
             Add Invoice / Expense
           </button>
 
-          <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-            <table class="w-full text-sm">
+          <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-x-auto">
+            <table class="w-full text-sm min-w-[640px]">
               <thead class="bg-gray-50 dark:bg-slate-700/50">
                 <tr>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>

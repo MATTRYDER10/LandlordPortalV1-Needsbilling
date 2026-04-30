@@ -37,7 +37,7 @@
         </div>
 
         <!-- Stats Cards - Order: Pending, Approved, Marked as Paid, Referencing, Sent, All Offers -->
-        <div class="mt-4 sm:mt-6 grid grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
+        <div class="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
           <button
             @click="statusFilter = 'pending'"
             class="p-2.5 sm:p-4 rounded-xl border-2 transition-all text-left"

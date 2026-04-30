@@ -27,7 +27,7 @@
     >
       <div
         v-if="open"
-        class="fixed right-0 top-0 h-full w-full max-w-3xl bg-white dark:bg-slate-900 shadow-xl z-50 flex flex-col"
+        class="fixed right-0 top-0 h-full w-full sm:max-w-3xl bg-white dark:bg-slate-900 shadow-xl z-50 flex flex-col overflow-x-hidden"
       >
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
@@ -50,8 +50,8 @@
         </div>
 
         <!-- Tabs -->
-        <div class="px-6 border-b border-gray-200 dark:border-slate-700">
-          <nav class="flex gap-6 -mb-px">
+        <div class="px-4 sm:px-6 border-b border-gray-200 dark:border-slate-700 overflow-x-auto">
+          <nav class="flex gap-3 sm:gap-6 -mb-px">
             <button
               v-for="tab in tabs"
               :key="tab.key"

@@ -143,7 +143,7 @@
                 @click="openDrawer(ref)"
                 class="flex items-stretch cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/30"
               >
-                <div class="py-2 px-4 pl-10 min-w-0 max-w-md flex items-center gap-3">
+                <div class="py-2 px-4 pl-10 min-w-0 max-w-full sm:max-w-md flex items-center gap-3">
                   <span class="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full shrink-0 uppercase tracking-wider">
                     Guarantor
                   </span>
@@ -201,7 +201,7 @@
                 :class="{ 'border-t border-gray-100 dark:border-slate-800': idx > 0 }"
               >
                 <!-- Left side: Info -->
-                <div class="p-4 min-w-0 max-w-md">
+                <div class="p-4 min-w-0 max-w-full sm:max-w-md">
                   <div class="flex items-center gap-2">
                     <h3 class="font-semibold text-gray-900 dark:text-white truncate">
                       {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
