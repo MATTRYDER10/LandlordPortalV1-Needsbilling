@@ -6,12 +6,21 @@
         <p class="mt-2 text-gray-600 dark:text-slate-400">View, sign, and manage previously generated agreements</p>
       </div>
       <router-link
+        v-if="authStore.hasSubscription"
         to="/agreements/generate"
         class="flex items-center gap-2 px-4 py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg"
       >
         <Plus class="w-5 h-5" />
         Create Agreement
       </router-link>
+      <button
+        v-else
+        @click="showPaywall = true"
+        class="flex items-center gap-2 px-4 py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg"
+      >
+        <Plus class="w-5 h-5" />
+        Create Agreement
+      </button>
     </div>
 
     <!-- Search Box -->
@@ -356,6 +365,12 @@
       @close="closeEditModal"
       @save="handleEditSave"
     />
+    <!-- Agreement Paywall Modal -->
+    <AgreementPaywallModal
+      v-if="showPaywall"
+      @close="showPaywall = false"
+      @paid="showPaywall = false; $router.push('/agreements/generate?payment=success')"
+    />
   </div>
 </template>
 
@@ -363,6 +378,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import AgreementPaywallModal from '../components/agreements/AgreementPaywallModal.vue'
+
+const showPaywall = ref(false)
 import { formatDate as formatUkDate } from '../utils/date'
 import { Search, FileText, Download, Pencil, ClipboardCheck, Trash2, X, Check, Clock, MoreVertical, Send, AlertTriangle, Eye, Plus } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'

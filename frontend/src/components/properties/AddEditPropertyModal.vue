@@ -157,22 +157,8 @@
                     <option value="part_furnished">Part Furnished</option>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Management Type <span class="text-red-500">*</span>
-                  </label>
-                  <select
-                    v-model="form.management_type"
-                    required
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    :class="{ 'border-red-500': !form.management_type && formSubmitted }"
-                  >
-                    <option value="">Select...</option>
-                    <option value="managed">Managed</option>
-                    <option value="let_only">Let Only</option>
-                  </select>
-                  <p v-if="!form.management_type && formSubmitted" class="text-xs text-red-500 mt-1">Management type is required</p>
-                </div>
+                <!-- Management type hard-wired to Let Only for landlord portal -->
+                <input type="hidden" v-model="form.management_type" />
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bedrooms</label>
                   <input
@@ -218,162 +204,92 @@
 
             <!-- Landlords Section -->
             <div class="mb-6">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Landlords</h4>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Landlord</h4>
 
-              <!-- Existing landlords list -->
-              <div v-if="form.landlords.length > 0" class="space-y-3 mb-4">
-                <div
-                  v-for="(landlord, index) in form.landlords"
-                  :key="index"
-                  class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
+              <!-- Main Landlord (required) -->
+              <div class="mb-4">
+                <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Main Landlord <span class="text-red-500">*</span></label>
+                <select
+                  v-model="selectedLandlordId"
+                  @change="setMainLandlord"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                  :class="{ 'border-red-500': !mainLandlord && formSubmitted }"
                 >
-                  <div class="flex-1">
-                    <template v-if="landlord.create_new">
-                      <span class="text-sm font-medium text-gray-900 dark:text-white">
-                        {{ landlord.first_name }} {{ landlord.last_name }} (New)
-                      </span>
-                      <span class="text-sm text-gray-500 dark:text-slate-400 block">{{ landlord.email }}</span>
-                    </template>
-                    <template v-else>
-                      <span class="text-sm font-medium text-gray-900 dark:text-white">
-                        {{ getLandlordName(landlord.landlord_id) }}
-                      </span>
-                    </template>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <input
-                      v-model.number="landlord.ownership_percentage"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                    <span class="text-sm text-gray-500 dark:text-slate-400">%</span>
-                    <button
-                      type="button"
-                      @click="removeLandlord(index)"
-                      class="text-red-500 hover:text-red-700 p-1"
-                    >
+                  <option value="">Select yourself or a company...</option>
+                  <option
+                    v-for="l in existingLandlords"
+                    :key="l.id"
+                    :value="l.id"
+                  >{{ l.first_name }}{{ l.last_name === '(Company)' ? ' (Company)' : ' ' + l.last_name }}</option>
+                </select>
+                <p v-if="!mainLandlord && formSubmitted" class="text-xs text-red-500 mt-1">Main landlord is required</p>
+              </div>
+
+              <!-- Main landlord confirmed -->
+              <div v-if="mainLandlord" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-3">
+                <CheckCircle class="h-4 w-4 text-green-600 flex-shrink-0" />
+                <div class="flex-1">
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getLandlordName(mainLandlord.landlord_id) }}</span>
+                  <span class="text-xs text-green-600 ml-2">Main Landlord — 100%</span>
+                </div>
+              </div>
+
+              <!-- Co-Landlords (only visible after main landlord selected) -->
+              <div v-if="mainLandlord">
+                <!-- Co-landlord list -->
+                <div v-if="coLandlords.length > 0" class="mb-3 space-y-2">
+                  <div
+                    v-for="(cl, index) in coLandlords"
+                    :key="index"
+                    class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700"
+                  >
+                    <div class="flex-1">
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">{{ cl.first_name }} {{ cl.last_name }}</span>
+                      <span v-if="cl.email" class="text-xs text-gray-500 block">{{ cl.email }}</span>
+                    </div>
+                    <span class="text-xs text-gray-400">Co-Landlord</span>
+                    <button type="button" @click="removeCoLandlord(index)" class="text-red-500 hover:text-red-700 p-1">
                       <X class="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-              </div>
 
-              <!-- Total ownership indicator -->
-              <div v-if="form.landlords.length > 0" class="mb-4">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-600 dark:text-slate-400">Total ownership:</span>
-                  <span
-                    :class="totalOwnership === 100 ? 'text-green-600' : 'text-amber-600'"
-                    class="text-sm font-medium"
-                  >
-                    {{ totalOwnership.toFixed(2) }}%
-                  </span>
-                  <span v-if="totalOwnership !== 100" class="text-sm text-amber-600">
-                    (must equal 100%)
-                  </span>
-                  <CheckCircle v-else class="h-4 w-4 text-green-600" />
-                </div>
-              </div>
-
-              <!-- Add landlord buttons -->
-              <div class="flex gap-3">
+                <!-- Add Co-Landlord button -->
                 <button
                   type="button"
-                  @click="showLandlordSearch = !showLandlordSearch; showNewLandlordForm = false"
-                  class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                  :class="showLandlordSearch
-                    ? 'text-white bg-primary border border-primary'
-                    : 'text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'"
-                >
-                  Link Existing Landlord
-                </button>
-                <button
-                  type="button"
-                  @click="showNewLandlordForm = !showNewLandlordForm; showLandlordSearch = false"
-                  class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                  @click="showNewLandlordForm = !showNewLandlordForm"
+                  class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
                   :class="showNewLandlordForm
                     ? 'text-white bg-primary border border-primary'
-                    : 'text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20'"
+                    : 'text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-200'"
                 >
-                  Create New Landlord
+                  + Add Co-Landlord
                 </button>
-              </div>
 
-              <!-- Landlord search dropdown -->
-              <div v-if="showLandlordSearch" class="mt-3">
-                <div class="relative">
-                  <input
-                    v-model="landlordSearchQuery"
-                    type="text"
-                    placeholder="Search landlords..."
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    @input="searchLandlords"
-                  />
-                  <div
-                    v-if="landlordSearchResults.length > 0"
-                    class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-y-auto"
-                  >
-                    <button
-                      v-for="landlord in landlordSearchResults"
-                      :key="landlord.id"
-                      type="button"
-                      @click="addExistingLandlord(landlord)"
-                      class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-900 dark:text-white"
-                    >
-                      {{ landlord.first_name }} {{ landlord.last_name }} ({{ landlord.email }})
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- New landlord form -->
-              <div v-if="showNewLandlordForm" class="mt-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-3">New Landlord Details</h5>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <input
-                      v-model="newLandlord.first_name"
-                      type="text"
-                      placeholder="First name *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      v-model="newLandlord.last_name"
-                      type="text"
-                      placeholder="Last name *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div class="col-span-2">
-                    <input
-                      v-model="newLandlord.email"
-                      type="email"
-                      placeholder="Email *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div class="col-span-2">
-                    <input
-                      v-model="newLandlord.phone"
-                      type="tel"
-                      placeholder="Phone (optional)"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div class="col-span-2">
-                    <button
-                      type="button"
-                      @click="addNewLandlord"
-                      :disabled="!newLandlord.first_name || !newLandlord.last_name || !newLandlord.email"
-                      class="px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
-                    >
-                      Add Landlord
-                    </button>
+                <!-- Co-Landlord inline form -->
+                <div v-if="showNewLandlordForm" class="mt-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                  <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-1">Co-Landlord Details</h5>
+                  <p class="text-xs text-gray-400 mb-3">Appears on agreements alongside the main landlord. Bank details use the main landlord's.</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <input v-model="newLandlord.first_name" type="text" placeholder="First name *"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                    </div>
+                    <div>
+                      <input v-model="newLandlord.last_name" type="text" placeholder="Last name *"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                    </div>
+                    <div class="col-span-2">
+                      <input v-model="newLandlord.email" type="email" placeholder="Email (optional)"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white" />
+                    </div>
+                    <div class="col-span-2">
+                      <button type="button" @click="addCoLandlord"
+                        :disabled="!newLandlord.first_name || !newLandlord.last_name"
+                        class="px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50">
+                        Add Co-Landlord
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -402,7 +318,7 @@
             </button>
             <button
               type="submit"
-              :disabled="saving || (form.landlords.length > 0 && totalOwnership !== 100)"
+              :disabled="saving"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Create Property') }}
@@ -490,17 +406,15 @@ const form = ref<PropertyForm>({
   number_of_bathrooms: null,
   council_tax_band: '',
   furnishing_status: '',
-  management_type: '',
+  management_type: 'let_only',
   bills_included: false,
   notes: '',
   landlords: []
 })
 
-const showLandlordSearch = ref(false)
 const showNewLandlordForm = ref(false)
-const landlordSearchQuery = ref('')
-const landlordSearchResults = ref<ExistingLandlord[]>([])
 const existingLandlords = ref<ExistingLandlord[]>([])
+const selectedLandlordId = ref('')
 
 const newLandlord = ref({
   first_name: '',
@@ -509,95 +423,99 @@ const newLandlord = ref({
   phone: ''
 })
 
-const totalOwnership = computed(() => {
-  return form.value.landlords.reduce((sum, l) => sum + (l.ownership_percentage || 0), 0)
+// Main landlord is always the first entry with ownership 100%
+const mainLandlord = computed(() => {
+  return form.value.landlords.find(l => !l.create_new && l.ownership_percentage === 100) || null
+})
+
+// Co-landlords are create_new entries (inline only, not saved to landlords table)
+const coLandlords = computed(() => {
+  return form.value.landlords.filter(l => l.create_new)
 })
 
 const getLandlordName = (id?: string) => {
   if (!id) return 'Unknown'
   const landlord = existingLandlords.value.find(l => l.id === id)
-  return landlord ? `${landlord.first_name} ${landlord.last_name}` : 'Unknown'
+  if (!landlord) return 'Unknown'
+  return landlord.last_name === '(Company)' ? landlord.first_name : `${landlord.first_name} ${landlord.last_name}`
 }
 
-const fetchExistingLandlords = async () => {
-  try {
-    // Fetch ALL landlords by paginating through all pages
-    let allLandlords: any[] = []
-    let page = 1
-    const limit = 100
-    let hasMore = true
-
-    const token = authStore.session?.access_token
-    if (!token) return
-
-    while (hasMore) {
-      const response = await authFetch(`${API_URL}/api/landlords?page=${page}&limit=${limit}`, { token })
-
-      if (response.ok) {
-        const data = await response.json()
-        const pageLandlords = data.landlords || []
-        allLandlords = [...allLandlords, ...pageLandlords]
-
-        // Check if there are more pages
-        if (pageLandlords.length < limit) {
-          hasMore = false
-        } else {
-          page++
-        }
-      } else {
-        hasMore = false
-      }
-    }
-
-    existingLandlords.value = allLandlords
-    console.log(`[AddEditPropertyModal] Loaded ${allLandlords.length} landlords`)
-  } catch (err) {
-    console.error('Failed to fetch landlords:', err)
-  }
-}
-
-const searchLandlords = () => {
-  const query = landlordSearchQuery.value.toLowerCase()
-  if (!query) {
-    landlordSearchResults.value = []
-    return
-  }
-  // No limit on search results - show all matching
-  landlordSearchResults.value = existingLandlords.value.filter(l =>
-    `${l.first_name} ${l.last_name}`.toLowerCase().includes(query) ||
-    l.email.toLowerCase().includes(query)
-  )
-}
-
-const addExistingLandlord = (landlord: ExistingLandlord) => {
-  if (form.value.landlords.some(l => l.landlord_id === landlord.id)) {
-    toast.warning('This landlord is already added')
-    return
-  }
-  form.value.landlords.push({
-    landlord_id: landlord.id,
-    ownership_percentage: form.value.landlords.length === 0 ? 100 : 0
+const setMainLandlord = () => {
+  if (!selectedLandlordId.value) return
+  // Remove any existing main landlord
+  form.value.landlords = form.value.landlords.filter(l => l.create_new)
+  // Add the selected one as main with 100%
+  form.value.landlords.unshift({
+    landlord_id: selectedLandlordId.value,
+    ownership_percentage: 100,
+    is_primary_contact: true,
   })
-  showLandlordSearch.value = false
-  landlordSearchQuery.value = ''
-  landlordSearchResults.value = []
 }
 
-const addNewLandlord = () => {
-  if (!newLandlord.value.first_name || !newLandlord.value.last_name || !newLandlord.value.email) {
-    toast.error('Please fill in required fields')
+const addCoLandlord = () => {
+  if (!newLandlord.value.first_name || !newLandlord.value.last_name) {
+    toast.error('First name and last name are required')
     return
   }
   form.value.landlords.push({
     create_new: true,
     first_name: newLandlord.value.first_name,
     last_name: newLandlord.value.last_name,
-    email: newLandlord.value.email,
-    phone: newLandlord.value.phone,
-    ownership_percentage: form.value.landlords.length === 0 ? 100 : 0
+    email: newLandlord.value.email || undefined,
+    ownership_percentage: 0, // Co-landlords don't affect ownership
   })
   newLandlord.value = { first_name: '', last_name: '', email: '', phone: '' }
   showNewLandlordForm.value = false
+}
+
+const removeCoLandlord = (index: number) => {
+  // Find the actual index in form.landlords (co-landlords are create_new entries)
+  const coLandlordsInForm = form.value.landlords
+    .map((l, i) => ({ ...l, _idx: i }))
+    .filter(l => l.create_new)
+  if (coLandlordsInForm[index]) {
+    form.value.landlords.splice(coLandlordsInForm[index]._idx, 1)
+  }
+}
+
+const fetchExistingLandlords = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    // Fetch landlords and companies in parallel
+    const [landlordsRes, companiesRes] = await Promise.all([
+      authFetch(`${API_URL}/api/landlords?page=1&limit=100`, { token }),
+      authFetch(`${API_URL}/api/landlord-portal/companies`, { token }).catch(() => null),
+    ])
+
+    const allEntries: ExistingLandlord[] = []
+
+    if (landlordsRes.ok) {
+      const data = await landlordsRes.json()
+      const landlords = data.landlords || []
+      allEntries.push(...landlords)
+    }
+
+    // Add companies/SPVs as landlord options
+    if (companiesRes?.ok) {
+      const data = await companiesRes.json()
+      const companies = data.companies || []
+      for (const co of companies) {
+        allEntries.push({
+          id: co.id,
+          first_name: co.company_name || 'Unnamed Company',
+          last_name: '(Company)',
+          email: co.email || '',
+        })
+      }
+    }
+
+    existingLandlords.value = allEntries
+    console.log(`[AddEditPropertyModal] Loaded ${allEntries.length} landlords/companies`)
+  } catch (err) {
+    console.error('Failed to fetch landlords:', err)
+  }
 }
 
 const removeLandlord = (index: number) => {
@@ -664,9 +582,9 @@ const handleAddressSelected = (addr: any) => {
 const handleSubmit = async () => {
   formSubmitted.value = true
 
-  // Validate ownership
-  if (form.value.landlords.length > 0 && totalOwnership.value !== 100) {
-    toast.error('Total ownership percentage must equal 100%')
+  // Validate main landlord selected
+  if (!mainLandlord.value) {
+    toast.error('Please select a main landlord')
     return
   }
 
@@ -760,10 +678,8 @@ const resetForm = () => {
     landlords: []
   }
   addressMode.value = 'split'
-  showLandlordSearch.value = false
   showNewLandlordForm.value = false
-  landlordSearchQuery.value = ''
-  landlordSearchResults.value = []
+  selectedLandlordId.value = ''
   formSubmitted.value = false
   newLandlord.value = { first_name: '', last_name: '', email: '', phone: '' }
 }

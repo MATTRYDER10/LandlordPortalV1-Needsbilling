@@ -966,7 +966,7 @@
                       <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ pack.size }} References</p>
                       <p class="text-xs text-gray-500 dark:text-gray-400">
                         {{ formatPrice(pack.pricePerRef) }}/ref
-                        <span v-if="pack.discount > 0" class="text-green-600 font-medium ml-1">{{ Math.round(pack.discount * 100) }}% off</span>
+                        <span v-if="pack.discount > 0" class="text-green-600 font-medium ml-1">{{ formatPrice(pack.discount) }} off</span>
                       </p>
                     </div>
                   </div>
@@ -993,7 +993,7 @@
                   <div v-if="customPackSize && customPackSize > 0" class="flex-1 text-right">
                     <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ formatPrice(customTotal) }}</span>
                     <span class="text-xs text-gray-500 ml-1">({{ formatPrice(customPricePerRef) }}/ref</span>
-                    <span v-if="customDiscount > 0" class="text-xs text-green-600 ml-1">{{ Math.round(customDiscount * 100) }}% off</span>
+                    <span v-if="customDiscount > 0" class="text-xs text-green-600 ml-1">{{ formatPrice(customDiscount) }} off</span>
                     <span class="text-xs text-gray-500">)</span>
                   </div>
                 </div>

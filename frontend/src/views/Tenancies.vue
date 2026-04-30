@@ -840,7 +840,16 @@ const loadingArchived = ref(false)
 const activeFilter = ref<string | null>(null)
 const managementFilter = ref<'let_only' | 'managed' | null>(null)
 
-watch(() => route.query, (query) => {
+watch(() => route.query, async (query) => {
+  // Handle checkout=success return from Stripe
+  if (query.checkout === 'success') {
+    await authStore.fetchSubscriptionStatus()
+    router.replace({ path: route.path, query: {} })
+    if (authStore.hasSubscription) {
+      toast.success('Subscription activated! Welcome to Tenancy Management.')
+    }
+    return
+  }
   // Handle create=true query param (only if subscribed)
   if (query.create === 'true' && authStore.hasSubscription) {
     showCreateModal.value = true

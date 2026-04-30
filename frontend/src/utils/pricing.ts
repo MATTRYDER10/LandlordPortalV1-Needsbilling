@@ -1,9 +1,9 @@
 /**
  * Landlord Portal pricing configuration.
  *
- * PAYG: per-reference pricing (no subscription)
- * Standard: £11.99/mo (promo until 15 May 2026), then £14.99/mo — up to 10 properties
- * Professional: £24.99/mo — up to 25 properties (no promo)
+ * PAYG: per-reference pricing, £2.49/agreement, up to 2 companies
+ * Standard: £11.99/mo (promo until 15 May 2026), then £14.99/mo — up to 10 properties, 5 companies
+ * Professional: £12.50/let — unlimited properties, 10 companies
  */
 
 // Reference pricing
@@ -16,10 +16,24 @@ export const STANDARD_PRICE = 14.99
 export const STANDARD_MAX_PROPERTIES = 10
 
 export const PROFESSIONAL_PRICE = 24.99
-export const PROFESSIONAL_MAX_PROPERTIES = 25
+export const PROFESSIONAL_REF_PRICE = 12.50
+export const PROFESSIONAL_MAX_PROPERTIES = Infinity // unlimited
 
 // Agreement pricing
 export const AGREEMENT_PRICE = 2.49
+
+// Company limits per tier
+export const PAYG_MAX_COMPANIES = 2
+export const STANDARD_MAX_COMPANIES = 5
+export const PROFESSIONAL_MAX_COMPANIES = 10
+
+export type SubscriptionTier = 'payg' | 'standard' | 'professional'
+
+export function getMaxCompanies(tier: SubscriptionTier): number {
+  if (tier === 'professional') return PROFESSIONAL_MAX_COMPANIES
+  if (tier === 'standard') return STANDARD_MAX_COMPANIES
+  return PAYG_MAX_COMPANIES
+}
 
 // Promo period ends 15 May 2026
 export const PROMO_CUTOFF = new Date('2026-05-15T00:00:00Z')
@@ -32,8 +46,10 @@ export function getStandardPrice(): number {
   return isPromoPeriod() ? STANDARD_PROMO_PRICE : STANDARD_PRICE
 }
 
-export function getReferencePrice(hasSubscription: boolean): number {
-  return hasSubscription ? SUBSCRIBER_REF_PRICE : PAYG_REF_PRICE
+export function getReferencePrice(hasSubscription: boolean, tier?: SubscriptionTier): number {
+  if (!hasSubscription) return PAYG_REF_PRICE
+  if (tier === 'professional') return PROFESSIONAL_REF_PRICE
+  return SUBSCRIBER_REF_PRICE
 }
 
 export function formatPrice(amount: number): string {
@@ -55,21 +71,42 @@ export function getSubscriptionPrice(): number {
   return getStandardPrice()
 }
 
-export function getBulkDiscount(_packSize: number): number {
-  return 0
+// Bulk discount: 50p off per pack tier
+// PAYG min £10/ref, subscriber min £9.50/ref
+export const BULK_DISCOUNT_PER_TIER = 0.50
+export const BULK_MIN_PRICE_PAYG = 10.00
+export const BULK_MIN_PRICE_SUB = 9.50
+
+// Calculate discount based on pack size — 50p for every 3 refs, capped by min price
+function calcBulkDiscount(packSize: number): number {
+  if (packSize < 3) return 0
+  // Every ~3 refs adds another 50p discount tier
+  const tiers = Math.min(Math.floor(packSize / 3), 10) // cap at 10 tiers (£5 max discount)
+  return tiers * BULK_DISCOUNT_PER_TIER
 }
 
-export function getBulkPricePerRef(_packSize: number, hasSubscription: boolean): number {
-  return getReferencePrice(hasSubscription)
+export function getBulkPricePerRef(packSize: number, hasSubscription: boolean): number {
+  const basePrice = getReferencePrice(hasSubscription)
+  const minPrice = hasSubscription ? BULK_MIN_PRICE_SUB : BULK_MIN_PRICE_PAYG
+  const discount = calcBulkDiscount(packSize)
+  return Math.max(minPrice, Math.round((basePrice - discount) * 100) / 100)
+}
+
+export function getBulkDiscount(packSize: number): number {
+  return calcBulkDiscount(packSize)
 }
 
 export function getBulkPackTotal(packSize: number, hasSubscription: boolean): number {
-  return packSize * getReferencePrice(hasSubscription)
+  return Math.round(packSize * getBulkPricePerRef(packSize, hasSubscription) * 100) / 100
 }
 
 export function getBulkPacks(hasSubscription: boolean): { size: number; discount: number; pricePerRef: number; total: number; savings: number }[] {
-  const price = getReferencePrice(hasSubscription)
-  return [3, 5, 10, 15, 20].map(size => ({
-    size, discount: 0, pricePerRef: price, total: size * price, savings: 0
-  }))
+  const basePrice = getReferencePrice(hasSubscription)
+  return [3, 5, 10, 15, 20].map(size => {
+    const pricePerRef = getBulkPricePerRef(size, hasSubscription)
+    const total = getBulkPackTotal(size, hasSubscription)
+    const savings = Math.round((basePrice * size - total) * 100) / 100
+    const discount = getBulkDiscount(size)
+    return { size, discount, pricePerRef, total, savings }
+  })
 }

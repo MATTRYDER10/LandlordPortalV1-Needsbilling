@@ -236,6 +236,29 @@ export const useBillingStore = defineStore('billing', () => {
     }
   }
 
+  async function createCheckoutSession(plan: string, successUrl: string, cancelUrl: string) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await axios.post(
+        `${API_URL}/api/billing/checkout-session`,
+        { plan, success_url: successUrl, cancel_url: cancelUrl },
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`
+          }
+        }
+      )
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || 'Failed to create checkout session'
+      console.error('Error creating checkout session:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function cancelSubscription(cancelAtPeriodEnd: boolean = true) {
     try {
       loading.value = true
@@ -345,6 +368,7 @@ export const useBillingStore = defineStore('billing', () => {
     fetchTransactions,
     purchaseCreditPack,
     createSubscription,
+    createCheckoutSession,
     cancelSubscription,
     savePaymentMethod,
     updateAutoRecharge,

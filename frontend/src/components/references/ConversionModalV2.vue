@@ -222,6 +222,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
 import { X, Loader2, AlertTriangle, CheckCircle } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -237,6 +238,7 @@ const emit = defineEmits<{
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const loading = ref(false)
 const converting = ref(false)
@@ -320,10 +322,10 @@ async function convert() {
       conversionComplete.value = true
       emit('converted')
     } else {
-      alert(data.error || 'Conversion failed')
+      toast.error(data.error || 'Conversion failed')
     }
   } catch {
-    alert('Conversion failed')
+    toast.error('Conversion failed')
   } finally {
     converting.value = false
   }
@@ -331,7 +333,7 @@ async function convert() {
 
 function viewTenancy() {
   emit('close')
-  router.push('/tenancies')
+  router.push({ path: '/tenancies', query: { tenancy: createdTenancyId.value, tab: 'draft' } })
 }
 
 function formatDate(dateStr: string): string {

@@ -7,6 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? ''
 export const useBadgeCountsStore = defineStore('badgeCounts', () => {
   const pendingOffers = ref(0)
   const readyTenancies = ref(0)
+  const overdueRent = ref(0)
   let pollInterval: ReturnType<typeof setInterval> | null = null
 
   const fetch = async () => {
@@ -22,6 +23,7 @@ export const useBadgeCountsStore = defineStore('badgeCounts', () => {
       const data = await res.json()
       pendingOffers.value = data.pending_offers ?? 0
       readyTenancies.value = data.ready_tenancies ?? 0
+      overdueRent.value = data.overdue_rent ?? 0
     } catch {
       // silent fail
     }
@@ -41,5 +43,5 @@ export const useBadgeCountsStore = defineStore('badgeCounts', () => {
     }
   }
 
-  return { pendingOffers, readyTenancies, fetch, startPolling, stopPolling }
+  return { pendingOffers, readyTenancies, overdueRent, fetch, startPolling, stopPolling }
 })

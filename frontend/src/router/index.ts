@@ -97,6 +97,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/rentgoose',
+      name: 'RentGoose',
+      component: () => import('../views/RentGoose.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/landlords',
       name: 'Landlords',
       component: () => import('../views/Landlords.vue'),
@@ -378,8 +384,6 @@ router.beforeEach(async (to, _from, next) => {
   // Ensure auth is initialized
   if (!authStore.session && !authStore.user) {
     await authStore.initialize()
-  } else if (authStore.user && !authStore.company) {
-    await authStore.fetchUser()
   }
 
   const isAuthenticated = !!authStore.user
