@@ -37,12 +37,12 @@ export function getReferencePrice(hasSubscription: boolean, tier?: SubscriptionT
 }
 
 // ─── Subscription Pricing ───
-export const STANDARD_PROMO_PRICE = 11.99
-export const STANDARD_PRICE = 14.99
+export const STANDARD_PROMO_PRICE = 10.99
+export const STANDARD_PRICE = 13.99
 export const STANDARD_MAX_PROPERTIES = 10
 
-export const PROFESSIONAL_PROMO_PRICE = 19.99
-export const PROFESSIONAL_PRICE = 24.99
+export const PROFESSIONAL_PROMO_PRICE = 18.99
+export const PROFESSIONAL_PRICE = 23.99
 export const PROFESSIONAL_MAX_PROPERTIES = Infinity
 
 export function getStandardPrice(): number {
@@ -54,7 +54,7 @@ export function getProfessionalPrice(): number {
 }
 
 // ─── Agreement Pricing ───
-export const AGREEMENT_PRICE = 2.49
+export const AGREEMENT_PRICE = 7.99
 
 // ─── Company Limits ───
 export const PAYG_MAX_COMPANIES = 2
