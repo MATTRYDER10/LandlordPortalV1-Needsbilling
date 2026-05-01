@@ -617,8 +617,8 @@ async function loadData() {
       : { year: selectedYear.value, tax_year: true }
 
     const [rentRes, expRes] = await Promise.all([
-      axios.get(`${API_URL}/api/landlord-portal/rentgoose/rent`, { headers: headers.value, params }),
-      axios.get(`${API_URL}/api/landlord-portal/rentgoose/expenses`, { headers: headers.value, params: { year: selectedYear.value, tax_year: true } }),
+      axios.get(`${API_URL}/api/rentgoose/rent`, { headers: headers.value, params }),
+      axios.get(`${API_URL}/api/rentgoose/expenses`, { headers: headers.value, params: { year: selectedYear.value, tax_year: true } }),
     ])
     rentEntries.value = rentRes.data.entries || []
     expenses.value = expRes.data.expenses || []
@@ -644,7 +644,7 @@ async function loadProperties() {
 
 async function loadRentGooseSettings() {
   try {
-    const res = await axios.get(`${API_URL}/api/landlord-portal/rentgoose/settings`, { headers: headers.value })
+    const res = await axios.get(`${API_URL}/api/rentgoose/settings`, { headers: headers.value })
     autoChaseEnabled.value = res.data.auto_chase_enabled ?? false
   } catch {
     autoChaseEnabled.value = false
@@ -654,7 +654,7 @@ async function loadRentGooseSettings() {
 async function toggleAutoChase() {
   autoChaseLoading.value = true
   try {
-    const res = await axios.put(`${API_URL}/api/landlord-portal/rentgoose/settings`, {
+    const res = await axios.put(`${API_URL}/api/rentgoose/settings`, {
       auto_chase_enabled: !autoChaseEnabled.value
     }, { headers: headers.value })
     autoChaseEnabled.value = res.data.auto_chase_enabled
@@ -671,7 +671,7 @@ async function loadStatement() {
   showDetailedTransactions.value = false
   try {
     // Pass tax year start — backend should use Apr 6 to Apr 5 range
-    const res = await axios.get(`${API_URL}/api/landlord-portal/rentgoose/statement/${selectedYear.value}`, {
+    const res = await axios.get(`${API_URL}/api/rentgoose/statement/${selectedYear.value}`, {
       headers: headers.value,
       params: { tax_year: true }
     })
@@ -695,7 +695,7 @@ onMounted(() => { loadData(); loadProperties(); loadRentGooseSettings() })
 async function createRent() {
   saving.value = true
   try {
-    await axios.post(`${API_URL}/api/landlord-portal/rentgoose/rent`, rentForm.value, { headers: headers.value })
+    await axios.post(`${API_URL}/api/rentgoose/rent`, rentForm.value, { headers: headers.value })
     showAddRent.value = false
     rentForm.value = { property_id: '', tenant_name: '', due_date: '', amount: '', auto_populate: true }
     toast.success('Rent entry added')
@@ -709,7 +709,7 @@ async function receiptRent() {
   if (!receiptEntry.value) return
   saving.value = true
   try {
-    await axios.put(`${API_URL}/api/landlord-portal/rentgoose/rent/${receiptEntry.value.id}/receipt`, {
+    await axios.put(`${API_URL}/api/rentgoose/rent/${receiptEntry.value.id}/receipt`, {
       received_amount: receiptAmount.value || receiptEntry.value.amount
     }, { headers: headers.value })
     showReceipt.value = false
@@ -725,7 +725,7 @@ async function receiptRent() {
 async function sendQuickChase(entryId: string) {
   saving.value = true
   try {
-    await axios.post(`${API_URL}/api/landlord-portal/rentgoose/rent/${entryId}/quick-chase`, {}, { headers: headers.value })
+    await axios.post(`${API_URL}/api/rentgoose/rent/${entryId}/quick-chase`, {}, { headers: headers.value })
     toast.success('Chase reminder sent to tenant')
     await loadData()
   } catch (err: any) {
@@ -737,7 +737,7 @@ async function sendArrearsLetter(days: number) {
   if (!arrearsEntry.value) return
   saving.value = true
   try {
-    await axios.post(`${API_URL}/api/landlord-portal/rentgoose/rent/${arrearsEntry.value.id}/arrears-letter`, {
+    await axios.post(`${API_URL}/api/rentgoose/rent/${arrearsEntry.value.id}/arrears-letter`, {
       letter_type: days
     }, { headers: headers.value })
     showArrears.value = false
@@ -751,7 +751,7 @@ async function sendArrearsLetter(days: number) {
 async function deleteRent(id: string) {
   if (!confirm('Delete this rent entry?')) return
   try {
-    await axios.delete(`${API_URL}/api/landlord-portal/rentgoose/rent/${id}`, { headers: headers.value })
+    await axios.delete(`${API_URL}/api/rentgoose/rent/${id}`, { headers: headers.value })
     toast.success('Rent entry deleted')
     await loadData()
   } catch {}
@@ -765,7 +765,7 @@ async function createExpense() {
     Object.entries(expenseForm.value).forEach(([k, v]) => { if (v) formData.append(k, v as string) })
     if (pdfInput.value?.files?.[0]) formData.append('invoice_pdf', pdfInput.value.files[0])
 
-    await axios.post(`${API_URL}/api/landlord-portal/rentgoose/expenses`, formData, {
+    await axios.post(`${API_URL}/api/rentgoose/expenses`, formData, {
       headers: { ...headers.value, 'Content-Type': 'multipart/form-data' }
     })
     showAddExpense.value = false
@@ -780,7 +780,7 @@ async function createExpense() {
 async function deleteExpense(id: string) {
   if (!confirm('Delete this expense?')) return
   try {
-    await axios.delete(`${API_URL}/api/landlord-portal/rentgoose/expenses/${id}`, { headers: headers.value })
+    await axios.delete(`${API_URL}/api/rentgoose/expenses/${id}`, { headers: headers.value })
     toast.success('Expense deleted')
     await loadData()
   } catch {}
