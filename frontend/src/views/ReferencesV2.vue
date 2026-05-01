@@ -563,68 +563,25 @@
 
               <!-- Step 2: Tenant Details -->
               <div v-if="createStep === 2" class="space-y-4">
-                <div class="flex items-center justify-between mb-6">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                      <User class="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 class="font-semibold text-gray-900 dark:text-white">Tenant Details</h3>
-                      <p class="text-sm text-gray-500">Who is this reference for?</p>
-                    </div>
+                <div class="flex items-center gap-3 mb-2">
+                  <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                    <User class="w-5 h-5 text-blue-600" />
                   </div>
-                  <select
-                    v-model.number="tenantCount"
-                    @change="updateTenantCount"
-                    class="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm"
-                  >
-                    <option v-for="n in 10" :key="n" :value="n">{{ n }} Tenant{{ n > 1 ? 's' : '' }}</option>
-                  </select>
-                </div>
-
-                <!-- Single Tenant -->
-                <div v-if="tenantCount === 1" class="space-y-4">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name *</label>
-                      <input
-                        v-model="createForm.tenant_first_name"
-                        type="text"
-                        required
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Last Name *</label>
-                      <input
-                        v-model="createForm.tenant_last_name"
-                        type="text"
-                        required
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email *</label>
-                      <EmailInput
-                        v-model="createForm.tenant_email"
-                        required
-                        input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <PhoneInput
-                        v-model="createForm.tenant_phone"
-                        label="Phone"
-                        :required="true"
-                        select-class="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
+                  <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Tenant Details</h3>
+                    <p class="text-sm text-gray-500">Who is this reference for?</p>
                   </div>
                 </div>
 
-                <!-- Multiple Tenants -->
-                <div v-else class="space-y-4">
+                <!-- Help text -->
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p class="text-xs text-blue-700 dark:text-blue-400">
+                    Just add your tenant details below. If a guarantor is needed, the tenant will add their guarantor's details themselves during the referencing process. Add more tenants for joint tenancies.
+                  </p>
+                </div>
+
+                <!-- Tenant cards -->
+                <div class="space-y-4">
                   <div
                     v-for="(tenant, index) in tenants"
                     :key="index"
@@ -632,7 +589,14 @@
                   >
                     <div class="flex items-center justify-between mb-3">
                       <span class="font-medium text-gray-900 dark:text-white">Tenant {{ index + 1 }}</span>
-                      <span class="text-sm text-gray-500">Rent share: £{{ tenant.rent_share || 0 }}</span>
+                      <button
+                        v-if="tenants.length > 1"
+                        @click="removeTenant(index)"
+                        type="button"
+                        class="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -670,7 +634,7 @@
                           input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                       </div>
-                      <div class="col-span-2">
+                      <div v-if="tenants.length > 1" class="col-span-2">
                         <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Rent Share (£) *</label>
                         <input
                           v-model.number="tenant.rent_share"
@@ -682,6 +646,16 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Add another tenant button -->
+                <button
+                  @click="addTenant"
+                  type="button"
+                  class="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl text-gray-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                >
+                  <Plus class="w-4 h-4" />
+                  Add Another Tenant
+                </button>
               </div>
 
               <!-- Step 3: Review -->
@@ -719,12 +693,12 @@
                 <div class="p-4 border border-gray-200 dark:border-slate-700 rounded-xl">
                   <div class="flex items-center gap-2 mb-3">
                     <User class="w-4 h-4 text-gray-400" />
-                    <span class="font-medium text-gray-900 dark:text-white">{{ tenantCount === 1 ? 'Tenant' : `${tenantCount} Tenants` }}</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ tenants.length === 1 ? 'Tenant' : `${tenants.length} Tenants` }}</span>
                   </div>
 
-                  <div v-if="tenantCount === 1">
-                    <p class="text-gray-700 dark:text-slate-300">{{ createForm.tenant_first_name }} {{ createForm.tenant_last_name }}</p>
-                    <p class="text-sm text-gray-500">{{ createForm.tenant_email }}</p>
+                  <div v-if="tenants.length === 1">
+                    <p class="text-gray-700 dark:text-slate-300">{{ tenants[0].first_name }} {{ tenants[0].last_name }}</p>
+                    <p class="text-sm text-gray-500">{{ tenants[0].email }}</p>
                   </div>
                   <div v-else class="space-y-2">
                     <div v-for="(tenant, index) in tenants" :key="index" class="flex justify-between text-sm">
@@ -741,7 +715,7 @@
                     <div>
                       <p class="text-sm text-blue-800 dark:text-blue-300 font-medium">What happens next?</p>
                       <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                        The tenant{{ tenantCount > 1 ? 's' : '' }} will receive an email with a link to complete their reference form. You'll be notified as each section is completed and ready for review.
+                        The tenant{{ tenants.length > 1 ? 's' : '' }} will receive an email with a link to complete their reference form. You'll be notified as each section is completed and ready for review.
                       </p>
                     </div>
                   </div>
@@ -1208,11 +1182,11 @@ const canProceed = computed(() => {
     return hasProperty && createForm.value.monthly_rent
   }
   if (createStep.value === 2) {
-    if (tenantCount.value === 1) {
-      return createForm.value.tenant_first_name &&
-             createForm.value.tenant_last_name &&
-             createForm.value.tenant_email &&
-             createForm.value.tenant_phone
+    if (tenants.value.length === 1) {
+      return tenants.value[0].first_name &&
+             tenants.value[0].last_name &&
+             tenants.value[0].email &&
+             tenants.value[0].phone
     } else {
       return tenants.value.every(t =>
         t.first_name && t.last_name && t.email && t.phone && t.rent_share
@@ -1239,7 +1213,7 @@ function openCreateModal() {
     linked_property_id: null
   }
   tenantCount.value = 1
-  tenants.value = []
+  tenants.value = [{ first_name: '', last_name: '', email: '', phone: '', rent_share: 0 }]
   propertySearchQuery.value = ''
   propertySearchResults.value = []
   selectedProperty.value = null
@@ -1257,27 +1231,34 @@ function closeCreateModal() {
   showCreateModal.value = false
 }
 
-function updateTenantCount() {
-  const count = tenantCount.value
+function addTenant() {
+  const count = tenants.value.length + 1
   const rentPerTenant = createForm.value.monthly_rent ? Math.round(createForm.value.monthly_rent / count) : 0
+  tenants.value.push({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    rent_share: rentPerTenant
+  })
+  tenantCount.value = tenants.value.length
+  // Recalculate rent shares for existing tenants
+  tenants.value.forEach(t => { t.rent_share = rentPerTenant })
+}
 
-  tenants.value = Array.from({ length: count }, (_, i) => ({
-    first_name: tenants.value[i]?.first_name || '',
-    last_name: tenants.value[i]?.last_name || '',
-    email: tenants.value[i]?.email || '',
-    phone: tenants.value[i]?.phone || '',
-    rent_share: tenants.value[i]?.rent_share || rentPerTenant
-  }))
+function removeTenant(index: number) {
+  if (tenants.value.length <= 1) return
+  tenants.value.splice(index, 1)
+  tenantCount.value = tenants.value.length
+  // Recalculate rent shares
+  const rentPerTenant = createForm.value.monthly_rent ? Math.round(createForm.value.monthly_rent / tenants.value.length) : 0
+  tenants.value.forEach(t => { t.rent_share = rentPerTenant })
 }
 
 function nextStep() {
-  if (createStep.value === 1 && tenantCount.value > 1) {
-    updateTenantCount()
-  }
   if (createStep.value === 2) {
     // Before going to review, show paywall with correct count
-    // Count = tenants + guarantors (each person is 1 reference)
-    const totalRefs = tenantCount.value === 1 ? 1 : tenants.value.length
+    const totalRefs = tenants.value.length
     // TODO: add guarantor count when guarantor fields are added to create flow
     paywallTenantCount.value = totalRefs
     showPaywall.value = true
@@ -1296,12 +1277,12 @@ async function submitReference() {
       property_postcode: createForm.value.property_postcode,
       monthly_rent: createForm.value.monthly_rent,
       move_in_date: createForm.value.move_in_date || null,
-      tenants: tenantCount.value === 1
+      tenants: tenants.value.length === 1
         ? [{
-            first_name: createForm.value.tenant_first_name,
-            last_name: createForm.value.tenant_last_name,
-            email: createForm.value.tenant_email,
-            phone: createForm.value.tenant_phone,
+            first_name: tenants.value[0].first_name,
+            last_name: tenants.value[0].last_name,
+            email: tenants.value[0].email,
+            phone: tenants.value[0].phone,
             rent_share: createForm.value.monthly_rent
           }]
         : tenants.value
