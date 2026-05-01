@@ -93,10 +93,10 @@
 
           <button
             @click="handleSubscribe('landlord_standard')"
-            :disabled="subscribing"
+            :disabled="subscribingPlan !== null"
             class="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 text-base"
           >
-            {{ subscribing ? 'Setting up...' : 'Subscribe to Standard' }}
+            {{ subscribingPlan === 'landlord_standard' ? 'Setting up...' : 'Subscribe to Standard' }}
           </button>
         </div>
 
@@ -129,10 +129,10 @@
 
           <button
             @click="handleSubscribe('landlord_professional')"
-            :disabled="subscribing"
+            :disabled="subscribingPlan !== null"
             class="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 text-base"
           >
-            {{ subscribing ? 'Setting up...' : 'Subscribe to Professional' }}
+            {{ subscribingPlan === 'landlord_professional' ? 'Setting up...' : 'Subscribe to Professional' }}
           </button>
         </div>
       </div>
@@ -168,7 +168,7 @@ import {
 const authStore = useAuthStore()
 const billingStore = useBillingStore()
 const toast = useToast()
-const subscribing = ref(false)
+const subscribingPlan = ref<string | null>(null)
 const showPaymentForm = ref(false)
 const processing = ref(false)
 const paymentError = ref<string | null>(null)
@@ -229,7 +229,7 @@ const proFeatures = [
 ]
 
 async function handleSubscribe(planKey: string) {
-  subscribing.value = true
+  subscribingPlan.value = planKey
   paymentError.value = null
   selectedPlan.value = PLANS[planKey]
 
@@ -271,7 +271,7 @@ async function handleSubscribe(planKey: string) {
     selectedPlan.value = null
     console.error('Subscription setup error:', err)
   } finally {
-    subscribing.value = false
+    subscribingPlan.value = null
   }
 }
 
