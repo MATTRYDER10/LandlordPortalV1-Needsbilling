@@ -113,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
       const token = session.value?.access_token
       if (!token) return
 
-      const response = await fetch(`${API_URL}/api/billing/reference-credits`, {
+      const response = await fetch(`${API_URL}/api/landlord-portal/billing/reference-credits`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

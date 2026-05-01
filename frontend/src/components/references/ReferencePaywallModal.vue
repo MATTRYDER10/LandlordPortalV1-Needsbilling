@@ -185,7 +185,7 @@ const included = [
 async function useCredits() {
   usingCredits.value = true
   try {
-    const response = await fetch(`${API_URL}/api/billing/reference-credits/use`, {
+    const response = await fetch(`${API_URL}/api/landlord-portal/billing/reference-credits/use`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
@@ -215,7 +215,7 @@ async function initiatePayment() {
 
   try {
     // Request a payment intent from the backend
-    const response = await fetch(`${API_URL}/api/billing/reference-payment`, {
+    const response = await fetch(`${API_URL}/api/landlord-portal/billing/reference-payment`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,

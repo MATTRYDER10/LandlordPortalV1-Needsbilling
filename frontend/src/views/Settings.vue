@@ -1349,12 +1349,12 @@ async function purchaseCredits() {
   if (!purchaseAmount.value) return
   purchasingCredits.value = true
   try {
-    const response = await authFetch(`${API_URL}/api/billing/reference-credits/purchase`, {
+    const response = await authFetch(`${API_URL}/api/landlord-portal/billing/reference-credits/purchase`, {
       token: authStore.session?.access_token || undefined,
       method: 'POST',
       body: JSON.stringify({
-        quantity: purchaseAmount.value,
-        price_per_ref: purchaseTotal.value / purchaseAmount.value
+        num_references: purchaseAmount.value,
+        price_per_reference: purchaseTotal.value / purchaseAmount.value
       }),
       headers: { 'Content-Type': 'application/json' }
     })
