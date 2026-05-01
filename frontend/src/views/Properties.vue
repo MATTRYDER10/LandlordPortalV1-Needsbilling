@@ -22,12 +22,30 @@
               Import CSV
             </button>
             <button
-              @click="showAddModal = true"
+              @click="isAtPropertyLimit ? showUpgradePrompt = true : showAddModal = true"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
             >
               Add Property
             </button>
           </div>
+        </div>
+
+        <!-- Property Limit Banner -->
+        <div v-if="isAtPropertyLimit" class="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+            </svg>
+            <p class="text-sm text-amber-800 dark:text-amber-300">
+              You've reached the <span class="font-semibold">{{ STANDARD_MAX_PROPERTIES }} property limit</span> on your Standard plan.
+            </p>
+          </div>
+          <router-link
+            to="/tenancies"
+            class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg whitespace-nowrap"
+          >
+            Upgrade to Pro
+          </router-link>
         </div>
 
         <!-- Stats Cards -->
@@ -331,6 +349,7 @@ import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { Search, MoreVertical, Trash2 } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
+import { STANDARD_MAX_PROPERTIES } from '@/utils/pricing'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -375,6 +394,13 @@ const showImportModal = ref(false)
 const actionsMenuOpen = ref<string | null>(null)
 const selectedProperties = ref<Set<string>>(new Set())
 const bulkProcessing = ref(false)
+
+const showUpgradePrompt = ref(false)
+
+const isAtPropertyLimit = computed(() => {
+  if (authStore.subscriptionTier === 'landlord_professional') return false
+  return stats.value.total >= STANDARD_MAX_PROPERTIES
+})
 
 // Pagination state
 const currentPage = ref(1)
@@ -489,6 +515,14 @@ const editProperty = (id: string) => {
 }
 
 const deleteProperty = async (id: string) => {
+  // Block deletion of properties with active tenancies on Standard plan
+  const prop = properties.value.find(p => p.id === id)
+  if (prop?.status === 'in_tenancy') {
+    toast.error('This property has an active tenancy and cannot be deleted. End the tenancy first.')
+    actionsMenuOpen.value = null
+    return
+  }
+
   if (!confirm('Are you sure you want to delete this property?')) return
 
   try {
