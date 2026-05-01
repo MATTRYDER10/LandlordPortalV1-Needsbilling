@@ -20,7 +20,7 @@ export function isPromoPeriod(): boolean {
 
 // ─── Reference Pricing ───
 // PAYG changes with promo
-export const PAYG_REF_PRICE_LAUNCH = 14.00
+export const PAYG_REF_PRICE_LAUNCH = 15.00
 export const PAYG_REF_PRICE = 17.50
 // Subscriber rates are FIXED (not derived from PAYG)
 export const STANDARD_REF_PRICE_FIXED = 13.00
