@@ -2,7 +2,7 @@
   "id": "tenancy-initial-monies",
   "slug": "requesting-initial-monies",
   "title": "Requesting Initial Monies from Tenants",
-  "category": "payments",
+  "category": "tenancies",
   "tags": ["payments", "deposit", "rent", "tenancy", "initial monies"],
   "createdAt": "2024-02-10",
   "updatedAt": "2024-03-05",

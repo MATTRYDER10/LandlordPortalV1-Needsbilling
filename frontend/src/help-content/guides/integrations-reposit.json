@@ -55,6 +55,6 @@
         "content": "You can offer Unithomes (a similar deposit replacement product) alongside Reposit at the same time from the Offers V2 send modal, giving tenants the widest choice of deposit options."
       }
     ],
-    "relatedArticles": ["offers-v2-reposit-unithomes", "integrations-tds", "integrations-mydeposits"]
+    "relatedArticles": ["integrations-tds", "integrations-mydeposits", "protecting-deposits"]
   }
 }
