@@ -67,6 +67,9 @@ export function getAuthHeaders(token?: string): Record<string, string> {
     // Ignore errors reading from storage
   }
 
+  // Identify requests from the landlord portal
+  headers['X-Portal-Source'] = 'landlord'
+
   return headers
 }
 
