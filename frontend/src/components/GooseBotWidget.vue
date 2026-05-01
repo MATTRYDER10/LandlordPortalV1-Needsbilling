@@ -59,7 +59,9 @@
             <p class="text-gray-500 dark:text-slate-400 text-xs mt-1 max-w-[260px] mx-auto">
               {{ userType === 'agent'
                 ? 'I can look up references, offers, and tenancies. How can I help?'
-                : 'I can help with your reference form, check your status, and answer questions.' }}
+                : userType === 'landlord'
+                  ? 'I can help with references, tenancies, agreements, and how things work. Ask me anything!'
+                  : 'I can help with your reference form, check your status, and answer questions.' }}
             </p>
             <!-- Quick action buttons -->
             <div class="flex flex-wrap justify-center gap-1.5 mt-3">
@@ -242,7 +244,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 // Props for context
 const props = withDefaults(defineProps<{
-  userType?: 'agent' | 'tenant' | 'guarantor'
+  userType?: 'agent' | 'landlord' | 'tenant' | 'guarantor'
   referenceId?: string
   offerId?: string
   formToken?: string  // Tenant/guarantor form token — backend resolves referenceId from this
@@ -305,6 +307,14 @@ const quickSuggestions = computed(() => {
       'Show me all references',
       'Any payments we\'re waiting for?',
       'How do I create a tenancy?',
+    ]
+  }
+  if (props.userType === 'landlord') {
+    return [
+      'How do I reference a tenant?',
+      'How do I create a tenancy?',
+      'Chase a reference for me',
+      'How do I add an SPV company?',
     ]
   }
   return [
