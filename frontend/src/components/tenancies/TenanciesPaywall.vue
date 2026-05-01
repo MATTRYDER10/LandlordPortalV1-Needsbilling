@@ -78,7 +78,7 @@
           </div>
           <p v-if="isPromo" class="text-sm text-primary font-medium mb-6">
             <span class="line-through text-gray-400 mr-1">{{ formatPrice(STANDARD_PRICE) }}</span>
-            early-adopter price — reverts 15 May
+            early-adopter price — reverts 16 May
           </p>
           <p v-else class="text-sm text-gray-500 dark:text-gray-400 mb-6">Up to {{ STANDARD_MAX_PROPERTIES }} properties</p>
 
@@ -109,10 +109,14 @@
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Unlimited properties</p>
 
           <div class="flex items-baseline gap-2 mb-1">
-            <span class="text-4xl font-bold text-gray-900 dark:text-white">{{ formatPrice(PROFESSIONAL_PRICE) }}</span>
+            <span class="text-4xl font-bold text-gray-900 dark:text-white">{{ formatPrice(proPrice) }}</span>
             <span class="text-gray-500 dark:text-gray-400">per month</span>
           </div>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Unlimited properties &bull; £12.50/ref</p>
+          <p v-if="isPromo" class="text-sm text-primary font-medium mb-6">
+            <span class="line-through text-gray-400 mr-1">{{ formatPrice(PROFESSIONAL_PRICE) }}</span>
+            early-adopter price — reverts 16 May
+          </p>
+          <p v-else class="text-sm text-gray-500 dark:text-gray-400 mb-6">Unlimited properties &bull; £12.50/ref</p>
 
           <div class="space-y-2.5 mb-6">
             <div v-for="f in proFeatures" :key="f" class="flex items-start gap-2.5">
@@ -156,7 +160,7 @@ import { useBillingStore } from '@/stores/billing'
 import { useToast } from 'vue-toastification'
 import { loadStripe } from '@stripe/stripe-js'
 import {
-  isPromoPeriod, getStandardPrice, formatPrice,
+  isPromoPeriod, getStandardPrice, getProfessionalPrice, formatPrice,
   STANDARD_PRICE, STANDARD_MAX_PROPERTIES,
   PROFESSIONAL_PRICE
 } from '@/utils/pricing'
@@ -170,6 +174,7 @@ const processing = ref(false)
 const paymentError = ref<string | null>(null)
 
 const standardPrice = computed(() => getStandardPrice())
+const proPrice = computed(() => getProfessionalPrice())
 const isPromo = computed(() => isPromoPeriod())
 
 let stripe: any = null
@@ -187,7 +192,7 @@ const PLANS: Record<string, { key: string; name: string; description: string; pr
     key: 'landlord_professional',
     name: 'Professional',
     description: 'Unlimited properties',
-    price: PROFESSIONAL_PRICE,
+    price: getProfessionalPrice(),
   },
 }
 

@@ -152,8 +152,14 @@ const emit = defineEmits<{
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 const authStore = useAuthStore()
 const hasSubscription = computed(() => authStore.hasSubscription)
+const subscriptionTier = computed(() => {
+  const t = authStore.subscriptionTier
+  if (t === 'landlord_professional') return 'professional' as const
+  if (t === 'landlord_standard') return 'standard' as const
+  return 'payg' as const
+})
 const isLaunch = computed(() => isLaunchPeriod())
-const pricePerRef = computed(() => getReferencePrice(hasSubscription.value))
+const pricePerRef = computed(() => getReferencePrice(hasSubscription.value, subscriptionTier.value))
 const totalCost = computed(() => props.numTenants * pricePerRef.value)
 
 const showStripeForm = ref(false)

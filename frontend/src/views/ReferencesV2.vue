@@ -1223,12 +1223,7 @@ const canProceed = computed(() => {
 })
 
 function openCreateModal() {
-  // Show paywall first — landlord must pay before creating references
-  showPaywall.value = true
-}
-
-function proceedAfterPayment() {
-  showPaywall.value = false
+  // Open create modal directly — paywall shows after tenant details (step 2 → 3)
   showCreateModal.value = true
   createStep.value = 1
   createForm.value = {
@@ -1245,12 +1240,17 @@ function proceedAfterPayment() {
   }
   tenantCount.value = 1
   tenants.value = []
-  // Reset property search state
   propertySearchQuery.value = ''
   propertySearchResults.value = []
   selectedProperty.value = null
   isManualEntry.value = false
   showPropertyDropdown.value = false
+}
+
+function proceedAfterPayment() {
+  showPaywall.value = false
+  // Payment done — go to review step
+  createStep.value = 3
 }
 
 function closeCreateModal() {
@@ -1273,6 +1273,15 @@ function updateTenantCount() {
 function nextStep() {
   if (createStep.value === 1 && tenantCount.value > 1) {
     updateTenantCount()
+  }
+  if (createStep.value === 2) {
+    // Before going to review, show paywall with correct count
+    // Count = tenants + guarantors (each person is 1 reference)
+    const totalRefs = tenantCount.value === 1 ? 1 : tenants.value.length
+    // TODO: add guarantor count when guarantor fields are added to create flow
+    paywallTenantCount.value = totalRefs
+    showPaywall.value = true
+    return
   }
   createStep.value++
 }
