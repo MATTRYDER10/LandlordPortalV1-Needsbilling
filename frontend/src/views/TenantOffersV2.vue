@@ -168,6 +168,22 @@
         </div>
       </div>
 
+      <!-- RRA Compliance Banner -->
+      <div v-if="showRraBanner" class="mx-3 sm:mx-6 mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl flex items-start gap-3">
+        <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+        </svg>
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Renters' Rights Act — Best Practice</p>
+          <p class="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+            Under the Renters' Rights Act, it's best practice to collect a holding deposit before proceeding to contracts. You can no longer request rent before the contract is executed — the holding deposit protects you against non-payment. During the pre-tenancy process: request the deposit first, sign the contract, then collect the first month's rent. Following this process keeps you compliant with new RRA rules and legislation.
+          </p>
+        </div>
+        <button @click="dismissRraBanner" class="p-1 text-blue-400 hover:text-blue-600 flex-shrink-0">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+
       <!-- Main Content + Leaderboard -->
       <div class="flex-1 overflow-y-auto p-3 sm:p-6 flex gap-6">
         <div class="flex-1 min-w-0">
@@ -283,20 +299,13 @@
                     <Send class="w-3 h-3" />
                     Sent to Landlord
                   </span>
-                  <!-- Deposit Replacement / UniHomes indicators -->
+                  <!-- Deposit Replacement indicator -->
                   <span
                     v-if="offer.offer_deposit_replacement || offer.deposit_replacement_offered || offer.deposit_replacement_requested"
                     class="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 flex items-center gap-1"
                   >
                     <Sparkles class="w-3 h-3" />
                     Reposit
-                  </span>
-                  <span
-                    v-if="offer.offer_unihomes || offer.unihomes_offered || offer.unihomes_interested"
-                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1"
-                  >
-                    <Zap class="w-3 h-3" />
-                    UniHomes
                   </span>
                 </div>
                 <!-- Show landlord decline reason -->
@@ -333,10 +342,6 @@
               <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg flex items-center gap-1">
                 <Sparkles class="w-3 h-3" />
                 Deposit Replacement
-              </span>
-              <span v-if="offer.offer_unihomes || offer.unihomes_offered || offer.unihomes_interested" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg flex items-center gap-1">
-                <Zap class="w-3 h-3" />
-                UniHomes{{ offer.unihomes_interested ? ' (Interested)' : '' }}
               </span>
               <span v-if="offer.tenancy_id" class="px-2 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-1">
                 <CheckCircle class="w-3 h-3" />
@@ -611,12 +616,10 @@
                         ← Back to Search
                       </button>
                     </div>
-                    <input
+                    <AddressAutocomplete
                       v-model="sendForm.property_address"
-                      type="text"
-                      required
-                      placeholder="Address Line 1"
-                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                      placeholder="Start typing an address..."
+                      @addressSelected="onOfferAddressSelected"
                     />
                     <div class="grid grid-cols-2 gap-3">
                       <input
@@ -749,7 +752,7 @@
                       />
                       <p class="text-xs text-gray-400 mt-1">5 weeks rent</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6">
+                    <div v-if="repositConfigured" class="pb-6">
                       <label class="flex items-start gap-3 cursor-pointer">
                         <input
                           v-model="sendForm.offer_deposit_replacement"
@@ -760,19 +763,6 @@
                           <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer Reposit</span>
                           <p class="text-xs text-gray-500 mt-1">
                             Deposit replacement - tenants pay ~1 week's rent instead of 5-week deposit.
-                          </p>
-                        </div>
-                      </label>
-                      <label class="flex items-start gap-3 cursor-pointer">
-                        <input
-                          v-model="sendForm.offer_unihomes"
-                          type="checkbox"
-                          class="w-4 h-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <div>
-                          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer UniHomes</span>
-                          <p class="text-xs text-gray-500 mt-1">
-                            All-inclusive bills package for tenants.
                           </p>
                         </div>
                       </label>
@@ -853,13 +843,6 @@
                       >
                         <Send class="w-3 h-3" />
                         Sent to Landlord
-                      </span>
-                      <span
-                        v-if="selectedOffer.offer_unihomes || selectedOffer.unihomes_offered || selectedOffer.unihomes_interested"
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1"
-                      >
-                        <Zap class="w-3 h-3" />
-                        UniHomes{{ selectedOffer.unihomes_interested ? ' (Interested)' : '' }}
                       </span>
                       <span
                         v-if="selectedOffer.offer_deposit_replacement"
@@ -1641,6 +1624,7 @@ import { useToast } from 'vue-toastification'
 import Sidebar from '@/components/Sidebar.vue'
 import EmailInput from '@/components/EmailInput.vue'
 import ReferencePaywallModal from '@/components/references/ReferencePaywallModal.vue'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 import {
   Search,
   Send,
@@ -1884,7 +1868,6 @@ const sendForm = ref({
   deposit_amount: null as number | null,
   move_in_date: '',
   offer_deposit_replacement: false,
-  offer_unihomes: false,
   negotiator_id: '' as string
 })
 
@@ -2054,6 +2037,12 @@ function clearPropertySelection() {
   sendForm.value.linked_property_id = null
   propertySearchQuery.value = ''
   isManualEntry.value = false
+}
+
+function onOfferAddressSelected(addr: any) {
+  if (addr.addressLine1) sendForm.value.property_address = addr.addressLine1
+  if (addr.city) sendForm.value.property_city = addr.city
+  if (addr.postcode) sendForm.value.property_postcode = addr.postcode
 }
 
 // Max holding deposit = 1 week rent (legal maximum)
@@ -2644,7 +2633,6 @@ function closeSendModal() {
     deposit_amount: null,
     move_in_date: '',
     offer_deposit_replacement: false,
-    offer_unihomes: false,
     negotiator_id: ''
   }
   // Reset calendar state
@@ -2677,7 +2665,6 @@ async function sendOffer() {
       deposit_amount: sendForm.value.deposit_amount,
       move_in_date: sendForm.value.move_in_date || null,
       offer_deposit_replacement: sendForm.value.offer_deposit_replacement,
-      offer_unihomes: sendForm.value.offer_unihomes,
       negotiator_id: sendForm.value.negotiator_id && sendForm.value.negotiator_id !== 'branch' ? sendForm.value.negotiator_id : null
     }
 
@@ -2921,9 +2908,31 @@ async function refreshData() {
   fetchNegotiatorStats()
 }
 
-onMounted(() => {
+const repositConfigured = ref(false)
+const showRraBanner = ref(!localStorage.getItem('rra-offers-banner-dismissed'))
+
+function dismissRraBanner() {
+  showRraBanner.value = false
+  localStorage.setItem('rra-offers-banner-dismissed', '1')
+}
+
+onMounted(async () => {
   fetchOffers()
   fetchNegotiators()
   fetchNegotiatorStats()
+
+  // Check if Reposit is configured
+  try {
+    const token = authStore.session?.access_token
+    if (token) {
+      const res = await fetch(`${API_URL}/api/reposit/config-status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        repositConfigured.value = data.configured || false
+      }
+    }
+  } catch { /* Reposit not configured */ }
 })
 </script>

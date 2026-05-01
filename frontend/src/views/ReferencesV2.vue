@@ -17,6 +17,7 @@
               class="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
             >
               <RefreshCcw :class="{ 'animate-spin': loading }" class="w-4 h-4" />
+              <span class="text-sm hidden sm:inline">Refresh Status</span>
             </button>
             <button
               @click="openCreateModal"
@@ -503,12 +504,10 @@
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="col-span-2">
                       <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property Address *</label>
-                      <input
+                      <AddressAutocomplete
                         v-model="createForm.property_address"
-                        type="text"
-                        required
-                        placeholder="123 Example Street"
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Start typing an address..."
+                        @addressSelected="onRefAddressSelected"
                       />
                     </div>
                     <div>
@@ -782,6 +781,7 @@ import ReferencePaywallModal from '@/components/references/ReferencePaywallModal
 import ReferenceDrawerV2 from '@/components/ReferenceDrawerV2.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import EmailInput from '@/components/EmailInput.vue'
+import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 import {
   Search,
   Plus,
@@ -1195,6 +1195,12 @@ const canProceed = computed(() => {
   }
   return true
 })
+
+function onRefAddressSelected(addr: any) {
+  if (addr.addressLine1) createForm.value.property_address = addr.addressLine1
+  if (addr.city) createForm.value.property_city = addr.city
+  if (addr.postcode) createForm.value.property_postcode = addr.postcode
+}
 
 function openCreateModal() {
   // Open create modal directly — paywall shows after tenant details (step 2 → 3)

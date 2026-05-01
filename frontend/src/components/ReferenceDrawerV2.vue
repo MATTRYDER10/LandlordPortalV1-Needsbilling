@@ -1443,6 +1443,10 @@ async function openSendToLandlordModal() {
   sendToLandlordError.value = ''
   manualLandlordEmail.value = ''
   await fetchLandlordEmail()
+  // For landlord portal: if no linked landlord found, default to user's own email
+  if (!landlordEmailInfo.value.hasLandlord && !landlordEmailInfo.value.email) {
+    manualLandlordEmail.value = authStore.user?.email || ''
+  }
   showSendToLandlordModal.value = true
 }
 

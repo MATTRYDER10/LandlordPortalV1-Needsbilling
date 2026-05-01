@@ -1,6 +1,6 @@
 <template>
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
       <!-- Step 1: Pricing summary -->
       <div v-if="!showStripeForm">
         <div class="p-8">
