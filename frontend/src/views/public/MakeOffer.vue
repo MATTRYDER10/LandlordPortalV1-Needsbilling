@@ -9,7 +9,7 @@
     <div v-else-if="invalidLink" class="flex items-center justify-center min-h-screen p-4">
       <div class="text-center">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h1>
-        <p class="text-gray-500">This offer link is no longer valid. Please contact your agent for a new link.</p>
+        <p class="text-gray-500">This offer link is no longer valid. Please contact your landlord for a new link.</p>
       </div>
     </div>
 
@@ -21,7 +21,7 @@
         </div>
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Offer Submitted</h1>
         <p class="text-gray-600 mb-4">Thank you — your offer has been submitted to <strong>{{ companyName }}</strong>. They will review it and be in touch shortly.</p>
-        <p v-if="!propertyMatched" class="text-sm text-amber-600">Your property address will be verified by the agent before your offer can be processed.</p>
+        <p v-if="!propertyMatched" class="text-sm text-amber-600">Your property address will be verified by your landlord before your offer can be processed.</p>
       </div>
     </div>
 

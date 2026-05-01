@@ -51,7 +51,7 @@
 
               <!-- Create Tenancy -->
               <button
-                @click="showCreateModal = true"
+                @click="isAtTenancyLimit ? showUpgradeModal = true : showCreateModal = true"
                 class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm shadow-primary/25 transition-all hover:shadow-md hover:shadow-primary/30"
               >
                 <Plus class="w-3.5 h-3.5" />
@@ -791,6 +791,70 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Upgrade to Pro Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="showUpgradeModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div class="fixed inset-0 bg-black/50" @click="showUpgradeModal = false"></div>
+          <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div class="text-center mb-6">
+              <div class="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Upgrade to Professional</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                You've reached the <strong>{{ STANDARD_MAX_PROPERTIES }} tenancy limit</strong> on your Standard plan.
+                Upgrade to Professional for unlimited tenancies and properties.
+              </p>
+            </div>
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6">
+              <ul class="space-y-2 text-sm text-blue-800 dark:text-blue-300">
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  Unlimited properties & tenancies
+                </li>
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  References at £12.50/ref
+                </li>
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  RentGoose — Rent Conciliation & Arrears
+                </li>
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  Priority support
+                </li>
+              </ul>
+            </div>
+            <div class="flex gap-3">
+              <button
+                @click="showUpgradeModal = false"
+                class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Maybe Later
+              </button>
+              <button
+                @click="showUpgradeModal = false; $router.push('/settings/billing')"
+                class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
+              >
+                Upgrade Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </Sidebar>
 </template>
 
@@ -799,6 +863,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import { STANDARD_MAX_PROPERTIES } from '@/utils/pricing'
 import Sidebar from '@/components/Sidebar.vue'
 import TenanciesPaywall from '@/components/tenancies/TenanciesPaywall.vue'
 import TenancyDetailDrawer from '@/components/tenancies/TenancyDetailDrawer.vue'
@@ -834,7 +899,14 @@ const activeSection = ref<'draft' | 'active' | 'notice_served' | 'archived'>('dr
 const drawerOpen = ref(false)
 const selectedTenancy = ref<any | null>(null)
 const showCreateModal = ref(false)
+const showUpgradeModal = ref(false)
 const loadingArchived = ref(false)
+
+const isAtTenancyLimit = computed(() => {
+  if (authStore.subscriptionTier === 'landlord_professional') return false
+  const activeCount = activeTenancies.value.length + draftTenancies.value.length
+  return activeCount >= STANDARD_MAX_PROPERTIES
+})
 
 // Active filter state
 const activeFilter = ref<string | null>(null)
